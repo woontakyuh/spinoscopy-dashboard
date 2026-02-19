@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -45,6 +45,59 @@ const TOOLTIP_STYLE = {
   borderRadius: 8, color: "#e4e4e7", fontSize: 12,
 }
 
+function GroupPicker({
+  groups,
+  selected,
+  onToggle,
+  onSelectAll,
+  onClearAll,
+}: {
+  groups: GroupResult[]
+  selected: Set<string>
+  onToggle: (name: string) => void
+  onSelectAll: () => void
+  onClearAll: () => void
+}) {
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-zinc-300 text-sm font-medium">
+          그룹 선택 <span className="text-zinc-500 font-normal">({selected.size}/{groups.length})</span>
+        </p>
+        <div className="flex gap-2">
+          <button type="button" onClick={onSelectAll} className="text-xs text-blue-400 hover:text-blue-300">전체 선택</button>
+          <button type="button" onClick={onClearAll} className="text-xs text-zinc-500 hover:text-zinc-400">전체 해제</button>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {groups.map(g => {
+          const active = selected.has(g.name)
+          return (
+            <button
+              key={g.name}
+              type="button"
+              onClick={() => onToggle(g.name)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                active
+                  ? "bg-blue-600/20 border-blue-500/50 text-blue-300"
+                  : "bg-zinc-800/50 border-zinc-700/50 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-400"
+              }`}
+            >
+              <span className={`inline-block w-3 h-3 rounded border-2 shrink-0 ${
+                active ? "bg-blue-500 border-blue-500" : "border-zinc-600"
+              }`}>
+                {active && <svg viewBox="0 0 12 12" className="w-full h-full text-white" aria-hidden="true"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+              </span>
+              {g.name}
+              <span className="text-zinc-600">({g.total})</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function buildChartData(groups: GroupResult[], metric: Metric) {
   return TIMEPOINTS.map(tp => {
     const row: Record<string, string | number | null> = { name: TIMEPOINT_LABELS[tp] }
@@ -57,7 +110,6 @@ function buildChartData(groups: GroupResult[], metric: Metric) {
 }
 
 function SummaryTable({ groups, metric }: { groups: GroupResult[]; metric: Metric }) {
-  const metaLabel = METRIC_OPTIONS.find(m => m.value === metric)?.label ?? metric
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs text-zinc-400 border-collapse">
@@ -107,7 +159,7 @@ function SummaryTable({ groups, metric }: { groups: GroupResult[]; metric: Metri
 export function AnalyticsView() {
   const [groupBy, setGroupBy] = useState<GroupBy>("op_category")
   const [metric, setMetric]   = useState<Metric>("vas_prox")
-  const [minN, setMinN]       = useState(3)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const { data, isLoading, error } = useQuery<AnalyticsResult>({
     queryKey: ["analytics", groupBy],
@@ -119,9 +171,27 @@ export function AnalyticsView() {
     staleTime: 5 * 60 * 1000,
   })
 
-  const filteredGroups = (data?.groups ?? []).filter(g => g.total >= minN)
+  const allGroups = data?.groups ?? []
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- reset selection when data changes
+  useEffect(() => {
+    if (allGroups.length > 0) {
+      setSelected(new Set(allGroups.slice(0, 5).map(g => g.name)))
+    }
+  }, [allGroups.length, allGroups.map(g => g.name).join()])
+
+  function toggleGroup(name: string) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(name)) next.delete(name)
+      else next.add(name)
+      return next
+    })
+  }
+
+  const visibleGroups = allGroups.filter(g => selected.has(g.name))
   const metaInfo = METRIC_OPTIONS.find(m => m.value === metric)!
-  const chartData = buildChartData(filteredGroups, metric)
+  const chartData = buildChartData(visibleGroups, metric)
 
   return (
     <div className="space-y-5">
@@ -165,26 +235,6 @@ export function AnalyticsView() {
             ))}
           </div>
         </div>
-
-        <div>
-          <p className="text-zinc-500 text-xs mb-1.5">최소 N</p>
-          <div className="flex gap-1.5">
-            {[1, 3, 5, 10].map(n => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setMinN(n)}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  minN === n
-                    ? "bg-zinc-600 text-white"
-                    : "bg-zinc-800 text-zinc-500 hover:bg-zinc-700"
-                }`}
-              >
-                ≥{n}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {isLoading && (
@@ -200,56 +250,66 @@ export function AnalyticsView() {
         </p>
       )}
 
-      {!isLoading && !error && filteredGroups.length === 0 && (
-        <p className="text-zinc-600 text-sm text-center py-8">
-          조건에 맞는 그룹이 없습니다.
-        </p>
-      )}
-
-      {!isLoading && filteredGroups.length > 0 && (
+      {!isLoading && !error && allGroups.length > 0 && (
         <>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-zinc-300 text-sm font-medium">
-                {metaInfo.label} — 시점별 평균
-              </p>
-              <p className="text-zinc-600 text-xs">
-                {filteredGroups.length}개 그룹 · 전체 {data?.groups.reduce((s, g) => s + g.total, 0)}명
-              </p>
-            </div>
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={chartData} margin={{ top: 4, right: 16, left: -12, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
-                <XAxis dataKey="name" tick={AXIS_STYLE} />
-                <YAxis
-                  domain={metaInfo.domain}
-                  tick={AXIS_STYLE}
-                  unit={metaInfo.unit}
-                  width={metaInfo.unit === "%" ? 40 : 32}
-                />
-                <Tooltip contentStyle={TOOLTIP_STYLE} />
-                <Legend wrapperStyle={{ fontSize: 11, color: "#a1a1aa" }} />
-                {filteredGroups.map((g, i) => (
-                  <Line
-                    key={g.name}
-                    type="monotone"
-                    dataKey={g.name}
-                    stroke={LINE_COLORS[i % LINE_COLORS.length]}
-                    strokeWidth={2}
-                    dot={{ r: 4, fill: LINE_COLORS[i % LINE_COLORS.length] }}
-                    connectNulls={false}
-                  />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          <GroupPicker
+            groups={allGroups}
+            selected={selected}
+            onToggle={toggleGroup}
+            onSelectAll={() => setSelected(new Set(allGroups.map(g => g.name)))}
+            onClearAll={() => setSelected(new Set())}
+          />
 
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-            <p className="text-zinc-300 text-sm font-medium mb-3">
-              요약 테이블 <span className="text-zinc-600 font-normal text-xs ml-1">(괄호 = 데이터 있는 환자 수)</span>
+          {visibleGroups.length > 0 ? (
+            <>
+              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-zinc-300 text-sm font-medium">
+                    {metaInfo.label} — 시점별 평균
+                  </p>
+                  <p className="text-zinc-600 text-xs">
+                    {visibleGroups.length}개 선택 · {visibleGroups.reduce((s, g) => s + g.total, 0)}명
+                  </p>
+                </div>
+                <ResponsiveContainer width="100%" height={280}>
+                  <LineChart data={chartData} margin={{ top: 4, right: 16, left: -12, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
+                    <XAxis dataKey="name" tick={AXIS_STYLE} />
+                    <YAxis
+                      domain={metaInfo.domain}
+                      tick={AXIS_STYLE}
+                      unit={metaInfo.unit}
+                      width={metaInfo.unit === "%" ? 40 : 32}
+                    />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    <Legend wrapperStyle={{ fontSize: 11, color: "#a1a1aa" }} />
+                    {visibleGroups.map((g, i) => (
+                      <Line
+                        key={g.name}
+                        type="monotone"
+                        dataKey={g.name}
+                        stroke={LINE_COLORS[i % LINE_COLORS.length]}
+                        strokeWidth={2}
+                        dot={{ r: 4, fill: LINE_COLORS[i % LINE_COLORS.length] }}
+                        connectNulls={false}
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+                <p className="text-zinc-300 text-sm font-medium mb-3">
+                  요약 테이블 <span className="text-zinc-600 font-normal text-xs ml-1">(괄호 = 데이터 있는 환자 수)</span>
+                </p>
+                <SummaryTable groups={visibleGroups} metric={metric} />
+              </div>
+            </>
+          ) : (
+            <p className="text-zinc-600 text-sm text-center py-8">
+              비교할 그룹을 위에서 선택하세요.
             </p>
-            <SummaryTable groups={filteredGroups} metric={metric} />
-          </div>
+          )}
 
           {data?.fetchedAt && (
             <p className="text-zinc-700 text-xs text-right">
