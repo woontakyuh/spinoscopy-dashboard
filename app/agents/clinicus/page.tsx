@@ -9,6 +9,7 @@ import { PromDisplay } from "@/components/clinicus/PromDisplay"
 import { PromChart } from "@/components/clinicus/PromChart"
 import { PatientDetail } from "@/components/clinicus/PatientDetail"
 import { NewCaseForm } from "@/components/clinicus/NewCaseForm"
+import { AnalyticsView } from "@/components/clinicus/AnalyticsView"
 import { useQuery } from "@tanstack/react-query"
 import type { PatientSearchResult } from "@/lib/types/patient"
 
@@ -63,6 +64,9 @@ export default function ClinicusPage() {
             <TabsTrigger value="search" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400">
               환자 조회
             </TabsTrigger>
+            <TabsTrigger value="analytics" className="data-[state=active]:bg-violet-600 data-[state=active]:text-white text-zinc-400">
+              📊 통계
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="prom" className="space-y-4">
@@ -108,6 +112,12 @@ export default function ClinicusPage() {
                 환자를 검색하여 선택하면 PROM 요약과 그래프가 표시됩니다.
               </p>
             )}
+          </TabsContent>
+          <TabsContent value="analytics">
+            <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900">
+              <p className="text-zinc-300 text-sm font-medium mb-4">카테고리별 PROM 평균</p>
+              <AnalyticsView />
+            </div>
           </TabsContent>
         </Tabs>
       </div>
