@@ -32,10 +32,9 @@ function getMultiSelect(prop: NotionProperty | undefined): string[] {
   return (prop?.multi_select ?? []).map(o => o.name).filter(Boolean)
 }
 
-export type GroupBy = "op_category" | "class_a" | "class_b"
+export type Dimension = "op_category" | "class_a" | "class_b" | "surgeon" | "hospital"
 
-export interface TimepointAvg {
-  n: number
+export interface TimepointParsed {
   vas_prox: number | null
   vas_dist: number | null
   odi: number | null
@@ -45,20 +44,21 @@ export interface TimepointAvg {
   eq5d_vas: number | null
 }
 
-export interface GroupResult {
-  name: string
-  total: number
-  timepoints: Record<string, TimepointAvg>
+export interface PatientRow {
+  op_category: string[]
+  class_a: string[]
+  class_b: string[]
+  surgeon: string[]
+  hospital: string[]
+  timepoints: Record<string, TimepointParsed>
 }
 
-export interface AnalyticsResult {
-  groupBy: GroupBy
-  groups: GroupResult[]
+export interface AnalyticsData {
+  patients: PatientRow[]
   fetchedAt: string
 }
 
 const TIMEPOINTS = ["pre", "1mo", "3mo", "6mo", "1y"]
-const PROM_SCORES = ["VAS", "ODI", "JOA", "NDI", "EQ5D"]
 
 async function fetchAllPatients(): Promise<NotionPage[]> {
   const dbId = process.env.NOTION_PATIENT_DB_ID
@@ -81,106 +81,40 @@ async function fetchAllPatients(): Promise<NotionPage[]> {
   return all
 }
 
-function extractGroupKeys(page: NotionPage, groupBy: GroupBy): string[] {
+function parseRow(page: NotionPage): PatientRow {
   const p = page.properties
-  switch (groupBy) {
-    case "op_category": return getMultiSelect(p["Op Category"])
-    case "class_a":     return getMultiSelect(p["ClassA"])
-    case "class_b":     return getMultiSelect(p["ClassB"])
-  }
-}
+  const timepoints: Record<string, TimepointParsed> = {}
 
-interface Accumulator {
-  n: number
-  vas_prox: number[]
-  vas_dist: number[]
-  odi: number[]
-  ndi: number[]
-  joa: number[]
-  eq5d_utility: number[]
-  eq5d_vas: number[]
-}
+  for (const tp of TIMEPOINTS) {
+    const getRaw = (score: string) => getText(p[`${tp} ${score}`])
+    const vas = getRaw("VAS") ? parseVAS(getRaw("VAS")) : null
+    const odi = getRaw("ODI") ? parseODI(getRaw("ODI")) : null
+    const ndi = getRaw("NDI") ? parseNDI(getRaw("NDI")) : null
+    const joa = getRaw("JOA") ? parseJOA(getRaw("JOA")) : null
+    const eq5d = getRaw("EQ5D") ? parseEQ5D(getRaw("EQ5D")) : null
 
-function emptyAcc(): Accumulator {
-  return { n: 0, vas_prox: [], vas_dist: [], odi: [], ndi: [], joa: [], eq5d_utility: [], eq5d_vas: [] }
-}
-
-function avg(arr: number[]): number | null {
-  if (arr.length === 0) return null
-  return Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 100) / 100
-}
-
-export async function getAnalytics(groupBy: GroupBy): Promise<AnalyticsResult> {
-  const pages = await fetchAllPatients()
-
-  const accMap: Record<string, Record<string, Accumulator>> = {}
-
-  for (const page of pages) {
-    const keys = extractGroupKeys(page, groupBy)
-    if (keys.length === 0) continue
-
-    const p = page.properties
-
-    for (const key of keys) {
-      if (!accMap[key]) {
-        accMap[key] = {}
-        for (const tp of TIMEPOINTS) accMap[key][tp] = emptyAcc()
-      }
-
-      for (const tp of TIMEPOINTS) {
-        const acc = accMap[key][tp]
-        const getRaw = (score: string) =>
-          getText(p[`${tp} ${score}`])
-
-        const vasRaw = getRaw("VAS")
-        const odiRaw = getRaw("ODI")
-        const ndiRaw = getRaw("NDI")
-        const joaRaw = getRaw("JOA")
-        const eq5dRaw = getRaw("EQ5D")
-
-        const hasAny = vasRaw || odiRaw || ndiRaw || joaRaw || eq5dRaw
-        if (!hasAny) continue
-
-        acc.n++
-
-        const vas = vasRaw ? parseVAS(vasRaw) : null
-        if (vas) { acc.vas_prox.push(vas.proximal); acc.vas_dist.push(vas.distal) }
-
-        const odi = odiRaw ? parseODI(odiRaw) : null
-        if (odi) acc.odi.push(odi.score)
-
-        const ndi = ndiRaw ? parseNDI(ndiRaw) : null
-        if (ndi) acc.ndi.push(ndi.score)
-
-        const joa = joaRaw ? parseJOA(joaRaw) : null
-        if (joa !== null) acc.joa.push(joa)
-
-        const eq5d = eq5dRaw ? parseEQ5D(eq5dRaw) : null
-        if (eq5d) { acc.eq5d_utility.push(eq5d.utility); acc.eq5d_vas.push(eq5d.vas) }
-      }
+    timepoints[tp] = {
+      vas_prox: vas?.proximal ?? null,
+      vas_dist: vas?.distal ?? null,
+      odi: odi?.score ?? null,
+      ndi: ndi?.score ?? null,
+      joa: joa ?? null,
+      eq5d_utility: eq5d?.utility ?? null,
+      eq5d_vas: eq5d?.vas ?? null,
     }
   }
 
-  const groups: GroupResult[] = Object.entries(accMap)
-    .map(([name, tpMap]) => {
-      const total = pages.filter(pg => extractGroupKeys(pg, groupBy).includes(name)).length
-      const timepoints: Record<string, TimepointAvg> = {}
-      for (const tp of TIMEPOINTS) {
-        const a = tpMap[tp]
-        timepoints[tp] = {
-          n: a.n,
-          vas_prox: avg(a.vas_prox),
-          vas_dist: avg(a.vas_dist),
-          odi: avg(a.odi),
-          ndi: avg(a.ndi),
-          joa: avg(a.joa),
-          eq5d_utility: avg(a.eq5d_utility),
-          eq5d_vas: avg(a.eq5d_vas),
-        }
-      }
-      return { name, total, timepoints }
-    })
-    .sort((a, b) => b.total - a.total)
+  return {
+    op_category: getMultiSelect(p["Op Category"]),
+    class_a: getMultiSelect(p["ClassA"]),
+    class_b: getMultiSelect(p["ClassB"]),
+    surgeon: getMultiSelect(p["Surgeon"]),
+    hospital: getMultiSelect(p["Hospital"]),
+    timepoints,
+  }
+}
 
-  return { groupBy, groups, fetchedAt: new Date().toISOString() }
+export async function getAllPatientRows(): Promise<AnalyticsData> {
+  const pages = await fetchAllPatients()
+  return { patients: pages.map(parseRow), fetchedAt: new Date().toISOString() }
 }
