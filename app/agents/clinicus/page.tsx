@@ -5,6 +5,7 @@ import { TopBar } from "@/components/layout/TopBar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PatientSearch } from "@/components/clinicus/PatientSearch"
 import { PromForm } from "@/components/clinicus/PromForm"
+import { PromDisplay } from "@/components/clinicus/PromDisplay"
 import { NewCaseForm } from "@/components/clinicus/NewCaseForm"
 import type { PatientSearchResult } from "@/lib/types/patient"
 
@@ -38,9 +39,16 @@ export default function ClinicusPage() {
                 />
               </div>
               {selectedPatient && (
-                <div className="border border-zinc-700 rounded-lg p-4 bg-zinc-900">
-                  <PromForm patient={selectedPatient} />
-                </div>
+                <>
+                  <div className="border border-zinc-700 rounded-lg p-4 bg-zinc-900">
+                    <p className="text-zinc-300 text-sm font-medium mb-3">{selectedPatient.name} — PROM 요약</p>
+                    <PromDisplay patient={selectedPatient} />
+                  </div>
+                  <div className="border border-zinc-700 rounded-lg p-4 bg-zinc-900">
+                    <p className="text-zinc-300 text-sm font-medium mb-3">점수 입력</p>
+                    <PromForm patient={selectedPatient} />
+                  </div>
+                </>
               )}
               {!selectedPatient && (
                 <p className="text-zinc-500 text-sm text-center py-8">

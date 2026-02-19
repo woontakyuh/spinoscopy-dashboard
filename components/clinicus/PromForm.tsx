@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { PatientSearchResult, Timepoint } from "@/lib/types/patient"
+import { parseVAS, parseODI, parseNDI, parseEQ5D, inferRegion } from "@/lib/prom/calculator"
 
 const TIMEPOINTS: { value: Timepoint; label: string }[] = [
   { value: "pre", label: "수술 전" },
@@ -66,8 +67,40 @@ export function PromForm({ patient }: PromFormProps) {
     },
   })
 
-  const getExisting = (score: string) =>
+  const getRaw = (score: string) =>
     existingProm?.[`${timepoint} ${score}`] ?? ""
+
+  const region = existingProm ? inferRegion(existingProm) : "unknown"
+
+  function getHint(score: string): string {
+    const raw = getRaw(score)
+    if (!raw) return ""
+    switch (score) {
+      case "VAS": {
+        const v = parseVAS(raw)
+        if (!v) return raw
+        const [l1, l2] =
+          region === "cervical" ? ["Neck", "Arm"]
+          : region === "lumbar"  ? ["Back", "Leg"]
+          : ["①", "②"]
+        return `${l1} ${v.proximal} / ${l2} ${v.distal}`
+      }
+      case "ODI": {
+        const r = parseODI(raw)
+        return r ? `${r.score.toFixed(1)}% (${r.raw}/${r.max})` : raw
+      }
+      case "NDI": {
+        const r = parseNDI(raw)
+        return r ? `${r.score.toFixed(1)}% (${r.raw}/${r.max})` : raw
+      }
+      case "EQ5D": {
+        const r = parseEQ5D(raw)
+        return r ? `U=${r.utility.toFixed(3)}, VAS=${r.vas}` : raw
+      }
+      default:
+        return raw
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -109,11 +142,11 @@ export function PromForm({ patient }: PromFormProps) {
         <form onSubmit={handleSubmit(values => mutation.mutate(values))} className="space-y-3">
           <div className="grid grid-cols-1 gap-3">
             {[
-              { key: "vas", label: "VAS", placeholder: "0–10", hint: getExisting("VAS") },
-              { key: "odi", label: "ODI", placeholder: "0–100", hint: getExisting("ODI") },
-              { key: "joa", label: "JOA", placeholder: "경추 0–17 / 요추 0–29", hint: getExisting("JOA") },
-              { key: "ndi", label: "NDI", placeholder: "0–50 (경추만)", hint: getExisting("NDI") },
-              { key: "eq5d", label: "EQ5D", placeholder: "0.000–1.000", hint: getExisting("EQ5D") },
+              { key: "vas", label: "VAS", placeholder: "예) 3/8", hint: getHint("VAS") },
+              { key: "odi", label: "ODI", placeholder: "예) 18/50", hint: getHint("ODI") },
+              { key: "joa", label: "JOA", placeholder: "예) 13", hint: getHint("JOA") },
+              { key: "ndi", label: "NDI", placeholder: "예) 10/50", hint: getHint("NDI") },
+              { key: "eq5d", label: "EQ5D", placeholder: "예) 23441/60", hint: getHint("EQ5D") },
             ].map(field => (
               <div key={field.key} className="flex items-center gap-3">
                 <Label className="w-14 text-zinc-300 text-sm shrink-0">{field.label}</Label>
