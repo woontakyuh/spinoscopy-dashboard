@@ -58,42 +58,53 @@ function GroupPicker({
   onSelectAll: () => void
   onClearAll: () => void
 }) {
+  const [open, setOpen] = useState(false)
+
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-      <div className="flex items-center justify-between mb-3">
+    <div className="bg-zinc-900 border border-zinc-800 rounded-xl">
+      <button
+        type="button"
+        onClick={() => setOpen(prev => !prev)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-zinc-800/50 transition-colors rounded-xl"
+      >
         <p className="text-zinc-300 text-sm font-medium">
           그룹 선택 <span className="text-zinc-500 font-normal">({selected.size}/{groups.length})</span>
         </p>
-        <div className="flex gap-2">
-          <button type="button" onClick={onSelectAll} className="text-xs text-blue-400 hover:text-blue-300">전체 선택</button>
-          <button type="button" onClick={onClearAll} className="text-xs text-zinc-500 hover:text-zinc-400">전체 해제</button>
+        <span className={`text-zinc-500 text-xs transition-transform ${open ? "rotate-180" : ""}`}>▼</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 pt-1">
+          <div className="flex gap-2 mb-3">
+            <button type="button" onClick={onSelectAll} className="text-xs text-blue-400 hover:text-blue-300">전체 선택</button>
+            <button type="button" onClick={onClearAll} className="text-xs text-zinc-500 hover:text-zinc-400">전체 해제</button>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {groups.map(g => {
+              const active = selected.has(g.name)
+              return (
+                <button
+                  key={g.name}
+                  type="button"
+                  onClick={() => onToggle(g.name)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                    active
+                      ? "bg-blue-600/20 border-blue-500/50 text-blue-300"
+                      : "bg-zinc-800/50 border-zinc-700/50 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-400"
+                  }`}
+                >
+                  <span className={`inline-block w-3 h-3 rounded border-2 shrink-0 ${
+                    active ? "bg-blue-500 border-blue-500" : "border-zinc-600"
+                  }`}>
+                    {active && <svg viewBox="0 0 12 12" className="w-full h-full text-white" aria-hidden="true"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                  </span>
+                  {g.name}
+                  <span className="text-zinc-600">({g.total})</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        {groups.map(g => {
-          const active = selected.has(g.name)
-          return (
-            <button
-              key={g.name}
-              type="button"
-              onClick={() => onToggle(g.name)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
-                active
-                  ? "bg-blue-600/20 border-blue-500/50 text-blue-300"
-                  : "bg-zinc-800/50 border-zinc-700/50 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-400"
-              }`}
-            >
-              <span className={`inline-block w-3 h-3 rounded border-2 shrink-0 ${
-                active ? "bg-blue-500 border-blue-500" : "border-zinc-600"
-              }`}>
-                {active && <svg viewBox="0 0 12 12" className="w-full h-full text-white" aria-hidden="true"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-              </span>
-              {g.name}
-              <span className="text-zinc-600">({g.total})</span>
-            </button>
-          )
-        })}
-      </div>
+      )}
     </div>
   )
 }
