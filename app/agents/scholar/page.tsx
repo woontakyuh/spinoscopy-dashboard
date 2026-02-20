@@ -112,7 +112,7 @@ export default function ScholarPage() {
               </div>
             ) : (
               <>
-                <ArticleSummaryBar stats={stats} />
+                <ArticleSummaryBar stats={stats} articles={allArticles} />
                 <ArticleFilter filter={filter} onFilterChange={handleFilterChange} stats={stats} />
                 {isLoading ? (
                   <div className="space-y-2">
