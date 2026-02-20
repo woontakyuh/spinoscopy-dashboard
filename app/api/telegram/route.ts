@@ -3,8 +3,9 @@ import { getBot } from "@/lib/telegram/bot"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const secretToken = req.headers.get("x-telegram-bot-api-secret-token")
-  if (secretToken !== process.env.TELEGRAM_SECRET_TOKEN) {
+  const envSecret = process.env.TELEGRAM_SECRET_TOKEN
+  const headerSecret = req.headers.get("x-telegram-bot-api-secret-token")
+  if (envSecret && headerSecret !== envSecret) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
