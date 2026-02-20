@@ -10,7 +10,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="Dashboard" />
-      <div className="flex-1 p-6 max-w-6xl w-full space-y-6">
+      <div className="flex-1 p-3 md:p-6 max-w-6xl w-full space-y-4 md:space-y-6">
         <MorningBriefing />
 
         <OrchestratorChat />

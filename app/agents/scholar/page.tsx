@@ -91,9 +91,9 @@ export default function ScholarPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="🔬 Scholar" />
-      <div className="p-6 max-w-5xl w-full">
+      <div className="p-3 md:p-6 max-w-5xl w-full">
         <Tabs defaultValue="browse">
-          <TabsList className="bg-zinc-800 border border-zinc-700 mb-6">
+          <TabsList className="bg-zinc-800 border border-zinc-700 mb-4 md:mb-6 flex-wrap h-auto gap-0.5 p-1">
             <TabsTrigger value="browse" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400">
               논문 탐색
             </TabsTrigger>

@@ -28,10 +28,10 @@ export function TopBar({ title }: TopBarProps) {
   })
 
   return (
-    <div className="h-14 border-b border-zinc-800 bg-zinc-900 flex items-center justify-between px-6">
-      <h1 className="text-white font-semibold">{title}</h1>
-      <div className="text-zinc-400 text-sm">
-        {dateStr} · {timeStr}
+    <div className="h-12 md:h-14 border-b border-zinc-800 bg-zinc-900 flex items-center justify-between px-3 md:px-6">
+      <h1 className="text-white font-semibold text-sm md:text-base truncate">{title}</h1>
+      <div className="text-zinc-400 text-xs md:text-sm shrink-0 ml-2">
+        <span className="hidden sm:inline">{dateStr} · </span>{timeStr}
       </div>
     </div>
   )

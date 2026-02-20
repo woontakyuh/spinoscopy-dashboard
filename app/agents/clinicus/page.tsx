@@ -52,19 +52,19 @@ export default function ClinicusPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="🩺 Clinicus" />
-      <div className="p-6 max-w-3xl w-full">
+      <div className="p-3 md:p-6 max-w-3xl w-full">
         <Tabs defaultValue="prom">
-          <TabsList className="bg-zinc-800 border border-zinc-700 mb-6">
-            <TabsTrigger value="prom" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400">
+          <TabsList className="bg-zinc-800 border border-zinc-700 mb-4 md:mb-6 flex-wrap h-auto gap-0.5 p-1">
+            <TabsTrigger value="prom" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
               PROM 입력
             </TabsTrigger>
-            <TabsTrigger value="newcase" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400">
+            <TabsTrigger value="newcase" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
               새 케이스
             </TabsTrigger>
-            <TabsTrigger value="search" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400">
+            <TabsTrigger value="search" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
               환자 조회
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="data-[state=active]:bg-violet-600 data-[state=active]:text-white text-zinc-400">
+            <TabsTrigger value="analytics" className="data-[state=active]:bg-violet-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
               📊 통계
             </TabsTrigger>
           </TabsList>
