@@ -115,7 +115,7 @@ export async function queryArticles(
   filter: JournalFilter = {}
 ): Promise<JournalQueryResult> {
   const body: Record<string, unknown> = {
-    page_size: 30,
+    page_size: 100,
     sorts: [
       {
         property: "Publication Date",

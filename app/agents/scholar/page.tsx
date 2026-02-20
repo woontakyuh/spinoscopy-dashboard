@@ -1,15 +1,28 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
+import { Skeleton } from "@/components/ui/skeleton"
 import { TopBar } from "@/components/layout/TopBar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArticleFilter } from "@/components/scholar/ArticleFilter"
 import { ArticleList } from "@/components/scholar/ArticleList"
 import { ArticleDetail } from "@/components/scholar/ArticleDetail"
+import { ArticleSummaryBar } from "@/components/scholar/ArticleSummaryBar"
 import { StatsOverview } from "@/components/scholar/StatsOverview"
 import { JournalTrend } from "@/components/scholar/JournalTrend"
-import type { JournalArticle, JournalFilter, JournalStats } from "@/lib/types/journal"
+import type { JournalArticle, JournalFilter, JournalQueryResult, JournalStats } from "@/lib/types/journal"
+
+function buildQueryString(filter: JournalFilter): string {
+  const params = new URLSearchParams()
+  if (filter.interest && filter.interest !== "all") params.set("interest", filter.interest)
+  if (filter.journal && filter.journal !== "all") params.set("journal", filter.journal)
+  if (filter.category && filter.category !== "all") params.set("category", filter.category)
+  if (filter.read !== undefined && filter.read !== "all") params.set("read", String(filter.read))
+  if (filter.search) params.set("search", filter.search)
+  if (filter.sort) params.set("sort", filter.sort)
+  return params.toString()
+}
 
 export default function ScholarPage() {
   const [selectedArticle, setSelectedArticle] = useState<JournalArticle | null>(null)
@@ -18,6 +31,25 @@ export default function ScholarPage() {
     journal: "all",
     read: "all",
     sort: "date_desc",
+  })
+  const [allArticles, setAllArticles] = useState<JournalArticle[]>([])
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+
+  const filterQs = buildQueryString(filter)
+
+  const { isLoading, error } = useQuery<JournalQueryResult>({
+    queryKey: ["journal", filterQs],
+    queryFn: async () => {
+      const res = await fetch(`/api/notion/journal?${filterQs}`)
+      if (!res.ok) throw new Error("논문 조회 실패")
+      const data: JournalQueryResult = await res.json()
+      setAllArticles(data.articles)
+      setNextCursor(data.next_cursor)
+      setHasMore(data.has_more)
+      return data
+    },
   })
 
   const { data: stats } = useQuery<JournalStats>({
@@ -30,15 +62,36 @@ export default function ScholarPage() {
     staleTime: 5 * 60 * 1000,
   })
 
-  function handleSelect(article: JournalArticle) {
-    if (article.page_id === "__load_more__") return
-    setSelectedArticle(article)
+  useEffect(() => {
+    setAllArticles([])
+    setNextCursor(null)
+    setHasMore(false)
+  }, [filterQs])
+
+  const handleLoadMore = useCallback(async () => {
+    if (!nextCursor || isLoadingMore) return
+    setIsLoadingMore(true)
+    try {
+      const res = await fetch(`/api/notion/journal?${filterQs}&cursor=${nextCursor}`)
+      if (!res.ok) throw new Error("추가 로딩 실패")
+      const data: JournalQueryResult = await res.json()
+      setAllArticles((prev) => [...prev, ...data.articles])
+      setNextCursor(data.next_cursor)
+      setHasMore(data.has_more)
+    } finally {
+      setIsLoadingMore(false)
+    }
+  }, [nextCursor, isLoadingMore, filterQs])
+
+  function handleFilterChange(newFilter: JournalFilter) {
+    setSelectedArticle(null)
+    setFilter({ ...newFilter, cursor: undefined })
   }
 
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="🔬 Scholar" />
-      <div className="p-6 max-w-4xl w-full">
+      <div className="p-6 max-w-5xl w-full">
         <Tabs defaultValue="browse">
           <TabsList className="bg-zinc-800 border border-zinc-700 mb-6">
             <TabsTrigger value="browse" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400">
@@ -59,11 +112,27 @@ export default function ScholarPage() {
               </div>
             ) : (
               <>
-                <ArticleFilter filter={filter} onFilterChange={setFilter} />
-                <ArticleList
-                  filter={filter}
-                  onSelect={handleSelect}
-                />
+                <ArticleSummaryBar stats={stats} />
+                <ArticleFilter filter={filter} onFilterChange={handleFilterChange} stats={stats} />
+                {isLoading ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <Skeleton key={i} className="h-16 w-full bg-zinc-800" />
+                    ))}
+                  </div>
+                ) : error ? (
+                  <p className="text-red-400 text-sm text-center py-8">
+                    로딩 실패: {(error as Error).message}
+                  </p>
+                ) : (
+                  <ArticleList
+                    articles={allArticles}
+                    hasMore={hasMore}
+                    isLoadingMore={isLoadingMore}
+                    onLoadMore={handleLoadMore}
+                    onSelect={setSelectedArticle}
+                  />
+                )}
               </>
             )}
           </TabsContent>

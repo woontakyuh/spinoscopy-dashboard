@@ -6,7 +6,7 @@ import {
   Select, SelectContent, SelectItem,
   SelectTrigger, SelectValue,
 } from "@/components/ui/select"
-import type { JournalFilter } from "@/lib/types/journal"
+import type { JournalFilter, JournalStats } from "@/lib/types/journal"
 
 const JOURNALS = ["전체", "ESJ", "GSJ", "JNS Spine", "Neurospine", "Spine", "TSJ"]
 const INTEREST_OPTIONS = [
@@ -24,10 +24,17 @@ const READ_OPTIONS = [
 interface ArticleFilterProps {
   filter: JournalFilter
   onFilterChange: (f: JournalFilter) => void
+  stats?: JournalStats
 }
 
-export function ArticleFilter({ filter, onFilterChange }: ArticleFilterProps) {
+export function ArticleFilter({ filter, onFilterChange, stats }: ArticleFilterProps) {
   const [searchInput, setSearchInput] = useState(filter.search ?? "")
+
+  const categoryOptions = stats
+    ? Object.entries(stats.by_category)
+        .sort(([, a], [, b]) => b - a)
+        .map(([cat]) => cat)
+    : []
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -82,6 +89,27 @@ export function ArticleFilter({ filter, onFilterChange }: ArticleFilterProps) {
           ))}
         </SelectContent>
       </Select>
+
+      {categoryOptions.length > 0 && (
+        <Select
+          value={filter.category ?? "all"}
+          onValueChange={(v) =>
+            onFilterChange({ ...filter, category: v === "전체" ? "all" : v, cursor: undefined })
+          }
+        >
+          <SelectTrigger className="w-32 bg-zinc-800 border-zinc-700 text-zinc-300 h-8 text-xs">
+            <SelectValue placeholder="카테고리" />
+          </SelectTrigger>
+          <SelectContent className="bg-zinc-800 border-zinc-700">
+            <SelectItem value="all" className="text-zinc-300 text-xs">전체</SelectItem>
+            {categoryOptions.map((cat) => (
+              <SelectItem key={cat} value={cat} className="text-zinc-300 text-xs">
+                {cat}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
       <Select
         value={
