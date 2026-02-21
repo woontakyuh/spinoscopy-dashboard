@@ -4,11 +4,18 @@ import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import type { SenseiEntry } from "@/lib/types/sensei"
+import type { SenseiEntry, StructuredBjjNote } from "@/lib/types/sensei"
+
+interface CreateSenseiResult {
+  success: boolean
+  pageId: string
+  structured: StructuredBjjNote
+}
 
 export function SenseiCapture() {
   const queryClient = useQueryClient()
   const [rawInput, setRawInput] = useState("")
+  const [lastSaved, setLastSaved] = useState<CreateSenseiResult | null>(null)
 
   const entriesQuery = useQuery({
     queryKey: ["sensei-entries"],
@@ -30,9 +37,10 @@ export function SenseiCapture() {
         const body = await res.json().catch(() => ({ error: "저장 실패" }))
         throw new Error(body.error ?? "저장 실패")
       }
-      return res.json() as Promise<{ success: boolean }>
+      return res.json() as Promise<CreateSenseiResult>
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      setLastSaved(result)
       setRawInput("")
       queryClient.invalidateQueries({ queryKey: ["sensei-entries"] })
     },
@@ -59,6 +67,46 @@ export function SenseiCapture() {
         >
           {createMutation.isPending ? "정리 중..." : "Sensei로 정리 후 Notion 저장"}
         </Button>
+
+        {lastSaved && (
+          <div className="rounded-lg border border-zinc-700 bg-zinc-800/60 p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-green-400 text-xs">저장 완료</p>
+              <a
+                href={`https://www.notion.so/${lastSaved.pageId.replace(/-/g, "")}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-300 text-xs hover:underline"
+              >
+                Notion 열기
+              </a>
+            </div>
+            <p className="text-white text-sm font-medium">{lastSaved.structured.title}</p>
+            <div className="flex flex-wrap gap-1">
+              <Badge variant="outline" className="text-[10px] border-zinc-600 text-zinc-300">
+                {lastSaved.structured.date}
+              </Badge>
+              <Badge variant="outline" className="text-[10px] border-zinc-600 text-zinc-300">
+                {lastSaved.structured.instructor}
+              </Badge>
+              <Badge variant="outline" className="text-[10px] border-zinc-600 text-zinc-300">
+                {lastSaved.structured.gym}
+              </Badge>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {lastSaved.structured.classTags.map((tag) => (
+                <Badge key={`preview-class-${tag}`} variant="outline" className="text-[10px] border-orange-500/40 text-orange-300">
+                  Class: {tag}
+                </Badge>
+              ))}
+              {lastSaved.structured.sparringTags.map((tag) => (
+                <Badge key={`preview-spar-${tag}`} variant="outline" className="text-[10px] border-blue-500/40 text-blue-300">
+                  Sparring: {tag}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900 space-y-3">

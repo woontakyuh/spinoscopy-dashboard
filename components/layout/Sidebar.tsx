@@ -12,7 +12,7 @@ const NAV_ITEMS = [
   { icon: "🎓", label: "Maestro", href: "#", active: false },
   { icon: "📋", label: "Jarvis", href: "#", active: false },
   { icon: "💰", label: "Vault", href: "#", active: false },
-  { icon: "🥋", label: "Sensei", href: "#", active: false },
+  { icon: "🥋", label: "Sensei", href: "/agents/sensei", active: true },
 ]
 
 export function Sidebar() {
