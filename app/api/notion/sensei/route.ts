@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     }
 
     const structured = await formatBjjNote(rawInput)
-    const pageId = await createSenseiEntry(structured)
+    const pageId = await createSenseiEntry(structured, rawInput)
 
     return NextResponse.json({ success: true, pageId, structured })
   } catch (error) {

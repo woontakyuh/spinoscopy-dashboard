@@ -202,6 +202,20 @@ function pickSparringTags(modelValues: string[] | undefined, rawInput: string): 
   return mergeUnique(byModel, byText)
 }
 
+function isOpenMat(instructor: string, sourceText: string): boolean {
+  if (instructor === "Open Mat") return true
+  const normalized = normalizeToken(sourceText)
+  return ["openmat", "오픈매트"].some((k) => normalized.includes(normalizeToken(k)))
+}
+
+function normalizeTagsForOpenMat(classTags: string[], sparringTags: string[]): { classTags: string[]; sparringTags: string[] } {
+  const merged = mergeUnique(sparringTags, classTags)
+  return {
+    classTags: [],
+    sparringTags: merged,
+  }
+}
+
 export async function formatBjjNote(rawInput: string): Promise<StructuredBjjNote> {
   const apiKey = process.env.GROQ_API_KEY
   if (!apiKey) {
@@ -251,13 +265,25 @@ export async function formatBjjNote(rawInput: string): Promise<StructuredBjjNote
   const content = data.choices?.[0]?.message?.content ?? ""
   const parsed = parseJson(content)
 
+  const sourceText = [rawInput, parsed.title ?? "", parsed.note ?? ""].join("\n")
+
+  const instructor = pickInstructor(parsed.instructor, sourceText)
+  let classTags = pickClassTags(parsed.classTags, sourceText)
+  let sparringTags = pickSparringTags(parsed.sparringTags, sourceText)
+
+  if (isOpenMat(instructor, sourceText)) {
+    const normalized = normalizeTagsForOpenMat(classTags, sparringTags)
+    classTags = normalized.classTags
+    sparringTags = normalized.sparringTags
+  }
+
   return {
     title: pickTitle(parsed.title, rawInput),
     date: pickDate(parsed.date, rawInput),
-    instructor: pickInstructor(parsed.instructor, rawInput),
-    gym: pickGym(parsed.gym, rawInput),
-    classTags: pickClassTags(parsed.classTags, rawInput),
-    sparringTags: pickSparringTags(parsed.sparringTags, rawInput),
+    instructor,
+    gym: pickGym(parsed.gym, sourceText),
+    classTags,
+    sparringTags,
     note: pickNote(parsed.note, rawInput),
   }
 }
