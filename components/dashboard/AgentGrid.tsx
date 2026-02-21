@@ -9,7 +9,7 @@ const AGENTS = [
   { icon: "🎓", name: "Maestro", desc: "교육 · 강의 관리", active: false, href: "#", accent: "border-purple-500/30" },
   { icon: "📋", name: "Jarvis", desc: "일정 · 업무 관리", active: false, href: "#", accent: "border-green-500/30" },
   { icon: "💰", name: "Vault", desc: "재무 · 정산 관리", active: false, href: "#", accent: "border-amber-500/30" },
-  { icon: "🥋", name: "Sensei", desc: "수련 · 수기 교육", active: false, href: "#", accent: "border-orange-500/30" },
+  { icon: "🥋", name: "Sensei", desc: "수련 · 수기 교육", active: true, href: "/agents/sensei", accent: "border-orange-500/30" },
 ] as const
 
 export function AgentGrid() {
