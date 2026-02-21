@@ -114,9 +114,12 @@ function summarizeForProperty(note: string): string {
 
 function toEntry(page: NotionPage): SenseiEntry {
   const p = page.properties
+  const sessionTypeRaw = p.SessionType?.select?.name
+  const sessionType = sessionTypeRaw === "openmat" ? "openmat" as const : "class" as const
   return {
     id: page.id,
     title: getText(p.Name),
+    sessionType,
     date: p.Date?.date?.start ?? null,
     instructor: p.Instructor?.select?.name ?? "",
     gym: p.Gym?.select?.name ?? "",
@@ -148,6 +151,7 @@ export async function createSenseiEntry(input: StructuredBjjNote, rawInput: stri
       parent: { database_id: dbId },
       properties: {
         Name: { title: [{ text: { content: input.title } }] },
+        SessionType: { select: { name: input.sessionType } },
         Date: { date: { start: input.date } },
         Instructor: { select: { name: input.instructor } },
         Gym: { select: { name: input.gym } },

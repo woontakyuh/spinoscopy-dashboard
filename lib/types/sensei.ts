@@ -1,6 +1,9 @@
+export type SenseiSessionType = "class" | "openmat"
+
 export interface SenseiEntry {
   id: string
   title: string
+  sessionType: SenseiSessionType
   date: string | null
   instructor: string
   gym: string
@@ -12,6 +15,7 @@ export interface SenseiEntry {
 
 export interface StructuredBjjNote {
   title: string
+  sessionType: SenseiSessionType
   date: string
   instructor: string
   gym: string

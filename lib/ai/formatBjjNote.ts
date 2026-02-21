@@ -1,4 +1,4 @@
-import type { StructuredBjjNote } from "@/lib/types/sensei"
+import type { SenseiSessionType, StructuredBjjNote } from "@/lib/types/sensei"
 
 interface GroqResponse {
   choices?: Array<{
@@ -271,7 +271,10 @@ export async function formatBjjNote(rawInput: string): Promise<StructuredBjjNote
   let classTags = pickClassTags(parsed.classTags, sourceText)
   let sparringTags = pickSparringTags(parsed.sparringTags, sourceText)
 
-  if (isOpenMat(instructor, sourceText)) {
+  const openMat = isOpenMat(instructor, sourceText)
+  const sessionType: SenseiSessionType = openMat ? "openmat" : "class"
+
+  if (openMat) {
     const normalized = normalizeTagsForOpenMat(classTags, sparringTags)
     classTags = normalized.classTags
     sparringTags = normalized.sparringTags
@@ -279,6 +282,7 @@ export async function formatBjjNote(rawInput: string): Promise<StructuredBjjNote
 
   return {
     title: pickTitle(parsed.title, rawInput),
+    sessionType,
     date: pickDate(parsed.date, rawInput),
     instructor,
     gym: pickGym(parsed.gym, sourceText),
