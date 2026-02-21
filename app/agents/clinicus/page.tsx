@@ -10,6 +10,7 @@ import { PromChart } from "@/components/clinicus/PromChart"
 import { PatientDetail } from "@/components/clinicus/PatientDetail"
 import { NewCaseForm } from "@/components/clinicus/NewCaseForm"
 import { AnalyticsView } from "@/components/clinicus/AnalyticsView"
+import { IdeaMemo } from "@/components/clinicus/IdeaMemo"
 import { useQuery } from "@tanstack/react-query"
 import type { PatientSearchResult } from "@/lib/types/patient"
 
@@ -54,18 +55,21 @@ export default function ClinicusPage() {
       <TopBar title="🩺 Clinicus" />
       <div className="p-3 md:p-6 max-w-3xl w-full">
         <Tabs defaultValue="prom">
-          <TabsList className="bg-zinc-800 border border-zinc-700 mb-4 md:mb-6 flex-wrap h-auto gap-0.5 p-1">
-            <TabsTrigger value="prom" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
+          <TabsList className="w-full bg-zinc-800 border border-zinc-700 mb-4 md:mb-6 grid grid-cols-2 md:grid-cols-5 h-auto gap-1 p-1">
+            <TabsTrigger value="prom" className="min-h-9 data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
               PROM 입력
             </TabsTrigger>
-            <TabsTrigger value="newcase" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
+            <TabsTrigger value="newcase" className="min-h-9 data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
               새 케이스
             </TabsTrigger>
-            <TabsTrigger value="search" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
+            <TabsTrigger value="search" className="min-h-9 data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
               환자 조회
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="data-[state=active]:bg-violet-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
+            <TabsTrigger value="analytics" className="min-h-9 data-[state=active]:bg-violet-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
               📊 통계
+            </TabsTrigger>
+            <TabsTrigger value="memo" className="min-h-9 data-[state=active]:bg-amber-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
+              💡 메모
             </TabsTrigger>
           </TabsList>
 
@@ -118,6 +122,9 @@ export default function ClinicusPage() {
               <p className="text-zinc-300 text-sm font-medium mb-4">카테고리별 PROM 평균</p>
               <AnalyticsView />
             </div>
+          </TabsContent>
+          <TabsContent value="memo">
+            <IdeaMemo />
           </TabsContent>
         </Tabs>
       </div>
