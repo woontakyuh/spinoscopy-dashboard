@@ -22,13 +22,13 @@ export function Sidebar() {
   return (
     <aside className="w-14 md:w-60 min-h-screen bg-zinc-900 border-r border-zinc-800 flex flex-col shrink-0 transition-[width] duration-200">
       <div className="p-2 md:p-4 border-b border-zinc-800">
-        <div className="flex items-center gap-2 justify-center md:justify-start">
+        <Link href="/" className="flex items-center gap-2 justify-center md:justify-start hover:opacity-80 transition-opacity">
           <span className="text-2xl">🧠</span>
           <div className="hidden md:block">
             <p className="text-white font-semibold text-sm">Spinoscopy</p>
             <p className="text-zinc-500 text-xs">Dr. Yuh</p>
           </div>
-        </div>
+        </Link>
       </div>
 
       <nav className="flex-1 p-1.5 md:p-3 space-y-1">

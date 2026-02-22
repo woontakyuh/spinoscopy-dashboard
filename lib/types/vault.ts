@@ -16,6 +16,7 @@ export interface AssetPrice {
   price: number
   change24h: number | null
   currency: string
+  sparkline: number[]
 }
 
 export interface MarketIndicator {

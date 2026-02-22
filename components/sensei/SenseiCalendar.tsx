@@ -111,7 +111,7 @@ export function SenseiCalendar() {
         ))}
 
         {Array.from({ length: firstDay }).map((_, i) => (
-          <div key={`empty-${String(i)}`} />
+          <div key={`empty-${String(i)}`} className="min-h-[2.75rem]" />
         ))}
 
         {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -123,6 +123,9 @@ export function SenseiCalendar() {
           const isSelected = dateKey === selectedDate
           const hasClass = dayEntries?.some((e) => e.sessionType === "class")
           const hasOpenMat = dayEntries?.some((e) => e.sessionType === "openmat")
+          const dayTags = dayEntries
+            ? [...new Set([...dayEntries.flatMap((e) => e.classTags), ...dayEntries.flatMap((e) => e.sparringTags)])]
+            : []
 
           return (
             <button
@@ -130,14 +133,24 @@ export function SenseiCalendar() {
               type="button"
               onClick={() => setSelectedDate(isSelected ? null : dateKey)}
               className={`
-                relative aspect-square rounded-md text-xs flex items-center justify-center transition-colors
+                relative rounded-md text-xs flex flex-col items-center justify-start pt-1 min-h-[2.75rem] transition-colors overflow-hidden
                 ${isSelected ? "ring-2 ring-orange-500 bg-zinc-700" : ""}
                 ${isToday && !isSelected ? "ring-1 ring-zinc-500" : ""}
                 ${hasEntry ? "bg-zinc-800 hover:bg-zinc-700 cursor-pointer font-medium" : "text-zinc-600 hover:bg-zinc-800/50"}
                 ${hasEntry ? "text-white" : ""}
               `}
             >
-              {day}
+              <span className="leading-none">{day}</span>
+              {dayTags.length > 0 && (
+                <div className="flex flex-wrap justify-center gap-x-0.5 gap-y-0 mt-0.5 max-w-full px-px">
+                  {dayTags.slice(0, 2).map((tag) => (
+                    <span key={tag} className="text-[7px] leading-tight text-orange-300/80">{tag}</span>
+                  ))}
+                  {dayTags.length > 2 && (
+                    <span className="text-[7px] leading-tight text-zinc-500">+{dayTags.length - 2}</span>
+                  )}
+                </div>
+              )}
               {hasEntry && (
                 <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex gap-0.5">
                   {hasClass && <div className="w-1 h-1 rounded-full bg-purple-400" />}
