@@ -130,6 +130,32 @@ function toEntry(page: NotionPage): SenseiEntry {
   }
 }
 
+interface NotionDbSchema {
+  properties: Record<string, {
+    type: string
+    multi_select?: { options: Array<{ name: string }> }
+    select?: { options: Array<{ name: string }> }
+  }>
+}
+
+export interface SenseiTagOptions {
+  classTags: string[]
+  sparringTags: string[]
+  instructors: string[]
+  gyms: string[]
+}
+
+export async function fetchTagOptions(): Promise<SenseiTagOptions> {
+  const dbId = getDbId()
+  const db = await notionRequest<NotionDbSchema>(`/databases/${dbId}`)
+  return {
+    classTags: (db.properties.Class?.multi_select?.options ?? []).map((o) => o.name),
+    sparringTags: (db.properties.Sparring?.multi_select?.options ?? []).map((o) => o.name),
+    instructors: (db.properties.Instructor?.select?.options ?? []).map((o) => o.name),
+    gyms: (db.properties.Gym?.select?.options ?? []).map((o) => o.name),
+  }
+}
+
 export async function listSenseiEntries(): Promise<SenseiEntry[]> {
   const dbId = getDbId()
   const response = await notionRequest<NotionQueryResponse>(`/databases/${dbId}/query`, {

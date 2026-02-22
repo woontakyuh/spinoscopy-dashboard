@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createSenseiEntry, listSenseiEntries } from "@/lib/notion/sensei"
+import { createSenseiEntry, fetchTagOptions, listSenseiEntries } from "@/lib/notion/sensei"
 import { formatBjjNote } from "@/lib/ai/formatBjjNote"
 
 export async function GET() {
@@ -41,7 +41,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "입력 내용이 없습니다" }, { status: 400 })
     }
 
-    const structured = await formatBjjNote(rawInput)
+    const tags = await fetchTagOptions()
+    const structured = await formatBjjNote(rawInput, tags)
 
     if (body.date && /^\d{4}-\d{2}-\d{2}$/.test(body.date)) {
       structured.date = body.date
