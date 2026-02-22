@@ -1,4 +1,4 @@
-export type FeedSource = "hn" | "the-batch"
+export type FeedSource = "hn" | "techcrunch"
 
 export interface FeedItem {
   id: string

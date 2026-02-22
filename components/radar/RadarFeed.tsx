@@ -10,7 +10,7 @@ import type { FeedItem, FeedResponse, FeedSource } from "@/lib/types/radar"
 const SOURCE_FILTERS: Array<{ value: FeedSource | "all"; label: string }> = [
   { value: "all", label: "전체" },
   { value: "hn", label: "Hacker News" },
-  { value: "the-batch", label: "The Batch" },
+  { value: "techcrunch", label: "TechCrunch" },
 ]
 
 export function RadarFeed() {

@@ -83,9 +83,9 @@ async function fetchHnItems(): Promise<FeedItem[]> {
   }))
 }
 
-async function fetchTheBatchItems(): Promise<FeedItem[]> {
-  const res = await fetch("https://www.deeplearning.ai/the-batch/feed/", {
-    next: { revalidate: 3600 },
+async function fetchTechCrunchItems(): Promise<FeedItem[]> {
+  const res = await fetch("https://techcrunch.com/category/artificial-intelligence/feed/", {
+    next: { revalidate: 1800 },
   })
 
   if (!res.ok) return []
@@ -94,12 +94,12 @@ async function fetchTheBatchItems(): Promise<FeedItem[]> {
   const rssItems = parseRssItems(xml)
 
   return rssItems.slice(0, 15).map((item, idx) => ({
-    id: `batch-${item.guid ?? idx}`,
+    id: `tc-${item.guid ?? idx}`,
     title: item.title ?? "Untitled",
-    url: item.link ?? "https://www.deeplearning.ai/the-batch/",
-    source: "the-batch" as const,
-    sourceLabel: "The Batch",
-    author: item.creator ?? "Andrew Ng",
+    url: item.link ?? "https://techcrunch.com/category/artificial-intelligence/",
+    source: "techcrunch" as const,
+    sourceLabel: "TechCrunch",
+    author: item.creator ?? null,
     date: item.pubDate ? new Date(item.pubDate).toISOString().slice(0, 10) : "",
     points: null,
     commentUrl: null,
@@ -109,12 +109,12 @@ async function fetchTheBatchItems(): Promise<FeedItem[]> {
 
 export async function GET() {
   try {
-    const [hnItems, batchItems] = await Promise.all([
+    const [hnItems, tcItems] = await Promise.all([
       fetchHnItems(),
-      fetchTheBatchItems(),
+      fetchTechCrunchItems(),
     ])
 
-    const items = [...hnItems, ...batchItems].sort(
+    const items = [...hnItems, ...tcItems].sort(
       (a, b) => b.date.localeCompare(a.date)
     )
 
