@@ -1,0 +1,98 @@
+export const BJJ_TAG_REFERENCE: Record<string, string> = {
+  // Guard
+  HG: "Half Guard",
+  DLR: "De La Riva",
+  RDLR: "Reverse De La Riva",
+  SLX: "Single Leg X",
+  XG: "X-Guard",
+  BG: "Butterfly Guard",
+  CG: "Closed Guard",
+  OG: "Open Guard",
+  SG: "Spider Guard",
+  LG: "Lasso Guard",
+  SitG: "Sit-up Guard",
+  WG: "Worm Guard",
+  RWG: "Reverse Worm Guard",
+  SqG: "Squid Guard",
+  OctG: "Octopus Guard",
+  RG: "Rubber Guard",
+  CrabR: "Crab Ride",
+  TG: "Truck Guard",
+  "K-G": "Knee Shield / Z-Guard",
+  ZG: "Z-Guard",
+  DSG: "Deep Half Guard",
+  WD: "Waiter",
+
+  // Submission
+  RNC: "Rear Naked Choke",
+  ANC: "Anaconda Choke",
+  "D'Arc": "Darce Choke",
+  Guill: "Guillotine",
+  IHH: "Inside Heel Hook",
+  OHH: "Outside Heel Hook",
+  ELK: "Estima Lock",
+  TL: "Toe Lock",
+  KL: "Kneebar",
+  FL: "Footlock",
+  SFL: "Straight Footlock",
+  Omo: "Omoplata",
+  Tri: "Triangle",
+  Gogo: "Gogoplata",
+  Bica: "Bicep Slicer",
+  Can: "Can Opener",
+  AM: "Armbar",
+  KM: "Kimura",
+  AmLock: "Americana",
+  Wrist: "Wrist Lock",
+
+  // Position / Top
+  MT: "Mount",
+  SM: "S-Mount",
+  SB: "Side Back",
+  BT: "Back Take",
+  BM: "Back Mount",
+  KoB: "Knee on Belly",
+  NS: "North-South",
+  SC: "Scarf Hold",
+  TW: "Turtle",
+  "50/50": "50/50 Guard",
+  Ashi: "Ashi Garami",
+  SLAshi: "Single Leg Ashi Garami",
+  HKS: "Honey Hole / Saddle",
+  OKS: "Outside Ashi",
+
+  // Takedown & Entry
+  TD: "Takedown",
+  SL: "Single Leg",
+  DL: "Double Leg",
+  BL: "Body Lock",
+  JS: "Judo Sweep / Throw",
+  IPT: "Inside Trip",
+  TH: "Throw",
+  GP: "Guard Pull",
+  KE: "Knee Elbow",
+
+  // Sweep & Pass
+  BS: "Berimbolo",
+  TP: "Torreando Pass",
+  SP: "Stack Pass",
+  LP: "Leg Pummeling Pass",
+  KTP: "Knee Through Pass",
+  HP: "Half Pass",
+  LSP: "Long Step Pass",
+  BTP: "Bullfight Pass",
+  STS: "Single Take Sweep",
+  HS: "Hip Sweep",
+  SCS: "Scissor Sweep",
+
+  // Misc
+  Gi: "Gi",
+  NG: "No-Gi",
+  LL: "Leg Lock",
+  HQ: "Headquarters",
+}
+
+export function buildTagReferencePrompt(): string {
+  const lines = Object.entries(BJJ_TAG_REFERENCE).map(([abbr, full]) => `${abbr} = ${full}`)
+  return lines.join("\n")
+}

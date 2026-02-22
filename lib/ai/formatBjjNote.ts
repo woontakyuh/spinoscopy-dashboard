@@ -1,5 +1,6 @@
 import type { SenseiSessionType, StructuredBjjNote } from "@/lib/types/sensei"
 import type { SenseiTagOptions } from "@/lib/notion/sensei"
+import { buildTagReferencePrompt } from "./bjjTags"
 
 interface GroqResponse {
   choices?: Array<{
@@ -71,12 +72,16 @@ function buildSystemPrompt(tags: SenseiTagOptions): string {
     `instructor: 기존 값 중 선택: ${instructorStr}. 해당 없으면 "Open Mat".`,
     `gym: 기존 값 중 선택: ${gymStr}. 해당 없으면 그대로 써.`,
     "",
+    "태그는 반드시 아래 약어 레퍼런스의 약어(abbreviation)를 사용:",
+    buildTagReferencePrompt(),
+    "",
     "태그 규칙:",
     `- classTags 기존: ${classStr}`,
     `- sparringTags 기존: ${sparringStr}`,
-    "- 기존 태그와 동일한 기술이면 기존 이름 그대로 사용.",
-    "- 새로운 기술이면 영문명으로 새 태그 생성 (예: HQ, Toreando pass, X pass).",
-    "- 한국어 기술명이면 영문 BJJ 용어로 변환 (예: 하프가드 → Half guard).",
+    "- 기존 태그와 동일한 기술이면 기존 태그명 그대로 사용.",
+    "- 레퍼런스에 있는 기술이면 반드시 해당 약어 사용 (예: Half Guard → HG, Torreando Pass → TP).",
+    "- 레퍼런스에 없는 새로운 기술이면 영문 약어를 만들어서 사용.",
+    "- 한국어 기술명은 반드시 영문 약어로 변환 (예: 하프가드 → HG, 토레안도 → TP).",
     "- 수업에서 배운 기술 → classTags, 스파링에서 사용한 기술 → sparringTags.",
     "",
     "note: 핵심 내용 + 개선 포인트를 한국어 불릿으로 정리.",
