@@ -83,6 +83,56 @@ async function fetchHnItems(): Promise<FeedItem[]> {
   }))
 }
 
+interface BatchPost {
+  title: string
+  slug: string
+  custom_excerpt?: string
+  published_at: string
+}
+
+interface BatchNextData {
+  props: {
+    pageProps: {
+      posts: BatchPost[]
+    }
+  }
+}
+
+async function fetchTheBatchItems(): Promise<FeedItem[]> {
+  const res = await fetch("https://www.deeplearning.ai/the-batch/", {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; SpinoscopyRadar/1.0)" },
+    next: { revalidate: 3600 },
+  })
+
+  if (!res.ok) return []
+
+  const html = await res.text()
+  const dataMatch = html.match(/__NEXT_DATA__[^>]*>([\s\S]*?)<\/script>/)
+  if (!dataMatch) return []
+
+  let data: BatchNextData
+  try {
+    data = JSON.parse(dataMatch[1]) as BatchNextData
+  } catch {
+    return []
+  }
+
+  const posts = data.props?.pageProps?.posts ?? []
+
+  return posts.slice(0, 10).map((post) => ({
+    id: `batch-${post.slug}`,
+    title: post.title,
+    url: `https://www.deeplearning.ai/the-batch/${post.slug}/`,
+    source: "the-batch" as const,
+    sourceLabel: "The Batch",
+    author: "Andrew Ng",
+    date: post.published_at.slice(0, 10),
+    points: null,
+    commentUrl: null,
+    summary: null,
+  }))
+}
+
 async function fetchTechCrunchItems(): Promise<FeedItem[]> {
   const res = await fetch("https://techcrunch.com/category/artificial-intelligence/feed/", {
     next: { revalidate: 1800 },
@@ -109,12 +159,13 @@ async function fetchTechCrunchItems(): Promise<FeedItem[]> {
 
 export async function GET() {
   try {
-    const [hnItems, tcItems] = await Promise.all([
+    const [hnItems, batchItems, tcItems] = await Promise.all([
       fetchHnItems(),
+      fetchTheBatchItems(),
       fetchTechCrunchItems(),
     ])
 
-    const items = [...hnItems, ...tcItems].sort(
+    const items = [...hnItems, ...batchItems, ...tcItems].sort(
       (a, b) => b.date.localeCompare(a.date)
     )
 

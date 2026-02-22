@@ -12,6 +12,7 @@ interface FeedCardProps {
 
 const SOURCE_STYLES: Record<string, { border: string; text: string }> = {
   hn: { border: "border-orange-500/40", text: "text-orange-300" },
+  "the-batch": { border: "border-blue-500/40", text: "text-blue-300" },
   techcrunch: { border: "border-green-500/40", text: "text-green-300" },
 }
 
