@@ -11,9 +11,9 @@ const NAV_ITEMS = [
   { icon: "🔬", label: "Scholar", href: "/agents/scholar", active: true },
   { icon: "🎓", label: "Maestro", href: "#", active: false },
   { icon: "📋", label: "Jarvis", href: "#", active: false },
-  { icon: "💰", label: "Vault", href: "#", active: false },
+  { icon: "💰", label: "Vault", href: "/agents/vault", active: true },
   { icon: "🥋", label: "Sensei", href: "/agents/sensei", active: true },
-  { icon: "🛰️", label: "Radar", href: "/agents/radar", active: true },
+  { icon: "🛰️", label: "AI Radar", href: "/agents/radar", active: true },
 ]
 
 export function Sidebar() {

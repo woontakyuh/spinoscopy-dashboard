@@ -2,6 +2,7 @@
 
 import { TopBar } from "@/components/layout/TopBar"
 import { SenseiCapture } from "@/components/sensei/SenseiCapture"
+import { SenseiCalendar } from "@/components/sensei/SenseiCalendar"
 
 export default function SenseiPage() {
   return (
@@ -13,6 +14,8 @@ export default function SenseiPage() {
             자연어로 수련 내용을 입력하면 Sensei가 Notion 태그(Class/Sparring)까지 자동으로 정리해서 저장합니다.
           </p>
         </div>
+        <SenseiCalendar />
+        <div className="mt-4" />
         <SenseiCapture />
       </div>
     </div>

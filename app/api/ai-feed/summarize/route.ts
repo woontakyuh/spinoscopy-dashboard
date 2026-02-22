@@ -11,11 +11,12 @@ interface GroqResponse {
 
 const SYSTEM_PROMPT = [
   "당신은 AI/기술 뉴스 요약 전문가입니다.",
-  "주어진 기사 제목과 URL을 보고 한국어로 한 줄 요약을 작성하세요.",
+  "주어진 기사 제목과 URL을 보고 한국어로 요약을 작성하세요.",
   "규칙:",
   "- 반드시 한국어로 작성",
-  "- 한 문장, 최대 80자",
-  "- 핵심 내용만 간결하게",
+  "- 3~5문장으로 핵심 내용을 요약",
+  "- 무엇이 발표/발견되었는지, 왜 중요한지, 어떤 영향이 있는지 포함",
+  "- 기술적 핵심 포인트를 놓치지 말 것",
   "- 요약문만 출력 (부가 설명 없이)",
 ].join("\n")
 
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile",
         temperature: 0.3,
-        max_tokens: 200,
+        max_tokens: 500,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: `제목: ${body.title}\nURL: ${body.url}` },

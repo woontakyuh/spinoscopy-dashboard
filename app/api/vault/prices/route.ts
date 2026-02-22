@@ -1,0 +1,193 @@
+import { NextResponse } from "next/server"
+import { TRACKED_ASSETS } from "@/lib/vault/assets"
+import type { AssetPrice, MarketIndicator, PricesResponse } from "@/lib/types/vault"
+
+interface GeckoPriceEntry {
+  usd: number
+  usd_24h_change: number
+  krw: number
+  krw_24h_change: number
+}
+
+interface YahooChartResponse {
+  chart: {
+    result?: Array<{
+      meta: {
+        symbol: string
+        regularMarketPrice: number
+        chartPreviousClose: number
+        currency: string
+      }
+    }>
+  }
+}
+
+async function fetchCryptoPrices(): Promise<AssetPrice[]> {
+  const cryptoAssets = TRACKED_ASSETS.filter((a) => a.category === "crypto")
+  if (cryptoAssets.length === 0) return []
+
+  const ids = cryptoAssets.map((a) => a.geckoId).join(",")
+  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd,krw&include_24hr_change=true`
+
+  const res = await fetch(url, { next: { revalidate: 120 } })
+  if (!res.ok) return []
+
+  const data = (await res.json()) as Record<string, GeckoPriceEntry>
+
+  return cryptoAssets
+    .filter((a) => a.geckoId && data[a.geckoId])
+    .map((asset) => {
+      const entry = data[asset.geckoId!]
+      return {
+        symbol: asset.symbol,
+        label: asset.label,
+        category: asset.category,
+        price: entry.krw,
+        change24h: entry.krw_24h_change,
+        currency: "KRW",
+      }
+    })
+}
+
+async function fetchStockPrice(yahooTicker: string): Promise<YahooChartResponse | null> {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooTicker}?interval=1d&range=5d`
+  const res = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; SpinoscopyVault/1.0)" },
+    next: { revalidate: 300 },
+  })
+  if (!res.ok) return null
+  return (await res.json()) as YahooChartResponse
+}
+
+async function fetchStockPrices(): Promise<AssetPrice[]> {
+  const stockAssets = TRACKED_ASSETS.filter((a) => a.category !== "crypto")
+  if (stockAssets.length === 0) return []
+
+  const results = await Promise.all(
+    stockAssets.map(async (asset) => {
+      if (!asset.yahooTicker) return null
+      const data = await fetchStockPrice(asset.yahooTicker)
+      const meta = data?.chart?.result?.[0]?.meta
+      if (!meta) return null
+
+      const price = meta.regularMarketPrice
+      const prevClose = meta.chartPreviousClose
+      const change24h = prevClose > 0 ? ((price - prevClose) / prevClose) * 100 : null
+
+      return {
+        symbol: asset.symbol,
+        label: asset.label,
+        category: asset.category,
+        price,
+        change24h,
+        currency: meta.currency === "KRW" ? "KRW" : "USD",
+      } satisfies AssetPrice
+    })
+  )
+
+  return results.filter((r): r is AssetPrice => r !== null)
+}
+
+interface GeckoGlobalData {
+  data: {
+    market_cap_percentage: Record<string, number>
+  }
+}
+
+interface FearGreedResponse {
+  data: Array<{
+    value: string
+    value_classification: string
+  }>
+}
+
+const INDEX_TICKERS = [
+  { ticker: "USDKRW=X", key: "usdkrw", label: "원/달러", unit: "원" },
+  { ticker: "^IXIC", key: "nasdaq", label: "NASDAQ", unit: "" },
+  { ticker: "^DJI", key: "dow", label: "다우", unit: "" },
+  { ticker: "^KS11", key: "kospi", label: "KOSPI", unit: "" },
+  { ticker: "^KQ11", key: "kosdaq", label: "KOSDAQ", unit: "" },
+]
+
+async function fetchYahooIndicators(): Promise<MarketIndicator[]> {
+  const results = await Promise.all(
+    INDEX_TICKERS.map(async ({ ticker, key, label, unit }) => {
+      const data = await fetchStockPrice(ticker)
+      const meta = data?.chart?.result?.[0]?.meta
+      if (!meta) return null
+
+      const price = meta.regularMarketPrice
+      const prev = meta.chartPreviousClose
+      const change = prev > 0 ? ((price - prev) / prev) * 100 : null
+
+      return { key, label, value: price, change, unit } satisfies MarketIndicator
+    })
+  )
+  return results.filter((r): r is MarketIndicator => r !== null)
+}
+
+async function fetchBtcDominance(): Promise<MarketIndicator | null> {
+  const res = await fetch("https://api.coingecko.com/api/v3/global", {
+    next: { revalidate: 300 },
+  })
+  if (!res.ok) return null
+  const data = (await res.json()) as GeckoGlobalData
+  const btcDom = data.data?.market_cap_percentage?.btc
+  if (btcDom == null) return null
+  return { key: "btc-dom", label: "BTC 도미넌스", value: btcDom, change: null, unit: "%" }
+}
+
+async function fetchFearGreed(): Promise<MarketIndicator | null> {
+  const res = await fetch("https://api.alternative.me/fng/", {
+    next: { revalidate: 600 },
+  })
+  if (!res.ok) return null
+  const data = (await res.json()) as FearGreedResponse
+  const entry = data.data?.[0]
+  if (!entry) return null
+  return {
+    key: "fng",
+    label: "공포탐욕",
+    value: Number(entry.value),
+    change: null,
+    unit: `(${entry.value_classification})`,
+  }
+}
+
+async function fetchAllIndicators(): Promise<MarketIndicator[]> {
+  const [yahooIndicators, btcDom, fng] = await Promise.all([
+    fetchYahooIndicators(),
+    fetchBtcDominance(),
+    fetchFearGreed(),
+  ])
+
+  const indicators = [...yahooIndicators]
+  if (btcDom) indicators.push(btcDom)
+  if (fng) indicators.push(fng)
+  return indicators
+}
+
+export async function GET() {
+  try {
+    const [cryptoPrices, stockPrices, indicators] = await Promise.all([
+      fetchCryptoPrices(),
+      fetchStockPrices(),
+      fetchAllIndicators(),
+    ])
+
+    const prices = [...cryptoPrices, ...stockPrices]
+    const assetOrder = TRACKED_ASSETS.map((a) => a.symbol)
+    prices.sort((a, b) => assetOrder.indexOf(a.symbol) - assetOrder.indexOf(b.symbol))
+
+    const response: PricesResponse = {
+      prices,
+      indicators,
+      fetchedAt: new Date().toISOString(),
+    }
+
+    return NextResponse.json(response)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error"
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+}

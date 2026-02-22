@@ -86,7 +86,7 @@ export function FeedCard({ item }: FeedCardProps) {
           disabled={loading || !!summary}
           onClick={handleSummarize}
         >
-          {loading ? "요약 중..." : summary ? "요약 완료" : "한줄 요약"}
+          {loading ? "요약 중..." : summary ? "요약 완료" : "AI 요약"}
         </Button>
         <Button
           variant="outline"
