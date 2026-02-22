@@ -143,8 +143,37 @@ export async function listSenseiEntries(): Promise<SenseiEntry[]> {
   return response.results.map(toEntry)
 }
 
+async function ensureSessionTypeProperty(dbId: string): Promise<void> {
+  const db = await notionRequest<{ properties: Record<string, { type: string }> }>(`/databases/${dbId}`)
+  if (db.properties.SessionType) return
+
+  await notionRequest(`/databases/${dbId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      properties: {
+        SessionType: {
+          select: {
+            options: [
+              { name: "class", color: "purple" },
+              { name: "openmat", color: "green" },
+            ],
+          },
+        },
+      },
+    }),
+  })
+}
+
+let sessionTypEnsured = false
+
 export async function createSenseiEntry(input: StructuredBjjNote, rawInput: string): Promise<string> {
   const dbId = getDbId()
+
+  if (!sessionTypEnsured) {
+    await ensureSessionTypeProperty(dbId)
+    sessionTypEnsured = true
+  }
+
   const response = await notionRequest<NotionCreateResponse>("/pages", {
     method: "POST",
     body: JSON.stringify({
