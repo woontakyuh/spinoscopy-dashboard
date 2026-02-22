@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { icon: "📋", label: "Jarvis", href: "#", active: false },
   { icon: "💰", label: "Vault", href: "#", active: false },
   { icon: "🥋", label: "Sensei", href: "/agents/sensei", active: true },
+  { icon: "🛰️", label: "Radar", href: "/agents/radar", active: true },
 ]
 
 export function Sidebar() {
