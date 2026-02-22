@@ -11,6 +11,7 @@ export const BJJ_TAG_REFERENCE: Record<string, string> = {
   SG: "Spider Guard",
   LG: "Lasso Guard",
   SitG: "Sit-up Guard",
+  Lapel: "Lapel Guard (broad category)",
   WG: "Worm Guard",
   RWG: "Reverse Worm Guard",
   SqG: "Squid Guard",

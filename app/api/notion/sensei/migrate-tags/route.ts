@@ -3,7 +3,6 @@ import { notionRequest } from "@/lib/notion/client"
 import { BJJ_TAG_REFERENCE } from "@/lib/ai/bjjTags"
 
 const LEGACY_TO_ABBR: Record<string, string> = {
-  "Lapel": "WG",
   "Worm": "WG",
   "Crab Ride": "CrabR",
   "Sit-up": "SitG",
