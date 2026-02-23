@@ -8,3 +8,25 @@ export interface ScheduleItem {
   category: string
   status: string
 }
+
+export interface ScheduleCreateInput {
+  name: string
+  date_start: string
+  date_end?: string
+  place?: string
+  category?: string
+  society?: string[]
+  status?: string
+  topic?: string
+  link?: string
+  abstract_deadline?: string
+}
+
+export interface ScheduleCreateResult {
+  success: boolean
+  notion?:
+    | { page_id: string; url: string }
+    | { skipped: true; message: string; page_id: string; url: string }
+  google_calendar?: { success: boolean; message: string; eventId?: string; eventUrl?: string }
+  error?: string
+}

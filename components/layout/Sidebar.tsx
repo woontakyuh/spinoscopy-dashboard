@@ -10,7 +10,7 @@ const NAV_ITEMS = [
   { icon: "🩺", label: "Clinicus", href: "/agents/clinicus", active: true },
   { icon: "🔬", label: "Scholar", href: "/agents/scholar", active: true },
   { icon: "🎓", label: "Maestro", href: "#", active: false },
-  { icon: "📋", label: "Jarvis", href: "#", active: false },
+  { icon: "📋", label: "Jarvis", href: "/agents/jarvis", active: true },
   { icon: "💰", label: "Vault", href: "/agents/vault", active: true },
   { icon: "🥋", label: "Sensei", href: "/agents/sensei", active: true },
   { icon: "🛰️", label: "AI Radar", href: "/agents/radar", active: true },

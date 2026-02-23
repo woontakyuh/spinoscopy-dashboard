@@ -1,5 +1,5 @@
 import { notionRequest } from "./client"
-import type { ScheduleItem } from "../types/schedule"
+import type { ScheduleCreateInput, ScheduleItem } from "../types/schedule"
 
 interface NotionPage {
   id: string
@@ -18,6 +18,11 @@ interface NotionProperty {
 
 interface NotionQueryResponse {
   results: NotionPage[]
+}
+
+interface NotionCreatePageResponse {
+  id: string
+  url: string
 }
 
 function getText(prop: NotionProperty | undefined): string {
@@ -72,4 +77,75 @@ export async function getUpcomingSchedules(days = 7): Promise<ScheduleItem[]> {
   )
 
   return response.results.map(toScheduleItem)
+}
+
+export async function findDuplicateSchedule(name: string, dateStart: string): Promise<ScheduleItem | null> {
+  const dbId = process.env.NOTION_SCHEDULE_DB_ID
+
+  const response = await notionRequest<NotionQueryResponse>(
+    `/databases/${dbId}/query`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        filter: {
+          and: [
+            { property: "Name", title: { equals: name } },
+            { property: "Date", date: { equals: dateStart } },
+          ],
+        },
+        page_size: 1,
+      }),
+    }
+  )
+
+  const page = response.results[0]
+  return page ? toScheduleItem(page) : null
+}
+
+export async function createSchedule(input: ScheduleCreateInput): Promise<{ page_id: string; url: string }> {
+  const dbId = process.env.NOTION_SCHEDULE_DB_ID
+
+  const response = await notionRequest<NotionCreatePageResponse>("/pages", {
+    method: "POST",
+    body: JSON.stringify({
+      parent: { database_id: dbId },
+      properties: {
+        Name: {
+          title: [{ text: { content: input.name } }],
+        },
+        Date: {
+          date: {
+            start: input.date_start,
+            end: input.date_end ?? null,
+          },
+        },
+        Place: {
+          rich_text: input.place ? [{ text: { content: input.place } }] : [],
+        },
+        분류: {
+          select: { name: input.category ?? "Spine" },
+        },
+        학회명: {
+          multi_select: (input.society ?? [])
+            .map((name) => name.trim())
+            .filter((name) => name.length > 0)
+            .map((name) => ({ name })),
+        },
+        "준비 상태": {
+          select: input.status ? { name: input.status } : null,
+        },
+        "발표 주제": {
+          rich_text: input.topic ? [{ text: { content: input.topic } }] : [],
+        },
+        Link: {
+          url: input.link ?? null,
+        },
+        "초록 제출 기한": {
+          date: input.abstract_deadline ? { start: input.abstract_deadline } : null,
+        },
+      },
+    }),
+  })
+
+  return { page_id: response.id, url: response.url }
 }
