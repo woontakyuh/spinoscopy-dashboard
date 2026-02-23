@@ -10,7 +10,7 @@ export default function RadarPage() {
       <div className="p-3 md:p-6 max-w-4xl w-full">
         <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900 mb-4">
           <p className="text-zinc-300 text-sm">
-            AI/기술 뉴스를 자동으로 수집하고, 한줄 요약 후 Obsidian에 저장할 수 있습니다.
+            소스를 티어별로 수집하고 중요도(1~5)와 카테고리로 분류해, AI 요약 후 Obsidian에 저장할 수 있습니다.
           </p>
         </div>
         <RadarFeed />
