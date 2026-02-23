@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -83,9 +84,14 @@ export function MorningBriefing() {
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider mb-3">
-          오늘 일정
-        </h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">
+            오늘 일정
+          </h3>
+          <Link href="/agents/jarvis" className="text-xs text-blue-300 hover:text-blue-200">
+            일정 추가
+          </Link>
+        </div>
         {isLoading ? (
           <div className="space-y-2">
             <Skeleton className="h-16 w-full bg-zinc-800" />
