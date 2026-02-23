@@ -1,15 +1,8 @@
 import { NextResponse } from "next/server"
 import { TRACKED_ASSETS } from "@/lib/vault/assets"
-import type { AssetPrice, MarketIndicator, PricesResponse } from "@/lib/types/vault"
+import type { AssetPrice, MarketIndicator, OHLCBar, PricesResponse } from "@/lib/types/vault"
 
-interface GeckoMarketsEntry {
-  id: string
-  current_price: number
-  price_change_percentage_24h: number | null
-  sparkline_in_7d?: {
-    price: number[]
-  }
-}
+type GeckoOhlcEntry = [number, number, number, number, number]
 
 interface YahooChartResponse {
   chart: {
@@ -20,8 +13,12 @@ interface YahooChartResponse {
         chartPreviousClose: number
         currency: string
       }
+      timestamp?: number[]
       indicators?: {
         quote?: Array<{
+          open?: (number | null)[]
+          high?: (number | null)[]
+          low?: (number | null)[]
           close?: (number | null)[]
         }>
       }
@@ -29,30 +26,81 @@ interface YahooChartResponse {
   }
 }
 
+type YahooChartResult = NonNullable<YahooChartResponse["chart"]["result"]>[number]
+
+function sortOhlcAscending(data: OHLCBar[]): OHLCBar[] {
+  return [...data].sort((a, b) => a.time - b.time)
+}
+
+async function fetchCryptoOhlc(geckoId: string): Promise<OHLCBar[]> {
+  const url = `https://api.coingecko.com/api/v3/coins/${geckoId}/ohlc?vs_currency=krw&days=30`
+  const res = await fetch(url, { next: { revalidate: 120 } })
+  if (!res.ok) return []
+  const data = (await res.json()) as GeckoOhlcEntry[]
+
+  return sortOhlcAscending(
+    data
+      .map(([timestampMs, open, high, low, close]) => ({
+        time: Math.floor(timestampMs / 1000),
+        open,
+        high,
+        low,
+        close,
+      }))
+      .filter((bar) => Number.isFinite(bar.open) && Number.isFinite(bar.high) && Number.isFinite(bar.low) && Number.isFinite(bar.close))
+  )
+}
+
+function mapYahooOhlc(result: YahooChartResult | undefined): OHLCBar[] {
+  const timestamps = result?.timestamp ?? []
+  const quote = result?.indicators?.quote?.[0]
+  const opens = quote?.open ?? []
+  const highs = quote?.high ?? []
+  const lows = quote?.low ?? []
+  const closes = quote?.close ?? []
+
+  const bars: OHLCBar[] = []
+  for (let i = 0; i < timestamps.length; i += 1) {
+    const time = timestamps[i]
+    const open = opens[i]
+    const high = highs[i]
+    const low = lows[i]
+    const close = closes[i]
+
+    if (time == null || open == null || high == null || low == null || close == null) continue
+    bars.push({ time, open, high, low, close })
+  }
+
+  return sortOhlcAscending(bars)
+}
+
 async function fetchCryptoPrices(): Promise<AssetPrice[]> {
   const cryptoAssets = TRACKED_ASSETS.filter((a) => a.category === "crypto")
   if (cryptoAssets.length === 0) return []
-  const ids = cryptoAssets.map((a) => a.geckoId).join(",")
-  const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=krw&ids=${ids}&sparkline=true&price_change_percentage=24h`
-  const res = await fetch(url, { next: { revalidate: 120 } })
-  if (!res.ok) return []
-  const data = (await res.json()) as GeckoMarketsEntry[]
-  return cryptoAssets
-    .filter((a) => a.geckoId)
-    .map((asset) => {
-      const entry = data.find((d) => d.id === asset.geckoId)
-      if (!entry) return null
-      const fullSparkline = entry.sparkline_in_7d?.price ?? []
-      const step = Math.max(1, Math.floor(fullSparkline.length / 24))
-      const sparkline = fullSparkline.filter((_, i) => i % step === 0 || i === fullSparkline.length - 1)
+
+  const results = await Promise.all(
+    cryptoAssets.map(async (asset) => {
+      if (!asset.geckoId) return null
+      const sparkline = await fetchCryptoOhlc(asset.geckoId)
+      if (sparkline.length === 0) return null
+
+      const latestBar = sparkline[sparkline.length - 1]
+      const dayAgoBar = sparkline[Math.max(0, sparkline.length - 7)]
+      const change24h = dayAgoBar.close > 0 ? ((latestBar.close - dayAgoBar.close) / dayAgoBar.close) * 100 : null
+
       return {
-        symbol: asset.symbol, label: asset.label, category: asset.category,
-        price: entry.current_price, change24h: entry.price_change_percentage_24h,
+        symbol: asset.symbol,
+        label: asset.label,
+        category: asset.category,
+        price: latestBar.close,
+        change24h,
         currency: "KRW",
         sparkline,
-      }
+      } satisfies AssetPrice
     })
-    .filter((r): r is AssetPrice => r !== null)
+  )
+
+  return results.filter((r): r is AssetPrice => r !== null)
 }
 
 async function fetchStockPrice(yahooTicker: string, range = "5d"): Promise<YahooChartResponse | null> {
@@ -78,7 +126,7 @@ async function fetchStockPrices(): Promise<AssetPrice[]> {
       const price = meta.regularMarketPrice
       const prevClose = meta.chartPreviousClose
       const change24h = prevClose > 0 ? ((price - prevClose) / prevClose) * 100 : null
-      const sparkline = result?.indicators?.quote?.[0]?.close?.filter((c): c is number => c !== null) ?? []
+      const sparkline = mapYahooOhlc(result)
       return {
         symbol: asset.symbol, label: asset.label, category: asset.category,
         price, change24h,

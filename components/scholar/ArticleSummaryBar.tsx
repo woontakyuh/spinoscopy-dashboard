@@ -5,9 +5,10 @@ import type { JournalArticle, JournalStats } from "@/lib/types/journal"
 interface ArticleSummaryBarProps {
   stats: JournalStats | undefined
   articles?: JournalArticle[]
+  onSelect?: (article: JournalArticle) => void
 }
 
-export function ArticleSummaryBar({ stats, articles }: ArticleSummaryBarProps) {
+export function ArticleSummaryBar({ stats, articles, onSelect }: ArticleSummaryBarProps) {
   if (!stats) return null
 
   const journals = Object.entries(stats.by_journal).sort(([, a], [, b]) => b - a)
@@ -77,7 +78,12 @@ export function ArticleSummaryBar({ stats, articles }: ArticleSummaryBarProps) {
           <h4 className="text-red-400 text-xs font-semibold mb-2">🔴 필독 논문</h4>
           <div className="space-y-2">
             {mustReads.map((a) => (
-              <div key={a.page_id} className="bg-red-500/5 border border-red-500/10 rounded-lg px-3 py-2">
+              <button
+                type="button"
+                key={a.page_id}
+                onClick={() => onSelect?.(a)}
+                className="w-full text-left bg-red-500/5 border border-red-500/10 rounded-lg px-3 py-2 hover:bg-red-500/10 hover:border-red-500/20 transition-colors cursor-pointer"
+              >
                 <p className="text-zinc-200 text-xs leading-relaxed">
                   {a.title.length > 100 ? a.title.slice(0, 100) + "..." : a.title}
                 </p>
@@ -87,7 +93,7 @@ export function ArticleSummaryBar({ stats, articles }: ArticleSummaryBarProps) {
                   </p>
                 )}
                 <p className="text-zinc-600 text-[10px] mt-1">{a.journal_name}</p>
-              </div>
+              </button>
             ))}
           </div>
         </div>

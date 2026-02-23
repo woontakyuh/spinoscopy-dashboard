@@ -16,7 +16,15 @@ export interface AssetPrice {
   price: number
   change24h: number | null
   currency: string
-  sparkline: number[]
+  sparkline: OHLCBar[]
+}
+
+export interface OHLCBar {
+  time: number
+  open: number
+  high: number
+  low: number
+  close: number
 }
 
 export interface MarketIndicator {

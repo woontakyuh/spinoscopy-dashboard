@@ -165,7 +165,7 @@ function loadImage(dataUrl: string): Promise<HTMLImageElement> {
   })
 }
 
-async function imageFileToUploadData(file: File, maxBytes = 4 * 1024 * 1024): Promise<string> {
+async function imageFileToUploadData(file: File, maxBytes = 700 * 1024): Promise<string> {
   const originalDataUrl = await fileToDataUrl(file)
   if (file.size <= maxBytes) {
     return originalDataUrl
@@ -343,6 +343,11 @@ export default function JarvisPage() {
           image: imageData ?? undefined,
         }),
       })
+
+      const contentType = res.headers.get("content-type") ?? ""
+      if (!contentType.includes("application/json")) {
+        throw new Error("서버 응답 오류 (이미지가 너무 크거나 서버 문제). 이미지를 다시 시도하세요.")
+      }
 
       const data = (await res.json()) as JarvisParseResponse
 

@@ -26,6 +26,7 @@ export function SenseiCapture() {
   const [classInput, setClassInput] = useState("")
   const [sparringInput, setSparringInput] = useState("")
   const [lastSaved, setLastSaved] = useState<CreateSenseiResult | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const hasInput = classInput.trim() || sparringInput.trim()
 
@@ -173,37 +174,74 @@ export function SenseiCapture() {
           <p className="text-zinc-500 text-sm">기록이 없습니다.</p>
         ) : (
           <div className="space-y-3">
-            {(entriesQuery.data ?? []).map((entry) => (
-              <div key={entry.id} className="border border-zinc-700 rounded-lg p-3 bg-zinc-800/50 space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-white text-sm font-medium">{entry.title}</p>
-                  <Badge
-                    variant="outline"
-                    className={`text-[10px] ${entry.sessionType === "openmat" ? "border-green-500/40 text-green-300" : "border-purple-500/40 text-purple-300"}`}
-                  >
-                    {entry.sessionType === "openmat" ? "Open Mat" : "Class"}
-                  </Badge>
-                  {entry.date && <Badge variant="outline" className="text-[10px] border-zinc-600 text-zinc-300">{entry.date}</Badge>}
-                  {entry.instructor && <Badge variant="outline" className="text-[10px] border-zinc-600 text-zinc-300">{entry.instructor}</Badge>}
-                </div>
+             {(entriesQuery.data ?? []).map((entry) => {
+               const isExpanded = expandedId === entry.id
+               return (
+                 <div key={entry.id} className="border border-zinc-700 rounded-lg bg-zinc-800/50 overflow-hidden">
+                   <button
+                     type="button"
+                     onClick={() => setExpandedId(prev => prev === entry.id ? null : entry.id)}
+                     className="w-full text-left p-3 hover:bg-zinc-700/60 transition-colors cursor-pointer"
+                   >
+                     <div className="flex flex-wrap items-center gap-2">
+                       <span className="text-zinc-400 text-sm">{isExpanded ? "▼" : "▶"}</span>
+                       <p className="text-white text-sm font-medium">{entry.title}</p>
+                       <Badge
+                         variant="outline"
+                         className={`text-[10px] ${entry.sessionType === "openmat" ? "border-green-500/40 text-green-300" : "border-purple-500/40 text-purple-300"}`}
+                       >
+                         {entry.sessionType === "openmat" ? "Open Mat" : "Class"}
+                       </Badge>
+                       {entry.date && <Badge variant="outline" className="text-[10px] border-zinc-600 text-zinc-300">{entry.date}</Badge>}
+                     </div>
+                   </button>
 
-                <div className="flex flex-wrap gap-1">
-                  {entry.classTags.map((tag) => (
-                    <Badge key={`class-${entry.id}-${tag}`} variant="outline" className="text-[10px] border-orange-500/40 text-orange-300">
-                      Class: {tag}
-                    </Badge>
-                  ))}
-                  {entry.sparringTags.map((tag) => (
-                    <Badge key={`spar-${entry.id}-${tag}`} variant="outline" className="text-[10px] border-blue-500/40 text-blue-300">
-                      Sparring: {tag}
-                    </Badge>
-                  ))}
-                </div>
+                   {isExpanded && (
+                     <div className="px-3 pb-3 space-y-2 border-t border-zinc-700">
+                       {entry.gym && (
+                         <Badge variant="outline" className="text-[10px] border-zinc-600 text-zinc-300">
+                           {entry.gym}
+                         </Badge>
+                       )}
+                       {entry.instructor && (
+                         <Badge variant="outline" className="text-[10px] border-zinc-600 text-zinc-300">
+                           {entry.instructor}
+                         </Badge>
+                       )}
 
-                {entry.note && <p className="text-zinc-300 text-xs whitespace-pre-wrap">{entry.note}</p>}
-              </div>
-            ))}
-          </div>
+                       <div className="flex flex-wrap gap-1">
+                         {entry.classTags.map((tag) => (
+                           <Badge key={`class-${entry.id}-${tag}`} variant="outline" className="text-[10px] border-orange-500/40 text-orange-300">
+                             Class: {tag}
+                           </Badge>
+                         ))}
+                         {entry.sparringTags.map((tag) => (
+                           <Badge key={`spar-${entry.id}-${tag}`} variant="outline" className="text-[10px] border-blue-500/40 text-blue-300">
+                             Sparring: {tag}
+                           </Badge>
+                         ))}
+                       </div>
+
+                       {entry.note && <p className="text-zinc-300 text-xs whitespace-pre-wrap">{entry.note}</p>}
+
+                       {entry.url && (
+                         <div className="pt-2 border-t border-zinc-700">
+                           <a
+                             href={entry.url}
+                             target="_blank"
+                             rel="noreferrer"
+                             className="text-blue-300 text-xs hover:underline"
+                           >
+                             Notion에서 열기 ↗
+                           </a>
+                         </div>
+                       )}
+                     </div>
+                   )}
+                 </div>
+               )
+             })}
+           </div>
         )}
       </div>
     </div>

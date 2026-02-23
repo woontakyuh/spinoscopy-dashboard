@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -21,9 +21,20 @@ function interestStyle(interest: string) {
 
 export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
   const queryClient = useQueryClient()
-  const [showAbstract, setShowAbstract] = useState(false)
   const [currentInterest, setCurrentInterest] = useState<InterestLevel>(article.interest)
   const [currentRead, setCurrentRead] = useState(article.read)
+  const [koreanTranslation, setKoreanTranslation] = useState<string | null>(null)
+  const [oneLiner, setOneLiner] = useState<string | null>(null)
+  const [translating, setTranslating] = useState(false)
+  const [summarizing, setSummarizing] = useState(false)
+
+  useEffect(() => {
+    void article.page_id
+    setKoreanTranslation(null)
+    setOneLiner(null)
+    setTranslating(false)
+    setSummarizing(false)
+  }, [article.page_id])
 
   const toggleReadMutation = useMutation({
     mutationFn: async (read: boolean) => {
@@ -60,6 +71,60 @@ export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
     const next = INTEREST_CYCLE[(idx + 1) % INTEREST_CYCLE.length]
     setCurrentInterest(next)
     updateInterestMutation.mutate(next)
+  }
+
+  async function handleTranslate() {
+    if (!article.abstract || translating) return
+    setTranslating(true)
+    try {
+      const res = await fetch("/api/notion/journal/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ abstract: article.abstract, mode: "translate" }),
+      })
+
+      const data = (await res.json()) as { translation?: string; error?: string }
+      if (!res.ok) {
+        throw new Error(data.error ?? "번역 실패")
+      }
+
+      if (typeof data.translation !== "string" || !data.translation.trim()) {
+        throw new Error("번역 결과가 비어 있습니다")
+      }
+
+      setKoreanTranslation(data.translation.trim())
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setTranslating(false)
+    }
+  }
+
+  async function handleSummarize() {
+    if (!article.abstract || summarizing) return
+    setSummarizing(true)
+    try {
+      const res = await fetch("/api/notion/journal/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ abstract: article.abstract, mode: "summarize" }),
+      })
+
+      const data = (await res.json()) as { summary?: string; error?: string }
+      if (!res.ok) {
+        throw new Error(data.error ?? "요약 실패")
+      }
+
+      if (typeof data.summary !== "string" || !data.summary.trim()) {
+        throw new Error("요약 결과가 비어 있습니다")
+      }
+
+      setOneLiner(data.summary.trim())
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setSummarizing(false)
+    }
   }
 
   return (
@@ -131,16 +196,44 @@ export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
       )}
 
       {article.abstract && (
-        <div>
-          <button
-            type="button"
-            onClick={() => setShowAbstract(!showAbstract)}
-            className="text-zinc-500 text-xs font-medium uppercase tracking-wider hover:text-zinc-300 transition-colors"
-          >
-            Abstract {showAbstract ? "▲" : "▼"}
-          </button>
-          {showAbstract && (
-            <p className="text-zinc-400 text-sm leading-relaxed mt-1.5">{article.abstract}</p>
+        <div className="space-y-3">
+          <div>
+            <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider mb-1.5">Abstract</p>
+            <p className="text-zinc-400 text-sm leading-relaxed">{article.abstract}</p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleTranslate}
+              disabled={translating}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {translating ? "번역 중..." : koreanTranslation ? "번역 완료" : "한글 번역"}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSummarize}
+              disabled={summarizing}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {summarizing ? "요약 중..." : oneLiner ? "요약 완료" : "한줄 요약"}
+            </button>
+          </div>
+
+          {koreanTranslation && (
+            <div>
+              <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider mb-1.5">한글 번역</p>
+              <p className="text-zinc-300 text-sm leading-relaxed">{koreanTranslation}</p>
+            </div>
+          )}
+
+          {oneLiner && (
+            <div>
+              <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider mb-1.5">한줄 요약</p>
+              <p className="text-zinc-300 text-sm leading-relaxed">{oneLiner}</p>
+            </div>
           )}
         </div>
       )}

@@ -1,7 +1,7 @@
 "use client"
 
-import { AreaChart, Area, ResponsiveContainer } from "recharts"
 import { Badge } from "@/components/ui/badge"
+import { CandlestickSparkline } from "@/components/vault/CandlestickSparkline"
 import type { AssetPrice } from "@/lib/types/vault"
 
 interface AssetCardProps {
@@ -26,7 +26,6 @@ function formatPrice(price: number, currency: string): string {
 export function AssetCard({ asset }: AssetCardProps) {
   const style = CATEGORY_STYLES[asset.category]
   const isUp = asset.change24h !== null && asset.change24h >= 0
-  const sparklineColor = isUp ? "#22c55e" : "#ef4444"
 
   return (
     <div className="border border-zinc-700 rounded-lg p-3 bg-zinc-800/50 space-y-1">
@@ -43,25 +42,8 @@ export function AssetCard({ asset }: AssetCardProps) {
       </div>
 
       {asset.sparkline.length > 1 && (
-        <div className="h-10 -mx-1">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={asset.sparkline.map((v) => ({ v }))}>
-              <defs>
-                <linearGradient id={`spark-${asset.symbol}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={sparklineColor} stopOpacity={0.3} />
-                  <stop offset="100%" stopColor={sparklineColor} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <Area
-                type="monotone"
-                dataKey="v"
-                stroke={sparklineColor}
-                strokeWidth={1.5}
-                fill={`url(#spark-${asset.symbol})`}
-                isAnimationActive={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+        <div className="h-14 -mx-1">
+          <CandlestickSparkline data={asset.sparkline} />
         </div>
       )}
 

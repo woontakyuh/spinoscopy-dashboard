@@ -1,7 +1,6 @@
 "use client"
 
 import { TopBar } from "@/components/layout/TopBar"
-import { OrchestratorChat } from "@/components/dashboard/OrchestratorChat"
 import { AgentGrid } from "@/components/dashboard/AgentGrid"
 import { TodaySurgery } from "@/components/dashboard/TodaySurgery"
 import { TodayTodo } from "@/components/dashboard/TodayTodo"
@@ -18,8 +17,6 @@ export default function DashboardPage() {
           <TodaySurgery />
           <TodayTodo />
         </div>
-
-        <OrchestratorChat />
 
         <div>
           <div className="flex items-center gap-2 mb-3">
