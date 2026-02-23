@@ -21,6 +21,14 @@ interface NotionQueryResponse {
   results: NotionPage[]
 }
 
+interface NotionDatabaseProperty {
+  type: string
+}
+
+interface NotionDatabaseResponse {
+  properties: Record<string, NotionDatabaseProperty>
+}
+
 interface NotionCreateResponse {
   id: string
   url: string
@@ -32,6 +40,7 @@ export interface TodoItem {
   due: string | null
   status: string
   priority: string
+  category: string
   notes: string
   url: string
 }
@@ -41,6 +50,7 @@ export interface TodoCreateInput {
   due?: string
   status?: string
   priority?: string
+  category?: string
   notes?: string
 }
 
@@ -49,6 +59,7 @@ export interface TodoUpdateInput {
   due?: string | null
   status?: string
   priority?: string
+  category?: string
   notes?: string
 }
 
@@ -73,9 +84,28 @@ function toTodoItem(page: NotionPage): TodoItem {
     due: properties.Due?.date?.start ?? null,
     status: properties.Status?.select?.name ?? "To Do",
     priority: properties.Priority?.select?.name ?? "Medium",
+    category: properties.Category?.select?.name ?? "일상업무",
     notes: getText(properties.Notes),
     url: page.url,
   }
+}
+
+let cachedTodoPropertyNames: Set<string> | null = null
+
+async function getTodoPropertyNames(): Promise<Set<string>> {
+  if (cachedTodoPropertyNames) {
+    return cachedTodoPropertyNames
+  }
+
+  const dbId = getTodoDbId()
+  const database = await notionRequest<NotionDatabaseResponse>(`/databases/${dbId}`)
+  cachedTodoPropertyNames = new Set(Object.keys(database.properties ?? {}))
+  return cachedTodoPropertyNames
+}
+
+async function supportsCategoryProperty(): Promise<boolean> {
+  const names = await getTodoPropertyNames()
+  return names.has("Category")
 }
 
 function getTodayInSeoul(): string {
@@ -161,27 +191,37 @@ export async function getAllTodos(options: TodoQueryOptions = {}): Promise<TodoI
 
 export async function createTodo(input: TodoCreateInput): Promise<{ page_id: string; url: string }> {
   const dbId = getTodoDbId()
+  const hasCategory = await supportsCategoryProperty()
+
+  const properties: Record<string, unknown> = {
+    Name: {
+      title: [{ text: { content: input.name.trim() } }],
+    },
+    Due: {
+      date: input.due ? { start: input.due } : null,
+    },
+    Status: {
+      select: { name: input.status ?? "To Do" },
+    },
+    Priority: {
+      select: { name: input.priority ?? "Medium" },
+    },
+    Notes: {
+      rich_text: input.notes?.trim() ? [{ text: { content: input.notes.trim() } }] : [],
+    },
+  }
+
+  if (hasCategory) {
+    properties.Category = {
+      select: { name: input.category ?? "일상업무" },
+    }
+  }
+
   const response = await notionRequest<NotionCreateResponse>("/pages", {
     method: "POST",
     body: JSON.stringify({
       parent: { database_id: dbId },
-      properties: {
-        Name: {
-          title: [{ text: { content: input.name.trim() } }],
-        },
-        Due: {
-          date: input.due ? { start: input.due } : null,
-        },
-        Status: {
-          select: { name: input.status ?? "To Do" },
-        },
-        Priority: {
-          select: { name: input.priority ?? "Medium" },
-        },
-        Notes: {
-          rich_text: input.notes?.trim() ? [{ text: { content: input.notes.trim() } }] : [],
-        },
-      },
+      properties,
     }),
   })
 
@@ -192,6 +232,7 @@ export async function createTodo(input: TodoCreateInput): Promise<{ page_id: str
 }
 
 export async function updateTodo(pageId: string, updates: TodoUpdateInput): Promise<void> {
+  const hasCategory = await supportsCategoryProperty()
   const properties: Record<string, unknown> = {}
 
   if (updates.name !== undefined) {
@@ -215,6 +256,12 @@ export async function updateTodo(pageId: string, updates: TodoUpdateInput): Prom
   if (updates.priority !== undefined) {
     properties.Priority = {
       select: { name: updates.priority },
+    }
+  }
+
+  if (hasCategory && updates.category !== undefined) {
+    properties.Category = {
+      select: { name: updates.category },
     }
   }
 

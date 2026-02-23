@@ -22,6 +22,7 @@ import type { ScheduleCreateInput, ScheduleCreateResult } from "@/lib/types/sche
 const CATEGORY_OPTIONS = ["Conf", "Spine", "AI", "Workshop", "Lecture", "Meeting", "Webinar"] as const
 const TODO_STATUS_OPTIONS = ["To Do", "In Progress", "Done"] as const
 const TODO_PRIORITY_OPTIONS = ["High", "Medium", "Low"] as const
+const TODO_CATEGORY_OPTIONS = ["일상업무", "가족", "학회", "연구", "임상"] as const
 
 interface TodoItem {
   page_id: string
@@ -29,6 +30,7 @@ interface TodoItem {
   due: string | null
   status: string
   priority: string
+  category: string
   notes: string
   url: string
 }
@@ -37,6 +39,7 @@ interface TodoEditFormState {
   name: string
   due: string
   priority: string
+  category: string
   notes: string
 }
 
@@ -46,6 +49,7 @@ interface TodoUpdatePayload {
   due?: string | null
   status?: string
   priority?: string
+  category?: string
   notes?: string
 }
 
@@ -81,7 +85,7 @@ async function fetchTodos(statusFilter: string): Promise<TodoItem[]> {
   return res.json()
 }
 
-async function createTodo(payload: { name: string; due?: string; priority?: string; notes?: string }): Promise<void> {
+async function createTodo(payload: { name: string; due?: string; priority?: string; category?: string; notes?: string }): Promise<void> {
   const res = await fetch("/api/jarvis/todo", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -133,69 +137,7 @@ function priorityBadgeClass(priority: string): string {
 }
 
 function emptyTodoEditForm(): TodoEditFormState {
-  return { name: "", due: "", priority: "Medium", notes: "" }
-}
-
-function estimateDataUrlBytes(dataUrl: string): number {
-  const base64 = dataUrl.split(",")[1] ?? ""
-  return Math.ceil((base64.length * 3) / 4)
-}
-
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        resolve(reader.result)
-        return
-      }
-      reject(new Error("이미지 읽기에 실패했습니다."))
-    }
-    reader.onerror = () => reject(new Error("이미지 읽기에 실패했습니다."))
-    reader.readAsDataURL(file)
-  })
-}
-
-function loadImage(dataUrl: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image()
-    image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error("이미지 로드에 실패했습니다."))
-    image.src = dataUrl
-  })
-}
-
-async function imageFileToUploadData(file: File, maxBytes = 700 * 1024): Promise<string> {
-  const originalDataUrl = await fileToDataUrl(file)
-  if (file.size <= maxBytes) {
-    return originalDataUrl
-  }
-
-  const image = await loadImage(originalDataUrl)
-  const scale = Math.sqrt(maxBytes / file.size)
-  const width = Math.max(1, Math.floor(image.width * scale))
-  const height = Math.max(1, Math.floor(image.height * scale))
-
-  const canvas = document.createElement("canvas")
-  canvas.width = width
-  canvas.height = height
-
-  const context = canvas.getContext("2d")
-  if (!context) {
-    return originalDataUrl
-  }
-
-  context.drawImage(image, 0, 0, width, height)
-
-  let quality = 0.9
-  let resized = canvas.toDataURL("image/jpeg", quality)
-
-  while (estimateDataUrlBytes(resized) > maxBytes && quality > 0.45) {
-    quality -= 0.1
-    resized = canvas.toDataURL("image/jpeg", quality)
-  }
-
-  return resized
+  return { name: "", due: "", priority: "Medium", category: "일상업무", notes: "" }
 }
 
 function mapParsedToScheduleInput(parsed: NonNullable<JarvisParseResponse["parsed"]>): ScheduleCreateInput {
@@ -221,17 +163,16 @@ export default function JarvisPage() {
   const [scheduleEditMode, setScheduleEditMode] = useState(false)
   const [loading, setLoading] = useState(false)
   const [creating, setCreating] = useState(false)
-  const [imageData, setImageData] = useState<string | null>(null)
-  const [imageName, setImageName] = useState<string | null>(null)
   const [result, setResult] = useState<ScheduleCreateResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [targets, setTargets] = useState<Set<ScheduleTarget>>(new Set(["notion", "gcal"]))
-  const uploadRef = useRef<HTMLInputElement>(null)
-  const inputContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const [todoStatusFilter, setTodoStatusFilter] = useState("all")
   const [todoInput, setTodoInput] = useState("")
+  const [todoDueInput, setTodoDueInput] = useState("")
+  const [todoPriorityInput, setTodoPriorityInput] = useState("Medium")
+  const [todoCategoryInput, setTodoCategoryInput] = useState("일상업무")
   const [todoSuccess, setTodoSuccess] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<TodoEditFormState>(emptyTodoEditForm)
@@ -280,9 +221,14 @@ export default function JarvisPage() {
   }, [todos])
 
   useEffect(() => {
-    if (!textareaRef.current) return
-    textareaRef.current.style.height = "auto"
-    textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+    const textarea = textareaRef.current
+    if (!textarea) return
+    const nextValueLength = scheduleText.length
+    textarea.style.height = "auto"
+    textarea.style.height = `${textarea.scrollHeight}px`
+    if (nextValueLength === 0) {
+      textarea.style.height = "100px"
+    }
   }, [scheduleText])
 
   useEffect(() => {
@@ -291,42 +237,8 @@ export default function JarvisPage() {
     return () => window.clearTimeout(timer)
   }, [todoSuccess])
 
-  const handleImageFile = async (file: File) => {
-    setError(null)
-    try {
-      const uploadData = await imageFileToUploadData(file)
-      setImageData(uploadData)
-      setImageName(file.name)
-    } catch (imageError) {
-      const message = imageError instanceof Error ? imageError.message : "이미지 처리 중 오류가 발생했습니다."
-      setError(message)
-    }
-  }
-
-  useEffect(() => {
-    const container = inputContainerRef.current
-    if (!container) return
-
-    const handlePaste = (event: ClipboardEvent) => {
-      const items = event.clipboardData?.items
-      if (!items) return
-
-      for (const item of items) {
-        if (!item.type.startsWith("image/")) continue
-        const file = item.getAsFile()
-        if (!file) continue
-        event.preventDefault()
-        void handleImageFile(file)
-        break
-      }
-    }
-
-    container.addEventListener("paste", handlePaste)
-    return () => container.removeEventListener("paste", handlePaste)
-  }, [])
-
   const handleAnalyze = async () => {
-    if (!scheduleText.trim() && !imageData) {
+    if (!scheduleText.trim()) {
       return
     }
 
@@ -339,14 +251,13 @@ export default function JarvisPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          text: scheduleText.trim() || undefined,
-          image: imageData ?? undefined,
+          text: scheduleText.trim(),
         }),
       })
 
       const contentType = res.headers.get("content-type") ?? ""
       if (!contentType.includes("application/json")) {
-        throw new Error("서버 응답 오류 (이미지가 너무 크거나 서버 문제). 이미지를 다시 시도하세요.")
+        throw new Error("서버 응답 오류가 발생했습니다. 잠시 후 다시 시도하세요.")
       }
 
       const data = (await res.json()) as JarvisParseResponse
@@ -439,7 +350,7 @@ export default function JarvisPage() {
       return
     }
 
-    let payload: { name: string; due?: string; priority?: string; notes?: string } = {
+    let payload: { name: string; due?: string; priority?: string; category?: string; notes?: string } = {
       name: rawText,
     }
 
@@ -466,8 +377,19 @@ export default function JarvisPage() {
     }
 
     try {
+      const explicitDue = todoDueInput.trim()
+      if (explicitDue) {
+        payload.due = explicitDue
+      }
+
+      payload.priority = todoPriorityInput
+      payload.category = todoCategoryInput
+
       await createTodoMutation.mutateAsync(payload)
       setTodoInput("")
+      setTodoDueInput("")
+      setTodoPriorityInput("Medium")
+      setTodoCategoryInput("일상업무")
       setTodoSuccess("할 일을 추가했습니다.")
     } catch (mutationError) {
       const message = mutationError instanceof Error ? mutationError.message : "알 수 없는 오류"
@@ -481,6 +403,7 @@ export default function JarvisPage() {
       name: todo.name,
       due: todo.due?.slice(0, 10) ?? "",
       priority: todo.priority,
+      category: todo.category || "일상업무",
       notes: todo.notes,
     })
   }
@@ -493,6 +416,7 @@ export default function JarvisPage() {
         name: editForm.name.trim(),
         due: editForm.due || null,
         priority: editForm.priority,
+        category: editForm.category,
         notes: editForm.notes,
       })
     } catch (mutationError) {
@@ -614,22 +538,10 @@ export default function JarvisPage() {
                 <CardTitle className="text-zinc-100 text-base">자연어 일정 등록</CardTitle>
               </CardHeader>
               <CardContent>
-                <div
-                  className="space-y-4"
-                  ref={inputContainerRef}
-                  tabIndex={0}
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={(event) => {
-                    event.preventDefault()
-                    const file = event.dataTransfer.files?.[0]
-                    if (file && file.type.startsWith("image/")) {
-                      void handleImageFile(file)
-                    }
-                  }}
-                >
+                <div className="space-y-4">
                   {scheduleStage === "input" && (
                     <>
-                      <p className="text-zinc-300 text-sm">자연어 또는 포스터 이미지에서 일정을 추출합니다.</p>
+                      <p className="text-zinc-300 text-sm">자연어 입력으로 일정을 등록합니다.</p>
                       <div className="rounded-xl border border-zinc-700 bg-zinc-850 p-3 space-y-3">
                         <Textarea
                           ref={textareaRef}
@@ -641,61 +553,20 @@ export default function JarvisPage() {
                               void handleAnalyze()
                             }
                           }}
-                          placeholder={'"3월 15-17일 AANS Annual Meeting, 시카고" 또는 이미지를 첨부하세요'}
+                          placeholder={'"3월 15-17일 AANS Annual Meeting, 시카고" 처럼 입력하세요'}
                           className="bg-zinc-800 border-zinc-700 text-zinc-100 min-h-[100px] resize-none"
                         />
 
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="border-zinc-600 text-zinc-200"
-                              onClick={() => uploadRef.current?.click()}
-                            >
-                              📎 이미지 첨부
-                            </Button>
-                            {imageData && (
-                              <div className="flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1">
-                                <img src={imageData} alt="업로드 미리보기" className="h-8 w-8 rounded object-cover border border-zinc-600" />
-                                <span className="text-xs text-zinc-300 max-w-[160px] truncate">{imageName ?? "첨부 이미지"}</span>
-                                <Button
-                                  type="button"
-                                  size="xs"
-                                  variant="outline"
-                                  className="h-6 px-2"
-                                  onClick={() => {
-                                    setImageData(null)
-                                    setImageName(null)
-                                  }}
-                                >
-                                  제거
-                                </Button>
-                              </div>
-                            )}
-                          </div>
+                        <div className="flex flex-wrap items-center justify-end gap-2">
                           <Button
                             type="button"
                             onClick={handleAnalyze}
-                            disabled={loading || (!scheduleText.trim() && !imageData)}
+                            disabled={loading || !scheduleText.trim()}
                             className="bg-blue-600 hover:bg-blue-500 text-white"
                           >
-                            {loading ? "분석 중..." : "🔍 분석"}
+                            {loading ? "등록 준비 중..." : "자연어 등록"}
                           </Button>
                         </div>
-                        <p className="text-xs text-zinc-500">이미지를 드래그하거나 Ctrl/Cmd+V로 붙여넣기할 수 있습니다.</p>
-                        <input
-                          ref={uploadRef}
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(event) => {
-                            const file = event.target.files?.[0]
-                            if (file) {
-                              void handleImageFile(file)
-                            }
-                          }}
-                        />
                       </div>
                     </>
                   )}
@@ -856,6 +727,32 @@ export default function JarvisPage() {
                       className="bg-zinc-800 border-zinc-700 text-zinc-100"
                       placeholder='"내일까지 OP note 정리" 처럼 자연어로 입력'
                     />
+                    <Input
+                      type="date"
+                      value={todoDueInput}
+                      onChange={(event) => setTodoDueInput(event.target.value)}
+                      className="bg-zinc-800 border-zinc-700 text-zinc-100 md:w-[170px]"
+                    />
+                    <Select value={todoPriorityInput} onValueChange={setTodoPriorityInput}>
+                      <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100 md:w-[150px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-zinc-800 border-zinc-700 text-zinc-100">
+                        {TODO_PRIORITY_OPTIONS.map((priority) => (
+                          <SelectItem key={priority} value={priority}>{priority}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={todoCategoryInput} onValueChange={setTodoCategoryInput}>
+                      <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100 md:w-[150px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-zinc-800 border-zinc-700 text-zinc-100">
+                        {TODO_CATEGORY_OPTIONS.map((category) => (
+                          <SelectItem key={category} value={category}>{category}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Button
                       type="submit"
                       disabled={createTodoMutation.isPending}
@@ -892,7 +789,7 @@ export default function JarvisPage() {
                   (todos ?? []).map((todo) => (
                     <div key={todo.page_id} className="rounded-lg border border-zinc-700 bg-zinc-800 p-3 space-y-2">
                       {editingId === todo.page_id ? (
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
                           <Input
                             value={editForm.name}
                             onChange={(event) => setEditForm((prev) => ({ ...prev, name: event.target.value }))}
@@ -917,10 +814,23 @@ export default function JarvisPage() {
                               ))}
                             </SelectContent>
                           </Select>
+                          <Select
+                            value={editForm.category}
+                            onValueChange={(value) => setEditForm((prev) => ({ ...prev, category: value }))}
+                          >
+                            <SelectTrigger className="w-full bg-zinc-900 border-zinc-700 text-zinc-100">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-zinc-800 border-zinc-700 text-zinc-100">
+                              {TODO_CATEGORY_OPTIONS.map((category) => (
+                                <SelectItem key={category} value={category}>{category}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <Input
                             value={editForm.notes}
                             onChange={(event) => setEditForm((prev) => ({ ...prev, notes: event.target.value }))}
-                            className="bg-zinc-900 border-zinc-700 text-zinc-100 md:col-span-4"
+                            className="bg-zinc-900 border-zinc-700 text-zinc-100 md:col-span-5"
                             placeholder="메모"
                           />
                         </div>
@@ -931,6 +841,7 @@ export default function JarvisPage() {
                             <div className="flex items-center gap-2 mt-1">
                               <Badge variant="outline" className={statusBadgeClass(todo.status)}>{todo.status}</Badge>
                               <Badge variant="outline" className={priorityBadgeClass(todo.priority)}>{todo.priority}</Badge>
+                              <Badge variant="outline" className="border-zinc-500 text-zinc-300">{todo.category || "일상업무"}</Badge>
                               {todo.due && <span className="text-xs text-zinc-500">Due {todo.due.slice(0, 10)}</span>}
                             </div>
                             {todo.notes && <p className="text-xs text-zinc-400 mt-1">{todo.notes}</p>}

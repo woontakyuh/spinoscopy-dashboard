@@ -7,6 +7,7 @@ interface TodoPayload {
   due?: string | null
   status?: string
   priority?: string
+  category?: string
   notes?: string
 }
 
@@ -48,6 +49,7 @@ export async function POST(req: NextRequest) {
       due: body.due ?? undefined,
       status: body.status,
       priority: body.priority,
+      category: body.category,
       notes: body.notes,
     })
 
@@ -72,6 +74,7 @@ export async function PATCH(req: NextRequest) {
       due: body.due,
       status: body.status,
       priority: body.priority,
+      category: body.category,
       notes: body.notes,
     })
 
