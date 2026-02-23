@@ -50,7 +50,7 @@ export function FeedCard({ item }: FeedCardProps) {
       const res = await fetch("/api/ai-feed/summarize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: item.title, url: item.url, source: item.source }),
+        body: JSON.stringify({ title: item.title, url: item.url, source: item.source, description: item.summary }),
       })
       if (!res.ok) throw new Error("요약 실패")
       const data = (await res.json()) as SummarizeResponse

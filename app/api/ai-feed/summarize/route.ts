@@ -101,13 +101,17 @@ export async function POST(req: NextRequest) {
     const fallbackCategories = inferCategories(body.title, body.source, sourceConfig?.tier ?? "tier1-daily")
     const fallbackImportance = scoreImportance(body.title, fallbackCategories, sourceConfig?.tier ?? "tier1-daily")
 
-    const userPrompt = [
+    const promptParts = [
       `제목: ${body.title}`,
       `URL: ${body.url}`,
       `소스: ${sourceConfig?.label ?? body.source}`,
       `티어: ${sourceConfig?.tier ?? "tier1-daily"}`,
       `주기: ${sourceConfig?.cadence ?? "24h"}`,
-    ].join("\n")
+    ]
+    if (body.description) {
+      promptParts.push(`본문 요약: ${body.description}`)
+    }
+    const userPrompt = promptParts.join("\n")
 
     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",

@@ -46,6 +46,7 @@ export interface SummarizeRequest {
   title: string
   url: string
   source: FeedSource
+  description?: string  // pre-scraped summary/description for context
 }
 
 export interface SummarizeResponse {

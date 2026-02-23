@@ -31,6 +31,18 @@ function extractCdata(raw: string): string {
   return match ? match[1].trim() : raw.trim()
 }
 
+
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, "/")
+    .replace(/&nbsp;/g, " ")
+}
 function parseRssItems(xml: string): RssItem[] {
   const items: RssItem[] = []
   const itemRegex = /<item>([\s\S]*?)<\/item>/g
@@ -235,7 +247,7 @@ async function fetchModuletterItems(): Promise<FeedItem[]> {
     let title = "Untitled"
     const h3Match = block.match(/<h[23][^>]*>([\s\S]*?)<\/h[23]>/)
     if (h3Match) {
-      title = h3Match[1].replace(/<[^>]*>/g, "").replace(/\ud83d\udcee\s*\ubaa8\ub450\ub808\ud130\s*[:\uff1a]\s*/g, "").trim()
+      title = decodeHtmlEntities(h3Match[1].replace(/<[^>]*>/g, "").replace(/\ud83d\udcee\s*\ubaa8\ub450\ub808\ud130\s*[:\uff1a]\s*/g, "").trim())
     }
 
     // Extract date (2026.02.23 → 2026-02-23)
