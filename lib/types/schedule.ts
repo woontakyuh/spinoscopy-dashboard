@@ -16,6 +16,7 @@ export interface ScheduleCreateInput {
   place?: string
   category?: string
   society?: string[]
+  targets?: Array<"notion" | "gcal">
   status?: string
   topic?: string
   link?: string

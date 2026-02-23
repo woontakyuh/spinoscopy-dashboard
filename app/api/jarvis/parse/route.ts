@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 interface ParseRequest {
   text?: string
   image?: string
+  type?: "schedule" | "todo"
 }
 
 interface ParsedScheduleData {
@@ -20,7 +21,15 @@ interface ParsedScheduleData {
 interface ParseResponse {
   success: boolean
   parsed?: ParsedScheduleData
+  parsed_todo?: ParsedTodoData
   error?: string
+}
+
+interface ParsedTodoData {
+  name: string
+  due?: string
+  priority?: "High" | "Medium" | "Low"
+  notes?: string
 }
 
 interface GroqResponse {
@@ -52,7 +61,18 @@ function getTodayInKst(): { today: string; dayOfWeek: string } {
   return { today, dayOfWeek }
 }
 
-function buildSystemPrompt(vision: boolean): string {
+function getTomorrowInKst(today: string): string {
+  const base = new Date(`${today}T00:00:00+09:00`)
+  base.setUTCDate(base.getUTCDate() + 1)
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(base)
+}
+
+function buildScheduleSystemPrompt(vision: boolean): string {
   const { today, dayOfWeek } = getTodayInKst()
   return [
     "당신은 일정 정보 추출 전문가입니다. 사용자의 자연어 입력에서 일정 정보를 추출하여 JSON으로 반환하세요.",
@@ -73,6 +93,27 @@ function buildSystemPrompt(vision: boolean): string {
   ]
     .filter(Boolean)
     .join("\n")
+}
+
+function buildTodoSystemPrompt(): string {
+  const { today, dayOfWeek } = getTodayInKst()
+  const tomorrow = getTomorrowInKst(today)
+  return [
+    "당신은 할 일 정보 추출 전문가입니다. 사용자의 자연어를 JSON으로 구조화하세요.",
+    "반드시 JSON만 출력하세요.",
+    "",
+    `오늘 날짜: ${today} (${dayOfWeek})`,
+    "",
+    "규칙:",
+    "- 추출 필드: name(필수), due(선택), priority(선택), notes(선택)",
+    "- 상대 날짜(내일, 다음주 화요일 등)는 오늘 기준 YYYY-MM-DD로 변환",
+    "- priority는 High/Medium/Low 중 하나만 사용",
+    "- 중요/급함/urgent/critical이면 High, 보통이면 Medium, 여유/나중이면 Low",
+    "- 핵심 작업명만 name에 넣고 부연 설명은 notes에 분리",
+    "",
+    "예시 입력: 내일까지 OP note 정리 중요",
+    `예시 출력: {"name":"OP note 정리","due":"${tomorrow}","priority":"High"}`,
+  ].join("\n")
 }
 
 function normalizeImageData(image: string): string {
@@ -96,7 +137,7 @@ function extractMessageContent(data: GroqResponse): string {
   return ""
 }
 
-function parseJsonBlock(raw: string): ParsedScheduleData | null {
+function parseScheduleJsonBlock(raw: string): ParsedScheduleData | null {
   const start = raw.indexOf("{")
   const end = raw.lastIndexOf("}")
   if (start < 0 || end < 0 || end <= start) {
@@ -143,14 +184,59 @@ function parseJsonBlock(raw: string): ParsedScheduleData | null {
   }
 }
 
+function parseTodoJsonBlock(raw: string): ParsedTodoData | null {
+  const start = raw.indexOf("{")
+  const end = raw.lastIndexOf("}")
+  if (start < 0 || end < 0 || end <= start) {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(raw.slice(start, end + 1))
+    if (!parsed || typeof parsed !== "object") {
+      return null
+    }
+
+    const json = parsed as Record<string, unknown>
+    const name = typeof json.name === "string" ? json.name.trim() : ""
+    if (!name) {
+      return null
+    }
+
+    const dueRaw = typeof json.due === "string" ? json.due.trim() : ""
+    const due = /^\d{4}-\d{2}-\d{2}$/.test(dueRaw) ? dueRaw : undefined
+
+    const priorityRaw = typeof json.priority === "string" ? json.priority.trim() : ""
+    const priority = priorityRaw === "High" || priorityRaw === "Medium" || priorityRaw === "Low"
+      ? priorityRaw
+      : undefined
+
+    const notes = typeof json.notes === "string" ? json.notes.trim() : ""
+
+    return {
+      name,
+      due,
+      priority,
+      notes: notes || undefined,
+    }
+  } catch {
+    return null
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as ParseRequest
     const text = body.text?.trim() ?? ""
     const image = body.image?.trim() ?? ""
+    const type = body.type === "todo" ? "todo" : "schedule"
 
-    if (!text && !image) {
+    if (type === "schedule" && !text && !image) {
       return NextResponse.json<ParseResponse>({ success: false, error: "text 또는 image가 필요합니다." }, { status: 400 })
+    }
+
+    if (type === "todo" && !text) {
+      return NextResponse.json<ParseResponse>({ success: false, error: "todo 파싱에는 text가 필요합니다." }, { status: 400 })
     }
 
     const apiKey = process.env.GROQ_API_KEY
@@ -158,8 +244,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json<ParseResponse>({ success: false, error: "GROQ_API_KEY missing" }, { status: 500 })
     }
 
-    const usesVision = Boolean(image)
-    const systemPrompt = buildSystemPrompt(usesVision)
+    const usesVision = type === "schedule" && Boolean(image)
+    const systemPrompt = type === "todo" ? buildTodoSystemPrompt() : buildScheduleSystemPrompt(usesVision)
     const endpoint = "https://api.groq.com/openai/v1/chat/completions"
 
     const payload = usesVision
@@ -207,7 +293,20 @@ export async function POST(req: NextRequest) {
 
     const data = (await groqRes.json()) as GroqResponse
     const raw = extractMessageContent(data)
-    const parsed = parseJsonBlock(raw)
+
+    if (type === "todo") {
+      const parsedTodo = parseTodoJsonBlock(raw)
+      if (!parsedTodo) {
+        return NextResponse.json<ParseResponse>(
+          { success: false, error: "모델 응답에서 유효한 할 일 JSON을 추출하지 못했습니다." },
+          { status: 422 }
+        )
+      }
+
+      return NextResponse.json<ParseResponse>({ success: true, parsed_todo: parsedTodo })
+    }
+
+    const parsed = parseScheduleJsonBlock(raw)
 
     if (!parsed) {
       return NextResponse.json<ParseResponse>(

@@ -33,7 +33,7 @@ interface TodoItem {
   url: string
 }
 
-interface TodoFormState {
+interface TodoEditFormState {
   name: string
   due: string
   priority: string
@@ -62,10 +62,17 @@ interface JarvisParseResponse {
     link?: string
     abstract_deadline?: string
   }
+  parsed_todo?: {
+    name: string
+    due?: string
+    priority?: "High" | "Medium" | "Low"
+    notes?: string
+  }
   error?: string
 }
 
 type ScheduleStage = "input" | "confirm" | "result"
+type ScheduleTarget = "notion" | "gcal"
 
 async function fetchTodos(statusFilter: string): Promise<TodoItem[]> {
   const query = statusFilter === "all" ? "" : `?status=${encodeURIComponent(statusFilter)}`
@@ -125,7 +132,7 @@ function priorityBadgeClass(priority: string): string {
   return "border-zinc-600 text-zinc-300"
 }
 
-function emptyTodoForm(): TodoFormState {
+function emptyTodoEditForm(): TodoEditFormState {
   return { name: "", due: "", priority: "Medium", notes: "" }
 }
 
@@ -218,14 +225,16 @@ export default function JarvisPage() {
   const [imageName, setImageName] = useState<string | null>(null)
   const [result, setResult] = useState<ScheduleCreateResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [targets, setTargets] = useState<Set<ScheduleTarget>>(new Set(["notion", "gcal"]))
   const uploadRef = useRef<HTMLInputElement>(null)
   const inputContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const [todoStatusFilter, setTodoStatusFilter] = useState("all")
-  const [todoForm, setTodoForm] = useState<TodoFormState>(emptyTodoForm)
+  const [todoInput, setTodoInput] = useState("")
+  const [todoSuccess, setTodoSuccess] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState<TodoFormState>(emptyTodoForm)
+  const [editForm, setEditForm] = useState<TodoEditFormState>(emptyTodoEditForm)
   const [todoError, setTodoError] = useState<string | null>(null)
 
   const { data: todos, isLoading: todoLoading } = useQuery({
@@ -237,7 +246,6 @@ export default function JarvisPage() {
   const createTodoMutation = useMutation({
     mutationFn: createTodo,
     onSuccess: async () => {
-      setTodoForm(emptyTodoForm())
       await queryClient.invalidateQueries({ queryKey: ["jarvis-todos"] })
       await queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
     },
@@ -276,6 +284,12 @@ export default function JarvisPage() {
     textareaRef.current.style.height = "auto"
     textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
   }, [scheduleText])
+
+  useEffect(() => {
+    if (!todoSuccess) return
+    const timer = window.setTimeout(() => setTodoSuccess(null), 1800)
+    return () => window.clearTimeout(timer)
+  }, [todoSuccess])
 
   const handleImageFile = async (file: File) => {
     setError(null)
@@ -337,6 +351,7 @@ export default function JarvisPage() {
       }
 
       setParsedSchedule(mapParsedToScheduleInput(data.parsed))
+      setTargets(new Set(["notion", "gcal"]))
       setScheduleEditMode(false)
       setScheduleStage("confirm")
     } catch (submitError) {
@@ -352,6 +367,11 @@ export default function JarvisPage() {
       return
     }
 
+    if (targets.size === 0) {
+      setError("등록 대상을 최소 1개 선택하세요.")
+      return
+    }
+
     const payload: ScheduleCreateInput = {
       name: parsedSchedule.name.trim(),
       date_start: parsedSchedule.date_start,
@@ -362,6 +382,7 @@ export default function JarvisPage() {
       topic: parsedSchedule.topic?.trim() || undefined,
       link: parsedSchedule.link?.trim() || undefined,
       abstract_deadline: parsedSchedule.abstract_deadline || undefined,
+      targets: Array.from(targets),
     }
 
     if (!payload.name || !payload.date_start) {
@@ -399,21 +420,50 @@ export default function JarvisPage() {
 
   const handleCreateTodo = async (event: { preventDefault: () => void }) => {
     event.preventDefault()
-    setTodoError(null)
 
-    const name = todoForm.name.trim()
-    if (!name) {
-      setTodoError("할 일 이름은 필수입니다.")
+    if (createTodoMutation.isPending) {
       return
     }
 
+    setTodoError(null)
+    setTodoSuccess(null)
+
+    const rawText = todoInput.trim()
+    if (!rawText) {
+      setTodoError("할 일을 입력하세요.")
+      return
+    }
+
+    let payload: { name: string; due?: string; priority?: string; notes?: string } = {
+      name: rawText,
+    }
+
     try {
-      await createTodoMutation.mutateAsync({
-        name,
-        due: todoForm.due || undefined,
-        priority: todoForm.priority,
-        notes: todoForm.notes.trim() || undefined,
+      const parseRes = await fetch("/api/jarvis/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: rawText, type: "todo" }),
       })
+
+      if (parseRes.ok) {
+        const parseData = (await parseRes.json()) as JarvisParseResponse
+        if (parseData.success && parseData.parsed_todo?.name) {
+          payload = {
+            name: parseData.parsed_todo.name,
+            due: parseData.parsed_todo.due,
+            priority: parseData.parsed_todo.priority,
+            notes: parseData.parsed_todo.notes,
+          }
+        }
+      }
+    } catch {
+      payload = { name: rawText }
+    }
+
+    try {
+      await createTodoMutation.mutateAsync(payload)
+      setTodoInput("")
+      setTodoSuccess("할 일을 추가했습니다.")
     } catch (mutationError) {
       const message = mutationError instanceof Error ? mutationError.message : "알 수 없는 오류"
       setTodoError(message)
@@ -492,6 +542,29 @@ export default function JarvisPage() {
     })
   }
 
+  const toggleTarget = (target: ScheduleTarget) => {
+    setTargets((prev) => {
+      const next = new Set(prev)
+      if (next.has(target)) {
+        if (next.size === 1) {
+          return prev
+        }
+        next.delete(target)
+      } else {
+        next.add(target)
+      }
+      return next
+    })
+  }
+
+  const submitScheduleLabel = useMemo(() => {
+    const hasNotion = targets.has("notion")
+    const hasGcal = targets.has("gcal")
+    if (hasNotion && hasGcal) return "✓ Notion + GCal 등록"
+    if (hasNotion) return "✓ Notion 등록"
+    return "✓ GCal 등록"
+  }, [targets])
+
   const parsedRows = parsedSchedule
     ? [
         { key: "name", label: "이름", value: parsedSchedule.name, type: "text" as const },
@@ -536,7 +609,19 @@ export default function JarvisPage() {
                 <CardTitle className="text-zinc-100 text-base">자연어 일정 등록</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4" ref={inputContainerRef} tabIndex={0}>
+                <div
+                  className="space-y-4"
+                  ref={inputContainerRef}
+                  tabIndex={0}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    event.preventDefault()
+                    const file = event.dataTransfer.files?.[0]
+                    if (file && file.type.startsWith("image/")) {
+                      void handleImageFile(file)
+                    }
+                  }}
+                >
                   {scheduleStage === "input" && (
                     <>
                       <p className="text-zinc-300 text-sm">자연어 또는 포스터 이미지에서 일정을 추출합니다.</p>
@@ -545,22 +630,18 @@ export default function JarvisPage() {
                           ref={textareaRef}
                           value={scheduleText}
                           onChange={(event) => setScheduleText(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" && !event.shiftKey && scheduleText.trim()) {
+                              event.preventDefault()
+                              void handleAnalyze()
+                            }
+                          }}
                           placeholder={'"3월 15-17일 AANS Annual Meeting, 시카고" 또는 이미지를 첨부하세요'}
                           className="bg-zinc-800 border-zinc-700 text-zinc-100 min-h-[100px] resize-none"
                         />
 
-                        <div
-                          className="rounded-lg border border-dashed border-zinc-700 p-3 bg-zinc-800/40"
-                          onDragOver={(event) => event.preventDefault()}
-                          onDrop={(event) => {
-                            event.preventDefault()
-                            const file = event.dataTransfer.files?.[0]
-                            if (file && file.type.startsWith("image/")) {
-                              void handleImageFile(file)
-                            }
-                          }}
-                        >
-                          <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <Button
                               type="button"
                               variant="outline"
@@ -569,49 +650,47 @@ export default function JarvisPage() {
                             >
                               📎 이미지 첨부
                             </Button>
-                            <Button
-                              type="button"
-                              onClick={handleAnalyze}
-                              disabled={loading || (!scheduleText.trim() && !imageData)}
-                              className="bg-blue-600 hover:bg-blue-500 text-white"
-                            >
-                              {loading ? "분석 중..." : "🔍 분석"}
-                            </Button>
-                          </div>
-                          <p className="text-xs text-zinc-500 mt-2">이미지를 드래그하거나 Ctrl/Cmd+V로 붙여넣기할 수 있습니다.</p>
-                          <input
-                            ref={uploadRef}
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(event) => {
-                              const file = event.target.files?.[0]
-                              if (file) {
-                                void handleImageFile(file)
-                              }
-                            }}
-                          />
-
-                          {imageData && (
-                            <div className="mt-3 flex items-center gap-3">
-                              <img src={imageData} alt="업로드 미리보기" className="h-16 w-16 rounded-md object-cover border border-zinc-600" />
-                              <div className="text-xs text-zinc-300 space-y-1">
-                                <p>{imageName ?? "첨부 이미지"}</p>
+                            {imageData && (
+                              <div className="flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1">
+                                <img src={imageData} alt="업로드 미리보기" className="h-8 w-8 rounded object-cover border border-zinc-600" />
+                                <span className="text-xs text-zinc-300 max-w-[160px] truncate">{imageName ?? "첨부 이미지"}</span>
                                 <Button
                                   type="button"
                                   size="xs"
                                   variant="outline"
+                                  className="h-6 px-2"
                                   onClick={() => {
                                     setImageData(null)
                                     setImageName(null)
                                   }}
                                 >
-                                  이미지 제거
+                                  제거
                                 </Button>
                               </div>
-                            </div>
-                          )}
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            onClick={handleAnalyze}
+                            disabled={loading || (!scheduleText.trim() && !imageData)}
+                            className="bg-blue-600 hover:bg-blue-500 text-white"
+                          >
+                            {loading ? "분석 중..." : "🔍 분석"}
+                          </Button>
                         </div>
+                        <p className="text-xs text-zinc-500">이미지를 드래그하거나 Ctrl/Cmd+V로 붙여넣기할 수 있습니다.</p>
+                        <input
+                          ref={uploadRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0]
+                            if (file) {
+                              void handleImageFile(file)
+                            }
+                          }}
+                        />
                       </div>
                     </>
                   )}
@@ -657,6 +736,30 @@ export default function JarvisPage() {
                         </div>
                       </div>
 
+                      <div className="rounded-lg border border-zinc-700 bg-zinc-850 p-3">
+                        <p className="text-zinc-300 text-xs mb-2">등록 대상</p>
+                        <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-200">
+                          <label className="inline-flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={targets.has("notion")}
+                              onChange={() => toggleTarget("notion")}
+                              className="h-4 w-4 rounded border-zinc-600 bg-zinc-800"
+                            />
+                            Notion
+                          </label>
+                          <label className="inline-flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={targets.has("gcal")}
+                              onChange={() => toggleTarget("gcal")}
+                              className="h-4 w-4 rounded border-zinc-600 bg-zinc-800"
+                            />
+                            Google Calendar
+                          </label>
+                        </div>
+                      </div>
+
                       <div className="flex items-center gap-2">
                         <Button
                           type="button"
@@ -671,7 +774,7 @@ export default function JarvisPage() {
                           disabled={creating}
                           className="bg-emerald-600 hover:bg-emerald-500 text-white"
                         >
-                          {creating ? "등록 중..." : "✓ Notion + GCal 등록"}
+                          {creating ? "등록 중..." : submitScheduleLabel}
                         </Button>
                         <Button
                           type="button"
@@ -740,67 +843,27 @@ export default function JarvisPage() {
                 <CardTitle className="text-zinc-100 text-base">할 일 추가</CardTitle>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleCreateTodo} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="todo-name" className="text-zinc-300">할 일</Label>
+                <form onSubmit={handleCreateTodo} className="space-y-3">
+                  <div className="flex flex-col md:flex-row gap-2">
                     <Input
-                      id="todo-name"
-                      value={todoForm.name}
-                      onChange={(event) => setTodoForm((prev) => ({ ...prev, name: event.target.value }))}
+                      value={todoInput}
+                      onChange={(event) => setTodoInput(event.target.value)}
                       className="bg-zinc-800 border-zinc-700 text-zinc-100"
-                      placeholder="예: OP note 정리"
+                      placeholder='"내일까지 OP note 정리" 처럼 자연어로 입력'
                     />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="todo-due" className="text-zinc-300">마감일</Label>
-                    <Input
-                      id="todo-due"
-                      type="date"
-                      value={todoForm.due}
-                      onChange={(event) => setTodoForm((prev) => ({ ...prev, due: event.target.value }))}
-                      className="bg-zinc-800 border-zinc-700 text-zinc-100"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-zinc-300">우선순위</Label>
-                    <Select
-                      value={todoForm.priority}
-                      onValueChange={(value) => setTodoForm((prev) => ({ ...prev, priority: value }))}
-                    >
-                      <SelectTrigger className="w-full bg-zinc-800 border-zinc-700 text-zinc-100">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-zinc-800 border-zinc-700 text-zinc-100">
-                        {TODO_PRIORITY_OPTIONS.map((priority) => (
-                          <SelectItem key={priority} value={priority}>
-                            {priority}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="todo-notes" className="text-zinc-300">메모</Label>
-                    <Input
-                      id="todo-notes"
-                      value={todoForm.notes}
-                      onChange={(event) => setTodoForm((prev) => ({ ...prev, notes: event.target.value }))}
-                      className="bg-zinc-800 border-zinc-700 text-zinc-100"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
                     <Button
                       type="submit"
                       disabled={createTodoMutation.isPending}
-                      className="bg-blue-600 hover:bg-blue-500 text-white"
+                      className="bg-blue-600 hover:bg-blue-500 text-white md:min-w-20"
                     >
-                      {createTodoMutation.isPending ? "추가 중..." : "할 일 추가"}
+                      {createTodoMutation.isPending ? "추가 중..." : "추가"}
                     </Button>
                   </div>
+                  {todoSuccess && (
+                    <div className="border border-emerald-500/40 rounded-lg px-3 py-2 bg-emerald-900/20">
+                      <p className="text-emerald-200 text-xs">{todoSuccess}</p>
+                    </div>
+                  )}
                 </form>
               </CardContent>
             </Card>

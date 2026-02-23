@@ -68,6 +68,7 @@ function priorityBadgeClass(priority: string): string {
 export function TodayTodo() {
   const queryClient = useQueryClient()
   const [quickName, setQuickName] = useState("")
+  const [quickAddError, setQuickAddError] = useState<string | null>(null)
   const today = todayInSeoul()
 
   const { data: todos, isLoading, error } = useQuery({
@@ -88,17 +89,46 @@ export function TodayTodo() {
     mutationFn: (name: string) => createQuickTodo(name),
     onSuccess: async () => {
       setQuickName("")
+      setQuickAddError(null)
       await queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
       await queryClient.invalidateQueries({ queryKey: ["jarvis-todos"] })
+      await queryClient.refetchQueries({ queryKey: ["dashboard-todo-active"] })
+      await queryClient.refetchQueries({ queryKey: ["jarvis-todos"] })
+    },
+    onError: (mutationError) => {
+      const message = mutationError instanceof Error ? mutationError.message : "할 일 생성 중 오류가 발생했습니다."
+      setQuickAddError(message)
     },
   })
 
-  const handleQuickAdd = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleQuickAdd = async (event: { preventDefault: () => void }) => {
     event.preventDefault()
+
+    if (createMutation.isPending) {
+      return
+    }
+
+    setQuickAddError(null)
     const name = quickName.trim()
-    if (!name) return
-    await createMutation.mutateAsync(name)
+    if (!name) {
+      setQuickAddError("할 일을 입력하세요.")
+      return
+    }
+
+    try {
+      await createMutation.mutateAsync(name)
+    } catch (mutationError) {
+      const message = mutationError instanceof Error ? mutationError.message : "할 일 생성 중 오류가 발생했습니다."
+      setQuickAddError(message)
+    }
   }
+
+  const mutationErrorMessage = createMutation.isError
+    ? createMutation.error instanceof Error
+      ? createMutation.error.message
+      : "할 일 생성 중 오류가 발생했습니다."
+    : null
+  const quickAddErrorMessage = quickAddError ?? mutationErrorMessage
 
   return (
     <div className="border border-zinc-700 rounded-xl bg-zinc-900 p-4">
@@ -154,6 +184,7 @@ export function TodayTodo() {
           onChange={(event) => setQuickName(event.target.value)}
           placeholder="새 할일 빠르게 추가"
           className="bg-zinc-800 border-zinc-700 text-zinc-100"
+          disabled={createMutation.isPending}
         />
         <Button
           type="submit"
@@ -161,9 +192,12 @@ export function TodayTodo() {
           disabled={createMutation.isPending}
           className="bg-blue-600 hover:bg-blue-500 text-white"
         >
-          추가
+          {createMutation.isPending ? "추가 중..." : "추가"}
         </Button>
       </form>
+      {quickAddErrorMessage && (
+        <p className="mt-2 text-xs text-red-300">오류: {quickAddErrorMessage}</p>
+      )}
     </div>
   )
 }

@@ -25,41 +25,53 @@ export async function POST(req: NextRequest) {
       date_start: dateStart,
     }
 
-    const duplicate = await findDuplicateSchedule(name, dateStart)
-    const notionResult = duplicate
-      ? {
-          skipped: true as const,
-          message: "이미 동일한 일정이 Notion에 존재합니다.",
-          page_id: duplicate.page_id,
-          url: duplicate.url,
-        }
-      : await createSchedule(input)
+    const requestedTargets = Array.isArray(body.targets)
+      ? body.targets.filter((target): target is "notion" | "gcal" => target === "notion" || target === "gcal")
+      : undefined
+    const targets = new Set<"notion" | "gcal">(
+      requestedTargets && requestedTargets.length > 0 ? requestedTargets : ["notion", "gcal"]
+    )
+
+    let notionResult: ScheduleCreateResult["notion"]
+    if (targets.has("notion")) {
+      const duplicate = await findDuplicateSchedule(name, dateStart)
+      notionResult = duplicate
+        ? {
+            skipped: true as const,
+            message: "이미 동일한 일정이 Notion에 존재합니다.",
+            page_id: duplicate.page_id,
+            url: duplicate.url,
+          }
+        : await createSchedule(input)
+    }
 
     let googleResult: ScheduleCreateResult["google_calendar"]
 
-    try {
-      const existing = await findGoogleCalendarEvent(name, dateStart)
-      if (existing.exists) {
-        googleResult = {
-          success: true,
-          message: "이미 동일한 일정이 Google Calendar에 존재합니다.",
-          eventId: existing.eventId,
-          eventUrl: existing.eventUrl,
+    if (targets.has("gcal")) {
+      try {
+        const existing = await findGoogleCalendarEvent(name, dateStart)
+        if (existing.exists) {
+          googleResult = {
+            success: true,
+            message: "이미 동일한 일정이 Google Calendar에 존재합니다.",
+            eventId: existing.eventId,
+            eventUrl: existing.eventUrl,
+          }
+        } else {
+          googleResult = await createGoogleCalendarEvent({
+            name,
+            date_start: dateStart,
+            date_end: input.date_end,
+            place: input.place,
+            description: input.topic,
+          })
         }
-      } else {
-        googleResult = await createGoogleCalendarEvent({
-          name,
-          date_start: dateStart,
-          date_end: input.date_end,
-          place: input.place,
-          description: input.topic,
-        })
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown Google Calendar error"
-      googleResult = {
-        success: false,
-        message,
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown Google Calendar error"
+        googleResult = {
+          success: false,
+          message,
+        }
       }
     }
 
