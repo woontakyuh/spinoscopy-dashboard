@@ -4,6 +4,7 @@ import { TopBar } from "@/components/layout/TopBar"
 import { OrchestratorChat } from "@/components/dashboard/OrchestratorChat"
 import { AgentGrid } from "@/components/dashboard/AgentGrid"
 import { TodaySurgery } from "@/components/dashboard/TodaySurgery"
+import { TodayTodo } from "@/components/dashboard/TodayTodo"
 import { MorningBriefing } from "@/components/dashboard/MorningBriefing"
 
 export default function DashboardPage() {
@@ -12,6 +13,11 @@ export default function DashboardPage() {
       <TopBar title="Dashboard" />
       <div className="flex-1 p-3 md:p-6 max-w-6xl w-full space-y-4 md:space-y-6">
         <MorningBriefing />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <TodaySurgery />
+          <TodayTodo />
+        </div>
 
         <OrchestratorChat />
 
@@ -24,7 +30,6 @@ export default function DashboardPage() {
           <AgentGrid />
         </div>
 
-        <TodaySurgery />
       </div>
     </div>
   )

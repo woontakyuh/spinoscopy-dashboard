@@ -35,6 +35,15 @@ export interface GoogleCalendarCreateInput {
   description?: string
 }
 
+export interface GoogleCalendarEventSummary {
+  id: string
+  title: string
+  start: string
+  end: string | null
+  location: string
+  url: string
+}
+
 function loadCredentials(): OAuthInstalledCredentials | null {
   if (!existsSync(CREDENTIALS_PATH)) {
     return null
@@ -205,4 +214,35 @@ export async function findGoogleCalendarEvent(
   }
 
   return { exists: false }
+}
+
+export async function listGoogleCalendarEventsForDate(date: string): Promise<GoogleCalendarEventSummary[]> {
+  const auth = await getAuthorizedClient()
+  if (!auth) {
+    return []
+  }
+
+  const calendar = google.calendar({ version: "v3", auth })
+  const start = `${date}T00:00:00+09:00`
+  const end = `${nextDay(date)}T00:00:00+09:00`
+
+  const res = await calendar.events.list({
+    calendarId: "primary",
+    timeMin: start,
+    timeMax: end,
+    singleEvents: true,
+    orderBy: "startTime",
+  })
+
+  return (res.data.items ?? [])
+    .filter((event): event is calendar_v3.Schema$Event & { id: string } => Boolean(event.id))
+    .map((event) => ({
+      id: event.id,
+      title: event.summary ?? "(제목 없음)",
+      start: event.start?.dateTime ?? event.start?.date ?? "",
+      end: event.end?.dateTime ?? event.end?.date ?? null,
+      location: event.location ?? "",
+      url: event.htmlLink ?? "",
+    }))
+    .filter((event) => event.start.length > 0)
 }
