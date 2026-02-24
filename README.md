@@ -34,3 +34,31 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Journal Alert Integration
+
+Journal alert automation is now integrated in this repository.
+
+- Trigger endpoint: `POST /api/notion/journal/alert/run?days=7`
+- Auth header: `Authorization: Bearer <JOURNAL_ALERT_RUN_TOKEN>`
+- Pipeline: PubMed fetch -> dedupe against Notion journal DB -> insert new papers -> optional email notify
+
+Required environment variables:
+
+- `NOTION_TOKEN`
+- `NOTION_JOURNAL_DB_ID`
+- `JOURNAL_ALERT_RUN_TOKEN`
+
+Optional email variables (email step runs only when all are set):
+
+- `JOURNAL_ALERT_SMTP_USER`
+- `JOURNAL_ALERT_SMTP_PASS`
+- `JOURNAL_ALERT_SMTP_HOST` (default: `smtp.gmail.com`)
+- `JOURNAL_ALERT_SMTP_PORT` (default: `587`)
+- `JOURNAL_ALERT_RECIPIENT` (default: SMTP user)
+- `JOURNAL_ALERT_MAX_EMAIL_ITEMS` (default: `80`, hard cap `200`)
+- `JOURNAL_ALERT_EMAIL_COOLDOWN_HOURS` (default: `72`)
+
+Legacy note:
+
+- `workspace/myagents/journal-alert` is now legacy. Use dashboard API run endpoint as the single execution path.

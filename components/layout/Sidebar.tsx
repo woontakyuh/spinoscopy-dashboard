@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 
 const NAV_ITEMS = [
-  { icon: "🏠", label: "Dashboard", href: "/", active: true },
   { icon: "🩺", label: "Clinicus", href: "/agents/clinicus", active: true },
   { icon: "🔬", label: "Scholar", href: "/agents/scholar", active: true },
   { icon: "🎓", label: "Maestro", href: "#", active: false },

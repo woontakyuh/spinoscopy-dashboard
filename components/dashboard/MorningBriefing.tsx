@@ -76,11 +76,11 @@ export function MorningBriefing() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-white">
-          {getGreeting()}, Dr. Yuh
+      <div className="pt-2 md:pt-4">
+        <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
+          {getGreeting()}, Tak.
         </h2>
-        <p className="text-zinc-400 mt-1">{dateStr}</p>
+        <p className="text-zinc-500 text-base mt-2">{dateStr}</p>
       </div>
 
       <div>
