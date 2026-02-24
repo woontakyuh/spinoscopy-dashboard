@@ -1,4 +1,4 @@
-import type { DdayInfo } from "@/lib/types/maestro"
+import type { DdayInfo } from "@/lib/types/podium"
 
 export function calculateDday(targetDate: string | null): DdayInfo {
   if (!targetDate) {

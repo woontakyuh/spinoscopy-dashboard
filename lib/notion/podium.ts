@@ -1,5 +1,5 @@
 import { notionRequest } from "./client"
-import type { Presentation, PresentationFilter } from "@/lib/types/maestro"
+import type { Presentation, PresentationFilter } from "@/lib/types/podium"
 
 interface NotionProperty {
   type: string

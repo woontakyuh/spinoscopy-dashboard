@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/badge"
 import { calculateDday, getDdayColor } from "@/lib/utils/dday"
-import type { Presentation } from "@/lib/types/maestro"
+import type { Presentation } from "@/lib/types/podium"
 
 interface PresentationCardProps {
   presentation: Presentation

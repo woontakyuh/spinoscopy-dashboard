@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getPresentations } from "@/lib/notion/maestro"
-import type { PresentationFilter, TimeFilter, AttendanceFilter } from "@/lib/types/maestro"
+import { getPresentations } from "@/lib/notion/podium"
+import type { PresentationFilter, TimeFilter, AttendanceFilter } from "@/lib/types/podium"
 
 const TIME_VALUES = new Set<TimeFilter>(["past", "upcoming"])
 const ATTENDANCE_VALUES = new Set<AttendanceFilter>(["all", "참석", "불참", "발표", "미정"])

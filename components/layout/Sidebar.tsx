@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 const NAV_ITEMS = [
   { icon: "🩺", label: "Clinicus", href: "/agents/clinicus", active: true },
   { icon: "🔬", label: "Scholar", href: "/agents/scholar", active: true },
-  { icon: "🎓", label: "Maestro", href: "/agents/maestro", active: true },
+  { icon: "🏆", label: "Podium", href: "/agents/podium", active: true },
   { icon: "📋", label: "Jarvis", href: "/agents/jarvis", active: true },
   { icon: "💰", label: "Vault", href: "/agents/vault", active: true },
   { icon: "🥋", label: "Sensei", href: "/agents/sensei", active: true },

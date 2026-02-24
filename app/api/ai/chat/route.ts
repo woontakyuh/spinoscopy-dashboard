@@ -15,7 +15,7 @@ Always respond in Korean unless asked otherwise.`,
 You coordinate between specialized agents:
 - Clinicus: 임상 질문, 환자 데이터, PROM 점수
 - Scholar: 저널 논문, 연구 분석, 문헌 검색
-- Maestro: 교육, 강의, 학회 (준비중)
+- Podium: 학회, 컨퍼런스, 발표 일정
 - Jarvis: 일정, 업무 관리 (준비중)
 - Vault: 재무, 정산 (준비중)
 - Sensei: 수련, 수기 교육 (준비중)
