@@ -30,7 +30,12 @@ export function PresentationCard({ presentation }: PresentationCardProps) {
     : null
 
   return (
-    <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900 hover:border-zinc-600 transition-colors presentation-card">
+    <a
+      href={presentation.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block border border-zinc-700 rounded-xl p-4 bg-zinc-900 hover:border-zinc-600 transition-colors"
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-2">
@@ -60,26 +65,19 @@ export function PresentationCard({ presentation }: PresentationCardProps) {
               </Badge>
             )}
           </div>
-
           <p className="text-zinc-200 text-sm font-medium leading-snug">
             {presentation.topic || presentation.name}
           </p>
-
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
             <span>📅 {formatDateRange(presentation.date_start, presentation.date_end)}</span>
             {presentation.place && <span>📍 {presentation.place}</span>}
-            {presentation.preparation_status && (
-              <span className="text-zinc-400">⚙️ {presentation.preparation_status}</span>
-            )}
           </div>
-
           {abstractDday && !abstractDday.isPast && abstractDday.days !== null && (
             <div className="mt-2 text-xs text-amber-400/80">
               📝 초록 마감: {presentation.abstract_deadline} ({abstractDday.label})
             </div>
           )}
         </div>
-
         <div className="shrink-0">
           <span
             className={`inline-flex items-center justify-center rounded-lg px-2.5 py-1.5 text-xs font-bold border ${ddayColor}`}
@@ -88,17 +86,11 @@ export function PresentationCard({ presentation }: PresentationCardProps) {
           </span>
         </div>
       </div>
-
       {presentation.link && (
-        <a
-          href={presentation.link}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-block mt-3 text-xs text-blue-400 hover:text-blue-300 hover:underline"
-        >
+        <span className="inline-block mt-3 text-xs text-blue-400">
           🔗 학회 링크
-        </a>
+        </span>
       )}
-    </div>
+    </a>
   )
 }

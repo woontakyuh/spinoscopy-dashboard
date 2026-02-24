@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { getPresentations } from "@/lib/notion/maestro"
 import type { PresentationFilter, TimeFilter, AttendanceFilter } from "@/lib/types/maestro"
 
-const TIME_VALUES = new Set<TimeFilter>(["all", "past", "upcoming"])
-const ATTENDANCE_VALUES = new Set<AttendanceFilter>(["all", "참석", "불참", "발표"])
+const TIME_VALUES = new Set<TimeFilter>(["past", "upcoming"])
+const ATTENDANCE_VALUES = new Set<AttendanceFilter>(["all", "참석", "불참", "발표", "미정"])
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl

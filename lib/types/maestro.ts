@@ -1,5 +1,5 @@
-export type TimeFilter = "all" | "past" | "upcoming"
-export type AttendanceFilter = "all" | "참석" | "불참" | "발표"
+export type TimeFilter = "past" | "upcoming"
+export type AttendanceFilter = "all" | "참석" | "불참" | "발표" | "미정"
 export interface Presentation {
   page_id: string
   url: string

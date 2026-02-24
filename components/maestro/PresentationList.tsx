@@ -9,7 +9,6 @@ import type { PresentationsResponse, TimeFilter, AttendanceFilter } from "@/lib/
 const TIME_OPTIONS: { value: TimeFilter; label: string }[] = [
   { value: "upcoming", label: "Upcoming" },
   { value: "past", label: "Past" },
-  { value: "all", label: "All" },
 ]
 
 const ATTENDANCE_OPTIONS: { value: AttendanceFilter; label: string }[] = [
@@ -17,6 +16,7 @@ const ATTENDANCE_OPTIONS: { value: AttendanceFilter; label: string }[] = [
   { value: "발표", label: "발표" },
   { value: "참석", label: "참석" },
   { value: "불참", label: "불참" },
+  { value: "미정", label: "미정" },
 ]
 
 function FilterButton<T extends string>({
@@ -51,7 +51,7 @@ export function PresentationList() {
   const [attendance, setAttendance] = useState<AttendanceFilter>("all")
 
   const params = new URLSearchParams()
-  if (time !== "all") params.set("time", time)
+  params.set("time", time)
   if (attendance !== "all") params.set("attendance", attendance)
   const qs = params.toString()
 

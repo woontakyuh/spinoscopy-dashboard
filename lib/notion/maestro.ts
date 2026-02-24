@@ -69,6 +69,8 @@ function buildFilter(filter?: PresentationFilter) {
     conditions.push({ property: "참석", select: { equals: "참석만" } })
   } else if (attendance === "불참") {
     conditions.push({ property: "참석", select: { equals: "불참" } })
+  } else if (attendance === "미정") {
+    conditions.push({ property: "참석", select: { is_empty: true } })
   }
   if (filter?.society) {
     conditions.push({
@@ -77,7 +79,7 @@ function buildFilter(filter?: PresentationFilter) {
     })
   }
 
-  const time = filter?.time ?? "all"
+  const time = filter?.time ?? "upcoming"
   const today = new Date().toISOString().slice(0, 10)
   if (time === "upcoming") {
     conditions.push({ property: "Date", date: { on_or_after: today } })
