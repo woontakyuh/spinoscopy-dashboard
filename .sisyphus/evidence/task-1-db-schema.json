@@ -1,0 +1,180 @@
+{
+  "all_properties": [
+    {
+      "name": "Date",
+      "type": "date"
+    },
+    {
+      "name": "Link",
+      "type": "url"
+    },
+    {
+      "name": "참석",
+      "type": "select"
+    },
+    {
+      "name": "학회명",
+      "type": "multi_select"
+    },
+    {
+      "name": "\b초록 제출 기한",
+      "type": "date"
+    },
+    {
+      "name": "분류",
+      "type": "select"
+    },
+    {
+      "name": "등록",
+      "type": "select"
+    },
+    {
+      "name": "Place",
+      "type": "rich_text"
+    },
+    {
+      "name": "참석교수",
+      "type": "multi_select"
+    },
+    {
+      "name": "발표 주제",
+      "type": "rich_text"
+    },
+    {
+      "name": "Name",
+      "type": "title"
+    }
+  ],
+  "참석": {
+    "type": "select",
+    "options": [
+      "발표예정",
+      "준비 완료",
+      "참석만",
+      "불참"
+    ]
+  },
+  "준비_상태": "NOT FOUND",
+  "분류": {
+    "type": "select",
+    "options": [
+      "Conf",
+      "Spine",
+      "AI",
+      "회식",
+      "Workshop",
+      "Webinar",
+      "Lecture",
+      "Meeting",
+      "Hallym",
+      "대신",
+      "내시경학회",
+      "대신디융",
+      "신경방사선수술연구회",
+      "손상",
+      "골대사",
+      "중환자의학",
+      "정위기능",
+      "소아신경외과",
+      "tumor",
+      "Angio",
+      "Neuroanatomy",
+      "\bTak_only",
+      "전공의 연수강좌",
+      "USMLE",
+      "KOSESS",
+      "학회 회의",
+      "Davos",
+      "Conference",
+      "Neurosurgery",
+      "학회"
+    ]
+  },
+  "학회명": {
+    "type": "multi_select",
+    "options": [
+      "KNS",
+      "KSNS",
+      "NSC",
+      "대한신경손상학회",
+      "KoSAIM",
+      "대신디융",
+      "기초연구회",
+      "종양연구회",
+      "변형연구회",
+      "골다공증연구회",
+      "KOMISS",
+      "KOSESS",
+      "WUBES",
+      "KOSASS",
+      "LASS",
+      "성인척추변형심포지엄",
+      "신경통증학회",
+      "대한골대사학회",
+      "골다공증학회",
+      "의료메타버스",
+      "Neurosurgery Update",
+      "대한노인신경외과학회",
+      "한림중개의학",
+      "DIDIM",
+      "대한뇌종양학회",
+      "대한뇌혈관내치료의학회",
+      "NS Wed Conf",
+      "척추연구회",
+      "SNUH Update",
+      "젊은의학자",
+      "AO Spine",
+      "ASIA spine",
+      "Eurospine",
+      "NASS",
+      "CSRS",
+      "LSRS",
+      "SRS",
+      "ISASS",
+      "IANR",
+      "Biospine",
+      "Journal Club",
+      "Staff Lecture",
+      "\b동문 월요 Conf",
+      "NSC BM",
+      "Spine Center Conf",
+      "Spine Tumor Conf",
+      "NSC-Pathology Review",
+      "Epilepsys Preop",
+      "Grand Round",
+      "NSC-Anes TT",
+      "NRPC",
+      "의국회의",
+      "Case Presentation",
+      "IOM",
+      "KEC",
+      "WCO",
+      "가톨릭의대 심포지엄",
+      "AMGEN",
+      "아산 의공학 심포지엄",
+      "World Spine Outreach",
+      "재활의학과학회",
+      "의료교육학",
+      "KASS",
+      "Endovision",
+      "ERAS",
+      "SNU ELSI",
+      "대한통증연구회",
+      "Medtronic",
+      "Neurospine symposium",
+      "Neurotrauma",
+      "동탄 나래울 사회복지관",
+      "KNUH OLIF symposium",
+      "전남대 CDW 구축 심포지엄",
+      "PPEN",
+      "윌스기념병원 심포지엄",
+      "나누리",
+      "ThaiSMISST",
+      "대한신경외과의사회",
+      "대한경추연구회",
+      "대한척추신경외과학회",
+      "대한신경통증학회",
+      "대한척추기초연구회"
+    ]
+  }
+}
