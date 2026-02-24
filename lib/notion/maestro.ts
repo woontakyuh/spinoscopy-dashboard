@@ -55,17 +55,21 @@ export function toPresentation(page: NotionPage): Presentation {
   }
 }
 
-function buildPresentationFilter(filter?: PresentationFilter) {
+function buildFilter(filter?: PresentationFilter) {
   const conditions: Record<string, unknown>[] = []
-
-  const attendanceValues = ["발표예정", "준비 완료"]
-  conditions.push({
-    or: attendanceValues.map((val) => ({
-      property: "참석",
-      select: { equals: val },
-    })),
-  })
-
+  const attendance = filter?.attendance ?? "all"
+  if (attendance === "발표") {
+    conditions.push({
+      or: ["발표예정", "준비 완료"].map((val) => ({
+        property: "참석",
+        select: { equals: val },
+      })),
+    })
+  } else if (attendance === "참석") {
+    conditions.push({ property: "참석", select: { equals: "참석만" } })
+  } else if (attendance === "불참") {
+    conditions.push({ property: "참석", select: { equals: "불참" } })
+  }
   if (filter?.society) {
     conditions.push({
       property: "학회명",
@@ -73,32 +77,34 @@ function buildPresentationFilter(filter?: PresentationFilter) {
     })
   }
 
-
-
-  if (filter?.upcoming_only) {
-    const today = new Date().toISOString().slice(0, 10)
-    conditions.push({
-      property: "Date",
-      date: { on_or_after: today },
-    })
+  const time = filter?.time ?? "all"
+  const today = new Date().toISOString().slice(0, 10)
+  if (time === "upcoming") {
+    conditions.push({ property: "Date", date: { on_or_after: today } })
+  } else if (time === "past") {
+    conditions.push({ property: "Date", date: { before: today } })
   }
 
+  if (conditions.length === 0) return undefined
   if (conditions.length === 1) return conditions[0]
   return { and: conditions }
 }
 
+function getSortDirection(filter?: PresentationFilter): "ascending" | "descending" {
+  return filter?.time === "past" ? "descending" : "ascending"
+}
 export async function getPresentations(filter?: PresentationFilter): Promise<Presentation[]> {
   const dbId = getScheduleDbId()
   if (!dbId) throw new Error("NOTION_SCHEDULE_DB_ID is not set")
-
+  const body: Record<string, unknown> = {
+    page_size: 100,
+    sorts: [{ property: "Date", direction: getSortDirection(filter) }],
+  }
+  const f = buildFilter(filter)
+  if (f) body.filter = f
   const response = await notionRequest<NotionQueryResponse>(`/databases/${dbId}/query`, {
     method: "POST",
-    body: JSON.stringify({
-      page_size: 50,
-      filter: buildPresentationFilter(filter),
-      sorts: [{ property: "Date", direction: "ascending" }],
-    }),
+    body: JSON.stringify(body),
   })
-
   return response.results.map(toPresentation)
 }

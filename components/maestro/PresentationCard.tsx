@@ -14,6 +14,14 @@ function formatDateRange(start: string | null, end: string | null): string {
   return `${start} ~ ${end}`
 }
 
+
+const ATTENDANCE_STYLE: Record<string, string> = {
+  "발표예정": "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
+  "준비 완료": "border-blue-500/30 bg-blue-500/10 text-blue-400",
+  "참석만": "border-zinc-500/30 bg-zinc-500/10 text-zinc-400",
+  "불참": "border-zinc-600/30 bg-zinc-700/30 text-zinc-500",
+}
+
 export function PresentationCard({ presentation }: PresentationCardProps) {
   const dday = calculateDday(presentation.date_start)
   const ddayColor = getDdayColor(dday)
@@ -26,6 +34,14 @@ export function PresentationCard({ presentation }: PresentationCardProps) {
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-2">
+            {presentation.attendance_type && (
+              <Badge
+                variant="outline"
+                className={`text-[10px] px-1.5 py-0 h-5 ${ATTENDANCE_STYLE[presentation.attendance_type] ?? "border-zinc-600 text-zinc-400"}`}
+              >
+                {presentation.attendance_type}
+              </Badge>
+            )}
             {presentation.society.map((s) => (
               <Badge
                 key={s}

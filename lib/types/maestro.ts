@@ -1,3 +1,5 @@
+export type TimeFilter = "all" | "past" | "upcoming"
+export type AttendanceFilter = "all" | "참석" | "불참" | "발표"
 export interface Presentation {
   page_id: string
   url: string
@@ -13,22 +15,16 @@ export interface Presentation {
   link: string | null
   abstract_deadline: string | null
 }
-
 export interface PresentationFilter {
-  attendance_type?: string
+  time?: TimeFilter
+  attendance?: AttendanceFilter
   society?: string
-  preparation_status?: string
-  date_from?: string
-  date_after?: string
-  upcoming_only?: boolean
 }
-
 export interface DdayInfo {
   days: number | null
   label: string
   isPast: boolean
 }
-
 export interface PresentationsResponse {
   presentations: Presentation[]
 }
