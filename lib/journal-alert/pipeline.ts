@@ -44,6 +44,7 @@ export interface JournalAlertRunResult {
   subject?: string
   emailSkippedReason?: string
   emailShownCount?: number
+  existingKeysCount?: number
 }
 
 interface EmailSendResult {
@@ -206,7 +207,7 @@ async function searchPubmedIds(query: string, days: number): Promise<string[]> {
     `&datetype=pdat&mindate=${fmt(start)}&maxdate=${fmt(now)}` +
     `&retmax=500&retmode=json`
 
-  const res = await fetch(url, { headers: { "User-Agent": "SpinoscopyDashboard/1.0" } })
+  const res = await fetch(url, { cache: "no-store", headers: { "User-Agent": "SpinoscopyDashboard/1.0" } })
   if (!res.ok) throw new Error(`PubMed search failed: ${res.status}`)
 
   const payload = (await res.json()) as { esearchresult?: { idlist?: string[] } }
@@ -223,7 +224,7 @@ async function fetchPubmedArticles(pmids: string[]): Promise<PubmedArticle[]> {
     const url =
       "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi" +
       `?db=pubmed&id=${encodeURIComponent(chunk.join(","))}&retmode=xml`
-    const res = await fetch(url, { headers: { "User-Agent": "SpinoscopyDashboard/1.0" } })
+    const res = await fetch(url, { cache: "no-store", headers: { "User-Agent": "SpinoscopyDashboard/1.0" } })
     if (!res.ok) throw new Error(`PubMed fetch failed: ${res.status}`)
     const xml = await res.text()
     all.push(...parsePubmedXml(xml))
@@ -537,5 +538,6 @@ export async function runJournalAlertPipeline(days: number): Promise<JournalAler
     subject: emailResult.subject,
     emailSkippedReason: emailResult.reason,
     emailShownCount: emailResult.shownCount,
+    existingKeysCount: existing.size,
   }
 }

@@ -6,6 +6,7 @@ export async function notionRequest<T>(
 ): Promise<T> {
   const res = await fetch(`${NOTION_API_BASE}${path}`, {
     ...options,
+    cache: "no-store",
     headers: {
       Authorization: `Bearer ${process.env.NOTION_TOKEN}`,
       "Notion-Version": "2022-06-28",
