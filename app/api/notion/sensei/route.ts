@@ -17,6 +17,7 @@ interface SenseiPostBody {
   sparringInput?: string
   date?: string
   rawInput?: string
+  instructor?: string
 }
 
 function buildRawInput(body: SenseiPostBody): string {
@@ -46,6 +47,23 @@ export async function POST(req: NextRequest) {
 
     if (body.date && /^\d{4}-\d{2}-\d{2}$/.test(body.date)) {
       structured.date = body.date
+    }
+
+    // 수업 내용 유무로 sessionType 결정: 수업 있으면 class, 수업 없이 스파링만 있으면 openmat
+    const classText = (body.classInput ?? "").trim()
+    const sparringText = (body.sparringInput ?? "").trim()
+    if (classText) {
+      structured.sessionType = "class"
+    } else if (sparringText) {
+      structured.sessionType = "openmat"
+      // openmat: 수업 없이 스파링만 → 모든 태그를 sparringTags로 병합
+      structured.sparringTags = [...new Set([...structured.sparringTags, ...structured.classTags])]
+      structured.classTags = []
+    }
+
+    // instructor 오버라이드 (form에서 전달된 경우)
+    if (body.instructor) {
+      structured.instructor = body.instructor
     }
 
     const pageId = await createSenseiEntry(structured, rawInput)

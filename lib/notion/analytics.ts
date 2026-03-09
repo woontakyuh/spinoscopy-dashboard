@@ -60,13 +60,43 @@ export interface AnalyticsData {
 
 const TIMEPOINTS = ["pre", "1mo", "3mo", "6mo", "1y"]
 
-async function fetchAllPatients(): Promise<NotionPage[]> {
+interface NotionDatabaseSchema {
+  properties: Record<string, {
+    type: string
+    multi_select?: { options: Array<{ name: string; color: string }> }
+  }>
+}
+
+export async function getOpCategoryOptions(): Promise<{ name: string; color: string }[]> {
+  const dbId = process.env.NOTION_PATIENT_DB_ID
+  const db = await notionRequest<NotionDatabaseSchema>(`/databases/${dbId}`)
+  const prop = db.properties["Op Category"]
+  if (!prop || prop.type !== "multi_select") return []
+  return prop.multi_select?.options ?? []
+}
+
+async function fetchAllPatients(categories?: string[]): Promise<NotionPage[]> {
   const dbId = process.env.NOTION_PATIENT_DB_ID
   const all: NotionPage[] = []
   let cursor: string | undefined = undefined
 
   do {
     const body: Record<string, unknown> = { page_size: 100 }
+    if (categories && categories.length > 0) {
+      if (categories.length === 1) {
+        body.filter = {
+          property: "Op Category",
+          multi_select: { contains: categories[0] },
+        }
+      } else {
+        body.filter = {
+          or: categories.map(c => ({
+            property: "Op Category",
+            multi_select: { contains: c },
+          })),
+        }
+      }
+    }
     if (cursor) body.start_cursor = cursor
 
     const res = await notionRequest<NotionQueryResponse>(
@@ -114,7 +144,7 @@ function parseRow(page: NotionPage): PatientRow {
   }
 }
 
-export async function getAllPatientRows(): Promise<AnalyticsData> {
-  const pages = await fetchAllPatients()
+export async function getAllPatientRows(categories?: string[]): Promise<AnalyticsData> {
+  const pages = await fetchAllPatients(categories)
   return { patients: pages.map(parseRow), fetchedAt: new Date().toISOString() }
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -20,9 +20,18 @@ function todayIso() {
   return `${yyyy}-${mm}-${dd}`
 }
 
-export function SenseiCapture() {
+interface SenseiCaptureProps {
+  selectedDate?: string | null
+}
+
+export function SenseiCapture({ selectedDate }: SenseiCaptureProps) {
   const queryClient = useQueryClient()
   const [date, setDate] = useState(todayIso)
+
+  useEffect(() => {
+    if (selectedDate) setDate(selectedDate)
+  }, [selectedDate])
+  const [instructor, setInstructor] = useState("조준용")
   const [classInput, setClassInput] = useState("")
   const [sparringInput, setSparringInput] = useState("")
   const [lastSaved, setLastSaved] = useState<CreateSenseiResult | null>(null)
@@ -44,7 +53,7 @@ export function SenseiCapture() {
       const res = await fetch("/api/notion/sensei", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ classInput, sparringInput, date }),
+        body: JSON.stringify({ classInput, sparringInput, date, instructor: classInput.trim() ? instructor : undefined }),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: "저장 실패" }))
@@ -63,7 +72,7 @@ export function SenseiCapture() {
   return (
     <div className="space-y-4">
       <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900 space-y-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <label htmlFor="sensei-date" className="text-zinc-300 text-sm font-medium shrink-0">
             수련일
           </label>
@@ -74,6 +83,18 @@ export function SenseiCapture() {
             onChange={(e) => setDate(e.target.value)}
             className="rounded-lg border border-zinc-700 bg-zinc-800 text-white px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-orange-500 [color-scheme:dark]"
           />
+          <label htmlFor="sensei-instructor" className="text-zinc-300 text-sm font-medium shrink-0 ml-2">
+            지도자
+          </label>
+          <select
+            id="sensei-instructor"
+            value={instructor}
+            onChange={(e) => setInstructor(e.target.value)}
+            className="rounded-lg border border-zinc-700 bg-zinc-800 text-white px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-orange-500 [color-scheme:dark]"
+          >
+            <option value="조준용">조준용</option>
+            <option value="김진우">김진우</option>
+          </select>
         </div>
 
         <div className="space-y-1.5">

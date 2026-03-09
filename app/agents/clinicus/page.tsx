@@ -54,45 +54,29 @@ export default function ClinicusPage() {
     <div className="flex flex-col min-h-screen">
       <TopBar title="🩺 Clinicus" />
       <div className="p-3 md:p-6 max-w-3xl w-full">
-        <Tabs defaultValue="prom">
+        <Tabs defaultValue="analytics">
           <TabsList className="w-full bg-zinc-800 border border-zinc-700 mb-4 md:mb-6 grid grid-cols-2 md:grid-cols-5 h-auto gap-1 p-1">
-            <TabsTrigger value="prom" className="min-h-9 data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
-              PROM 입력
-            </TabsTrigger>
-            <TabsTrigger value="newcase" className="min-h-9 data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
-              새 케이스
+            <TabsTrigger value="analytics" className="min-h-9 data-[state=active]:bg-violet-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
+              📊 통계
             </TabsTrigger>
             <TabsTrigger value="search" className="min-h-9 data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
               환자 조회
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="min-h-9 data-[state=active]:bg-violet-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
-              📊 통계
+            <TabsTrigger value="newcase" className="min-h-9 data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
+              새 케이스
+            </TabsTrigger>
+            <TabsTrigger value="prom" className="min-h-9 data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
+              PROM 입력
             </TabsTrigger>
             <TabsTrigger value="memo" className="min-h-9 data-[state=active]:bg-amber-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
               💡 메모
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="prom" className="space-y-4">
-            <div>
-              <p className="text-zinc-300 text-sm font-medium mb-2">환자 검색</p>
-              <PatientSearch
-                onSelect={(p) => setSelectedPatient(p)}
-                selectedId={selectedPatient?.page_id}
-              />
-            </div>
-            {selectedPatient ? (
-              <PromTabContent patient={selectedPatient} />
-            ) : (
-              <p className="text-zinc-500 text-sm text-center py-8">
-                환자를 검색하여 선택하면 PROM 입력 양식이 나타납니다.
-              </p>
-            )}
-          </TabsContent>
-
-          <TabsContent value="newcase">
+          <TabsContent value="analytics">
             <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900">
-              <NewCaseForm />
+              <p className="text-zinc-300 text-sm font-medium mb-4">카테고리별 PROM 평균</p>
+              <AnalyticsView />
             </div>
           </TabsContent>
 
@@ -117,12 +101,30 @@ export default function ClinicusPage() {
               </p>
             )}
           </TabsContent>
-          <TabsContent value="analytics">
+
+          <TabsContent value="newcase">
             <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900">
-              <p className="text-zinc-300 text-sm font-medium mb-4">카테고리별 PROM 평균</p>
-              <AnalyticsView />
+              <NewCaseForm />
             </div>
           </TabsContent>
+
+          <TabsContent value="prom" className="space-y-4">
+            <div>
+              <p className="text-zinc-300 text-sm font-medium mb-2">환자 검색</p>
+              <PatientSearch
+                onSelect={(p) => setSelectedPatient(p)}
+                selectedId={selectedPatient?.page_id}
+              />
+            </div>
+            {selectedPatient ? (
+              <PromTabContent patient={selectedPatient} />
+            ) : (
+              <p className="text-zinc-500 text-sm text-center py-8">
+                환자를 검색하여 선택하면 PROM 입력 양식이 나타납니다.
+              </p>
+            )}
+          </TabsContent>
+
           <TabsContent value="memo">
             <IdeaMemo />
           </TabsContent>

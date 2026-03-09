@@ -126,9 +126,9 @@ export const RADAR_SOURCES: RadarSourceConfig[] = [
     label: "모두레터",
     tier: "tier2-weekly",
     cadence: "weekly",
-    intervalHours: 168,
+    intervalHours: 12,
     mode: "html",
-    endpoint: "https://modulabs.co.kr/blog?page=1",
+    endpoint: "https://moduletter.stibee.com",
     active: true,
   },
 ]

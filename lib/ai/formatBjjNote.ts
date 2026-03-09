@@ -127,14 +127,8 @@ export async function formatBjjNote(rawInput: string, tags: SenseiTagOptions): P
   let classTags = dedup(parsed.classTags ?? [])
   let sparringTags = dedup(parsed.sparringTags ?? [])
 
-  const sourceText = [rawInput, parsed.title ?? ""].join("\n")
-  const openMat = isOpenMat(instructor, sourceText)
-  const sessionType: SenseiSessionType = openMat ? "openmat" : "class"
-
-  if (openMat) {
-    sparringTags = dedup([...sparringTags, ...classTags])
-    classTags = []
-  }
+  // sessionType과 태그 병합은 API route에서 form 입력 기반으로 결정
+  const sessionType: SenseiSessionType = "class"
 
   return {
     title: pickTitle(parsed.title, rawInput),

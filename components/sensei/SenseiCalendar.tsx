@@ -18,7 +18,11 @@ function toDateKey(y: number, m: number, d: number): string {
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"]
 
-export function SenseiCalendar() {
+interface SenseiCalendarProps {
+  onDateSelect?: (date: string) => void
+}
+
+export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
   const today = new Date()
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
@@ -131,7 +135,11 @@ export function SenseiCalendar() {
             <button
               key={dateKey}
               type="button"
-              onClick={() => setSelectedDate(isSelected ? null : dateKey)}
+              onClick={() => {
+                const newDate = isSelected ? null : dateKey
+                setSelectedDate(newDate)
+                if (newDate) onDateSelect?.(newDate)
+              }}
               className={`
                 relative rounded-md text-xs flex flex-col items-center justify-start pt-1 min-h-[2.75rem] transition-colors overflow-hidden
                 ${isSelected ? "ring-2 ring-orange-500 bg-zinc-700" : ""}

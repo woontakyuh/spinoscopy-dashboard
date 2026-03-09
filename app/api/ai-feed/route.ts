@@ -219,65 +219,113 @@ async function fetchHfDailyPapers(): Promise<FeedItem[]> {
   })
 }
 
-async function fetchModuletterItems(): Promise<FeedItem[]> {
-  const config = getSourceConfig("moduletter")
-  const res = await fetch("https://modulabs.co.kr/blog?page=1", {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; SpinoscopyRadar/1.0)" },
-    next: { revalidate: (config?.intervalHours ?? 168) * 3600 },
-  })
+function extractMeta(html: string, property: string): string {
+  // property="og:title" content="..." 또는 content="..." property="og:title"
+  const r1 = new RegExp(`<meta[^>]*property="${property}"[^>]*content="([^"]*)"`, "i")
+  const r2 = new RegExp(`<meta[^>]*content="([^"]*)"[^>]*property="${property}"`, "i")
+  return r1.exec(html)?.[1] ?? r2.exec(html)?.[1] ?? ""
+}
 
-  if (!res.ok) return []
+async function fetchSingleModuletter(issueNum: number): Promise<FeedItem | null> {
+  const url = `https://moduletter.stibee.com/p/${issueNum}`
+  const res = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; SpinoscopyRadar/1.0)" },
+    next: { revalidate: 43200 }, // 12시간 캐시 (발행 후 내용 변경 없음)
+  })
+  if (!res.ok) return null
 
   const html = await res.text()
 
-  // Parse blog cards: links containing "moduletter" in href
-  const items: FeedItem[] = []
+  // og:title 또는 <title>에서 제목 추출
+  let title = extractMeta(html, "og:title")
+  if (!title) {
+    const titleTag = html.match(/<title>([^<]*)<\/title>/)
+    title = titleTag?.[1] ?? ""
+  }
+  title = decodeHtmlEntities(title.replace(/📮\s*/g, "").trim())
+  if (!title) return null
 
-  // Split HTML into card blocks by link boundaries
-  const blocks = html.split(/(?=<a[^>]*href="\/blog\/[^"]*moduletter)/)
-
-  for (const block of blocks) {
-    const linkMatch = block.match(/href="(\/blog\/[^"]*moduletter[^"]*)"/)
-    if (!linkMatch) continue
-
-    const slug = linkMatch[1].replace(/\?page=\d+/, "")
-    const url = `https://modulabs.co.kr${slug}`
-
-    // Extract title — look for heading tags or text content
-    let title = "Untitled"
-    const h3Match = block.match(/<h[23][^>]*>([\s\S]*?)<\/h[23]>/)
-    if (h3Match) {
-      title = decodeHtmlEntities(h3Match[1].replace(/<[^>]*>/g, "").replace(/\ud83d\udcee\s*\ubaa8\ub450\ub808\ud130\s*[:\uff1a]\s*/g, "").trim())
+  // 날짜 추출: "2026년 3월 9일" 또는 "March 9, 2026" 또는 og 메타
+  let date = ""
+  const koDate = html.match(/(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/)
+  if (koDate) {
+    date = `${koDate[1]}-${koDate[2].padStart(2, "0")}-${koDate[3].padStart(2, "0")}`
+  } else {
+    const enDate = html.match(/(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s*(\d{4})/)
+    if (enDate) {
+      const months: Record<string, string> = {
+        January: "01", February: "02", March: "03", April: "04", May: "05", June: "06",
+        July: "07", August: "08", September: "09", October: "10", November: "11", December: "12",
+      }
+      date = `${enDate[3]}-${months[enDate[1]]}-${enDate[2].padStart(2, "0")}`
     }
-
-    // Extract date (2026.02.23 → 2026-02-23)
-    let date = ""
-    const dateMatch = block.match(/(\d{4})\.(\d{2})\.(\d{2})/)
-    if (dateMatch) {
-      date = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`
-    }
-
-    // Extract summary/description
-    let summary: string | null = null
-    const pMatch = block.match(/<p[^>]*>([^<]{10,})<\/p>/)
-    if (pMatch) {
-      summary = pMatch[1].trim()
-    }
-
-    items.push(
-      toFeedItem({
-        sourceId: "moduletter",
-        id: `moduletter-${slug.replace(/\//g, "-")}`,
-        title: title || "\ubaa8\ub450\ub808\ud130",
-        url,
-        date,
-        author: "\ubaa8\ub450\uc5f0",
-        summary,
-      })
-    )
   }
 
-  return items.slice(0, 10)
+  // 날짜 없으면 발행일 추정 (주간 뉴스레터, 기준: #198 = 2026-03-09)
+  if (!date) {
+    const refDate = new Date("2026-03-09T00:00:00")
+    const diff = (issueNum - 198) * 7
+    refDate.setDate(refDate.getDate() + diff)
+    date = refDate.toISOString().slice(0, 10)
+  }
+
+  // 요약 추출: og:description은 해시태그뿐이라 본문에서 첫 실질 문단 추출
+  let summary: string | null = null
+  // HTML 태그 제거 후 텍스트 추출, 인사말/해시태그 이후 첫 문장들
+  const bodyText = html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+  // "왔어요" 인사말 이후 본문 시작점 찾기
+  const contentStart = bodyText.search(/(?:왔어요[^\w]*|레터가[^\w]*){1,}/)
+  if (contentStart > -1) {
+    const afterGreeting = bodyText.slice(contentStart + 20).trim()
+    // 첫 150자 정도의 실질 텍스트
+    const cleaned = afterGreeting
+      .replace(/^[#\s@_.\d가-힣]*?(?=[가-힣]{2})/, "") // 해시태그/공백 건너뛰기
+      .trim()
+    if (cleaned.length > 20) {
+      summary = cleaned.slice(0, 200).replace(/\s+/g, " ").trim()
+      // 마지막 온전한 문장까지 자르기
+      const lastPeriod = summary.lastIndexOf(".")
+      const lastEnd = Math.max(lastPeriod, summary.lastIndexOf("요"), summary.lastIndexOf("다"))
+      if (lastEnd > 50) summary = summary.slice(0, lastEnd + 1)
+    }
+  }
+  if (!summary) {
+    const desc = extractMeta(html, "og:description")
+    summary = desc ? decodeHtmlEntities(desc).slice(0, 200) : null
+  }
+
+  return toFeedItem({
+    sourceId: "moduletter",
+    id: `moduletter-${issueNum}`,
+    title: title || "모두레터",
+    url,
+    date,
+    author: "모두연",
+    summary,
+  })
+}
+
+async function fetchModuletterItems(): Promise<FeedItem[]> {
+  // 기준점: #198 = 2026-03-09 (월요일 발행)
+  const refNum = 198
+  const refDate = new Date("2026-03-09T00:00:00")
+  const now = new Date()
+  const weeksDiff = Math.floor((now.getTime() - refDate.getTime()) / (7 * 24 * 60 * 60 * 1000))
+  const estimatedLatest = refNum + Math.max(0, weeksDiff) + 1 // +1 버퍼
+
+  // 최근 10개 이슈를 병렬 fetch
+  const fetches = Array.from({ length: 10 }, (_, i) =>
+    fetchSingleModuletter(estimatedLatest - i).catch(() => null)
+  )
+
+  const results = await Promise.all(fetches)
+  return results
+    .filter((item): item is FeedItem => item !== null)
+    .sort((a, b) => b.date.localeCompare(a.date))
 }
 
 export async function GET() {
