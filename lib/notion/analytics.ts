@@ -34,6 +34,14 @@ function getMultiSelect(prop: NotionProperty | undefined): string[] {
 
 export type Dimension = "op_category" | "class_a" | "class_b" | "surgeon" | "hospital"
 
+const DIMENSION_PROP_MAP: Record<Dimension, string> = {
+  op_category: "Op Category",
+  class_a: "ClassA",
+  class_b: "ClassB",
+  surgeon: "Surgeon",
+  hospital: "Hospital",
+}
+
 export interface TimepointParsed {
   vas_prox: number | null
   vas_dist: number | null
@@ -67,35 +75,55 @@ interface NotionDatabaseSchema {
   }>
 }
 
-export async function getOpCategoryOptions(): Promise<{ name: string; color: string }[]> {
+export type DimensionSchema = Record<Dimension, { name: string; color: string }[]>
+
+export async function getAllDimensionOptions(): Promise<DimensionSchema> {
   const dbId = process.env.NOTION_PATIENT_DB_ID
   const db = await notionRequest<NotionDatabaseSchema>(`/databases/${dbId}`)
-  const prop = db.properties["Op Category"]
-  if (!prop || prop.type !== "multi_select") return []
-  return prop.multi_select?.options ?? []
+
+  const result = {} as DimensionSchema
+  for (const [dim, propName] of Object.entries(DIMENSION_PROP_MAP) as [Dimension, string][]) {
+    const prop = db.properties[propName]
+    result[dim] = (prop?.type === "multi_select" ? prop.multi_select?.options : undefined) ?? []
+  }
+  return result
 }
 
-async function fetchAllPatients(categories?: string[]): Promise<NotionPage[]> {
+// 하위 호환
+export async function getOpCategoryOptions(): Promise<{ name: string; color: string }[]> {
+  const schema = await getAllDimensionOptions()
+  return schema.op_category
+}
+
+export type DimensionFilters = Partial<Record<Dimension, string[]>>
+
+async function fetchAllPatients(filters?: DimensionFilters): Promise<NotionPage[]> {
   const dbId = process.env.NOTION_PATIENT_DB_ID
   const all: NotionPage[] = []
   let cursor: string | undefined = undefined
 
+  // Notion API 필터 구성: 각 차원에 대해 OR, 차원 간 AND
+  const andClauses: unknown[] = []
+  if (filters) {
+    for (const [dim, values] of Object.entries(filters) as [Dimension, string[]][]) {
+      if (!values || values.length === 0) continue
+      const propName = DIMENSION_PROP_MAP[dim]
+      if (values.length === 1) {
+        andClauses.push({ property: propName, multi_select: { contains: values[0] } })
+      } else {
+        andClauses.push({
+          or: values.map(v => ({ property: propName, multi_select: { contains: v } })),
+        })
+      }
+    }
+  }
+
   do {
     const body: Record<string, unknown> = { page_size: 100 }
-    if (categories && categories.length > 0) {
-      if (categories.length === 1) {
-        body.filter = {
-          property: "Op Category",
-          multi_select: { contains: categories[0] },
-        }
-      } else {
-        body.filter = {
-          or: categories.map(c => ({
-            property: "Op Category",
-            multi_select: { contains: c },
-          })),
-        }
-      }
+    if (andClauses.length === 1) {
+      body.filter = andClauses[0]
+    } else if (andClauses.length > 1) {
+      body.filter = { and: andClauses }
     }
     if (cursor) body.start_cursor = cursor
 
@@ -144,7 +172,7 @@ function parseRow(page: NotionPage): PatientRow {
   }
 }
 
-export async function getAllPatientRows(categories?: string[]): Promise<AnalyticsData> {
-  const pages = await fetchAllPatients(categories)
+export async function getAllPatientRows(filters?: DimensionFilters): Promise<AnalyticsData> {
+  const pages = await fetchAllPatients(filters)
   return { patients: pages.map(parseRow), fetchedAt: new Date().toISOString() }
 }

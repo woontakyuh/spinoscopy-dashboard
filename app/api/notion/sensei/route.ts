@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createSenseiEntry, fetchTagOptions, listSenseiEntries } from "@/lib/notion/sensei"
+import { createSenseiEntry, createPromotionEntry, fetchTagOptions, listSenseiEntries } from "@/lib/notion/sensei"
 import { formatBjjNote } from "@/lib/ai/formatBjjNote"
 
 export async function GET() {
@@ -13,11 +13,13 @@ export async function GET() {
 }
 
 interface SenseiPostBody {
+  type?: "promotion"
   classInput?: string
   sparringInput?: string
   date?: string
   rawInput?: string
   instructor?: string
+  note?: string
 }
 
 function buildRawInput(body: SenseiPostBody): string {
@@ -37,6 +39,16 @@ function buildRawInput(body: SenseiPostBody): string {
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as SenseiPostBody
+
+    // 승급식 처리
+    if (body.type === "promotion") {
+      if (!body.date || !/^\d{4}-\d{2}-\d{2}$/.test(body.date)) {
+        return NextResponse.json({ error: "날짜를 입력해주세요" }, { status: 400 })
+      }
+      const pageId = await createPromotionEntry(body.date, body.note)
+      return NextResponse.json({ success: true, pageId, structured: { title: `승급식 ${body.date}`, sessionType: "promotion", date: body.date } })
+    }
+
     const rawInput = buildRawInput(body)
     if (!rawInput) {
       return NextResponse.json({ error: "입력 내용이 없습니다" }, { status: 400 })

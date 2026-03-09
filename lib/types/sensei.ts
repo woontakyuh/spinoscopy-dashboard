@@ -1,4 +1,4 @@
-export type SenseiSessionType = "class" | "openmat"
+export type SenseiSessionType = "class" | "openmat" | "promotion"
 
 export interface SenseiEntry {
   id: string

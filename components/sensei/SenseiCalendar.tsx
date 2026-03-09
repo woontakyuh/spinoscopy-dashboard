@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useState, useRef, useEffect } from "react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { SenseiEntry } from "@/lib/types/sensei"
@@ -18,15 +18,39 @@ function toDateKey(y: number, m: number, d: number): string {
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"]
 
+interface ContextMenuState {
+  x: number
+  y: number
+  date: string
+}
+
 interface SenseiCalendarProps {
   onDateSelect?: (date: string) => void
 }
 
 export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
   const today = new Date()
+  const queryClient = useQueryClient()
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+  const [promotionNote, setPromotionNote] = useState("")
+  const [showPromotionForm, setShowPromotionForm] = useState<string | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // 컨텍스트 메뉴 외부 클릭 닫기
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setContextMenu(null)
+      }
+    }
+    if (contextMenu) {
+      document.addEventListener("mousedown", handleClick)
+      return () => document.removeEventListener("mousedown", handleClick)
+    }
+  }, [contextMenu])
 
   const entriesQuery = useQuery({
     queryKey: ["sensei-entries"],
@@ -34,6 +58,26 @@ export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
       const res = await fetch("/api/notion/sensei")
       if (!res.ok) throw new Error("수련 기록 조회 실패")
       return res.json() as Promise<SenseiEntry[]>
+    },
+  })
+
+  const promotionMutation = useMutation({
+    mutationFn: async ({ date, note }: { date: string; note?: string }) => {
+      const res = await fetch("/api/notion/sensei", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "promotion", date, note: note || undefined }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: "저장 실패" }))
+        throw new Error(body.error ?? "저장 실패")
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      setShowPromotionForm(null)
+      setPromotionNote("")
+      queryClient.invalidateQueries({ queryKey: ["sensei-entries"] })
     },
   })
 
@@ -75,8 +119,14 @@ export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
     setSelectedDate(null)
   }
 
+  function sessionBadge(type: string) {
+    if (type === "promotion") return { label: "승급식", border: "border-yellow-500/40", text: "text-yellow-300" }
+    if (type === "openmat") return { label: "Open Mat", border: "border-green-500/40", text: "text-green-300" }
+    return { label: "Class", border: "border-purple-500/40", text: "text-purple-300" }
+  }
+
   return (
-    <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900 space-y-4">
+    <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900 space-y-4 relative">
       <div className="flex items-center justify-between">
         <Button
           variant="outline"
@@ -127,6 +177,7 @@ export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
           const isSelected = dateKey === selectedDate
           const hasClass = dayEntries?.some((e) => e.sessionType === "class")
           const hasOpenMat = dayEntries?.some((e) => e.sessionType === "openmat")
+          const hasPromotion = dayEntries?.some((e) => e.sessionType === "promotion")
           const dayTags = dayEntries
             ? [...new Set([...dayEntries.flatMap((e) => e.classTags), ...dayEntries.flatMap((e) => e.sparringTags)])]
             : []
@@ -140,14 +191,23 @@ export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
                 setSelectedDate(newDate)
                 if (newDate) onDateSelect?.(newDate)
               }}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                setContextMenu({ x: e.clientX, y: e.clientY, date: dateKey })
+              }}
               className={`
                 relative rounded-md text-xs flex flex-col items-center justify-start pt-1 min-h-[2.75rem] transition-colors overflow-hidden
                 ${isSelected ? "ring-2 ring-orange-500 bg-zinc-700" : ""}
                 ${isToday && !isSelected ? "ring-1 ring-zinc-500" : ""}
-                ${hasEntry ? "bg-zinc-800 hover:bg-zinc-700 cursor-pointer font-medium" : "text-zinc-600 hover:bg-zinc-800/50"}
+                ${hasPromotion ? "bg-yellow-900/40 hover:bg-yellow-800/50 cursor-pointer font-bold ring-1 ring-yellow-500/50" : ""}
+                ${hasEntry && !hasPromotion ? "bg-zinc-800 hover:bg-zinc-700 cursor-pointer font-medium" : ""}
+                ${!hasEntry ? "text-zinc-600 hover:bg-zinc-800/50" : ""}
                 ${hasEntry ? "text-white" : ""}
               `}
             >
+              {hasPromotion && (
+                <span className="absolute top-0 right-0.5 text-[8px] leading-none">🏅</span>
+              )}
               <span className="leading-none">{day}</span>
               {dayTags.length > 0 && (
                 <div className="flex flex-wrap justify-center gap-x-0.5 gap-y-0 mt-0.5 max-w-full px-px">
@@ -163,6 +223,7 @@ export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
                 <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex gap-0.5">
                   {hasClass && <div className="w-1 h-1 rounded-full bg-purple-400" />}
                   {hasOpenMat && <div className="w-1 h-1 rounded-full bg-green-400" />}
+                  {hasPromotion && <div className="w-1.5 h-1.5 rounded-full bg-yellow-400" />}
                 </div>
               )}
             </button>
@@ -170,43 +231,105 @@ export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
         })}
       </div>
 
+      {/* 우클릭 컨텍스트 메뉴 */}
+      {contextMenu && (
+        <div
+          ref={menuRef}
+          className="fixed z-50 bg-zinc-800 border border-zinc-600 rounded-lg shadow-xl py-1 min-w-[160px]"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+        >
+          <p className="px-3 py-1 text-zinc-400 text-[10px] border-b border-zinc-700">
+            {contextMenu.date}
+          </p>
+          <button
+            type="button"
+            className="w-full text-left px-3 py-2 text-sm text-yellow-300 hover:bg-zinc-700 flex items-center gap-2"
+            onClick={() => {
+              setShowPromotionForm(contextMenu.date)
+              setPromotionNote("")
+              setContextMenu(null)
+            }}
+          >
+            🏅 승급식 입력
+          </button>
+        </div>
+      )}
+
+      {/* 승급식 입력 폼 */}
+      {showPromotionForm && (
+        <div className="border border-yellow-500/40 rounded-lg p-4 bg-zinc-800/80 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-yellow-300 text-sm font-medium">🏅 승급식 입력 — {showPromotionForm}</p>
+            <button
+              type="button"
+              onClick={() => setShowPromotionForm(null)}
+              className="text-zinc-400 hover:text-white text-xs"
+            >
+              ✕
+            </button>
+          </div>
+          <textarea
+            value={promotionNote}
+            onChange={(e) => setPromotionNote(e.target.value)}
+            placeholder="승급 내용 메모 (선택사항)"
+            className="w-full min-h-16 rounded-lg border border-zinc-700 bg-zinc-800 text-white placeholder:text-zinc-500 p-3 text-sm outline-none focus:ring-2 focus:ring-yellow-500"
+          />
+          {promotionMutation.isError && (
+            <p className="text-red-400 text-xs">오류: {promotionMutation.error.message}</p>
+          )}
+          <Button
+            type="button"
+            className="w-full bg-yellow-600 hover:bg-yellow-500 text-white"
+            disabled={promotionMutation.isPending}
+            onClick={() => promotionMutation.mutate({ date: showPromotionForm, note: promotionNote.trim() || undefined })}
+          >
+            {promotionMutation.isPending ? "저장 중..." : "승급식 저장"}
+          </Button>
+        </div>
+      )}
+
       {selectedDate && (
         <div className="space-y-2 pt-2 border-t border-zinc-700">
           <p className="text-zinc-400 text-xs">{selectedDate} 수련 기록</p>
           {selectedEntries.length === 0 ? (
             <p className="text-zinc-500 text-xs">기록이 없습니다.</p>
           ) : (
-            selectedEntries.map((entry) => (
-              <div key={entry.id} className="border border-zinc-700 rounded-lg p-3 bg-zinc-800/50 space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-white text-sm font-medium">{entry.title}</p>
-                  <Badge
-                    variant="outline"
-                    className={`text-[10px] ${entry.sessionType === "openmat" ? "border-green-500/40 text-green-300" : "border-purple-500/40 text-purple-300"}`}
-                  >
-                    {entry.sessionType === "openmat" ? "Open Mat" : "Class"}
-                  </Badge>
-                  {entry.instructor && (
-                    <Badge variant="outline" className="text-[10px] border-zinc-600 text-zinc-300">
-                      {entry.instructor}
+            selectedEntries.map((entry) => {
+              const badge = sessionBadge(entry.sessionType)
+              return (
+                <div key={entry.id} className={`border rounded-lg p-3 bg-zinc-800/50 space-y-2 ${entry.sessionType === "promotion" ? "border-yellow-500/40" : "border-zinc-700"}`}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-white text-sm font-medium">{entry.title}</p>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] ${badge.border} ${badge.text}`}
+                    >
+                      {badge.label}
                     </Badge>
+                    {entry.instructor && (
+                      <Badge variant="outline" className="text-[10px] border-zinc-600 text-zinc-300">
+                        {entry.instructor}
+                      </Badge>
+                    )}
+                  </div>
+                  {(entry.classTags.length > 0 || entry.sparringTags.length > 0) && (
+                    <div className="flex flex-wrap gap-1">
+                      {entry.classTags.map((tag) => (
+                        <Badge key={`cal-c-${entry.id}-${tag}`} variant="outline" className="text-[10px] border-orange-500/40 text-orange-300">
+                          Class: {tag}
+                        </Badge>
+                      ))}
+                      {entry.sparringTags.map((tag) => (
+                        <Badge key={`cal-s-${entry.id}-${tag}`} variant="outline" className="text-[10px] border-blue-500/40 text-blue-300">
+                          Sparring: {tag}
+                        </Badge>
+                      ))}
+                    </div>
                   )}
+                  {entry.note && <p className="text-zinc-300 text-xs whitespace-pre-wrap">{entry.note}</p>}
                 </div>
-                <div className="flex flex-wrap gap-1">
-                  {entry.classTags.map((tag) => (
-                    <Badge key={`cal-c-${entry.id}-${tag}`} variant="outline" className="text-[10px] border-orange-500/40 text-orange-300">
-                      Class: {tag}
-                    </Badge>
-                  ))}
-                  {entry.sparringTags.map((tag) => (
-                    <Badge key={`cal-s-${entry.id}-${tag}`} variant="outline" className="text-[10px] border-blue-500/40 text-blue-300">
-                      Sparring: {tag}
-                    </Badge>
-                  ))}
-                </div>
-                {entry.note && <p className="text-zinc-300 text-xs whitespace-pre-wrap">{entry.note}</p>}
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       )}

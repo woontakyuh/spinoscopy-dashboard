@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server"
-import { getOpCategoryOptions } from "@/lib/notion/analytics"
+import { getAllDimensionOptions } from "@/lib/notion/analytics"
 
 export async function GET() {
   try {
-    const options = await getOpCategoryOptions()
-    return NextResponse.json(options, {
+    const schema = await getAllDimensionOptions()
+    return NextResponse.json(schema, {
       headers: { "Cache-Control": "s-maxage=3600, stale-while-revalidate=600" },
     })
   } catch (error) {

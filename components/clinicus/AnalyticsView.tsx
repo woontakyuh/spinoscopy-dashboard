@@ -7,19 +7,19 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from "recharts"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { AnalyticsData, PatientRow, Dimension, TimepointParsed } from "@/lib/notion/analytics"
+import type { AnalyticsData, PatientRow, Dimension, TimepointParsed, DimensionSchema } from "@/lib/notion/analytics"
 
 const TIMEPOINT_LABELS: Record<string, string> = {
   pre: "수술 전", "1mo": "1개월", "3mo": "3개월", "6mo": "6개월", "1y": "1년",
 }
 const TIMEPOINTS = ["pre", "1mo", "3mo", "6mo", "1y"]
 
-// op_category 제외 — 카테고리 선택으로 이미 필터됨
-const DIMENSIONS: { key: Dimension; label: string }[] = [
-  { key: "class_a",  label: "질환 분류 (ClassA)" },
-  { key: "class_b",  label: "세부 진단 (ClassB)" },
-  { key: "surgeon",  label: "집도의" },
-  { key: "hospital", label: "병원" },
+const ALL_DIMENSIONS: { key: Dimension; label: string }[] = [
+  { key: "op_category", label: "수술 분류" },
+  { key: "class_a",     label: "질환 분류 (ClassA)" },
+  { key: "class_b",     label: "세부 진단 (ClassB)" },
+  { key: "surgeon",     label: "집도의" },
+  { key: "hospital",    label: "병원" },
 ]
 
 type Metric = keyof TimepointParsed
@@ -70,7 +70,75 @@ function avg(arr: number[]): number | null {
   return Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 100) / 100
 }
 
-/* ─── DimPicker ─── */
+/* ─── FilterSection: 접이식 차원 필터 ─── */
+
+function FilterSection({
+  dim,
+  options,
+  selected,
+  onToggle,
+  onSelectAll,
+  onClearAll,
+}: {
+  dim: { key: Dimension; label: string }
+  options: { name: string; color?: string }[]
+  selected: Set<string>
+  onToggle: (name: string) => void
+  onSelectAll: () => void
+  onClearAll: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const activeCount = selected.size
+
+  return (
+    <div className="border border-zinc-800 rounded-lg bg-zinc-900">
+      <button
+        type="button"
+        onClick={() => setOpen(prev => !prev)}
+        className="w-full flex items-center justify-between px-3 py-2 hover:bg-zinc-800/30 transition-colors rounded-lg"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-zinc-300 text-sm font-medium">{dim.label}</span>
+          {activeCount > 0 && (
+            <span className="text-violet-400 text-xs font-medium bg-violet-500/15 px-1.5 py-0.5 rounded">
+              {activeCount}개
+            </span>
+          )}
+        </div>
+        <span className={`text-zinc-500 text-xs transition-transform ${open ? "rotate-180" : ""}`}>▼</span>
+      </button>
+      {open && (
+        <div className="px-3 pb-2.5 pt-0.5">
+          <div className="flex gap-2 mb-1.5">
+            <button type="button" onClick={onSelectAll} className="text-xs text-blue-400 hover:text-blue-300">전체</button>
+            <button type="button" onClick={onClearAll} className="text-xs text-zinc-500 hover:text-zinc-400">해제</button>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {options.map(opt => {
+              const active = selected.has(opt.name)
+              return (
+                <button
+                  key={opt.name}
+                  type="button"
+                  onClick={() => onToggle(opt.name)}
+                  className={`px-2 py-1 rounded text-xs font-medium transition-colors border ${
+                    active
+                      ? "bg-violet-600/20 border-violet-500/50 text-violet-300"
+                      : "bg-zinc-800/50 border-zinc-700/50 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-400"
+                  }`}
+                >
+                  {opt.name}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─── DimPicker: 결과 화면 내 필터/그룹 피커 ─── */
 
 function DimPicker({
   dim, options, selected, onToggle, onSelectAll, onClearAll, isGroupBy,
@@ -85,7 +153,7 @@ function DimPicker({
 }) {
   const [open, setOpen] = useState(false)
   const activeCount = selected.size
-  const badge = isGroupBy ? "그룹" : "필터"
+  const badge = isGroupBy ? "비교 기준" : "필터"
   const accentClass = isGroupBy ? "text-blue-400" : "text-zinc-400"
 
   return (
@@ -156,7 +224,7 @@ function computeGroups(
   groupBySelected: Set<string>,
 ): GroupData[] {
   const filtered = patients.filter(p => {
-    for (const dim of DIMENSIONS) {
+    for (const dim of ALL_DIMENSIONS) {
       if (dim.key === groupByDim) continue
       const sel = filters[dim.key]
       if (sel.size === 0) continue
@@ -196,38 +264,61 @@ function computeGroups(
 
 /* ─── main component ─── */
 
+type FilterSelections = Record<Dimension, Set<string>>
+
+function emptySelections(): FilterSelections {
+  return { op_category: new Set(), class_a: new Set(), class_b: new Set(), surgeon: new Set(), hospital: new Set() }
+}
+
+function buildQueryKey(sel: FilterSelections): string {
+  return ALL_DIMENSIONS
+    .map(d => {
+      const vals = Array.from(sel[d.key]).sort()
+      return vals.length > 0 ? `${d.key}=${vals.join(",")}` : ""
+    })
+    .filter(Boolean)
+    .join("&")
+}
+
+function buildQueryParams(sel: FilterSelections): string {
+  const parts: string[] = []
+  for (const d of ALL_DIMENSIONS) {
+    const vals = Array.from(sel[d.key])
+    if (vals.length > 0) parts.push(`${d.key}=${encodeURIComponent(vals.join(","))}`)
+  }
+  return parts.join("&")
+}
+
 export function AnalyticsView() {
-  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
-  const [confirmedCategories, setConfirmedCategories] = useState<Set<string>>(new Set())
-  const [editingCategories, setEditingCategories] = useState(false)
-  const [groupByDim, setGroupByDim] = useState<Dimension>("class_a")
-  const [selections, setSelections] = useState<Record<Dimension, Set<string>>>({
-    op_category: new Set(),
-    class_a: new Set(),
-    class_b: new Set(),
-    surgeon: new Set(),
-    hospital: new Set(),
-  })
+  // 조회 조건 (확정 전)
+  const [preFilters, setPreFilters] = useState<FilterSelections>(emptySelections())
+  // 확정된 조회 조건
+  const [confirmedFilters, setConfirmedFilters] = useState<FilterSelections | null>(null)
+  const [editing, setEditing] = useState(false)
+  // 결과 화면 내 서브 필터
+  const [groupByDim, setGroupByDim] = useState<Dimension>("class_b")
+  const [subFilters, setSubFilters] = useState<FilterSelections>(emptySelections())
 
-  const hasConfirmed = confirmedCategories.size > 0
-  const categoriesKey = Array.from(confirmedCategories).sort().join(",")
+  const hasConfirmed = confirmedFilters !== null
+  const queryKey = confirmedFilters ? buildQueryKey(confirmedFilters) : ""
 
-  /* Step 1: 카테고리 목록 (DB 스키마에서 경량 조회) */
-  const { data: categories, isLoading: catLoading } = useQuery<{ name: string; color: string }[]>({
-    queryKey: ["analytics-categories"],
+  /* Step 1: DB 스키마에서 전체 차원 옵션 조회 */
+  const { data: schema, isLoading: schemaLoading } = useQuery<DimensionSchema>({
+    queryKey: ["analytics-schema"],
     queryFn: async () => {
       const res = await fetch("/api/notion/analytics/categories")
-      if (!res.ok) throw new Error("카테고리 조회 실패")
+      if (!res.ok) throw new Error("스키마 조회 실패")
       return res.json()
     },
     staleTime: 60 * 60 * 1000,
   })
 
-  /* Step 2: 카테고리 확정 후에만 환자 데이터 조회 */
+  /* Step 2: 조건 확정 후 환자 데이터 조회 */
   const { data, isLoading, error } = useQuery<AnalyticsData>({
-    queryKey: ["analytics-rows", categoriesKey],
+    queryKey: ["analytics-rows", queryKey],
     queryFn: async () => {
-      const res = await fetch(`/api/notion/analytics?categories=${encodeURIComponent(categoriesKey)}`)
+      const params = buildQueryParams(confirmedFilters!)
+      const res = await fetch(`/api/notion/analytics${params ? `?${params}` : ""}`)
       if (!res.ok) throw new Error("분석 데이터 조회 실패")
       return res.json()
     },
@@ -235,39 +326,8 @@ export function AnalyticsView() {
     staleTime: 5 * 60 * 1000,
   })
 
-  function toggleCategory(name: string) {
-    setSelectedCategories(prev => {
-      const next = new Set(prev)
-      if (next.has(name)) next.delete(name)
-      else next.add(name)
-      return next
-    })
-  }
-
-  function confirmCategories() {
-    if (selectedCategories.size === 0) return
-    setConfirmedCategories(new Set(selectedCategories))
-    setEditingCategories(false)
-    setSelections({
-      op_category: new Set(), class_a: new Set(),
-      class_b: new Set(), surgeon: new Set(), hospital: new Set(),
-    })
-  }
-
-  const patients = data?.patients ?? []
-
-  const dimOptions = useMemo(() => {
-    const result: Record<Dimension, { name: string; count: number }[]> = {
-      op_category: [], class_a: [], class_b: [], surgeon: [], hospital: [],
-    }
-    for (const dim of DIMENSIONS) {
-      result[dim.key] = collectDimOptions(patients, dim.key)
-    }
-    return result
-  }, [patients])
-
-  function toggleSelection(dim: Dimension, name: string) {
-    setSelections(prev => {
+  function togglePreFilter(dim: Dimension, name: string) {
+    setPreFilters(prev => {
       const next = new Set(prev[dim])
       if (next.has(name)) next.delete(name)
       else next.add(name)
@@ -275,24 +335,52 @@ export function AnalyticsView() {
     })
   }
 
-  const groupBySelected = selections[groupByDim]
+  const totalPreSelected = ALL_DIMENSIONS.reduce((sum, d) => sum + preFilters[d.key].size, 0)
+
+  function confirmQuery() {
+    if (totalPreSelected === 0) return
+    setConfirmedFilters({ ...preFilters })
+    setEditing(false)
+    setSubFilters(emptySelections())
+  }
+
+  const patients = data?.patients ?? []
+
+  const dimOptions = useMemo(() => {
+    const result = {} as Record<Dimension, { name: string; count: number }[]>
+    for (const dim of ALL_DIMENSIONS) {
+      result[dim.key] = collectDimOptions(patients, dim.key)
+    }
+    return result
+  }, [patients])
+
+  function toggleSubFilter(dim: Dimension, name: string) {
+    setSubFilters(prev => {
+      const next = new Set(prev[dim])
+      if (next.has(name)) next.delete(name)
+      else next.add(name)
+      return { ...prev, [dim]: next }
+    })
+  }
+
+  const groupBySelected = subFilters[groupByDim]
 
   const groups = useMemo(
-    () => patients.length > 0 ? computeGroups(patients, groupByDim, selections, groupBySelected) : [],
-    [patients, groupByDim, selections, groupBySelected]
+    () => patients.length > 0 ? computeGroups(patients, groupByDim, subFilters, groupBySelected) : [],
+    [patients, groupByDim, subFilters, groupBySelected]
   )
 
   const filteredPatientCount = useMemo(() => {
     return patients.filter(p => {
-      for (const dim of DIMENSIONS) {
+      for (const dim of ALL_DIMENSIONS) {
         if (dim.key === groupByDim) continue
-        const sel = selections[dim.key]
+        const sel = subFilters[dim.key]
         if (sel.size === 0) continue
         if (!getDimValues(p, dim.key).some(v => sel.has(v))) return false
       }
       return true
     }).length
-  }, [patients, groupByDim, selections])
+  }, [patients, groupByDim, subFilters])
 
   const charts = useMemo(() => {
     return METRIC_CHARTS.map(m => {
@@ -308,70 +396,70 @@ export function AnalyticsView() {
     }).filter(c => c.hasData)
   }, [groups])
 
-  /* ─── 카테고리 선택 화면 ─── */
-  const showCategoryPicker = !hasConfirmed || editingCategories
+  // 확정된 필터 요약 텍스트
+  const filterSummary = confirmedFilters
+    ? ALL_DIMENSIONS
+        .filter(d => confirmedFilters[d.key].size > 0)
+        .map(d => `${d.label}: ${Array.from(confirmedFilters[d.key]).join(", ")}`)
+        .join(" · ")
+    : ""
 
-  if (showCategoryPicker) {
+  /* ─── 조건 선택 화면 ─── */
+  const showFilterPicker = !hasConfirmed || editing
+
+  if (showFilterPicker) {
     return (
       <div className="space-y-4">
         <p className="text-zinc-400 text-sm">
-          {hasConfirmed ? "수술 분류를 변경하세요 (복수 선택 가능)" : "분석할 수술 분류를 선택하세요 (복수 선택 가능)"}
+          {hasConfirmed ? "조회 조건을 변경하세요" : "조회 조건을 선택하세요 (복수 선택 가능)"}
         </p>
-        {catLoading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {[1, 2, 3, 4, 5, 6].map(i => (
-              <Skeleton key={i} className="h-14 bg-zinc-800 rounded-xl" />
+        {schemaLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3, 4, 5].map(i => (
+              <Skeleton key={i} className="h-10 bg-zinc-800 rounded-lg" />
             ))}
           </div>
-        ) : categories && categories.length > 0 ? (
+        ) : schema ? (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {categories.map(cat => {
-                const active = selectedCategories.has(cat.name)
+            <div className="space-y-1.5">
+              {ALL_DIMENSIONS.map(dim => {
+                const opts = schema[dim.key] ?? []
+                if (opts.length === 0) return null
                 return (
-                  <button
-                    key={cat.name}
-                    type="button"
-                    onClick={() => toggleCategory(cat.name)}
-                    className={`px-4 py-3 rounded-xl border transition-colors text-left ${
-                      active
-                        ? "border-violet-500/60 bg-violet-600/20 ring-1 ring-violet-500/40"
-                        : "border-zinc-700 bg-zinc-800 hover:bg-violet-600/10 hover:border-violet-500/30"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className={`inline-block w-4 h-4 rounded border-2 shrink-0 ${
-                        active ? "bg-violet-500 border-violet-500" : "border-zinc-600"
-                      }`}>
-                        {active && <svg viewBox="0 0 12 12" className="w-full h-full text-white" aria-hidden="true"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                      </span>
-                      <span className="text-white text-sm font-medium">{cat.name}</span>
-                    </div>
-                  </button>
+                  <FilterSection
+                    key={dim.key}
+                    dim={dim}
+                    options={opts}
+                    selected={preFilters[dim.key]}
+                    onToggle={(name) => togglePreFilter(dim.key, name)}
+                    onSelectAll={() => setPreFilters(prev => ({
+                      ...prev,
+                      [dim.key]: new Set(opts.map(o => o.name)),
+                    }))}
+                    onClearAll={() => setPreFilters(prev => ({ ...prev, [dim.key]: new Set() }))}
+                  />
                 )
               })}
             </div>
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={confirmCategories}
-                disabled={selectedCategories.size === 0}
+                onClick={confirmQuery}
+                disabled={totalPreSelected === 0}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  selectedCategories.size > 0
+                  totalPreSelected > 0
                     ? "bg-violet-600 hover:bg-violet-500 text-white"
                     : "bg-zinc-800 text-zinc-600 cursor-not-allowed"
                 }`}
               >
-                {selectedCategories.size > 0
-                  ? `${selectedCategories.size}개 분류 분석`
-                  : "분류를 선택하세요"}
+                {totalPreSelected > 0 ? `조회 (${totalPreSelected}개 조건)` : "조건을 선택하세요"}
               </button>
               {hasConfirmed && (
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedCategories(new Set(confirmedCategories))
-                    setEditingCategories(false)
+                    if (confirmedFilters) setPreFilters({ ...confirmedFilters })
+                    setEditing(false)
                   }}
                   className="px-4 py-2 rounded-lg text-sm text-zinc-400 hover:text-zinc-300 transition-colors"
                 >
@@ -381,38 +469,38 @@ export function AnalyticsView() {
             </div>
           </>
         ) : (
-          <p className="text-zinc-600 text-sm text-center py-8">수술 분류가 없습니다.</p>
+          <p className="text-zinc-600 text-sm text-center py-8">스키마를 불러올 수 없습니다.</p>
         )}
       </div>
     )
   }
 
   /* ─── 분석 결과 화면 ─── */
-  const categoryLabels = Array.from(confirmedCategories).join(", ")
-
   return (
     <div className="space-y-4">
-      {/* 헤더: 카테고리명 + 변경 버튼 + 환자수 */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <h3 className="text-white font-semibold text-base">{categoryLabels}</h3>
+      {/* 헤더: 필터 요약 + 변경 버튼 + 환자수 */}
+      <div className="flex items-start gap-3 flex-wrap">
+        <div className="flex-1 min-w-0">
+          <p className="text-zinc-400 text-xs truncate">{filterSummary}</p>
+        </div>
         <button
           type="button"
           onClick={() => {
-            setSelectedCategories(new Set(confirmedCategories))
-            setEditingCategories(true)
+            if (confirmedFilters) setPreFilters({ ...confirmedFilters })
+            setEditing(true)
           }}
-          className="text-violet-400 hover:text-violet-300 text-xs transition-colors border border-violet-500/30 rounded-lg px-2 py-1"
+          className="text-violet-400 hover:text-violet-300 text-xs transition-colors border border-violet-500/30 rounded-lg px-2 py-1 shrink-0"
         >
-          분류 변경
+          조건 변경
         </button>
-        {!isLoading && <span className="text-zinc-500 text-sm">{patients.length}명</span>}
+        {!isLoading && <span className="text-zinc-500 text-sm shrink-0">{patients.length}명</span>}
       </div>
 
-      {/* 그룹 기준 선택 */}
+      {/* 비교 기준 선택 */}
       <div>
-        <p className="text-zinc-500 text-xs mb-1.5">그룹 기준</p>
+        <p className="text-zinc-500 text-xs mb-1.5">비교 기준</p>
         <div className="flex flex-wrap gap-1.5">
-          {DIMENSIONS.map(dim => (
+          {ALL_DIMENSIONS.map(dim => (
             <button
               key={dim.key}
               type="button"
@@ -430,9 +518,9 @@ export function AnalyticsView() {
       </div>
 
       {isLoading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {[1, 2, 3, 4].map(i => (
-            <Skeleton key={i} className="h-52 bg-zinc-800 rounded-xl" />
+            <Skeleton key={i} className="h-48 bg-zinc-800 rounded-xl" />
           ))}
         </div>
       )}
@@ -445,28 +533,28 @@ export function AnalyticsView() {
 
       {!isLoading && !error && patients.length > 0 && (
         <>
-          {/* 차원별 필터 */}
+          {/* 서브 필터 (결과 내 세분화) */}
           <div className="space-y-2">
-            {DIMENSIONS.map(dim => (
+            {ALL_DIMENSIONS.map(dim => (
               <DimPicker
                 key={dim.key}
                 dim={dim}
                 options={dimOptions[dim.key]}
-                selected={selections[dim.key]}
-                onToggle={(name) => toggleSelection(dim.key, name)}
-                onSelectAll={() => setSelections(prev => ({
+                selected={subFilters[dim.key]}
+                onToggle={(name) => toggleSubFilter(dim.key, name)}
+                onSelectAll={() => setSubFilters(prev => ({
                   ...prev,
                   [dim.key]: new Set(dimOptions[dim.key].map(o => o.name)),
                 }))}
-                onClearAll={() => setSelections(prev => ({ ...prev, [dim.key]: new Set() }))}
+                onClearAll={() => setSubFilters(prev => ({ ...prev, [dim.key]: new Set() }))}
                 isGroupBy={dim.key === groupByDim}
               />
             ))}
           </div>
 
           <p className="text-zinc-600 text-xs">
-            {categoryLabels} {patients.length}명 중 필터 적용: {filteredPatientCount}명
-            {groupBySelected.size > 0 && ` · 그룹 선택: ${groupBySelected.size}개`}
+            {patients.length}명 중 필터 적용: {filteredPatientCount}명
+            {groupBySelected.size > 0 && ` · 비교 선택: ${groupBySelected.size}개`}
           </p>
 
           {groups.length > 0 ? (
@@ -482,26 +570,26 @@ export function AnalyticsView() {
                 ))}
               </div>
 
-              {/* 전체 PROM 차트 (한 번에 표시) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* 전체 PROM 차트 — 반응형 그리드 */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 {charts.map(chart => (
-                  <div key={chart.key} className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-                    <p className="text-zinc-400 text-xs font-medium uppercase tracking-wide mb-3">
+                  <div key={chart.key} className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+                    <p className="text-zinc-400 text-xs font-medium uppercase tracking-wide mb-2">
                       {chart.label}
                     </p>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <LineChart data={chart.chartData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                    <ResponsiveContainer width="100%" height={180}>
+                      <LineChart data={chart.chartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
                         <XAxis dataKey="name" tick={AXIS_STYLE} />
                         <YAxis
                           domain={chart.domain}
                           tick={AXIS_STYLE}
                           unit={chart.unit}
-                          width={chart.unit === "%" ? 40 : 32}
+                          width={chart.unit === "%" ? 36 : 28}
                         />
                         <Tooltip contentStyle={TOOLTIP_STYLE} />
                         {groups.length > 1 && (
-                          <Legend wrapperStyle={{ fontSize: 10, color: "#a1a1aa" }} />
+                          <Legend wrapperStyle={{ fontSize: 9, color: "#a1a1aa" }} />
                         )}
                         {groups.map((g, i) => (
                           <Line
@@ -510,7 +598,7 @@ export function AnalyticsView() {
                             dataKey={g.name}
                             stroke={LINE_COLORS[i % LINE_COLORS.length]}
                             strokeWidth={2}
-                            dot={{ r: 3, fill: LINE_COLORS[i % LINE_COLORS.length] }}
+                            dot={{ r: 2.5, fill: LINE_COLORS[i % LINE_COLORS.length] }}
                             connectNulls={false}
                           />
                         ))}
@@ -522,7 +610,7 @@ export function AnalyticsView() {
             </>
           ) : (
             <p className="text-zinc-600 text-sm text-center py-8">
-              그룹을 선택하거나 필터를 조정하세요.
+              비교 기준을 선택하거나 필터를 조정하세요.
             </p>
           )}
 
@@ -536,7 +624,7 @@ export function AnalyticsView() {
 
       {!isLoading && !error && patients.length === 0 && hasConfirmed && (
         <p className="text-zinc-600 text-sm text-center py-8">
-          해당 분류에 환자 데이터가 없습니다.
+          해당 조건에 환자 데이터가 없습니다.
         </p>
       )}
     </div>

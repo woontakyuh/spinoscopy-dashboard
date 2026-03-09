@@ -155,9 +155,9 @@ export function SenseiCapture({ selectedDate }: SenseiCaptureProps) {
             <div className="flex flex-wrap gap-1">
               <Badge
                 variant="outline"
-                className={`text-[10px] ${lastSaved.structured.sessionType === "openmat" ? "border-green-500/40 text-green-300" : "border-purple-500/40 text-purple-300"}`}
+                className={`text-[10px] ${lastSaved.structured.sessionType === "promotion" ? "border-yellow-500/40 text-yellow-300" : lastSaved.structured.sessionType === "openmat" ? "border-green-500/40 text-green-300" : "border-purple-500/40 text-purple-300"}`}
               >
-                {lastSaved.structured.sessionType === "openmat" ? "Open Mat" : "Class"}
+                {lastSaved.structured.sessionType === "promotion" ? "승급식" : lastSaved.structured.sessionType === "openmat" ? "Open Mat" : "Class"}
               </Badge>
               <Badge variant="outline" className="text-[10px] border-zinc-600 text-zinc-300">
                 {lastSaved.structured.date}
@@ -209,9 +209,9 @@ export function SenseiCapture({ selectedDate }: SenseiCaptureProps) {
                        <p className="text-white text-sm font-medium">{entry.title}</p>
                        <Badge
                          variant="outline"
-                         className={`text-[10px] ${entry.sessionType === "openmat" ? "border-green-500/40 text-green-300" : "border-purple-500/40 text-purple-300"}`}
+                         className={`text-[10px] ${entry.sessionType === "promotion" ? "border-yellow-500/40 text-yellow-300" : entry.sessionType === "openmat" ? "border-green-500/40 text-green-300" : "border-purple-500/40 text-purple-300"}`}
                        >
-                         {entry.sessionType === "openmat" ? "Open Mat" : "Class"}
+                         {entry.sessionType === "promotion" ? "승급식" : entry.sessionType === "openmat" ? "Open Mat" : "Class"}
                        </Badge>
                        {entry.date && <Badge variant="outline" className="text-[10px] border-zinc-600 text-zinc-300">{entry.date}</Badge>}
                      </div>

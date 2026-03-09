@@ -115,7 +115,9 @@ function summarizeForProperty(note: string): string {
 function toEntry(page: NotionPage): SenseiEntry {
   const p = page.properties
   const sessionTypeRaw = p.SessionType?.select?.name
-  const sessionType = sessionTypeRaw === "openmat" ? "openmat" as const : "class" as const
+  const sessionType = sessionTypeRaw === "openmat" ? "openmat" as const
+    : sessionTypeRaw === "promotion" ? "promotion" as const
+    : "class" as const
   return {
     id: page.id,
     title: getText(p.Name),
@@ -182,6 +184,7 @@ async function ensureSessionTypeProperty(dbId: string): Promise<void> {
             options: [
               { name: "class", color: "purple" },
               { name: "openmat", color: "green" },
+              { name: "promotion", color: "yellow" },
             ],
           },
         },
@@ -215,6 +218,40 @@ export async function createSenseiEntry(input: StructuredBjjNote, rawInput: stri
         Note: { rich_text: [{ text: { content: summarizeForProperty(input.note) } }] },
       },
       children: buildPageBlocks(input, rawInput),
+    }),
+  })
+
+  return response.id
+}
+
+export async function createPromotionEntry(date: string, note?: string): Promise<string> {
+  const dbId = getDbId()
+
+  if (!sessionTypEnsured) {
+    await ensureSessionTypeProperty(dbId)
+    sessionTypEnsured = true
+  }
+
+  const title = `승급식 ${date}`
+  const response = await notionRequest<NotionCreateResponse>("/pages", {
+    method: "POST",
+    body: JSON.stringify({
+      parent: { database_id: dbId },
+      properties: {
+        Name: { title: [{ text: { content: title } }] },
+        SessionType: { select: { name: "promotion" } },
+        Date: { date: { start: date } },
+        ...(note ? { Note: { rich_text: [{ text: { content: note.slice(0, 280) } }] } } : {}),
+      },
+      ...(note ? {
+        children: [
+          {
+            object: "block",
+            type: "paragraph",
+            paragraph: { rich_text: buildRichText(note) },
+          },
+        ],
+      } : {}),
     }),
   })
 
