@@ -44,3 +44,4 @@ scripts/
 
 # legacy planning tool
 .sisyphus/
+credentials.json
