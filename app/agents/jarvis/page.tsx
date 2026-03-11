@@ -325,6 +325,7 @@ export default function JarvisPage() {
 
       setResult(data)
       setScheduleStage("result")
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-schedule"] })
     } catch (submitError) {
       const message = submitError instanceof Error ? submitError.message : "알 수 없는 오류"
       setError(message)

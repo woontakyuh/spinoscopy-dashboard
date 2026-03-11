@@ -51,13 +51,23 @@ function toScheduleItem(page: NotionPage): ScheduleItem {
   }
 }
 
+function todaySeoul(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
+}
+
+function addDaysSeoul(days: number): string {
+  const d = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }))
+  d.setDate(d.getDate() + days)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const dd = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${dd}`
+}
+
 export async function getUpcomingSchedules(days = 7): Promise<ScheduleItem[]> {
   const dbId = process.env.NOTION_SCHEDULE_DB_ID
-  const today = new Date()
-  const future = new Date(today)
-  future.setDate(today.getDate() + days)
-
-  const toDate = (d: Date) => d.toISOString().slice(0, 10)
+  const todayStr = todaySeoul()
+  const futureStr = addDaysSeoul(days)
 
   const response = await notionRequest<NotionQueryResponse>(
     `/databases/${dbId}/query`,
@@ -66,8 +76,8 @@ export async function getUpcomingSchedules(days = 7): Promise<ScheduleItem[]> {
       body: JSON.stringify({
         filter: {
           and: [
-            { property: "Date", date: { on_or_after: toDate(today) } },
-            { property: "Date", date: { on_or_before: toDate(future) } },
+            { property: "Date", date: { on_or_after: todayStr } },
+            { property: "Date", date: { on_or_before: futureStr } },
           ],
         },
         sorts: [{ property: "Date", direction: "ascending" }],

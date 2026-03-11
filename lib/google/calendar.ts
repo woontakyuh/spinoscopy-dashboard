@@ -45,32 +45,48 @@ export interface GoogleCalendarEventSummary {
 }
 
 function loadCredentials(): OAuthInstalledCredentials | null {
-  if (!existsSync(CREDENTIALS_PATH)) {
-    return null
+  // 1) 파일시스템 (로컬 개발)
+  if (existsSync(CREDENTIALS_PATH)) {
+    const raw = readFileSync(CREDENTIALS_PATH, "utf-8")
+    const parsed = JSON.parse(raw) as CredentialsFile
+    if (!parsed.installed) throw new Error("Invalid credentials.json: missing installed key")
+    return parsed.installed
   }
 
-  const raw = readFileSync(CREDENTIALS_PATH, "utf-8")
-  const parsed = JSON.parse(raw) as CredentialsFile
-
-  if (!parsed.installed) {
-    throw new Error("Invalid credentials.json: missing installed key")
+  // 2) 환경변수 fallback (Vercel 등)
+  const envCreds = process.env.GOOGLE_CREDENTIALS
+  if (envCreds) {
+    const parsed = JSON.parse(envCreds) as CredentialsFile
+    if (!parsed.installed) throw new Error("Invalid GOOGLE_CREDENTIALS: missing installed key")
+    return parsed.installed
   }
 
-  return parsed.installed
+  return null
 }
 
 function loadStoredTokens(): Credentials | null {
-  if (!existsSync(TOKEN_PATH)) {
-    return null
+  // 1) 파일시스템 (로컬 개발)
+  if (existsSync(TOKEN_PATH)) {
+    const raw = readFileSync(TOKEN_PATH, "utf-8")
+    return JSON.parse(raw) as Credentials
   }
 
-  const raw = readFileSync(TOKEN_PATH, "utf-8")
-  return JSON.parse(raw) as Credentials
+  // 2) 환경변수 fallback (Vercel 등)
+  const envToken = process.env.GOOGLE_TOKEN
+  if (envToken) {
+    return JSON.parse(envToken) as Credentials
+  }
+
+  return null
 }
 
 function saveTokens(tokens: Credentials): void {
-  mkdirSync(CONFIG_DIR, { recursive: true })
-  writeFileSync(TOKEN_PATH, JSON.stringify(tokens, null, 2), "utf-8")
+  try {
+    mkdirSync(CONFIG_DIR, { recursive: true })
+    writeFileSync(TOKEN_PATH, JSON.stringify(tokens, null, 2), "utf-8")
+  } catch {
+    // Vercel 등 읽기 전용 파일시스템에서는 저장 생략
+  }
 }
 
 export async function getAuthorizedClient(): Promise<InstanceType<typeof google.auth.OAuth2> | null> {
