@@ -41,6 +41,18 @@ export interface PricesResponse {
   fetchedAt: string
 }
 
+export type BtcChartPeriod = "1W" | "1M" | "3M" | "6M" | "1Y"
+
+export interface BtcChartBar extends OHLCBar {
+  volume: number
+}
+
+export interface BtcChartResponse {
+  bars: BtcChartBar[]
+  period: BtcChartPeriod
+  fetchedAt: string
+}
+
 export interface VaultNewsItem {
   id: string
   title: string

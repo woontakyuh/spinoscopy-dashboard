@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AssetCard } from "./AssetCard"
+import { BtcDailyChart } from "./BtcDailyChart"
 import type {
   AssetPrice,
   MarketIndicator,
@@ -87,6 +88,8 @@ export function VaultDashboard() {
           </div>
         </div>
       )}
+
+      <BtcDailyChart />
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
