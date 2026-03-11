@@ -4,7 +4,10 @@ import path from "node:path"
 import { google, calendar_v3 } from "googleapis"
 import type { Credentials } from "google-auth-library"
 
-const SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
+const SCOPES = [
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/calendar.readonly",
+]
 const TIMEZONE = "Asia/Seoul"
 const CONFIG_DIR = path.join(os.homedir(), ".config", "schedule-agent")
 const CREDENTIALS_PATH = path.join(CONFIG_DIR, "credentials.json")
@@ -197,6 +200,20 @@ export async function createGoogleCalendarEvent(input: GoogleCalendarCreateInput
   }
 }
 
+async function listOwnedCalendarIds(
+  calendarClient: calendar_v3.Calendar
+): Promise<string[]> {
+  try {
+    const res = await calendarClient.calendarList.list()
+    return (res.data.items ?? [])
+      .filter((cal) => cal.id && cal.accessRole && cal.accessRole !== "freeBusyReader")
+      .map((cal) => cal.id!)
+  } catch {
+    // calendar.readonly 스코프 없으면 primary만 사용
+    return ["primary"]
+  }
+}
+
 export async function findGoogleCalendarEvent(
   name: string,
   dateStart: string
@@ -208,24 +225,28 @@ export async function findGoogleCalendarEvent(
 
   const dateOnly = extractDate(dateStart)
   const calendar = google.calendar({ version: "v3", auth })
-  const res = await calendar.events.list({
-    calendarId: "primary",
-    timeMin: `${dateOnly}T00:00:00+09:00`,
-    timeMax: `${nextDay(dateOnly)}T00:00:00+09:00`,
-    q: name,
-    singleEvents: true,
-    maxResults: 5,
-  })
+  const calendarIds = await listOwnedCalendarIds(calendar)
 
-  const match = (res.data.items ?? []).find(
-    (event) => event.summary?.toLowerCase() === name.toLowerCase()
-  )
+  for (const calendarId of calendarIds) {
+    const res = await calendar.events.list({
+      calendarId,
+      timeMin: `${dateOnly}T00:00:00+09:00`,
+      timeMax: `${nextDay(dateOnly)}T00:00:00+09:00`,
+      q: name,
+      singleEvents: true,
+      maxResults: 5,
+    })
 
-  if (match) {
-    return {
-      exists: true,
-      eventId: match.id ?? undefined,
-      eventUrl: match.htmlLink ?? undefined,
+    const match = (res.data.items ?? []).find(
+      (event) => event.summary?.toLowerCase() === name.toLowerCase()
+    )
+
+    if (match) {
+      return {
+        exists: true,
+        eventId: match.id ?? undefined,
+        eventUrl: match.htmlLink ?? undefined,
+      }
     }
   }
 
@@ -239,26 +260,48 @@ export async function listGoogleCalendarEventsForDate(date: string): Promise<Goo
   }
 
   const calendar = google.calendar({ version: "v3", auth })
+  const calendarIds = await listOwnedCalendarIds(calendar)
   const start = `${date}T00:00:00+09:00`
   const end = `${nextDay(date)}T00:00:00+09:00`
 
-  const res = await calendar.events.list({
-    calendarId: "primary",
-    timeMin: start,
-    timeMax: end,
-    singleEvents: true,
-    orderBy: "startTime",
+  const allEvents: GoogleCalendarEventSummary[] = []
+  const seenIds = new Set<string>()
+
+  const results = await Promise.all(
+    calendarIds.map((calendarId) =>
+      calendar.events.list({
+        calendarId,
+        timeMin: start,
+        timeMax: end,
+        singleEvents: true,
+        orderBy: "startTime",
+      }).catch(() => null)
+    )
+  )
+
+  for (const res of results) {
+    if (!res) continue
+    for (const event of res.data.items ?? []) {
+      if (!event.id || seenIds.has(event.id)) continue
+      const eventStart = event.start?.dateTime ?? event.start?.date ?? ""
+      if (!eventStart) continue
+      seenIds.add(event.id)
+      allEvents.push({
+        id: event.id,
+        title: event.summary ?? "(제목 없음)",
+        start: eventStart,
+        end: event.end?.dateTime ?? event.end?.date ?? null,
+        location: event.location ?? "",
+        url: event.htmlLink ?? "",
+      })
+    }
+  }
+
+  allEvents.sort((a, b) => {
+    const ta = Date.parse(a.start)
+    const tb = Date.parse(b.start)
+    return (Number.isNaN(ta) ? 0 : ta) - (Number.isNaN(tb) ? 0 : tb)
   })
 
-  return (res.data.items ?? [])
-    .filter((event): event is calendar_v3.Schema$Event & { id: string } => Boolean(event.id))
-    .map((event) => ({
-      id: event.id,
-      title: event.summary ?? "(제목 없음)",
-      start: event.start?.dateTime ?? event.start?.date ?? "",
-      end: event.end?.dateTime ?? event.end?.date ?? null,
-      location: event.location ?? "",
-      url: event.htmlLink ?? "",
-    }))
-    .filter((event) => event.start.length > 0)
+  return allEvents
 }

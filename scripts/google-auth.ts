@@ -22,7 +22,10 @@ import { google } from "googleapis"
 const CONFIG_DIR = path.join(os.homedir(), ".config", "schedule-agent")
 const CREDENTIALS_PATH = path.join(CONFIG_DIR, "credentials.json")
 const TOKEN_PATH = path.join(CONFIG_DIR, "token.json")
-const SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
+const SCOPES = [
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/calendar.readonly",
+]
 const PORT = 3099
 
 async function main() {
