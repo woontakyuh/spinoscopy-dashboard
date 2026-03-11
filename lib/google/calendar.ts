@@ -253,7 +253,10 @@ export async function findGoogleCalendarEvent(
   return { exists: false }
 }
 
-export async function listGoogleCalendarEventsForDate(date: string): Promise<GoogleCalendarEventSummary[]> {
+export async function listGoogleCalendarEventsForRange(
+  startDate: string,
+  endDate: string
+): Promise<GoogleCalendarEventSummary[]> {
   const auth = await getAuthorizedClient()
   if (!auth) {
     return []
@@ -261,8 +264,8 @@ export async function listGoogleCalendarEventsForDate(date: string): Promise<Goo
 
   const calendar = google.calendar({ version: "v3", auth })
   const calendarIds = await listOwnedCalendarIds(calendar)
-  const start = `${date}T00:00:00+09:00`
-  const end = `${nextDay(date)}T00:00:00+09:00`
+  const timeMin = `${startDate}T00:00:00+09:00`
+  const timeMax = `${nextDay(endDate)}T00:00:00+09:00`
 
   const allEvents: GoogleCalendarEventSummary[] = []
   const seenIds = new Set<string>()
@@ -271,8 +274,8 @@ export async function listGoogleCalendarEventsForDate(date: string): Promise<Goo
     calendarIds.map((calendarId) =>
       calendar.events.list({
         calendarId,
-        timeMin: start,
-        timeMax: end,
+        timeMin,
+        timeMax,
         singleEvents: true,
         orderBy: "startTime",
       }).catch(() => null)
@@ -304,4 +307,8 @@ export async function listGoogleCalendarEventsForDate(date: string): Promise<Goo
   })
 
   return allEvents
+}
+
+export async function listGoogleCalendarEventsForDate(date: string): Promise<GoogleCalendarEventSummary[]> {
+  return listGoogleCalendarEventsForRange(date, date)
 }
