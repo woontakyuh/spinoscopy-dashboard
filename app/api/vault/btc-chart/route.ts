@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     }
 
     const limit = PERIOD_LIMITS[period]
-    const url = `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=${limit}`
+    const url = `https://data-api.binance.vision/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=${limit}`
     const res = await fetch(url, { next: { revalidate: 300 } })
 
     if (!res.ok) {
