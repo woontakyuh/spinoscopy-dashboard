@@ -5,6 +5,7 @@ import { AgentGrid } from "@/components/dashboard/AgentGrid"
 import { TodaySurgery } from "@/components/dashboard/TodaySurgery"
 import { TodayTodo } from "@/components/dashboard/TodayTodo"
 import { MorningBriefing } from "@/components/dashboard/MorningBriefing"
+import { MonthCalendar } from "@/components/dashboard/MonthCalendar"
 
 export default function DashboardPage() {
   return (
@@ -12,6 +13,7 @@ export default function DashboardPage() {
       <TopBar title="Home" />
       <div className="flex-1 p-3 md:p-6 max-w-6xl w-full space-y-4 md:space-y-6">
         <MorningBriefing />
+        <MonthCalendar />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <TodaySurgery />

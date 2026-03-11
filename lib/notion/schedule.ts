@@ -89,6 +89,29 @@ export async function getUpcomingSchedules(days = 7): Promise<ScheduleItem[]> {
   return response.results.map(toScheduleItem)
 }
 
+export async function getSchedulesInRange(startDate: string, endDate: string): Promise<ScheduleItem[]> {
+  const dbId = process.env.NOTION_SCHEDULE_DB_ID
+
+  const response = await notionRequest<NotionQueryResponse>(
+    `/databases/${dbId}/query`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        filter: {
+          and: [
+            { property: "Date", date: { on_or_after: startDate } },
+            { property: "Date", date: { on_or_before: endDate } },
+          ],
+        },
+        sorts: [{ property: "Date", direction: "ascending" }],
+        page_size: 100,
+      }),
+    }
+  )
+
+  return response.results.map(toScheduleItem)
+}
+
 export async function findDuplicateSchedule(name: string, dateStart: string): Promise<ScheduleItem | null> {
   const dbId = process.env.NOTION_SCHEDULE_DB_ID
 
