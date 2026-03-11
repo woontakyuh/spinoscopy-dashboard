@@ -193,9 +193,9 @@ export function MonthCalendar() {
   }
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 md:p-5">
+    <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCurrentMonth(prevMonth(currentMonth))}
@@ -239,7 +239,7 @@ export function MonthCalendar() {
 
         {/* Empty cells before first day */}
         {Array.from({ length: firstDay }).map((_, i) => (
-          <div key={`empty-${i}`} className="aspect-square" />
+          <div key={`empty-${i}`} className="py-2" />
         ))}
 
         {/* Day cells */}
@@ -261,7 +261,7 @@ export function MonthCalendar() {
             <button
               key={dateStr}
               onClick={() => setSelectedDate(dateStr)}
-              className={`aspect-square flex flex-col items-center justify-center rounded-lg text-sm transition-colors relative
+              className={`py-2 flex flex-col items-center justify-center rounded-lg text-sm transition-colors relative
                 ${isSelected
                   ? "bg-zinc-700 ring-1 ring-cyan-500"
                   : "hover:bg-zinc-800/60"

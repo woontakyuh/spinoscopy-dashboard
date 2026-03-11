@@ -12,8 +12,10 @@ export default function DashboardPage() {
     <div className="flex flex-col min-h-screen">
       <TopBar title="Home" />
       <div className="flex-1 p-3 md:p-6 max-w-6xl w-full space-y-4 md:space-y-6">
-        <MorningBriefing />
-        <MonthCalendar />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 items-start">
+          <MorningBriefing />
+          <MonthCalendar />
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <TodaySurgery />

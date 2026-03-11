@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PresentationCard } from "./PresentationCard"
-import type { PresentationsResponse, TimeFilter, AttendanceFilter } from "@/lib/types/podium"
+import type { PresentationsResponse, TimeFilter, AttendanceFilter } from "@/lib/types/presentation"
 
 const TIME_OPTIONS: { value: TimeFilter; label: string }[] = [
   { value: "upcoming", label: "Upcoming" },
@@ -56,9 +56,9 @@ export function PresentationList() {
   const qs = params.toString()
 
   const { data, isLoading, error, refetch } = useQuery<PresentationsResponse>({
-    queryKey: ["podium", "presentations", time, attendance],
+    queryKey: ["jarvis", "presentations", time, attendance],
     queryFn: async () => {
-      const res = await fetch(`/api/podium/presentations${qs ? `?${qs}` : ""}`)
+      const res = await fetch(`/api/jarvis/presentations${qs ? `?${qs}` : ""}`)
       if (!res.ok) throw new Error("일정 조회 실패")
       return res.json()
     },
