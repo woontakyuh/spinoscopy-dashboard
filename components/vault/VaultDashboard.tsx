@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AssetCard } from "./AssetCard"
-import { BtcDailyChart } from "./BtcDailyChart"
+import { AssetDailyChart } from "./AssetDailyChart"
 import type {
   AssetPrice,
   MarketIndicator,
@@ -17,6 +17,8 @@ import type {
 import { TRACKED_ASSETS } from "@/lib/vault/assets"
 
 type NewsFilter = "all" | string
+
+const STOCK_SYMBOLS = new Set(["TSLA", "GOOGL", "AAPL"])
 
 export function VaultDashboard() {
   const [newsFilter, setNewsFilter] = useState<NewsFilter>("all")
@@ -44,6 +46,7 @@ export function VaultDashboard() {
   const prices: AssetPrice[] = pricesQuery.data?.prices ?? []
   const indicators: MarketIndicator[] = pricesQuery.data?.indicators ?? []
   const newsItems: VaultNewsItem[] = newsQuery.data?.items ?? []
+  const stockPrices = prices.filter((p) => STOCK_SYMBOLS.has(p.symbol))
 
   const filteredNews = newsFilter === "all"
     ? newsItems
@@ -51,10 +54,11 @@ export function VaultDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* 시장 지표: 원/달러, 공포탐욕, BTC도미넌스 | NASDAQ, DJI, KOSPI, KOSDAQ */}
       {indicators.length > 0 && (
         <div className="border border-zinc-700 rounded-xl p-3 bg-zinc-900 space-y-2">
           <p className="text-zinc-400 text-xs font-medium">시장 지표</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-2">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-x-4 gap-y-2">
             {indicators.map((ind) => {
               const isUp = ind.change !== null && ind.change >= 0
               const isFng = ind.key === "fng"
@@ -89,11 +93,19 @@ export function VaultDashboard() {
         </div>
       )}
 
-      <BtcDailyChart />
+      {/* BTC 일봉 차트 - 풀 너비 */}
+      <AssetDailyChart symbol="BTC" title="₿ BTC/USDT 일봉" currency="USD" height={320} />
 
+      {/* ETH + 유바이오로직스 - 반씩 나란히 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <AssetDailyChart symbol="ETH" title="Ξ ETH/USDT 일봉" currency="USD" height={240} />
+        <AssetDailyChart symbol="206650" title="유바이오로직스 일봉" currency="KRW" height={240} />
+      </div>
+
+      {/* TSLA, GOOGL, AAPL - AssetCard 3개 나란히 */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <p className="text-zinc-300 text-sm font-medium">보유 자산</p>
+          <p className="text-zinc-300 text-sm font-medium">주식</p>
           {pricesQuery.data?.fetchedAt && (
             <span className="text-zinc-500 text-xs">
               {new Date(pricesQuery.data.fetchedAt).toLocaleTimeString("ko-KR", {
@@ -105,8 +117,8 @@ export function VaultDashboard() {
         </div>
 
         {pricesQuery.isLoading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {Array.from({ length: 6 }).map((_, i) => (
+          <div className="grid grid-cols-3 gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
               <div key={`price-skeleton-${String(i)}`} className="border border-zinc-700 rounded-lg p-3 bg-zinc-800/50 space-y-2">
                 <Skeleton className="h-4 w-2/3 bg-zinc-700" />
                 <Skeleton className="h-6 w-1/2 bg-zinc-700" />
@@ -126,14 +138,15 @@ export function VaultDashboard() {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {prices.map((asset) => (
+          <div className="grid grid-cols-3 gap-3">
+            {stockPrices.map((asset) => (
               <AssetCard key={asset.symbol} asset={asset} />
             ))}
           </div>
         )}
       </div>
 
+      {/* 뉴스 */}
       <div className="space-y-3">
         <p className="text-zinc-300 text-sm font-medium">관련 뉴스</p>
 

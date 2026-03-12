@@ -211,10 +211,13 @@ async function fetchAllIndicators(): Promise<MarketIndicator[]> {
     fetchFearGreed(),
   ])
 
-  const indicators = [...yahooIndicators]
-  if (btcDom) indicators.push(btcDom)
-  if (fng) indicators.push(fng)
-  return indicators
+  const all = [...yahooIndicators]
+  if (btcDom) all.push(btcDom)
+  if (fng) all.push(fng)
+
+  const order = ["usdkrw", "fng", "btc-dom", "nasdaq", "dow", "kospi", "kosdaq"]
+  const byKey = new Map(all.map((ind) => [ind.key, ind]))
+  return order.map((key) => byKey.get(key)).filter((ind): ind is MarketIndicator => ind != null)
 }
 
 export async function GET() {

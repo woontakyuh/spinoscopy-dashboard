@@ -17,21 +17,44 @@ import type { BtcChartBar, BtcChartPeriod, BtcChartResponse } from "@/lib/types/
 
 const PERIODS: { value: BtcChartPeriod; label: string }[] = [
   { value: "1W", label: "1주" },
-  { value: "1M", label: "1개월" },
-  { value: "3M", label: "3개월" },
-  { value: "6M", label: "6개월" },
+  { value: "1M", label: "1월" },
+  { value: "3M", label: "3월" },
+  { value: "6M", label: "6월" },
   { value: "1Y", label: "1년" },
 ]
 
-export function BtcDailyChart() {
-  const [period, setPeriod] = useState<BtcChartPeriod>("3M")
+interface AssetDailyChartProps {
+  symbol: string
+  title: string
+  currency?: "USD" | "KRW"
+  height?: number
+  defaultPeriod?: BtcChartPeriod
+}
+
+function formatPrice(price: number, currency: string): string {
+  if (currency === "KRW") {
+    return price >= 10000
+      ? `${(price / 10000).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}만원`
+      : `${price.toLocaleString("ko-KR", { maximumFractionDigits: 0 })}원`
+  }
+  return `$${price.toLocaleString("en-US", { maximumFractionDigits: price >= 100 ? 0 : 2 })}`
+}
+
+export function AssetDailyChart({
+  symbol,
+  title,
+  currency = "USD",
+  height = 320,
+  defaultPeriod = "3M",
+}: AssetDailyChartProps) {
+  const [period, setPeriod] = useState<BtcChartPeriod>(defaultPeriod)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const { data, isLoading, isError } = useQuery<BtcChartResponse>({
-    queryKey: ["vault-btc-chart", period],
+    queryKey: ["vault-asset-chart", symbol, period],
     queryFn: async () => {
-      const res = await fetch(`/api/vault/btc-chart?period=${period}`)
-      if (!res.ok) throw new Error("BTC 차트 조회 실패")
+      const res = await fetch(`/api/vault/asset-chart?symbol=${symbol}&period=${period}`)
+      if (!res.ok) throw new Error("차트 조회 실패")
       return res.json()
     },
     staleTime: 5 * 60 * 1000,
@@ -55,7 +78,7 @@ export function BtcDailyChart() {
 
     let chart: IChartApi | null = createChart(container, {
       width: container.clientWidth,
-      height: 320,
+      height,
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
         textColor: "#a1a1aa",
@@ -136,31 +159,31 @@ export function BtcDailyChart() {
       chart?.remove()
       chart = null
     }
-  }, [bars])
+  }, [bars, height])
 
   return (
     <div className="border border-zinc-700 rounded-xl bg-zinc-900 overflow-hidden">
-      <div className="flex items-center justify-between p-3 pb-0">
-        <div className="flex items-center gap-3">
-          <span className="text-white text-sm font-semibold">₿ BTC/USDT 일봉</span>
+      <div className="flex items-center justify-between p-3 pb-0 gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-white text-sm font-semibold truncate">{title}</span>
           {latestPrice !== null && (
-            <span className="text-white text-lg font-bold">
-              ${latestPrice.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+            <span className="text-white text-base font-bold shrink-0">
+              {formatPrice(latestPrice, currency)}
             </span>
           )}
           {priceChange !== null && (
-            <span className={`text-sm font-medium ${priceChange >= 0 ? "text-[#26a69a]" : "text-[#ef5350]"}`}>
+            <span className={`text-xs font-medium shrink-0 ${priceChange >= 0 ? "text-[#26a69a]" : "text-[#ef5350]"}`}>
               {priceChange >= 0 ? "+" : ""}{priceChange.toFixed(2)}%
             </span>
           )}
         </div>
-        <div className="flex items-center gap-0.5 bg-zinc-800/50 rounded-lg p-0.5 border border-zinc-800">
+        <div className="flex items-center gap-0.5 bg-zinc-800/50 rounded-lg p-0.5 border border-zinc-800 shrink-0">
           {PERIODS.map((p) => (
             <button
               key={p.value}
               type="button"
               onClick={() => setPeriod(p.value)}
-              className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+              className={`px-2 py-0.5 text-[11px] rounded-md transition-colors ${
                 period === p.value
                   ? "bg-zinc-700 text-zinc-100"
                   : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/60"
@@ -174,14 +197,14 @@ export function BtcDailyChart() {
 
       {isLoading ? (
         <div className="p-3">
-          <Skeleton className="h-[320px] w-full bg-zinc-800 rounded-lg" />
+          <Skeleton className="w-full bg-zinc-800 rounded-lg" style={{ height }} />
         </div>
       ) : isError ? (
-        <div className="flex items-center justify-center h-[320px]">
+        <div className="flex items-center justify-center" style={{ height }}>
           <p className="text-red-400 text-sm">차트 데이터 로드 실패</p>
         </div>
       ) : bars.length === 0 ? (
-        <div className="flex items-center justify-center h-[320px]">
+        <div className="flex items-center justify-center" style={{ height }}>
           <p className="text-zinc-500 text-sm">데이터 없음</p>
         </div>
       ) : (
