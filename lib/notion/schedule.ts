@@ -46,7 +46,7 @@ function toScheduleItem(page: NotionPage): ScheduleItem {
     date_start: dateProp?.type === "date" ? dateProp.date?.start ?? null : null,
     date_end: dateProp?.type === "date" ? dateProp.date?.end ?? null : null,
     place: getText(p.Place),
-    category: getSelect(p["분류"]),
+    category: p["분류"]?.multi_select?.map((s) => s.name).join(", ") ?? "",
     status: getSelect(p["준비 상태"]),
   }
 }
@@ -138,45 +138,52 @@ export async function findDuplicateSchedule(name: string, dateStart: string): Pr
 export async function createSchedule(input: ScheduleCreateInput): Promise<{ page_id: string; url: string }> {
   const dbId = process.env.NOTION_SCHEDULE_DB_ID
 
+  const properties: Record<string, unknown> = {
+    Name: {
+      title: [{ text: { content: input.name } }],
+    },
+    Date: {
+      date: {
+        start: input.date_start,
+        end: input.date_end ?? null,
+      },
+    },
+  }
+
+  if (input.place) {
+    properties.Place = {
+      rich_text: [{ text: { content: input.place } }],
+    }
+  }
+
+  if (input.category) {
+    properties["분류"] = {
+      multi_select: [{ name: input.category }],
+    }
+  }
+
+  const society = (input.society ?? []).map((n) => n.trim()).filter((n) => n.length > 0)
+  if (society.length > 0) {
+    properties["학회명"] = {
+      multi_select: society.map((name) => ({ name })),
+    }
+  }
+
+  if (input.topic) {
+    properties["발표 주제"] = {
+      rich_text: [{ text: { content: input.topic } }],
+    }
+  }
+
+  if (input.link) {
+    properties.Link = { url: input.link }
+  }
+
   const response = await notionRequest<NotionCreatePageResponse>("/pages", {
     method: "POST",
     body: JSON.stringify({
       parent: { database_id: dbId },
-      properties: {
-        Name: {
-          title: [{ text: { content: input.name } }],
-        },
-        Date: {
-          date: {
-            start: input.date_start,
-            end: input.date_end ?? null,
-          },
-        },
-        Place: {
-          rich_text: input.place ? [{ text: { content: input.place } }] : [],
-        },
-        분류: {
-          select: { name: input.category ?? "Spine" },
-        },
-        학회명: {
-          multi_select: (input.society ?? [])
-            .map((name) => name.trim())
-            .filter((name) => name.length > 0)
-            .map((name) => ({ name })),
-        },
-        "준비 상태": {
-          select: input.status ? { name: input.status } : null,
-        },
-        "발표 주제": {
-          rich_text: input.topic ? [{ text: { content: input.topic } }] : [],
-        },
-        Link: {
-          url: input.link ?? null,
-        },
-        "초록 제출 기한": {
-          date: input.abstract_deadline ? { start: input.abstract_deadline } : null,
-        },
-      },
+      properties,
     }),
   })
 
