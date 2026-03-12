@@ -3,6 +3,8 @@ import { getSchedulesInRange } from "@/lib/notion/schedule"
 import { listGoogleCalendarEventsForRange } from "@/lib/google/calendar"
 import { mergeSchedules } from "@/lib/schedule-merge"
 
+export const dynamic = "force-dynamic"
+
 function parseMonth(month: string): { startDate: string; endDate: string } | null {
   const match = /^(\d{4})-(\d{2})$/u.exec(month)
   if (!match) return null

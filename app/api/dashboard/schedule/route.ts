@@ -6,6 +6,8 @@ import {
 } from "@/lib/google/calendar"
 import { mergeSchedules } from "@/lib/schedule-merge"
 
+export const dynamic = "force-dynamic"
+
 function todayInSeoul(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
 }

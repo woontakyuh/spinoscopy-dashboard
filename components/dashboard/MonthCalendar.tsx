@@ -25,14 +25,50 @@ async function fetchCalendar(month: string): Promise<DashboardScheduleItem[]> {
   return res.json()
 }
 
-async function createQuickSchedule(name: string, date: string): Promise<void> {
+interface ParsedScheduleData {
+  name: string
+  date_start: string
+  date_end?: string
+  place?: string
+  category?: string
+  topic?: string
+}
+
+async function parseNaturalLanguage(text: string): Promise<ParsedScheduleData> {
+  const res = await fetch("/api/jarvis/parse", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "schedule", text }),
+  })
+  if (!res.ok) {
+    throw new Error("자연어 파싱 실패")
+  }
+  const data = (await res.json()) as { success: boolean; parsed?: ParsedScheduleData; error?: string }
+  if (!data.success || !data.parsed) {
+    throw new Error(data.error ?? "일정 정보를 추출하지 못했습니다.")
+  }
+  return data.parsed
+}
+
+async function createQuickSchedule(text: string, selectedDate: string): Promise<void> {
+  // 1) NLP 파싱 — 자연어에서 이름, 장소, 날짜 추출
+  const parsed = await parseNaturalLanguage(text)
+
+  // 2) 선택된 날짜를 기본값으로, 파싱된 날짜가 있으면 사용
+  const dateStart = parsed.date_start || selectedDate
+
+  // 3) GCal 전용으로 일정 생성
   const res = await fetch("/api/jarvis/schedule", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      name,
-      date_start: date,
-      targets: ["notion", "gcal"],
+      name: parsed.name,
+      date_start: dateStart,
+      date_end: parsed.date_end,
+      place: parsed.place,
+      category: parsed.category,
+      topic: parsed.topic,
+      targets: ["gcal"],
     }),
   })
   if (!res.ok) {
@@ -144,8 +180,8 @@ export function MonthCalendar() {
   })
 
   const createMutation = useMutation({
-    mutationFn: ({ name, date }: { name: string; date: string }) =>
-      createQuickSchedule(name, date),
+    mutationFn: ({ text, date }: { text: string; date: string }) =>
+      createQuickSchedule(text, date),
     onSuccess: async () => {
       setQuickName("")
       setQuickError(null)
@@ -183,7 +219,7 @@ export function MonthCalendar() {
       setQuickError("일정명을 입력하세요.")
       return
     }
-    createMutation.mutate({ name, date: selectedDate })
+    createMutation.mutate({ text: name, date: selectedDate })
   }
 
   const goToToday = () => {
@@ -332,7 +368,7 @@ export function MonthCalendar() {
           <Input
             value={quickName}
             onChange={(e) => setQuickName(e.target.value)}
-            placeholder={`${formatSelectedDate(selectedDate)}에 일정 추가`}
+            placeholder="자연어로 일정 추가 (예: 봉산짬뽕에서 점심 식사)"
             className="bg-zinc-800 border-zinc-700 text-zinc-100 text-sm"
             disabled={createMutation.isPending}
           />
@@ -342,7 +378,7 @@ export function MonthCalendar() {
             disabled={createMutation.isPending}
             className="bg-blue-600 hover:bg-blue-500 text-white shrink-0"
           >
-            {createMutation.isPending ? "추가 중..." : "추가"}
+            {createMutation.isPending ? "파싱 중..." : "추가"}
           </Button>
         </form>
         {quickError && (

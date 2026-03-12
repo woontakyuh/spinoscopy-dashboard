@@ -54,44 +54,55 @@ export function VaultDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* 시장 지표: 원/달러, 공포탐욕, BTC도미넌스 | NASDAQ, DJI, KOSPI, KOSDAQ */}
-      {indicators.length > 0 && (
-        <div className="border border-zinc-700 rounded-xl p-3 bg-zinc-900 space-y-2">
-          <p className="text-zinc-400 text-xs font-medium">시장 지표</p>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-x-4 gap-y-2">
-            {indicators.map((ind) => {
-              const isUp = ind.change !== null && ind.change >= 0
-              const isFng = ind.key === "fng"
-              const fngColor = isFng
-                ? ind.value <= 25 ? "text-red-400" : ind.value <= 45 ? "text-orange-400" : ind.value <= 55 ? "text-yellow-400" : ind.value <= 75 ? "text-green-400" : "text-emerald-400"
-                : "text-white"
+      {/* 시장 지표: 1행 원/달러,공포탐욕,BTC도미넌스 | 2행 NASDAQ,DJI,KOSPI,KOSDAQ */}
+      {indicators.length > 0 && (() => {
+        const ROW1_KEYS = new Set(["usdkrw", "fng", "btc-dom"])
+        const row1 = indicators.filter((ind) => ROW1_KEYS.has(ind.key))
+        const row2 = indicators.filter((ind) => !ROW1_KEYS.has(ind.key))
 
-              return (
-                <div key={ind.key} className="flex items-center justify-between gap-1">
-                  <span className="text-zinc-400 text-xs truncate">{ind.label}</span>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <span className={`text-xs font-medium ${isFng ? fngColor : "text-white"}`}>
-                      {ind.key === "btc-dom"
-                        ? `${ind.value.toFixed(1)}%`
-                        : isFng
-                          ? ind.value
-                          : ind.value.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}
-                    </span>
-                    {isFng && ind.unit && (
-                      <span className={`text-[10px] ${fngColor}`}>{ind.unit}</span>
-                    )}
-                    {ind.change !== null && !isFng && (
-                      <span className={`text-[10px] ${isUp ? "text-green-400" : "text-red-400"}`}>
-                        {isUp ? "+" : ""}{ind.change.toFixed(2)}%
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
+        const renderIndicator = (ind: MarketIndicator) => {
+          const isUp = ind.change !== null && ind.change >= 0
+          const isFng = ind.key === "fng"
+          const fngColor = isFng
+            ? ind.value <= 25 ? "text-red-400" : ind.value <= 45 ? "text-orange-400" : ind.value <= 55 ? "text-yellow-400" : ind.value <= 75 ? "text-green-400" : "text-emerald-400"
+            : "text-white"
+
+          return (
+            <div key={ind.key} className="flex items-center justify-between gap-1">
+              <span className="text-zinc-400 text-xs truncate">{ind.label}</span>
+              <div className="flex items-center gap-1 shrink-0">
+                <span className={`text-xs font-medium ${isFng ? fngColor : "text-white"}`}>
+                  {ind.key === "btc-dom"
+                    ? `${ind.value.toFixed(1)}%`
+                    : isFng
+                      ? ind.value
+                      : ind.value.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}
+                </span>
+                {isFng && ind.unit && (
+                  <span className={`text-[10px] ${fngColor}`}>{ind.unit}</span>
+                )}
+                {ind.change !== null && !isFng && (
+                  <span className={`text-[10px] ${isUp ? "text-green-400" : "text-red-400"}`}>
+                    {isUp ? "+" : ""}{ind.change.toFixed(2)}%
+                  </span>
+                )}
+              </div>
+            </div>
+          )
+        }
+
+        return (
+          <div className="border border-zinc-700 rounded-xl p-3 bg-zinc-900 space-y-3">
+            <p className="text-zinc-400 text-xs font-medium">시장 지표</p>
+            <div className="grid grid-cols-3 gap-x-4 gap-y-2">
+              {row1.map(renderIndicator)}
+            </div>
+            <div className="grid grid-cols-4 gap-x-4 gap-y-2">
+              {row2.map(renderIndicator)}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* BTC 일봉 차트 - 풀 너비 */}
       <AssetDailyChart symbol="BTC" title="₿ BTC/USDT 일봉" currency="USD" height={320} />

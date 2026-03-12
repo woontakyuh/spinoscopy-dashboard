@@ -17,6 +17,7 @@ export interface ScheduleCreateInput {
   category?: string
   society?: string[]
   targets?: Array<"notion" | "gcal">
+  calendarId?: string
   status?: string
   topic?: string
   link?: string

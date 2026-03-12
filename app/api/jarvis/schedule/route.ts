@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
             date_end: input.date_end,
             place: input.place,
             description: input.topic,
+            calendarId: input.calendarId,
           })
         }
       } catch (error) {

@@ -36,6 +36,7 @@ export interface GoogleCalendarCreateInput {
   date_end?: string
   place?: string
   description?: string
+  calendarId?: string
 }
 
 export interface GoogleCalendarEventSummary {
@@ -188,7 +189,7 @@ export async function createGoogleCalendarEvent(input: GoogleCalendarCreateInput
   }
 
   const res = await calendar.events.insert({
-    calendarId: "primary",
+    calendarId: input.calendarId ?? "primary",
     requestBody: event,
   })
 

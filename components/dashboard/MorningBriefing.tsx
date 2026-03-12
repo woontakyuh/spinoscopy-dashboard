@@ -31,15 +31,45 @@ async function fetchUpcoming(): Promise<DashboardScheduleItem[]> {
   return res.json()
 }
 
-async function createQuickSchedule(name: string): Promise<void> {
+interface ParsedScheduleData {
+  name: string
+  date_start: string
+  date_end?: string
+  place?: string
+  category?: string
+  topic?: string
+}
+
+async function createQuickSchedule(text: string): Promise<void> {
+  // 1) NLP 파싱 — 자연어에서 이름, 장소, 날짜 추출
+  const parseRes = await fetch("/api/jarvis/parse", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "schedule", text }),
+  })
+  if (!parseRes.ok) {
+    throw new Error("자연어 파싱 실패")
+  }
+  const parseData = (await parseRes.json()) as { success: boolean; parsed?: ParsedScheduleData; error?: string }
+  if (!parseData.success || !parseData.parsed) {
+    throw new Error(parseData.error ?? "일정 정보를 추출하지 못했습니다.")
+  }
+
+  const parsed = parseData.parsed
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
+
+  // 2) GCal 전용으로 일정 생성 (파싱된 날짜 사용, 없으면 오늘)
   const res = await fetch("/api/jarvis/schedule", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      name,
-      date_start: today,
-      targets: ["notion", "gcal"],
+      name: parsed.name,
+      date_start: parsed.date_start || today,
+      date_end: parsed.date_end,
+      place: parsed.place,
+      category: parsed.category,
+      topic: parsed.topic,
+      targets: ["gcal"],
     }),
   })
 
@@ -119,6 +149,7 @@ export function MorningBriefing() {
       setQuickAddError(null)
       await queryClient.invalidateQueries({ queryKey: ["dashboard-schedule"] })
       await queryClient.invalidateQueries({ queryKey: ["dashboard-upcoming"] })
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-calendar"] })
     },
     onError: (err) => {
       setQuickAddError(err instanceof Error ? err.message : "일정 생성 중 오류가 발생했습니다.")
@@ -227,7 +258,7 @@ export function MorningBriefing() {
         <Input
           value={quickName}
           onChange={(e) => setQuickName(e.target.value)}
-          placeholder="빠른 일정 추가"
+          placeholder="자연어로 일정 추가 (예: 오늘 봉산짬뽕에서 점심 식사)"
           className="bg-zinc-800 border-zinc-700 text-zinc-100"
           disabled={createMutation.isPending}
         />
@@ -237,7 +268,7 @@ export function MorningBriefing() {
           disabled={createMutation.isPending}
           className="bg-blue-600 hover:bg-blue-500 text-white"
         >
-          {createMutation.isPending ? "추가 중..." : "추가"}
+          {createMutation.isPending ? "파싱 중..." : "추가"}
         </Button>
       </form>
       {quickAddErrorMessage && (
