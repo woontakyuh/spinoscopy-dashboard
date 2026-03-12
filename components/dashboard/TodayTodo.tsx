@@ -68,6 +68,7 @@ export function TodayTodo() {
   const queryClient = useQueryClient()
   const [quickName, setQuickName] = useState("")
   const [quickAddError, setQuickAddError] = useState<string | null>(null)
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set())
   const today = todayInSeoul()
 
   const { data: todos, isLoading, error } = useQuery({
@@ -77,10 +78,27 @@ export function TodayTodo() {
   })
 
   const completeMutation = useMutation({
-    mutationFn: (pageId: string) => patchTodo({ page_id: pageId, status: "Done" }),
-    onSuccess: async () => {
+    mutationFn: (pageId: string) => {
+      setCompletedIds((prev) => new Set(prev).add(pageId))
+      return patchTodo({ page_id: pageId, status: "Done" })
+    },
+    onSuccess: async (_data, pageId) => {
+      // 완료 애니메이션 후 목록 갱신
+      await new Promise((r) => setTimeout(r, 800))
+      setCompletedIds((prev) => {
+        const next = new Set(prev)
+        next.delete(pageId)
+        return next
+      })
       await queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
       await queryClient.invalidateQueries({ queryKey: ["jarvis-todos"] })
+    },
+    onError: (_err, pageId) => {
+      setCompletedIds((prev) => {
+        const next = new Set(prev)
+        next.delete(pageId)
+        return next
+      })
     },
   })
 
@@ -146,31 +164,50 @@ export function TodayTodo() {
         <p className="text-zinc-500 text-sm">오늘 처리할 할 일이 없습니다.</p>
       ) : (
         <div className="space-y-2">
-          {(todos ?? []).map((todo) => (
-            <label
-              key={todo.page_id}
-              className="flex items-start gap-3 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2"
-            >
-              <input
-                type="checkbox"
-                className="mt-1"
-                checked={false}
-                onChange={() => completeMutation.mutate(todo.page_id)}
-                disabled={completeMutation.isPending}
-              />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm text-zinc-100 truncate">{todo.name}</p>
-                <div className="mt-1 flex items-center gap-2">
-                  <Badge variant="outline" className={priorityBadgeClass(todo.priority)}>
-                    {todo.priority}
-                  </Badge>
-                  {todo.due && todo.due.slice(0, 10) !== today && (
-                    <span className="text-xs text-zinc-500">Due {todo.due.slice(0, 10)}</span>
-                  )}
+          {(todos ?? []).map((todo) => {
+            const isDone = completedIds.has(todo.page_id)
+            return (
+              <label
+                key={todo.page_id}
+                className={`flex items-start gap-3 rounded-lg border px-3 py-2 transition-all duration-500 ${
+                  isDone
+                    ? "border-green-700/50 bg-green-900/20 opacity-60"
+                    : "border-zinc-700 bg-zinc-800"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="mt-1 accent-green-500"
+                  checked={isDone}
+                  onChange={() => {
+                    if (!isDone) completeMutation.mutate(todo.page_id)
+                  }}
+                  disabled={isDone}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm truncate transition-all duration-500 ${
+                    isDone ? "line-through text-zinc-500" : "text-zinc-100"
+                  }`}>
+                    {todo.name}
+                  </p>
+                  <div className="mt-1 flex items-center gap-2">
+                    {isDone ? (
+                      <span className="text-xs text-green-400">완료</span>
+                    ) : (
+                      <>
+                        <Badge variant="outline" className={priorityBadgeClass(todo.priority)}>
+                          {todo.priority}
+                        </Badge>
+                        {todo.due && todo.due.slice(0, 10) !== today && (
+                          <span className="text-xs text-zinc-500">Due {todo.due.slice(0, 10)}</span>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </label>
-          ))}
+              </label>
+            )
+          })}
         </div>
       )}
 
