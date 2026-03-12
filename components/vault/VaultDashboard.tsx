@@ -68,25 +68,23 @@ export function VaultDashboard() {
             : "text-white"
 
           return (
-            <div key={ind.key} className="flex items-center justify-between gap-1">
-              <span className="text-zinc-400 text-xs truncate">{ind.label}</span>
-              <div className="flex items-center gap-1 shrink-0">
-                <span className={`text-xs font-medium ${isFng ? fngColor : "text-white"}`}>
-                  {ind.key === "btc-dom"
-                    ? `${ind.value.toFixed(1)}%`
-                    : isFng
-                      ? ind.value
-                      : ind.value.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}
+            <div key={ind.key} className="flex items-center gap-1.5">
+              <span className="text-zinc-400 text-xs whitespace-nowrap">{ind.label}</span>
+              <span className={`text-xs font-medium ${isFng ? fngColor : "text-white"}`}>
+                {ind.key === "btc-dom"
+                  ? `${ind.value.toFixed(1)}%`
+                  : isFng
+                    ? ind.value
+                    : ind.value.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}
+              </span>
+              {isFng && ind.unit && (
+                <span className={`text-[10px] ${fngColor}`}>{ind.unit}</span>
+              )}
+              {ind.change !== null && !isFng && (
+                <span className={`text-[10px] ${isUp ? "text-green-400" : "text-red-400"}`}>
+                  {isUp ? "+" : ""}{ind.change.toFixed(2)}%
                 </span>
-                {isFng && ind.unit && (
-                  <span className={`text-[10px] ${fngColor}`}>{ind.unit}</span>
-                )}
-                {ind.change !== null && !isFng && (
-                  <span className={`text-[10px] ${isUp ? "text-green-400" : "text-red-400"}`}>
-                    {isUp ? "+" : ""}{ind.change.toFixed(2)}%
-                  </span>
-                )}
-              </div>
+              )}
             </div>
           )
         }
@@ -94,10 +92,10 @@ export function VaultDashboard() {
         return (
           <div className="border border-zinc-700 rounded-xl p-3 bg-zinc-900 space-y-3">
             <p className="text-zinc-400 text-xs font-medium">시장 지표</p>
-            <div className="grid grid-cols-3 gap-x-4 gap-y-2">
+            <div className="grid grid-cols-3 gap-x-8 gap-y-2">
               {row1.map(renderIndicator)}
             </div>
-            <div className="grid grid-cols-4 gap-x-4 gap-y-2">
+            <div className="grid grid-cols-4 gap-x-6 gap-y-2">
               {row2.map(renderIndicator)}
             </div>
           </div>
