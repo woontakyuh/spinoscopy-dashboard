@@ -12,6 +12,8 @@ export interface JournalArticle {
   summary: string
   interest: InterestLevel
   read: boolean
+  alerted: boolean
+  pmid: string | null
   keywords: string[]
   categories: string[]
   pub_type: string

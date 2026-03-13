@@ -1,8 +1,4 @@
 import nodemailer from "nodemailer"
-import crypto from "node:crypto"
-import fs from "node:fs/promises"
-import os from "node:os"
-import path from "node:path"
 import { notionRequest } from "@/lib/notion/client"
 import {
   INTEREST_KEYWORDS,
@@ -26,6 +22,7 @@ interface PubmedArticle {
 
 interface NotionQueryResponse {
   results: Array<{
+    id: string
     properties: Record<string, unknown>
   }>
   has_more: boolean
@@ -45,6 +42,7 @@ export interface JournalAlertRunResult {
   emailSkippedReason?: string
   emailShownCount?: number
   existingKeysCount?: number
+  migrated?: number
 }
 
 interface EmailSendResult {
@@ -52,11 +50,6 @@ interface EmailSendResult {
   subject?: string
   reason?: string
   shownCount: number
-}
-
-interface AlertLedgerRecord {
-  key: string
-  sentAt: string
 }
 
 function decodeXml(text: string): string {
@@ -262,72 +255,6 @@ function selectEmailArticles(articles: PubmedArticle[]): PubmedArticle[] {
     .slice(0, safeMax)
 }
 
-function alertBatchKey(articles: PubmedArticle[]): string {
-  const digestSource = [...articles]
-    .map((article) => article.doiUrl || `pmid:${article.pmid}` || titleKey(article.title))
-    .filter(Boolean)
-    .sort()
-    .join("\n")
-  return crypto.createHash("sha256").update(digestSource).digest("hex")
-}
-
-function ledgerPath(): string {
-  return path.join(os.homedir(), ".spinoscopy-dashboard", "journal-alert-sent.json")
-}
-
-async function readLedger(): Promise<AlertLedgerRecord[]> {
-  const target = ledgerPath()
-  try {
-    const raw = await fs.readFile(target, "utf-8")
-    const parsed = JSON.parse(raw) as { records?: AlertLedgerRecord[] }
-    return parsed.records ?? []
-  } catch (error) {
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      (error as { code?: string }).code === "ENOENT"
-    ) {
-      return []
-    }
-    throw error
-  }
-}
-
-async function writeLedger(records: AlertLedgerRecord[]): Promise<void> {
-  const target = ledgerPath()
-  await fs.mkdir(path.dirname(target), { recursive: true })
-  await fs.writeFile(target, JSON.stringify({ records }, null, 2), "utf-8")
-}
-
-async function shouldSkipBatch(batchKey: string): Promise<boolean> {
-  const cooldownHoursRaw = Number(process.env.JOURNAL_ALERT_EMAIL_COOLDOWN_HOURS ?? "72")
-  const cooldownHours =
-    Number.isFinite(cooldownHoursRaw) && cooldownHoursRaw > 0
-      ? Math.min(Math.floor(cooldownHoursRaw), 24 * 30)
-      : 72
-
-  const records = await readLedger()
-  const now = Date.now()
-  const validAfter = now - cooldownHours * 60 * 60 * 1000
-  return records.some((record) => {
-    if (record.key !== batchKey) return false
-    const sentMillis = Date.parse(record.sentAt)
-    if (Number.isNaN(sentMillis)) return false
-    return sentMillis >= validAfter
-  })
-}
-
-async function recordBatchSent(batchKey: string): Promise<void> {
-  const records = await readLedger()
-  records.push({
-    key: batchKey,
-    sentAt: new Date().toISOString(),
-  })
-  const trimmed = records.slice(-500)
-  await writeLedger(trimmed)
-}
-
 async function loadExistingKeys(databaseId: string): Promise<Set<string>> {
   const existing = new Set<string>()
   let hasMore = true
@@ -350,6 +277,11 @@ async function loadExistingKeys(databaseId: string): Promise<Set<string>> {
         (props.Title as { title?: Array<{ plain_text?: string }> } | undefined)?.title?.[0]
           ?.plain_text ?? ""
       if (title) existing.add(titleKey(title))
+      // PMID 추가 - DOI 없는 논문도 PMID로 dedup
+      const pmid =
+        (props.PMID as { rich_text?: Array<{ plain_text?: string }> } | undefined)
+          ?.rich_text?.[0]?.plain_text ?? ""
+      if (pmid) existing.add(`pmid:${pmid}`)
     }
 
     hasMore = resp.has_more
@@ -382,6 +314,9 @@ async function createJournalPage(databaseId: string, article: PubmedArticle): Pr
     읽음: {
       checkbox: false,
     },
+    Alerted: {
+      checkbox: false,
+    },
     Type: {
       select: { name: "Clinical Study" },
     },
@@ -389,6 +324,7 @@ async function createJournalPage(databaseId: string, article: PubmedArticle): Pr
 
   if (article.doiUrl) properties.DOI = { url: article.doiUrl }
   if (article.pubDate) properties["Publication Date"] = { date: { start: article.pubDate } }
+  if (article.pmid) properties.PMID = { rich_text: [{ text: { content: article.pmid } }] }
 
   const cleanProps = Object.fromEntries(
     Object.entries(properties).filter(([, value]) => value !== null)
@@ -424,6 +360,58 @@ async function createJournalPage(databaseId: string, article: PubmedArticle): Pr
   return created.id
 }
 
+// 이메일 발송된 논문들을 Alerted=true로 마크 (파일시스템 레저 대체)
+async function markArticlesAsAlerted(pageIds: string[]): Promise<void> {
+  const BATCH_SIZE = 5
+  for (let i = 0; i < pageIds.length; i += BATCH_SIZE) {
+    const batch = pageIds.slice(i, i + BATCH_SIZE)
+    await Promise.all(
+      batch.map((id) =>
+        notionRequest(`/pages/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            properties: { Alerted: { checkbox: true } },
+          }),
+        })
+      )
+    )
+  }
+}
+
+// 일회성 마이그레이션: 기존 논문 전체를 Alerted=true로 설정
+export async function migrateMarkAllAlerted(databaseId: string): Promise<number> {
+  let marked = 0
+  let hasMore = true
+  let nextCursor: string | null = null
+
+  while (hasMore) {
+    const body: Record<string, unknown> = {
+      page_size: 100,
+      filter: {
+        property: "Alerted",
+        checkbox: { equals: false },
+      },
+    }
+    if (nextCursor) body.start_cursor = nextCursor
+
+    const resp = await notionRequest<NotionQueryResponse>(`/databases/${databaseId}/query`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    })
+
+    const pageIds = resp.results.map((r) => r.id).filter(Boolean)
+    if (pageIds.length > 0) {
+      await markArticlesAsAlerted(pageIds)
+      marked += pageIds.length
+    }
+
+    hasMore = resp.has_more
+    nextCursor = resp.next_cursor
+  }
+
+  return marked
+}
+
 function buildEmailHtml(totalInserted: number, articlesForEmail: PubmedArticle[]): { subject: string; html: string } {
   const today = new Date().toISOString().slice(0, 10)
   const grouped = {
@@ -456,23 +444,26 @@ function buildEmailHtml(totalInserted: number, articlesForEmail: PubmedArticle[]
   return { subject, html }
 }
 
-async function sendEmailAlert(allInserted: PubmedArticle[]): Promise<EmailSendResult> {
+async function sendEmailAlert(
+  insertedWithIds: Array<{ article: PubmedArticle; pageId: string }>
+): Promise<EmailSendResult> {
   const user = process.env.JOURNAL_ALERT_SMTP_USER
   const pass = process.env.JOURNAL_ALERT_SMTP_PASS
   const host = process.env.JOURNAL_ALERT_SMTP_HOST ?? "smtp.gmail.com"
   const port = Number(process.env.JOURNAL_ALERT_SMTP_PORT ?? "587")
   const to = process.env.JOURNAL_ALERT_RECIPIENT ?? user
+
+  const allPageIds = insertedWithIds.map(({ pageId }) => pageId)
+
   if (!user || !pass || !to) {
+    // 이메일 미설정 시에도 Alerted 마크 (재전송 방지)
+    await markArticlesAsAlerted(allPageIds)
     return { sent: false, reason: "email_not_configured", shownCount: 0 }
   }
 
-  const articles = selectEmailArticles(allInserted)
-  const batchKey = alertBatchKey(articles)
-  if (await shouldSkipBatch(batchKey)) {
-    return { sent: false, reason: "duplicate_batch_blocked", shownCount: articles.length }
-  }
-
-  const { subject, html } = buildEmailHtml(allInserted.length, articles)
+  const allArticles = insertedWithIds.map(({ article }) => article)
+  const articles = selectEmailArticles(allArticles)
+  const { subject, html } = buildEmailHtml(allArticles.length, articles)
 
   const transporter = nodemailer.createTransport({
     host,
@@ -488,7 +479,8 @@ async function sendEmailAlert(allInserted: PubmedArticle[]): Promise<EmailSendRe
     html,
   })
 
-  await recordBatchSent(batchKey)
+  // 발송 성공 후 전체 삽입 논문 Alerted=true 마크 (재전송 방지)
+  await markArticlesAsAlerted(allPageIds)
   return { sent: true, subject, shownCount: articles.length }
 }
 
@@ -516,18 +508,28 @@ export async function runJournalAlertPipeline(days: number): Promise<JournalAler
   const unique = Array.from(dedupedMap.values())
   const toInsert = unique.filter((article) => {
     const keyByTitle = titleKey(article.title)
-    return !existing.has(article.doiUrl) && !existing.has(keyByTitle)
+    const pmidKey = article.pmid ? `pmid:${article.pmid}` : null
+    // DOI, PMID, 제목 중 하나라도 이미 존재하면 제외
+    return (
+      !existing.has(article.doiUrl) &&
+      !existing.has(keyByTitle) &&
+      (!pmidKey || !existing.has(pmidKey))
+    )
   })
 
+  // 삽입하면서 page_id 추적
+  const insertedWithIds: Array<{ article: PubmedArticle; pageId: string }> = []
   for (const article of toInsert) {
-    await createJournalPage(databaseId, article)
+    const pageId = await createJournalPage(databaseId, article)
     if (article.doiUrl) existing.add(article.doiUrl)
+    if (article.pmid) existing.add(`pmid:${article.pmid}`)
     existing.add(titleKey(article.title))
+    insertedWithIds.push({ article, pageId })
   }
 
   let emailResult: EmailSendResult = { sent: false, shownCount: 0 }
-  if (toInsert.length > 0) {
-    emailResult = await sendEmailAlert(toInsert)
+  if (insertedWithIds.length > 0) {
+    emailResult = await sendEmailAlert(insertedWithIds)
   }
 
   return {

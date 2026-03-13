@@ -57,6 +57,8 @@ function toArticle(page: NotionPage): JournalArticle {
     summary: getText(p.Summary),
     interest: (p["관심도"]?.select?.name as InterestLevel) ?? "⚪ 참고",
     read: p["읽음"]?.checkbox ?? false,
+    alerted: p["Alerted"]?.checkbox ?? false,
+    pmid: getText(p.PMID) || null,
     keywords: getMultiSelect(p.Keywords),
     categories: getMultiSelect(p.Category),
     pub_type: p.Type?.select?.name ?? "",
