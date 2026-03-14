@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createSenseiEntry, createPromotionEntry, fetchTagOptions, listSenseiEntries } from "@/lib/notion/sensei"
+import { createSenseiEntry, createPromotionEntry, fetchTagOptions, listSenseiEntries, findEntryByDate, appendToSenseiEntry } from "@/lib/notion/sensei"
 import { formatBjjNote } from "@/lib/ai/formatBjjNote"
 
 export async function GET() {
@@ -78,9 +78,22 @@ export async function POST(req: NextRequest) {
       structured.instructor = body.instructor
     }
 
-    const pageId = await createSenseiEntry(structured, rawInput)
+    // 같은 날짜에 기존 기록이 있으면 내용 추가, 없으면 새로 생성
+    const existing = await findEntryByDate(structured.date)
+    let pageId: string
+    let appended = false
 
-    return NextResponse.json({ success: true, pageId, structured })
+    if (existing && existing.entry.sessionType !== "promotion") {
+      pageId = await appendToSenseiEntry(existing.page.id, existing.entry, structured, rawInput)
+      // 병합된 태그를 structured에 반영하여 응답
+      structured.classTags = Array.from(new Set([...existing.entry.classTags, ...structured.classTags]))
+      structured.sparringTags = Array.from(new Set([...existing.entry.sparringTags, ...structured.sparringTags]))
+      appended = true
+    } else {
+      pageId = await createSenseiEntry(structured, rawInput)
+    }
+
+    return NextResponse.json({ success: true, pageId, structured, appended })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error"
     return NextResponse.json({ error: message }, { status: 500 })

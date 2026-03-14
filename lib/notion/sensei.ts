@@ -195,6 +195,89 @@ async function ensureSessionTypeProperty(dbId: string): Promise<void> {
 
 let sessionTypEnsured = false
 
+export async function findEntryByDate(date: string): Promise<{ page: NotionPage; entry: SenseiEntry } | null> {
+  const dbId = getDbId()
+  const response = await notionRequest<NotionQueryResponse>(`/databases/${dbId}/query`, {
+    method: "POST",
+    body: JSON.stringify({
+      page_size: 1,
+      filter: {
+        property: "Date",
+        date: { equals: date },
+      },
+    }),
+  })
+
+  if (response.results.length === 0) return null
+  const page = response.results[0]
+  return { page, entry: toEntry(page) }
+}
+
+export async function appendToSenseiEntry(
+  pageId: string,
+  existing: SenseiEntry,
+  newInput: StructuredBjjNote,
+  rawInput: string,
+): Promise<string> {
+  const mergedClassTags = Array.from(new Set([...existing.classTags, ...newInput.classTags]))
+  const mergedSparringTags = Array.from(new Set([...existing.sparringTags, ...newInput.sparringTags]))
+
+  const existingNote = existing.note || ""
+  const newNote = summarizeForProperty(newInput.note)
+  const mergedNote = existingNote
+    ? `${existingNote}\n---\n${newNote}`
+    : newNote
+
+  await notionRequest(`/pages/${pageId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      properties: {
+        Class: { multi_select: mergedClassTags.map((name) => ({ name })) },
+        Sparring: { multi_select: mergedSparringTags.map((name) => ({ name })) },
+        Note: { rich_text: [{ text: { content: mergedNote.slice(0, 2000) } }] },
+      },
+    }),
+  })
+
+  const newBlocks: NotionBlock[] = [
+    {
+      object: "block",
+      type: "heading_2",
+      heading_2: { rich_text: buildRichText("추가 수련 기록") },
+    },
+  ]
+
+  for (const line of splitParagraphs(newInput.note)) {
+    const content = toBullet(line)
+    if (!content) continue
+    newBlocks.push({
+      object: "block",
+      type: "bulleted_list_item",
+      bulleted_list_item: { rich_text: buildRichText(content) },
+    })
+  }
+
+  newBlocks.push(
+    {
+      object: "block",
+      type: "heading_2",
+      heading_2: { rich_text: buildRichText("추가 원문 메모") },
+    },
+    {
+      object: "block",
+      type: "paragraph",
+      paragraph: { rich_text: buildRichText(rawInput || "(원문 없음)") },
+    }
+  )
+
+  await notionRequest(`/blocks/${pageId}/children`, {
+    method: "PATCH",
+    body: JSON.stringify({ children: newBlocks }),
+  })
+
+  return pageId
+}
+
 export async function createSenseiEntry(input: StructuredBjjNote, rawInput: string): Promise<string> {
   const dbId = getDbId()
 

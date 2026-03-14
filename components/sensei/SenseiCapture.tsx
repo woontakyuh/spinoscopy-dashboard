@@ -10,6 +10,7 @@ interface CreateSenseiResult {
   success: boolean
   pageId: string
   structured: StructuredBjjNote
+  appended?: boolean
 }
 
 function todayIso() {
@@ -141,7 +142,7 @@ export function SenseiCapture({ selectedDate }: SenseiCaptureProps) {
         {lastSaved && (
           <div className="rounded-lg border border-zinc-700 bg-zinc-800/60 p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-green-400 text-xs">저장 완료</p>
+              <p className="text-green-400 text-xs">{lastSaved.appended ? "기존 기록에 추가 완료" : "저장 완료"}</p>
               <a
                 href={`https://www.notion.so/${lastSaved.pageId.replace(/-/g, "")}`}
                 target="_blank"

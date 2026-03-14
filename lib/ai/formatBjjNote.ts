@@ -29,21 +29,28 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10)
 }
 
-function pickTitle(modelTitle: string | undefined, rawInput: string): string {
+function asString(value: unknown): string | undefined {
+  if (typeof value === "string") return value
+  if (typeof value === "number") return String(value)
+  return undefined
+}
+
+function pickTitle(modelTitle: unknown, rawInput: string): string {
   const firstLine = rawInput.split("\n").find((line) => line.trim()) ?? "주짓수 수련"
-  const title = (modelTitle ?? firstLine).trim()
+  const title = (asString(modelTitle) ?? firstLine).trim()
   return (title || "주짓수 수련").slice(0, 80)
 }
 
-function pickNote(modelNote: string | undefined, rawInput: string): string {
-  const note = (modelNote ?? rawInput).trim()
+function pickNote(modelNote: unknown, rawInput: string): string {
+  const note = (asString(modelNote) ?? rawInput).trim()
   if (!note) return "- 핵심 포인트 정리 필요"
   return note.slice(0, 1900)
 }
 
-function pickDate(modelDate: string | undefined): string {
-  if (modelDate && /^\d{4}-\d{2}-\d{2}$/.test(modelDate)) {
-    return modelDate
+function pickDate(modelDate: unknown): string {
+  const d = asString(modelDate)
+  if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
+    return d
   }
   return todayIso()
 }
@@ -123,9 +130,9 @@ export async function formatBjjNote(rawInput: string, tags: SenseiTagOptions): P
   const content = data.choices?.[0]?.message?.content ?? ""
   const parsed = parseJson(content)
 
-  const instructor = parsed.instructor ?? "Open Mat"
-  let classTags = dedup(parsed.classTags ?? [])
-  let sparringTags = dedup(parsed.sparringTags ?? [])
+  const instructor = asString(parsed.instructor) ?? "Open Mat"
+  const classTags = dedup(Array.isArray(parsed.classTags) ? parsed.classTags.filter((t): t is string => typeof t === "string") : [])
+  const sparringTags = dedup(Array.isArray(parsed.sparringTags) ? parsed.sparringTags.filter((t): t is string => typeof t === "string") : [])
 
   // sessionType과 태그 병합은 API route에서 form 입력 기반으로 결정
   const sessionType: SenseiSessionType = "class"
@@ -135,7 +142,7 @@ export async function formatBjjNote(rawInput: string, tags: SenseiTagOptions): P
     sessionType,
     date: pickDate(parsed.date),
     instructor,
-    gym: parsed.gym ?? (tags.gyms[0] || "DT Wire"),
+    gym: asString(parsed.gym) ?? (tags.gyms[0] || "DT Wire"),
     classTags,
     sparringTags,
     note: pickNote(parsed.note, rawInput),
