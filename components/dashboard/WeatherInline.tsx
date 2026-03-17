@@ -1,0 +1,90 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { WeatherDetail } from "./WeatherDetail"
+import type { WeatherData } from "@/lib/types/weather"
+import dynamic from "next/dynamic"
+
+const WeatherMap = dynamic(() => import("./WeatherMap").then(m => ({ default: m.WeatherMap })), {
+  ssr: false,
+  loading: () => <div className="h-[200px] flex items-center justify-center text-zinc-500 text-sm">지도 로딩 중...</div>,
+})
+
+const OWM_ICON_URL = "https://openweathermap.org/img/wn"
+
+async function fetchWeather(lat: number, lon: number): Promise<WeatherData> {
+  const res = await fetch(`/api/weather?lat=${lat}&lon=${lon}`)
+  if (!res.ok) throw new Error("날씨 로딩 실패")
+  return res.json()
+}
+
+function useGeolocation() {
+  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null)
+  const [denied, setDenied] = useState(false)
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setDenied(true)
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+      () => setDenied(true),
+      { timeout: 10000, maximumAge: 600000 }
+    )
+  }, [])
+
+  return { coords, denied }
+}
+
+export function WeatherInline() {
+  const { coords, denied } = useGeolocation()
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["weather", coords?.lat, coords?.lon],
+    queryFn: () => fetchWeather(coords!.lat, coords!.lon),
+    enabled: !!coords,
+    staleTime: 600000,
+    refetchInterval: 600000,
+  })
+
+  // 위치 거부 또는 로딩 중 또는 에러 → 표시 안 함
+  if (denied || !coords || isLoading || !data) return null
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button className="inline-flex items-center gap-1 text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer">
+          <span className="text-zinc-600">·</span>
+          <img
+            src={`${OWM_ICON_URL}/${data.current.icon}@2x.png`}
+            alt={data.current.description}
+            className="w-6 h-6 -my-1"
+          />
+          <span className="text-base">{data.current.temp}°C</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-80 md:w-96 bg-zinc-900 border-zinc-700 p-0"
+        align="start"
+        sideOffset={8}
+      >
+        <Tabs defaultValue="detail">
+          <TabsList className="w-full rounded-none border-b border-zinc-700 bg-zinc-900">
+            <TabsTrigger value="detail" className="flex-1 text-xs">상세</TabsTrigger>
+            <TabsTrigger value="map" className="flex-1 text-xs">지도</TabsTrigger>
+          </TabsList>
+          <TabsContent value="detail" className="p-4">
+            <WeatherDetail data={data} />
+          </TabsContent>
+          <TabsContent value="map" className="p-2">
+            <WeatherMap lat={coords.lat} lon={coords.lon} />
+          </TabsContent>
+        </Tabs>
+      </PopoverContent>
+    </Popover>
+  )
+}
