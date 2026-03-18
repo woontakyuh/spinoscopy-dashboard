@@ -147,6 +147,27 @@ export function TodayTodo() {
     },
   })
 
+  const categoryMutation = useMutation({
+    mutationFn: ({ pageId, category }: { pageId: string; category: string }) =>
+      patchTodo({ page_id: pageId, category }),
+    onMutate: async ({ pageId, category }) => {
+      await queryClient.cancelQueries({ queryKey: ["dashboard-todo-active"] })
+      const previous = queryClient.getQueryData<TodoItem[]>(["dashboard-todo-active"])
+      queryClient.setQueryData<TodoItem[]>(["dashboard-todo-active"], (old) =>
+        (old ?? []).map((t) => (t.page_id === pageId ? { ...t, category } : t))
+      )
+      return { previous }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["dashboard-todo-active"], context.previous)
+      }
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
+    },
+  })
+
   const createMutation = useMutation({
     mutationFn: (params: { name: string; priority: string; category: string }) => createQuickTodo(params),
     onSuccess: async () => {
@@ -260,9 +281,29 @@ export function TodayTodo() {
                             ))}
                           </DropdownMenuContent>
                         </DropdownMenu>
-                        <Badge variant="outline" className={categoryBadgeClass(todo.category)}>
-                          {todo.category}
-                        </Badge>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button>
+                              <Badge variant="outline" className={`${categoryBadgeClass(todo.category)} cursor-pointer hover:opacity-80`}>
+                                {todo.category}
+                              </Badge>
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="bg-zinc-800 border-zinc-700">
+                            {CATEGORIES.map((c) => (
+                              <DropdownMenuItem
+                                key={c}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  categoryMutation.mutate({ pageId: todo.page_id, category: c })
+                                }}
+                                className="text-zinc-100 focus:bg-zinc-700"
+                              >
+                                <Badge variant="outline" className={categoryBadgeClass(c)}>{c}</Badge>
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                         {todo.due && todo.due.slice(0, 10) !== today && (
                           <span className="text-xs text-zinc-500">Due {todo.due.slice(0, 10)}</span>
                         )}
