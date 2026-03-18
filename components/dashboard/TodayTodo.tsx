@@ -104,12 +104,6 @@ function getDueDate(preset: DuePreset): string {
   return d.toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
 }
 
-function formatDueLabel(preset: DuePreset, customDate: Date | undefined): string {
-  if (preset === "custom" && customDate) {
-    return customDate.toLocaleDateString("ko-KR", { month: "short", day: "numeric" })
-  }
-  return DUE_LABELS[preset]
-}
 
 export function TodayTodo() {
   const queryClient = useQueryClient()
@@ -443,7 +437,9 @@ export function TodayTodo() {
                       : "border-zinc-700 text-zinc-500"
                   }`}
                 >
-                  {formatDueLabel(quickDue, customDate)}
+                  {quickDue === "custom" && customDate
+                    ? customDate.toLocaleDateString("ko-KR", { month: "short", day: "numeric" })
+                    : "커스텀"}
                 </button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-700" align="end">
