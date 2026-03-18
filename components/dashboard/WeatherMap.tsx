@@ -66,7 +66,7 @@ export function WeatherMap({ lat, lon }: WeatherMapProps) {
             <TileLayer
               key={layer}
               url={`https://tile.openweathermap.org/map/${layer === "precipitation" ? "precipitation_new" : "wind_new"}/{z}/{x}/{y}.png?appid=${tileKey}`}
-              opacity={0.6}
+              opacity={0.85}
             />
           )}
         </MapContainer>

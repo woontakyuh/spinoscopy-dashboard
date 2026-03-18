@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { WeatherDetail } from "./WeatherDetail"
 import type { WeatherData } from "@/lib/types/weather"
 import dynamic from "next/dynamic"
@@ -72,18 +71,12 @@ export function WeatherInline() {
         align="start"
         sideOffset={8}
       >
-        <Tabs defaultValue="detail">
-          <TabsList className="w-full rounded-none border-b border-zinc-700 bg-zinc-900">
-            <TabsTrigger value="detail" className="flex-1 text-xs">상세</TabsTrigger>
-            <TabsTrigger value="map" className="flex-1 text-xs">지도</TabsTrigger>
-          </TabsList>
-          <TabsContent value="detail" className="p-4">
-            <WeatherDetail data={data} />
-          </TabsContent>
-          <TabsContent value="map" className="p-2">
-            <WeatherMap lat={coords.lat} lon={coords.lon} />
-          </TabsContent>
-        </Tabs>
+        <div className="p-4">
+          <WeatherDetail data={data} />
+        </div>
+        <div className="border-t border-zinc-800 p-2">
+          <WeatherMap lat={coords.lat} lon={coords.lon} />
+        </div>
       </PopoverContent>
     </Popover>
   )
