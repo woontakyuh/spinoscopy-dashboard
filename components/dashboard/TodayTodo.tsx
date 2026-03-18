@@ -6,6 +6,12 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface TodoItem {
   page_id: string
@@ -13,6 +19,7 @@ interface TodoItem {
   due: string | null
   status: string
   priority: string
+  category: string
   notes: string
   url: string
 }
@@ -27,7 +34,7 @@ async function fetchActiveTodos(): Promise<TodoItem[]> {
   return res.json()
 }
 
-async function patchTodo(payload: { page_id: string; status?: string }): Promise<void> {
+async function patchTodo(payload: { page_id: string; status?: string; priority?: string; category?: string }): Promise<void> {
   const res = await fetch("/api/jarvis/todo", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -40,15 +47,16 @@ async function patchTodo(payload: { page_id: string; status?: string }): Promise
   }
 }
 
-async function createQuickTodo(name: string): Promise<void> {
+async function createQuickTodo(params: { name: string; priority: string; category: string }): Promise<void> {
   const res = await fetch("/api/jarvis/todo", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      name,
+      name: params.name,
       due: todayInSeoul(),
       status: "To Do",
-      priority: "Medium",
+      priority: params.priority,
+      category: params.category,
     }),
   })
 
@@ -64,11 +72,27 @@ function priorityBadgeClass(priority: string): string {
   return "border-zinc-600 text-zinc-300"
 }
 
+function categoryBadgeClass(category: string): string {
+  switch (category) {
+    case "가족": return "border-green-400/50 text-green-300"
+    case "학회": return "border-purple-400/50 text-purple-300"
+    case "연구": return "border-blue-400/50 text-blue-300"
+    case "임상": return "border-orange-400/50 text-orange-300"
+    case "AI": return "border-cyan-400/50 text-cyan-300"
+    default: return "border-zinc-600 text-zinc-400"
+  }
+}
+
+const PRIORITIES = ["High", "Medium", "Low"] as const
+const CATEGORIES = ["일상업무", "가족", "학회", "연구", "임상", "AI"] as const
+
 export function TodayTodo() {
   const queryClient = useQueryClient()
   const [quickName, setQuickName] = useState("")
   const [quickAddError, setQuickAddError] = useState<string | null>(null)
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set())
+  const [quickPriority, setQuickPriority] = useState<string>("Medium")
+  const [quickCategory, setQuickCategory] = useState<string>("일상업무")
   const today = todayInSeoul()
 
   const { data: todos, isLoading, error } = useQuery({
@@ -102,10 +126,33 @@ export function TodayTodo() {
     },
   })
 
+  const priorityMutation = useMutation({
+    mutationFn: ({ pageId, priority }: { pageId: string; priority: string }) =>
+      patchTodo({ page_id: pageId, priority }),
+    onMutate: async ({ pageId, priority }) => {
+      await queryClient.cancelQueries({ queryKey: ["dashboard-todo-active"] })
+      const previous = queryClient.getQueryData<TodoItem[]>(["dashboard-todo-active"])
+      queryClient.setQueryData<TodoItem[]>(["dashboard-todo-active"], (old) =>
+        (old ?? []).map((t) => (t.page_id === pageId ? { ...t, priority } : t))
+      )
+      return { previous }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["dashboard-todo-active"], context.previous)
+      }
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
+    },
+  })
+
   const createMutation = useMutation({
-    mutationFn: (name: string) => createQuickTodo(name),
+    mutationFn: (params: { name: string; priority: string; category: string }) => createQuickTodo(params),
     onSuccess: async () => {
       setQuickName("")
+      setQuickPriority("Medium")
+      setQuickCategory("일상업무")
       setQuickAddError(null)
       await queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
       await queryClient.invalidateQueries({ queryKey: ["jarvis-todos"] })
@@ -120,20 +167,15 @@ export function TodayTodo() {
 
   const handleQuickAdd = async (event: { preventDefault: () => void }) => {
     event.preventDefault()
-
-    if (createMutation.isPending) {
-      return
-    }
-
+    if (createMutation.isPending) return
     setQuickAddError(null)
     const name = quickName.trim()
     if (!name) {
       setQuickAddError("할 일을 입력하세요.")
       return
     }
-
     try {
-      await createMutation.mutateAsync(name)
+      await createMutation.mutateAsync({ name, priority: quickPriority, category: quickCategory })
     } catch (mutationError) {
       const message = mutationError instanceof Error ? mutationError.message : "할 일 생성 중 오류가 발생했습니다."
       setQuickAddError(message)
@@ -195,8 +237,31 @@ export function TodayTodo() {
                       <span className="text-xs text-green-400">완료</span>
                     ) : (
                       <>
-                        <Badge variant="outline" className={priorityBadgeClass(todo.priority)}>
-                          {todo.priority}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button>
+                              <Badge variant="outline" className={`${priorityBadgeClass(todo.priority)} cursor-pointer hover:opacity-80`}>
+                                {todo.priority}
+                              </Badge>
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="bg-zinc-800 border-zinc-700">
+                            {PRIORITIES.map((p) => (
+                              <DropdownMenuItem
+                                key={p}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  priorityMutation.mutate({ pageId: todo.page_id, priority: p })
+                                }}
+                                className="text-zinc-100 focus:bg-zinc-700"
+                              >
+                                <Badge variant="outline" className={priorityBadgeClass(p)}>{p}</Badge>
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Badge variant="outline" className={categoryBadgeClass(todo.category)}>
+                          {todo.category}
                         </Badge>
                         {todo.due && todo.due.slice(0, 10) !== today && (
                           <span className="text-xs text-zinc-500">Due {todo.due.slice(0, 10)}</span>
@@ -211,22 +276,60 @@ export function TodayTodo() {
         </div>
       )}
 
-      <form onSubmit={handleQuickAdd} className="mt-4 flex gap-2">
-        <Input
-          value={quickName}
-          onChange={(event) => setQuickName(event.target.value)}
-          placeholder="새 할일 빠르게 추가"
-          className="bg-zinc-800 border-zinc-700 text-zinc-100"
-          disabled={createMutation.isPending}
-        />
-        <Button
-          type="submit"
-          size="sm"
-          disabled={createMutation.isPending}
-          className="bg-blue-600 hover:bg-blue-500 text-white"
-        >
-          {createMutation.isPending ? "추가 중..." : "추가"}
-        </Button>
+      <form onSubmit={handleQuickAdd} className="mt-4 space-y-2">
+        <div className="flex gap-2">
+          <Input
+            value={quickName}
+            onChange={(event) => setQuickName(event.target.value)}
+            placeholder="새 할일 빠르게 추가"
+            className="bg-zinc-800 border-zinc-700 text-zinc-100"
+            disabled={createMutation.isPending}
+          />
+          <Button
+            type="submit"
+            size="sm"
+            disabled={createMutation.isPending}
+            className="bg-blue-600 hover:bg-blue-500 text-white"
+          >
+            {createMutation.isPending ? "추가 중..." : "추가"}
+          </Button>
+        </div>
+        <div className="flex gap-2">
+          <div className="flex gap-1">
+            {PRIORITIES.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setQuickPriority(p)}
+                className={`px-2 py-0.5 text-xs rounded border ${
+                  quickPriority === p
+                    ? priorityBadgeClass(p) + " border-current"
+                    : "border-zinc-700 text-zinc-500"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className="px-2 py-0.5 text-xs rounded border border-zinc-700 text-zinc-400 hover:text-zinc-200">
+                {quickCategory}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="bg-zinc-800 border-zinc-700">
+              {CATEGORIES.map((c) => (
+                <DropdownMenuItem
+                  key={c}
+                  onClick={() => setQuickCategory(c)}
+                  className="text-zinc-100 focus:bg-zinc-700"
+                >
+                  {c}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </form>
       {quickAddErrorMessage && (
         <p className="mt-2 text-xs text-red-300">오류: {quickAddErrorMessage}</p>
