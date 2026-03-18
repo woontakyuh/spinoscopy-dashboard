@@ -13,7 +13,7 @@ export default function JarvisPage() {
         <Tabs defaultValue="presentations">
           <TabsList className="mb-4">
             <TabsTrigger value="presentations">발표 관리</TabsTrigger>
-            <TabsTrigger value="history">할일 히스토리</TabsTrigger>
+            <TabsTrigger value="history">Todo List</TabsTrigger>
           </TabsList>
           <TabsContent value="presentations">
             <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900 mb-6">

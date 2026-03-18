@@ -1,8 +1,7 @@
-// components/jarvis/TodoHistory.tsx
 "use client"
 
 import { useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Badge } from "@/components/ui/badge"
 import {
   Table,
@@ -13,6 +12,12 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { TodoStatsCards } from "./TodoStatsCards"
 import type { TodoItem } from "@/lib/notion/todo"
 
@@ -55,6 +60,12 @@ function calcDuration(createdAt: string, completedAt: string | null): string {
   return `${days}일`
 }
 
+async function fetchActiveTodos(): Promise<TodoItem[]> {
+  const res = await fetch("/api/jarvis/todo?status=active")
+  if (!res.ok) throw new Error("할 일 로딩 실패")
+  return res.json()
+}
+
 async function fetchDoneTodos(fromDate?: string): Promise<TodoItem[]> {
   const params = new URLSearchParams({ status: "Done" })
   if (fromDate) params.set("from_date", fromDate)
@@ -63,6 +74,21 @@ async function fetchDoneTodos(fromDate?: string): Promise<TodoItem[]> {
   return res.json()
 }
 
+async function patchTodo(payload: { page_id: string; status?: string; priority?: string; category?: string }): Promise<void> {
+  const res = await fetch("/api/jarvis/todo", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const data = await res.json() as { error?: string }
+    throw new Error(data.error ?? "업데이트 실패")
+  }
+}
+
+const PRIORITIES = ["High", "Medium", "Low"] as const
+const CATEGORIES = ["일상업무", "가족", "학회", "연구", "임상", "AI"] as const
+
 const PERIOD_LABELS: Record<Period, string> = {
   week: "이번 주",
   month: "이번 달",
@@ -70,88 +96,262 @@ const PERIOD_LABELS: Record<Period, string> = {
 }
 
 export function TodoHistory() {
+  const queryClient = useQueryClient()
   const [period, setPeriod] = useState<Period>("month")
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set())
   const fromDate = getFromDate(period)
 
-  const { data: todos, isLoading, error } = useQuery({
+  // 할 일 (active)
+  const { data: activeTodos, isLoading: activeLoading } = useQuery({
+    queryKey: ["jarvis-todos"],
+    queryFn: fetchActiveTodos,
+    refetchInterval: 60000,
+  })
+
+  // 한 일 (done)
+  const { data: doneTodos, isLoading: doneLoading } = useQuery({
     queryKey: ["jarvis-todo-history", period],
     queryFn: () => fetchDoneTodos(fromDate),
   })
 
+  const completeMutation = useMutation({
+    mutationFn: (pageId: string) => {
+      setCompletedIds((prev) => new Set(prev).add(pageId))
+      return patchTodo({ page_id: pageId, status: "Done" })
+    },
+    onSuccess: async (_data, pageId) => {
+      await new Promise((r) => setTimeout(r, 600))
+      setCompletedIds((prev) => {
+        const next = new Set(prev)
+        next.delete(pageId)
+        return next
+      })
+      await queryClient.invalidateQueries({ queryKey: ["jarvis-todos"] })
+      await queryClient.invalidateQueries({ queryKey: ["jarvis-todo-history"] })
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
+    },
+    onError: (_err, pageId) => {
+      setCompletedIds((prev) => {
+        const next = new Set(prev)
+        next.delete(pageId)
+        return next
+      })
+    },
+  })
+
+  const priorityMutation = useMutation({
+    mutationFn: ({ pageId, priority }: { pageId: string; priority: string }) =>
+      patchTodo({ page_id: pageId, priority }),
+    onMutate: async ({ pageId, priority }) => {
+      await queryClient.cancelQueries({ queryKey: ["jarvis-todos"] })
+      const previous = queryClient.getQueryData<TodoItem[]>(["jarvis-todos"])
+      queryClient.setQueryData<TodoItem[]>(["jarvis-todos"], (old) =>
+        (old ?? []).map((t) => (t.page_id === pageId ? { ...t, priority } : t))
+      )
+      return { previous }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(["jarvis-todos"], context.previous)
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["jarvis-todos"] })
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
+    },
+  })
+
+  const categoryMutation = useMutation({
+    mutationFn: ({ pageId, category }: { pageId: string; category: string }) =>
+      patchTodo({ page_id: pageId, category }),
+    onMutate: async ({ pageId, category }) => {
+      await queryClient.cancelQueries({ queryKey: ["jarvis-todos"] })
+      const previous = queryClient.getQueryData<TodoItem[]>(["jarvis-todos"])
+      queryClient.setQueryData<TodoItem[]>(["jarvis-todos"], (old) =>
+        (old ?? []).map((t) => (t.page_id === pageId ? { ...t, category } : t))
+      )
+      return { previous }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(["jarvis-todos"], context.previous)
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["jarvis-todos"] })
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
+    },
+  })
+
+  const isLoading = activeLoading || doneLoading
+
   return (
-    <div className="space-y-4">
-      {/* 기간 필터 */}
-      <div className="flex gap-1">
-        {(Object.entries(PERIOD_LABELS) as [Period, string][]).map(([key, label]) => (
-          <button
-            key={key}
-            onClick={() => setPeriod(key)}
-            className={`px-3 py-1 text-sm rounded ${
-              period === key
-                ? "bg-zinc-700 text-zinc-100"
-                : "bg-zinc-800 text-zinc-500 hover:text-zinc-300"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-3">
-          <div className="grid grid-cols-3 gap-3">
-            <Skeleton className="h-16 bg-zinc-800" />
-            <Skeleton className="h-16 bg-zinc-800" />
-            <Skeleton className="h-16 bg-zinc-800" />
+    <div className="space-y-6">
+      {/* ── 할 일 (Active) ── */}
+      <section>
+        <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider mb-3">
+          할 일
+        </h3>
+        {activeLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-11 bg-zinc-800" />
+            <Skeleton className="h-11 bg-zinc-800" />
           </div>
-          <Skeleton className="h-40 bg-zinc-800" />
+        ) : (activeTodos ?? []).length === 0 ? (
+          <p className="text-zinc-500 text-sm">진행 중인 할 일이 없습니다.</p>
+        ) : (
+          <div className="space-y-2">
+            {(activeTodos ?? []).map((todo) => {
+              const isDone = completedIds.has(todo.page_id)
+              return (
+                <div
+                  key={todo.page_id}
+                  className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-all duration-500 ${
+                    isDone
+                      ? "border-green-700/50 bg-green-900/20 opacity-60"
+                      : "border-zinc-700 bg-zinc-800"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="accent-green-500 shrink-0"
+                    checked={isDone}
+                    onChange={() => { if (!isDone) completeMutation.mutate(todo.page_id) }}
+                    disabled={isDone}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-sm truncate ${isDone ? "line-through text-zinc-500" : "text-zinc-100"}`}>
+                      {todo.name}
+                    </p>
+                  </div>
+                  {!isDone && (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button>
+                            <Badge variant="outline" className={`${priorityBadgeClass(todo.priority)} cursor-pointer hover:opacity-80`}>
+                              {todo.priority}
+                            </Badge>
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-zinc-800 border-zinc-700">
+                          {PRIORITIES.map((p) => (
+                            <DropdownMenuItem
+                              key={p}
+                              onClick={() => priorityMutation.mutate({ pageId: todo.page_id, priority: p })}
+                              className="text-zinc-100 focus:bg-zinc-700"
+                            >
+                              <Badge variant="outline" className={priorityBadgeClass(p)}>{p}</Badge>
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button>
+                            <Badge variant="outline" className={`${categoryBadgeClass(todo.category)} cursor-pointer hover:opacity-80`}>
+                              {todo.category}
+                            </Badge>
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-zinc-800 border-zinc-700">
+                          {CATEGORIES.map((c) => (
+                            <DropdownMenuItem
+                              key={c}
+                              onClick={() => categoryMutation.mutate({ pageId: todo.page_id, category: c })}
+                              className="text-zinc-100 focus:bg-zinc-700"
+                            >
+                              <Badge variant="outline" className={categoryBadgeClass(c)}>{c}</Badge>
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      {todo.due && (
+                        <span className="text-xs text-zinc-500">{todo.due.slice(5)}</span>
+                      )}
+                    </div>
+                  )}
+                  {isDone && <span className="text-xs text-green-400">완료</span>}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* ── 통계 + 한 일 (Done) ── */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">
+            한 일
+          </h3>
+          <div className="flex gap-1">
+            {(Object.entries(PERIOD_LABELS) as [Period, string][]).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setPeriod(key)}
+                className={`px-2 py-0.5 text-xs rounded ${
+                  period === key
+                    ? "bg-zinc-700 text-zinc-100"
+                    : "bg-zinc-800 text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
-      ) : error ? (
-        <p className="text-red-400 text-sm">히스토리를 불러오지 못했습니다.</p>
-      ) : (todos ?? []).length === 0 ? (
-        <p className="text-zinc-500 text-sm">완료된 할일이 없습니다.</p>
-      ) : (
-        <>
-          {/* 통계 카드 */}
-          <TodoStatsCards todos={todos!} />
 
-          {/* 테이블 */}
-          <div className="rounded-lg border border-zinc-700 overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-zinc-700 hover:bg-transparent">
-                  <TableHead className="text-zinc-400">할일</TableHead>
-                  <TableHead className="text-zinc-400">카테고리</TableHead>
-                  <TableHead className="text-zinc-400">우선순위</TableHead>
-                  <TableHead className="text-zinc-400">입력일</TableHead>
-                  <TableHead className="text-zinc-400">완료일</TableHead>
-                  <TableHead className="text-zinc-400">소요</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(todos ?? []).map((todo) => (
-                  <TableRow key={todo.page_id} className="border-zinc-700">
-                    <TableCell className="text-zinc-100 max-w-[200px] truncate">{todo.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={categoryBadgeClass(todo.category)}>
-                        {todo.category}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={priorityBadgeClass(todo.priority)}>
-                        {todo.priority}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-zinc-400 text-sm">{todo.created_at}</TableCell>
-                    <TableCell className="text-zinc-400 text-sm">{todo.completed_at ?? "-"}</TableCell>
-                    <TableCell className="text-zinc-400 text-sm">{calcDuration(todo.created_at, todo.completed_at)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        {doneLoading ? (
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-3">
+              <Skeleton className="h-16 bg-zinc-800" />
+              <Skeleton className="h-16 bg-zinc-800" />
+              <Skeleton className="h-16 bg-zinc-800" />
+            </div>
+            <Skeleton className="h-40 bg-zinc-800" />
           </div>
-        </>
-      )}
+        ) : (doneTodos ?? []).length === 0 ? (
+          <p className="text-zinc-500 text-sm">완료된 할일이 없습니다.</p>
+        ) : (
+          <>
+            {/* 통계 */}
+            <TodoStatsCards todos={doneTodos!} />
+
+            {/* 완료 테이블 */}
+            <div className="rounded-lg border border-zinc-700 overflow-hidden mt-4">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-zinc-700 hover:bg-transparent">
+                    <TableHead className="text-zinc-400">할일</TableHead>
+                    <TableHead className="text-zinc-400">카테고리</TableHead>
+                    <TableHead className="text-zinc-400">우선순위</TableHead>
+                    <TableHead className="text-zinc-400">입력일</TableHead>
+                    <TableHead className="text-zinc-400">완료일</TableHead>
+                    <TableHead className="text-zinc-400">소요</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(doneTodos ?? []).map((todo) => (
+                    <TableRow key={todo.page_id} className="border-zinc-700">
+                      <TableCell className="text-zinc-100 max-w-[200px] truncate">{todo.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={categoryBadgeClass(todo.category)}>
+                          {todo.category}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={priorityBadgeClass(todo.priority)}>
+                          {todo.priority}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-zinc-400 text-sm">{todo.created_at}</TableCell>
+                      <TableCell className="text-zinc-400 text-sm">{todo.completed_at ?? "-"}</TableCell>
+                      <TableCell className="text-zinc-400 text-sm">{calcDuration(todo.created_at, todo.completed_at)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        )}
+      </section>
     </div>
   )
 }

@@ -65,6 +65,8 @@ export function WeatherInline() {
           <span className="text-base font-medium text-zinc-200">{data.current.temp}°C</span>
           <span className="text-sm">{data.current.description}</span>
           <span className="text-zinc-600">|</span>
+          <span className="text-sm">{data.current.temp_max}°/{data.current.temp_min}°</span>
+          <span className="text-zinc-600">|</span>
           <span className="text-sm">체감 {data.current.feels_like}°</span>
           <span className="text-zinc-600">|</span>
           <span className="text-sm">습도 {data.current.humidity}%</span>
@@ -79,7 +81,7 @@ export function WeatherInline() {
           <WeatherDetail data={data} />
         </div>
         <div className="border-t border-zinc-800 p-2">
-          <WeatherMap lat={coords.lat} lon={coords.lon} />
+          <WeatherMap lat={coords.lat} lon={coords.lon} data={data} />
         </div>
       </PopoverContent>
     </Popover>
