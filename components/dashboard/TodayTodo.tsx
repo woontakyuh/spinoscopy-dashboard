@@ -12,6 +12,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
 
 interface TodoItem {
   page_id: string
@@ -47,13 +49,13 @@ async function patchTodo(payload: { page_id: string; status?: string; priority?:
   }
 }
 
-async function createQuickTodo(params: { name: string; priority: string; category: string }): Promise<void> {
+async function createQuickTodo(params: { name: string; priority: string; category: string; due: string }): Promise<void> {
   const res = await fetch("/api/jarvis/todo", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       name: params.name,
-      due: todayInSeoul(),
+      due: params.due,
       status: "To Do",
       priority: params.priority,
       category: params.category,
@@ -86,6 +88,29 @@ function categoryBadgeClass(category: string): string {
 const PRIORITIES = ["High", "Medium", "Low"] as const
 const CATEGORIES = ["일상업무", "가족", "학회", "연구", "임상", "AI"] as const
 
+type DuePreset = "today" | "3days" | "week" | "custom"
+
+const DUE_LABELS: Record<DuePreset, string> = {
+  today: "당일",
+  "3days": "3일",
+  week: "이번주",
+  custom: "커스텀",
+}
+
+function getDueDate(preset: DuePreset): string {
+  const d = new Date()
+  if (preset === "3days") d.setDate(d.getDate() + 3)
+  else if (preset === "week") d.setDate(d.getDate() + (7 - d.getDay()))
+  return d.toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
+}
+
+function formatDueLabel(preset: DuePreset, customDate: Date | undefined): string {
+  if (preset === "custom" && customDate) {
+    return customDate.toLocaleDateString("ko-KR", { month: "short", day: "numeric" })
+  }
+  return DUE_LABELS[preset]
+}
+
 export function TodayTodo() {
   const queryClient = useQueryClient()
   const [quickName, setQuickName] = useState("")
@@ -93,6 +118,9 @@ export function TodayTodo() {
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set())
   const [quickPriority, setQuickPriority] = useState<string>("Medium")
   const [quickCategory, setQuickCategory] = useState<string>("일상업무")
+  const [quickDue, setQuickDue] = useState<DuePreset>("today")
+  const [customDate, setCustomDate] = useState<Date | undefined>(undefined)
+  const [calendarOpen, setCalendarOpen] = useState(false)
   const today = todayInSeoul()
 
   const { data: todos, isLoading, error } = useQuery({
@@ -184,11 +212,13 @@ export function TodayTodo() {
   })
 
   const createMutation = useMutation({
-    mutationFn: (params: { name: string; priority: string; category: string }) => createQuickTodo(params),
+    mutationFn: (params: { name: string; priority: string; category: string; due: string }) => createQuickTodo(params),
     onSuccess: async () => {
       setQuickName("")
       setQuickPriority("Medium")
       setQuickCategory("일상업무")
+      setQuickDue("today")
+      setCustomDate(undefined)
       setQuickAddError(null)
       await queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
       await queryClient.invalidateQueries({ queryKey: ["jarvis-todos"] })
@@ -211,7 +241,10 @@ export function TodayTodo() {
       return
     }
     try {
-      await createMutation.mutateAsync({ name, priority: quickPriority, category: quickCategory })
+      const due = quickDue === "custom" && customDate
+        ? customDate.toLocaleDateString("en-CA")
+        : getDueDate(quickDue)
+      await createMutation.mutateAsync({ name, priority: quickPriority, category: quickCategory, due })
     } catch (mutationError) {
       const message = mutationError instanceof Error ? mutationError.message : "할 일 생성 중 오류가 발생했습니다."
       setQuickAddError(message)
@@ -385,6 +418,48 @@ export function TodayTodo() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+          <div className="flex gap-1 ml-auto">
+            {(["today", "3days", "week"] as DuePreset[]).map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => { setQuickDue(d); setCustomDate(undefined) }}
+                className={`px-2 py-0.5 text-xs rounded border ${
+                  quickDue === d
+                    ? "border-blue-400/50 text-blue-300"
+                    : "border-zinc-700 text-zinc-500"
+                }`}
+              >
+                {DUE_LABELS[d]}
+              </button>
+            ))}
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={`px-2 py-0.5 text-xs rounded border ${
+                    quickDue === "custom"
+                      ? "border-blue-400/50 text-blue-300"
+                      : "border-zinc-700 text-zinc-500"
+                  }`}
+                >
+                  {formatDueLabel(quickDue, customDate)}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-700" align="end">
+                <Calendar
+                  mode="single"
+                  selected={customDate}
+                  onSelect={(date) => {
+                    setCustomDate(date)
+                    setQuickDue("custom")
+                    setCalendarOpen(false)
+                  }}
+                  disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
       </form>
       {quickAddErrorMessage && (
