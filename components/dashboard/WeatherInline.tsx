@@ -55,8 +55,13 @@ export function WeatherInline() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button className="text-left text-zinc-400 hover:text-zinc-300 transition-colors cursor-pointer text-base">
-          It&apos;s {current.temp}°C and {current.description}, feels like {current.feels_like}°. High {current.temp_max}°, Low {current.temp_min}°.
+        <button className="inline-flex items-center gap-1.5 text-left text-zinc-400 hover:text-zinc-300 transition-colors cursor-pointer text-base">
+          <span>It&apos;s {current.temp}°C and {current.description}, feels like {current.feels_like}°. High {current.temp_max}°, Low {current.temp_min}°.</span>
+          <img
+            src={`https://openweathermap.org/img/wn/${current.icon}@2x.png`}
+            alt={current.description}
+            className="w-8 h-8 -my-1"
+          />
         </button>
       </PopoverTrigger>
       <PopoverContent
