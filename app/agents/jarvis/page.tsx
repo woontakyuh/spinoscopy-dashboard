@@ -9,7 +9,7 @@ export default function JarvisPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="📋 Jarvis" />
-      <div className="p-3 md:p-6 max-w-4xl w-full">
+      <div className="p-3 md:p-6 max-w-6xl w-full">
         <Tabs defaultValue="presentations">
           <TabsList className="mb-4">
             <TabsTrigger value="presentations">발표 관리</TabsTrigger>

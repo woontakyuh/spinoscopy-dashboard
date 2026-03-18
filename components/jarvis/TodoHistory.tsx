@@ -182,9 +182,17 @@ export function TodoHistory() {
   const isLoading = activeLoading || doneLoading
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* 통계 */}
+      {!doneLoading && (doneTodos ?? []).length > 0 && (
+        <TodoStatsCards todos={doneTodos!} />
+      )}
+
+      {/* 할 일 / 한 일 나란히 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+
       {/* ── 할 일 (Active) ── */}
-      <section>
+      <section className="border border-zinc-700 rounded-xl bg-zinc-900 p-4">
         <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider mb-3">
           할 일
         </h3>
@@ -275,8 +283,8 @@ export function TodoHistory() {
         )}
       </section>
 
-      {/* ── 통계 + 한 일 (Done) ── */}
-      <section>
+      {/* ── 한 일 (Done) ── */}
+      <section className="border border-zinc-700 rounded-xl bg-zinc-900 p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">
             한 일
@@ -299,59 +307,36 @@ export function TodoHistory() {
         </div>
 
         {doneLoading ? (
-          <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-3">
-              <Skeleton className="h-16 bg-zinc-800" />
-              <Skeleton className="h-16 bg-zinc-800" />
-              <Skeleton className="h-16 bg-zinc-800" />
-            </div>
-            <Skeleton className="h-40 bg-zinc-800" />
+          <div className="space-y-2">
+            <Skeleton className="h-11 bg-zinc-800" />
+            <Skeleton className="h-11 bg-zinc-800" />
           </div>
         ) : (doneTodos ?? []).length === 0 ? (
           <p className="text-zinc-500 text-sm">완료된 할일이 없습니다.</p>
         ) : (
-          <>
-            {/* 통계 */}
-            <TodoStatsCards todos={doneTodos!} />
-
-            {/* 완료 테이블 */}
-            <div className="rounded-lg border border-zinc-700 overflow-hidden mt-4">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-zinc-700 hover:bg-transparent">
-                    <TableHead className="text-zinc-400">할일</TableHead>
-                    <TableHead className="text-zinc-400">카테고리</TableHead>
-                    <TableHead className="text-zinc-400">우선순위</TableHead>
-                    <TableHead className="text-zinc-400">입력일</TableHead>
-                    <TableHead className="text-zinc-400">완료일</TableHead>
-                    <TableHead className="text-zinc-400">소요</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(doneTodos ?? []).map((todo) => (
-                    <TableRow key={todo.page_id} className="border-zinc-700">
-                      <TableCell className="text-zinc-100 max-w-[200px] truncate">{todo.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={categoryBadgeClass(todo.category)}>
-                          {todo.category}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={priorityBadgeClass(todo.priority)}>
-                          {todo.priority}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-zinc-400 text-sm">{todo.created_at}</TableCell>
-                      <TableCell className="text-zinc-400 text-sm">{todo.completed_at ?? "-"}</TableCell>
-                      <TableCell className="text-zinc-400 text-sm">{calcDuration(todo.created_at, todo.completed_at)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </>
+          <div className="space-y-1.5 max-h-[500px] overflow-y-auto">
+            {(doneTodos ?? []).map((todo) => (
+              <div key={todo.page_id} className="flex items-center gap-2 rounded-lg border border-zinc-700/50 bg-zinc-800/50 px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-zinc-300 truncate">{todo.name}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-zinc-500">{todo.completed_at ?? todo.created_at}</span>
+                    <span className="text-xs text-zinc-600">{calcDuration(todo.created_at, todo.completed_at)}</span>
+                  </div>
+                </div>
+                <Badge variant="outline" className={`${priorityBadgeClass(todo.priority)} text-[10px] px-1.5`}>
+                  {todo.priority}
+                </Badge>
+                <Badge variant="outline" className={`${categoryBadgeClass(todo.category)} text-[10px] px-1.5`}>
+                  {todo.category}
+                </Badge>
+              </div>
+            ))}
+          </div>
         )}
       </section>
+
+      </div>
     </div>
   )
 }
