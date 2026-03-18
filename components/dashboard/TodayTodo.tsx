@@ -106,18 +106,33 @@ export function TodayTodo() {
       setCompletedIds((prev) => new Set(prev).add(pageId))
       return patchTodo({ page_id: pageId, status: "Done" })
     },
+    onMutate: async (pageId) => {
+      // 낙관적으로 목록에서 제거
+      await queryClient.cancelQueries({ queryKey: ["dashboard-todo-active"] })
+      const previous = queryClient.getQueryData<TodoItem[]>(["dashboard-todo-active"])
+      return { previous }
+    },
     onSuccess: async (_data, pageId) => {
-      // 완료 애니메이션 후 목록 갱신
+      // 애니메이션 후 캐시에서 제거
       await new Promise((r) => setTimeout(r, 800))
+      queryClient.setQueryData<TodoItem[]>(["dashboard-todo-active"], (old) =>
+        (old ?? []).filter((t) => t.page_id !== pageId)
+      )
       setCompletedIds((prev) => {
         const next = new Set(prev)
         next.delete(pageId)
         return next
       })
+      // Notion 반영 시간 확보 후 refetch
+      await new Promise((r) => setTimeout(r, 2000))
       await queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
       await queryClient.invalidateQueries({ queryKey: ["jarvis-todos"] })
+      await queryClient.invalidateQueries({ queryKey: ["jarvis-todo-history"] })
     },
-    onError: (_err, pageId) => {
+    onError: (_err, pageId, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["dashboard-todo-active"], context.previous)
+      }
       setCompletedIds((prev) => {
         const next = new Set(prev)
         next.delete(pageId)

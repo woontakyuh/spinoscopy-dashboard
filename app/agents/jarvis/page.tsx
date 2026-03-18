@@ -10,11 +10,14 @@ export default function JarvisPage() {
     <div className="flex flex-col min-h-screen">
       <TopBar title="📋 Jarvis" />
       <div className="p-3 md:p-6 max-w-6xl w-full">
-        <Tabs defaultValue="presentations">
+        <Tabs defaultValue="history">
           <TabsList className="mb-4">
-            <TabsTrigger value="presentations">발표 관리</TabsTrigger>
             <TabsTrigger value="history">Todo List</TabsTrigger>
+            <TabsTrigger value="presentations">발표 관리</TabsTrigger>
           </TabsList>
+          <TabsContent value="history">
+            <TodoHistory />
+          </TabsContent>
           <TabsContent value="presentations">
             <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900 mb-6">
               <p className="text-zinc-400 text-sm">
@@ -22,9 +25,6 @@ export default function JarvisPage() {
               </p>
             </div>
             <PresentationList />
-          </TabsContent>
-          <TabsContent value="history">
-            <TodoHistory />
           </TabsContent>
         </Tabs>
       </div>
