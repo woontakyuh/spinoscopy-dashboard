@@ -188,10 +188,10 @@ export function MorningBriefing() {
         <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
           {getGreeting()}, Tak.
         </h2>
-        <p className="text-zinc-500 text-base mt-2">{dateStr}</p>
-        <div className="mt-2">
+        <div className="mt-1">
           <WeatherInline />
         </div>
+        <p className="text-zinc-500 text-base mt-1">{dateStr}</p>
       </div>
 
       {/* 오늘 일정 */}

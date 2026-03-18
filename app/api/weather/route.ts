@@ -54,8 +54,8 @@ export async function GET(req: Request): Promise<NextResponse> {
     }
 
     const [currentRes, forecastRes] = await Promise.all([
-      fetch(`${OWM_BASE}/weather?lat=${lat}&lon=${lon}&units=metric&lang=kr&appid=${apiKey}`),
-      fetch(`${OWM_BASE}/forecast?lat=${lat}&lon=${lon}&units=metric&lang=kr&appid=${apiKey}`),
+      fetch(`${OWM_BASE}/weather?lat=${lat}&lon=${lon}&units=metric&appid=${apiKey}`),
+      fetch(`${OWM_BASE}/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${apiKey}`),
     ])
 
     if (!currentRes.ok || !forecastRes.ok) {

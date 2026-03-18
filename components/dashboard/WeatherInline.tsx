@@ -9,10 +9,8 @@ import dynamic from "next/dynamic"
 
 const WeatherMap = dynamic(() => import("./WeatherMap").then(m => ({ default: m.WeatherMap })), {
   ssr: false,
-  loading: () => <div className="h-[200px] flex items-center justify-center text-zinc-500 text-sm">지도 로딩 중...</div>,
+  loading: () => <div className="h-[200px] flex items-center justify-center text-zinc-500 text-sm">Loading map...</div>,
 })
-
-const OWM_ICON_URL = "https://openweathermap.org/img/wn"
 
 async function fetchWeather(lat: number, lon: number): Promise<WeatherData> {
   const res = await fetch(`/api/weather?lat=${lat}&lon=${lon}`)
@@ -50,26 +48,15 @@ export function WeatherInline() {
     refetchInterval: 600000,
   })
 
-  // 위치 거부 또는 로딩 중 또는 에러 → 표시 안 함
   if (denied || !coords || isLoading || !data) return null
+
+  const { current } = data
 
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button className="flex items-center gap-2 text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer">
-          <img
-            src={`${OWM_ICON_URL}/${data.current.icon}@2x.png`}
-            alt={data.current.description}
-            className="w-8 h-8"
-          />
-          <span className="text-base font-medium text-zinc-200">{data.current.temp}°C</span>
-          <span className="text-sm">{data.current.description}</span>
-          <span className="text-zinc-600">|</span>
-          <span className="text-sm">{data.current.temp_max}°/{data.current.temp_min}°</span>
-          <span className="text-zinc-600">|</span>
-          <span className="text-sm">체감 {data.current.feels_like}°</span>
-          <span className="text-zinc-600">|</span>
-          <span className="text-sm">습도 {data.current.humidity}%</span>
+        <button className="text-left text-zinc-400 hover:text-zinc-300 transition-colors cursor-pointer text-base">
+          It&apos;s {current.temp}°C and {current.description}, feels like {current.feels_like}°. High {current.temp_max}°, Low {current.temp_min}°.
         </button>
       </PopoverTrigger>
       <PopoverContent
