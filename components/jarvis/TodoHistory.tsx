@@ -183,10 +183,8 @@ export function TodoHistory() {
 
   return (
     <div className="space-y-4">
-      {/* 통계 */}
-      {!doneLoading && (doneTodos ?? []).length > 0 && (
-        <TodoStatsCards todos={doneTodos!} />
-      )}
+      {/* 완료율 + 주간 트렌드 */}
+      <TodoStatsCards activeTodos={activeTodos ?? []} doneTodos={doneTodos ?? []} />
 
       {/* 할 일 / 한 일 나란히 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
