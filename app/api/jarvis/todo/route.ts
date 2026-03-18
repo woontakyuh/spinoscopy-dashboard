@@ -24,7 +24,8 @@ export async function GET(req: NextRequest) {
 
     const todos = await getAllTodos({
       status: status || undefined,
-      fromDate: fromDate || undefined,
+      fromDate: status !== "Done" ? (fromDate || undefined) : undefined,
+      completedFromDate: status === "Done" ? (fromDate || undefined) : undefined,
       excludeDone: !status,
     })
 

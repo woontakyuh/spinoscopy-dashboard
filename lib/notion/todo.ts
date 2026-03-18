@@ -14,6 +14,7 @@ interface NotionPage {
   id: string
   url: string
   archived?: boolean
+  created_time: string
   properties: Record<string, NotionProperty>
 }
 
@@ -43,6 +44,8 @@ export interface TodoItem {
   category: string
   notes: string
   url: string
+  created_at: string
+  completed_at: string | null
 }
 
 export interface TodoCreateInput {
@@ -66,6 +69,7 @@ export interface TodoUpdateInput {
 interface TodoQueryOptions {
   status?: string
   fromDate?: string
+  completedFromDate?: string
   excludeDone?: boolean
 }
 
@@ -87,6 +91,8 @@ function toTodoItem(page: NotionPage): TodoItem {
     category: properties.Category?.select?.name ?? "일상업무",
     notes: getText(properties.Notes),
     url: page.url,
+    created_at: page.created_time.slice(0, 10),
+    completed_at: properties["Completed At"]?.date?.start ?? null,
   }
 }
 
@@ -135,6 +141,10 @@ function buildQueryFilter(options: TodoQueryOptions): Record<string, unknown> | 
     filters.push({ property: "Due", date: { on_or_after: options.fromDate } })
   }
 
+  if (options.completedFromDate) {
+    filters.push({ property: "Completed At", date: { on_or_after: options.completedFromDate } })
+  }
+
   if (filters.length === 0) return undefined
   if (filters.length === 1) return filters[0]
 
@@ -174,16 +184,16 @@ export async function getAllTodos(options: TodoQueryOptions = {}): Promise<TodoI
   const dbId = getTodoDbId()
   const filter = buildQueryFilter(options)
 
+  const sorts = options.status === "Done"
+    ? [{ property: "Completed At", direction: "descending" as const }]
+    : [
+        { property: "Due", direction: "ascending" as const },
+        { timestamp: "last_edited_time" as const, direction: "descending" as const },
+      ]
+
   const response = await notionRequest<NotionQueryResponse>(`/databases/${dbId}/query`, {
     method: "POST",
-    body: JSON.stringify({
-      filter,
-      sorts: [
-        { property: "Due", direction: "ascending" },
-        { timestamp: "last_edited_time", direction: "descending" },
-      ],
-      page_size: 100,
-    }),
+    body: JSON.stringify({ filter, sorts, page_size: 100 }),
   })
 
   return response.results.map(toTodoItem)
@@ -250,6 +260,12 @@ export async function updateTodo(pageId: string, updates: TodoUpdateInput): Prom
   if (updates.status !== undefined) {
     properties.Status = {
       select: { name: updates.status },
+    }
+    // Done 처리 시 Completed At 자동 기록
+    if (updates.status === "Done") {
+      properties["Completed At"] = {
+        date: { start: getTodayInSeoul() },
+      }
     }
   }
 
