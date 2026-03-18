@@ -188,8 +188,8 @@ export function MorningBriefing() {
         <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
           {getGreeting()}, Tak.
         </h2>
-        <div className="flex items-center gap-1 mt-2">
-          <p className="text-zinc-500 text-base">{dateStr}</p>
+        <p className="text-zinc-500 text-base mt-2">{dateStr}</p>
+        <div className="mt-2">
           <WeatherInline />
         </div>
       </div>

@@ -56,14 +56,18 @@ export function WeatherInline() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button className="inline-flex items-center gap-1 text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer">
-          <span className="text-zinc-600">·</span>
+        <button className="flex items-center gap-2 text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer">
           <img
             src={`${OWM_ICON_URL}/${data.current.icon}@2x.png`}
             alt={data.current.description}
-            className="w-6 h-6 -my-1"
+            className="w-8 h-8"
           />
-          <span className="text-base">{data.current.temp}°C</span>
+          <span className="text-base font-medium text-zinc-200">{data.current.temp}°C</span>
+          <span className="text-sm">{data.current.description}</span>
+          <span className="text-zinc-600">|</span>
+          <span className="text-sm">체감 {data.current.feels_like}°</span>
+          <span className="text-zinc-600">|</span>
+          <span className="text-sm">습도 {data.current.humidity}%</span>
         </button>
       </PopoverTrigger>
       <PopoverContent
