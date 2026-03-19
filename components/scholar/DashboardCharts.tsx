@@ -5,6 +5,8 @@ import { useQuery } from "@tanstack/react-query"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getCountryFlag } from "@/lib/scholar/country"
 import type { ArticleMeta, DashboardData } from "@/lib/types/journal"
+import { ArticleDetail } from "./ArticleDetail"
+import type { JournalArticle } from "@/lib/types/journal"
 
 /* ────────────────────────────── Types ────────────────────────────── */
 
@@ -89,6 +91,9 @@ type ColorKey = keyof typeof colorMap
 
 export function DashboardCharts({ onViewArticles }: { onViewArticles?: (id?: string) => void }) {
   const [filters, setFilters] = useState<ActiveFilters>({})
+  const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null)
+  const [selectedArticle, setSelectedArticle] = useState<JournalArticle | null>(null)
+  const [visibleCount, setVisibleCount] = useState(20)
 
   const { data, isLoading } = useQuery({
     queryKey: ["scholar-dashboard"],
@@ -111,7 +116,15 @@ export function DashboardCharts({ onViewArticles }: { onViewArticles?: (id?: str
     })
   }
 
-  const clearFilters = () => setFilters({})
+  const clearFilters = () => { setFilters({}); setSelectedArticle(null); setSelectedArticleId(null) }
+
+  const openArticle = (id: string) => {
+    setSelectedArticleId(id)
+    fetch(`/api/notion/journal?action=detail&pageId=${id}`)
+      .then(res => { if (res.ok) return res.json(); throw new Error("실패") })
+      .then(data => setSelectedArticle(data))
+      .catch(() => { /* ignore */ })
+  }
 
   /* 필터 적용 */
   const filtered = useMemo(() => {
@@ -177,8 +190,8 @@ export function DashboardCharts({ onViewArticles }: { onViewArticles?: (id?: str
 
       {/* ═══════ Active Filters Bar ═══════ */}
       {activeFilterCount > 0 && (
-        <div className="flex items-center gap-2 flex-wrap px-1 animate-fade-in-up">
-          <span className="text-[11px] text-zinc-500 uppercase tracking-wider font-medium">필터</span>
+        <div className="flex items-center gap-2 flex-wrap px-3 py-2.5 rounded-xl bg-indigo-950/40 border border-indigo-500/20 animate-fade-in-up">
+          <span className="text-[11px] text-indigo-400 uppercase tracking-wider font-semibold">필터</span>
           {(Object.entries(filters) as [FilterKey, string][]).map(([key, val]) => (
             <button
               key={key}
@@ -236,9 +249,73 @@ export function DashboardCharts({ onViewArticles }: { onViewArticles?: (id?: str
         />
       </div>
 
-      {/* ═══════ Must-Read Unread ═══════ */}
-      {mustReadUnread.length > 0 && (
-        <MustReadSection articles={mustReadUnread} onViewArticles={onViewArticles} />
+      {/* ═══════ Filtered Article List ═══════ */}
+      {activeFilterCount > 0 && (
+        <div className="rounded-xl border border-zinc-700/80 bg-zinc-900 overflow-hidden animate-fade-in-up" style={{ animationDelay: "180ms" }}>
+          <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+            <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+              매칭 논문 <span className="num text-zinc-500 ml-1">{filtered.length}편</span>
+            </h3>
+          </div>
+
+          {selectedArticle ? (
+            <div className="p-4">
+              <ArticleDetail
+                article={selectedArticle}
+                onBack={() => { setSelectedArticle(null); setSelectedArticleId(null) }}
+              />
+            </div>
+          ) : (
+            <div>
+              {/* 테이블 헤더 */}
+              <div className="flex items-center gap-3 px-4 py-2 border-b border-zinc-700/50 text-[10px] text-zinc-600 uppercase tracking-wider font-medium">
+                <span className="w-[70px] shrink-0">저널</span>
+                <span className="w-20 shrink-0">날짜</span>
+                <span className="w-[72px] shrink-0">유형</span>
+                <span className="flex-1">제목</span>
+                <span className="w-6 shrink-0 text-center">국가</span>
+                <span className="w-8 shrink-0"></span>
+              </div>
+              {filtered
+                .sort((a, b) => (b.pub_date ?? "").localeCompare(a.pub_date ?? ""))
+                .slice(0, visibleCount)
+                .map(a => (
+                  <button
+                    key={a.id}
+                    onClick={() => openArticle(a.id)}
+                    className={`w-full text-left flex items-center gap-3 px-4 py-2 border-b border-zinc-800/30 last:border-0 hover:bg-zinc-800/50 transition-colors ${
+                      selectedArticleId === a.id ? "bg-indigo-600/10" : ""
+                    }`}
+                  >
+                    <span className="text-[10px] text-cyan-400/70 w-[70px] shrink-0 truncate font-medium">{a.journal}</span>
+                    <span className="text-[11px] text-zinc-600 w-20 shrink-0 num">{a.pub_date ?? "—"}</span>
+                    <span className="text-[10px] text-zinc-600 w-[72px] shrink-0 truncate">{a.pub_type}</span>
+                    <span className={`text-sm flex-1 truncate ${a.read ? "text-zinc-500" : "text-zinc-200"}`}>
+                      {a.interest === "🔴 필독" ? "🔴 " : a.interest === "🟡 관심" ? "🟡 " : ""}{a.title}
+                    </span>
+                    <span className="w-6 shrink-0 text-center text-[11px]">{a.country ? getCountryFlag(a.country) : ""}</span>
+                    {a.doi_url ? (
+                      <a href={a.doi_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
+                        className="text-[10px] text-indigo-400/60 hover:text-indigo-300 shrink-0 w-8 text-right">DOI↗</a>
+                    ) : <span className="w-8 shrink-0" />}
+                  </button>
+                ))}
+              {filtered.length > visibleCount && (
+                <div className="flex justify-center py-3 border-t border-zinc-800">
+                  <button onClick={() => setVisibleCount(prev => prev + 30)}
+                    className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+                    더보기 ({filtered.length - visibleCount}편 남음)
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════ Must-Read Unread (no filter active) ═══════ */}
+      {activeFilterCount === 0 && mustReadUnread.length > 0 && (
+        <MustReadSection articles={mustReadUnread} onSelect={(a) => openArticle(a.id)} />
       )}
     </div>
   )
@@ -375,10 +452,10 @@ function ChartHeader({ title, color, count }: { title: string; color: ColorKey; 
 
 function MustReadSection({
   articles,
-  onViewArticles,
+  onSelect,
 }: {
   articles: ArticleMeta[]
-  onViewArticles?: (id?: string) => void
+  onSelect: (article: ArticleMeta) => void
 }) {
   return (
     <div className="rounded-xl border border-red-500/20 bg-red-500/[0.03] p-4 animate-fade-in-up" style={{ animationDelay: "180ms" }}>
@@ -396,7 +473,7 @@ function MustReadSection({
         {articles.map(a => (
           <button
             key={a.id}
-            onClick={() => onViewArticles?.(a.id)}
+            onClick={() => onSelect(a)}
             className="w-full text-left flex items-start gap-3 py-2.5 px-3 rounded-lg hover:bg-red-500/[0.07] transition-colors group"
           >
             <div className="min-w-0 flex-1">
@@ -405,27 +482,17 @@ function MustReadSection({
               </p>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-[11px] text-zinc-500">{a.journal}</span>
-                {a.pub_date && (
-                  <span className="text-[11px] text-zinc-600">{a.pub_date}</span>
-                )}
-                {a.country && (
-                  <span className="text-[11px] text-zinc-500">{getCountryFlag(a.country)}</span>
-                )}
+                {a.pub_date && <span className="text-[11px] text-zinc-600">{a.pub_date}</span>}
+                {a.country && <span className="text-[11px] text-zinc-500">{getCountryFlag(a.country)}</span>}
                 {a.topics.length > 0 && (
                   <span className="text-[10px] text-zinc-600 truncate">{a.topics.slice(0, 2).join(", ")}</span>
                 )}
               </div>
             </div>
             {a.doi_url && (
-              <a
-                href={a.doi_url}
-                target="_blank"
-                rel="noreferrer"
-                onClick={e => e.stopPropagation()}
+              <a href={a.doi_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
                 className="text-[11px] text-red-400/60 hover:text-red-300 shrink-0 font-medium transition-colors"
-              >
-                DOI ↗
-              </a>
+              >DOI ↗</a>
             )}
           </button>
         ))}

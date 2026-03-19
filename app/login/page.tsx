@@ -40,7 +40,7 @@ function LoginForm() {
         <CardHeader className="text-center">
           <div className="text-3xl mb-2">🧠</div>
           <CardTitle className="text-white text-xl">Spinoscopy Dashboard</CardTitle>
-          <p className="text-zinc-400 text-sm">Dr. Woon Tak Yuh</p>
+          <p className="text-zinc-400 text-sm">Tak, MD</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

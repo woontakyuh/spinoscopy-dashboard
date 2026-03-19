@@ -47,3 +47,25 @@ export interface JournalStats {
   by_category: Record<string, number>
   recent_week: number
 }
+
+/** 크로스필터 대시보드용 경량 아이템 */
+export interface ArticleMeta {
+  id: string
+  title: string
+  journal: string
+  interest: InterestLevel
+  read: boolean
+  pub_date: string | null
+  pub_type: string
+  country: string | null
+  topics: string[]
+  categories: string[]
+  doi_url: string | null
+}
+
+export interface DashboardData {
+  articles: ArticleMeta[]
+  total: number
+  unread: number
+  recent_week: number
+}

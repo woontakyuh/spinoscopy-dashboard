@@ -5,7 +5,10 @@ import type {
   JournalQueryResult,
   JournalStats,
   InterestLevel,
+  ArticleMeta,
+  DashboardData,
 } from "../types/journal"
+import { extractCountry, classifyTopics, normalizeArticleType } from "../scholar/country"
 
 interface NotionPage {
   id: string
@@ -221,4 +224,52 @@ export async function getJournalStats(): Promise<JournalStats> {
   }
 
   return stats
+}
+
+/** 크로스필터 대시보드용 전체 논문 경량 메타데이터 */
+export async function getDashboardData(): Promise<DashboardData> {
+  const articles: ArticleMeta[] = []
+  let cursor: string | null = null
+  let hasMore = true
+  let unread = 0
+  let recentWeek = 0
+
+  const oneWeekAgo = new Date()
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+  const weekStr = oneWeekAgo.toISOString().slice(0, 10)
+
+  while (hasMore) {
+    const body: Record<string, unknown> = { page_size: 100 }
+    if (cursor) body.start_cursor = cursor
+
+    const response = await notionRequest<NotionQueryResponse>(
+      `/databases/${JOURNAL_DB_ID}/query`,
+      { method: "POST", body: JSON.stringify(body) }
+    )
+
+    for (const page of response.results) {
+      const a = toArticle(page)
+      if (!a.read) unread++
+      if (a.pub_date && a.pub_date >= weekStr) recentWeek++
+
+      articles.push({
+        id: a.page_id,
+        title: a.title,
+        journal: a.journal_name,
+        interest: a.interest,
+        read: a.read,
+        pub_date: a.pub_date,
+        pub_type: normalizeArticleType(a.pub_type),
+        country: extractCountry(a.affiliations),
+        topics: classifyTopics(a.title, a.abstract, a.keywords),
+        categories: a.categories,
+        doi_url: a.doi_url,
+      })
+    }
+
+    hasMore = response.has_more
+    cursor = response.next_cursor
+  }
+
+  return { articles, total: articles.length, unread, recent_week: recentWeek }
 }

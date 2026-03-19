@@ -103,7 +103,7 @@ export default function ScholarPage() {
               📊 Dashboard
             </TabsTrigger>
             <TabsTrigger value="browse" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-zinc-400">
-              논문 탐색
+              Paper DB
             </TabsTrigger>
           </TabsList>
 

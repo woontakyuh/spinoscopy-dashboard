@@ -24,7 +24,7 @@ export function Sidebar() {
           <span className="text-2xl">🧠</span>
           <div className="hidden md:block">
             <p className="text-white font-semibold text-sm">Spinoscopy</p>
-            <p className="text-zinc-500 text-xs">Dr. Yuh</p>
+            <p className="text-zinc-500 text-xs">Tak, MD</p>
           </div>
         </Link>
       </div>

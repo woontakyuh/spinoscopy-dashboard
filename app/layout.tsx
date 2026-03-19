@@ -10,7 +10,7 @@ const geistSans = Geist({
 
 export const metadata: Metadata = {
   title: "Spinoscopy Dashboard",
-  description: "AI Agent Dashboard for Dr. Woon Tak Yuh",
+  description: "AI Agent Dashboard for Tak, MD",
 };
 
 export default function RootLayout({

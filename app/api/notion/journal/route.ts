@@ -5,6 +5,7 @@ import {
   toggleRead,
   updateInterest,
   getJournalStats,
+  getDashboardData,
 } from "@/lib/notion/journal"
 import type { InterestLevel, JournalFilter } from "@/lib/types/journal"
 
@@ -16,6 +17,13 @@ export async function GET(req: NextRequest) {
     if (action === "stats") {
       const stats = await getJournalStats()
       return NextResponse.json(stats)
+    }
+
+    if (action === "dashboard") {
+      const data = await getDashboardData()
+      return NextResponse.json(data, {
+        headers: { "Cache-Control": "public, max-age=300" },
+      })
     }
 
     if (action === "detail") {
