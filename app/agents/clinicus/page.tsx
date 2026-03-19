@@ -9,7 +9,7 @@ import { PromDisplay } from "@/components/clinicus/PromDisplay"
 import { PromChart } from "@/components/clinicus/PromChart"
 import { PatientDetail } from "@/components/clinicus/PatientDetail"
 import { NewCaseForm } from "@/components/clinicus/NewCaseForm"
-import { AnalyticsView } from "@/components/clinicus/AnalyticsView"
+import { ClinicsAnalytics } from "@/components/clinicus/ClinicsAnalytics"
 import { IdeaMemo } from "@/components/clinicus/IdeaMemo"
 import { useQuery } from "@tanstack/react-query"
 import type { PatientSearchResult } from "@/lib/types/patient"
@@ -74,10 +74,7 @@ export default function ClinicusPage() {
           </TabsList>
 
           <TabsContent value="analytics">
-            <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900">
-              <p className="text-zinc-300 text-sm font-medium mb-4">카테고리별 PROM 평균</p>
-              <AnalyticsView />
-            </div>
+            <ClinicsAnalytics />
           </TabsContent>
 
           <TabsContent value="search" className="space-y-4">

@@ -53,6 +53,13 @@ export interface TimepointParsed {
 }
 
 export interface PatientRow {
+  page_id: string
+  name: string
+  age: string
+  sex: string
+  op_date: string | null
+  op_name: string
+  level: string
   op_category: string[]
   class_a: string[]
   class_b: string[]
@@ -163,6 +170,13 @@ function parseRow(page: NotionPage): PatientRow {
   }
 
   return {
+    page_id: page.id,
+    name: getText(p.Name),
+    age: getText(p.Age),
+    sex: p.Sex?.select?.name?.trim() ?? "",
+    op_date: p["Op Date"]?.date?.start ?? null,
+    op_name: getText(p["Op Name"]),
+    level: getText(p.Level),
     op_category: getMultiSelect(p["Op Category"]),
     class_a: getMultiSelect(p["ClassA"]),
     class_b: getMultiSelect(p["ClassB"]),
