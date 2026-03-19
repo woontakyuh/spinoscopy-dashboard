@@ -3,10 +3,16 @@ export interface WeatherCurrent {
   feels_like: number
   humidity: number
   wind_speed: number
+  wind_deg: number        // 풍향 각도 (0-360)
+  wind_gust?: number      // 돌풍 m/s
+  pressure: number        // 기압 hPa
+  visibility: number      // 가시거리 km
   description: string
   icon: string
   temp_min: number
   temp_max: number
+  sunrise: string         // "06:32" 형태
+  sunset: string          // "18:45" 형태
 }
 
 export interface WeatherHourly {
@@ -26,7 +32,7 @@ export interface WeatherDaily {
 
 export interface WeatherData {
   current: WeatherCurrent
-  hourly: WeatherHourly[]   // 4개 (3시간 간격, 12시간)
+  hourly: WeatherHourly[]   // 최대 8개 (3시간 간격, 24시간)
   daily: WeatherDaily[]     // 5일
   location: string          // 도시명
 }

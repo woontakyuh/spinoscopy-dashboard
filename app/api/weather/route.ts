@@ -5,9 +5,11 @@ const OWM_BASE = "https://api.openweathermap.org/data/2.5"
 
 interface OWMCurrentResponse {
   name: string
-  main: { temp: number; feels_like: number; humidity: number; temp_min: number; temp_max: number }
+  main: { temp: number; feels_like: number; humidity: number; temp_min: number; temp_max: number; pressure: number }
   weather: Array<{ description: string; icon: string }>
-  wind: { speed: number }
+  wind: { speed: number; deg: number; gust?: number }
+  visibility: number
+  sys: { sunrise: number; sunset: number }
 }
 
 interface OWMForecastItem {
@@ -70,27 +72,34 @@ export async function GET(req: Request): Promise<NextResponse> {
       feels_like: Math.round(currentData.main.feels_like),
       humidity: currentData.main.humidity,
       wind_speed: currentData.wind.speed,
+      wind_deg: currentData.wind.deg,
+      wind_gust: currentData.wind.gust,
+      pressure: currentData.main.pressure,
+      visibility: Math.round(currentData.visibility / 1000),
       description: currentData.weather[0]?.description ?? "",
       icon: currentData.weather[0]?.icon ?? "01d",
       temp_min: Math.round(currentData.main.temp_min),
       temp_max: Math.round(currentData.main.temp_max),
+      sunrise: formatTime(currentData.sys.sunrise),
+      sunset: formatTime(currentData.sys.sunset),
     }
 
-    const hourly: WeatherHourly[] = forecastData.list.slice(0, 4).map((item) => ({
+    const hourly: WeatherHourly[] = forecastData.list.slice(0, 8).map((item) => ({
       time: formatTime(item.dt),
       temp: Math.round(item.main.temp),
       icon: item.weather[0]?.icon ?? "01d",
       pop: item.pop,
     }))
 
-    const dailyMap = new Map<string, { temps: number[]; item: OWMForecastItem }>()
+    const dailyMap = new Map<string, { temps: number[]; pops: number[]; item: OWMForecastItem }>()
     for (const item of forecastData.list) {
       const dateKey = new Date(item.dt * 1000).toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
       const existing = dailyMap.get(dateKey)
       if (!existing) {
-        dailyMap.set(dateKey, { temps: [item.main.temp_min, item.main.temp_max], item })
+        dailyMap.set(dateKey, { temps: [item.main.temp_min, item.main.temp_max], pops: [item.pop], item })
       } else {
         existing.temps.push(item.main.temp_min, item.main.temp_max)
+        existing.pops.push(item.pop)
         const hour = new Date(item.dt * 1000).getHours()
         if (hour >= 11 && hour <= 13) {
           existing.item = item
@@ -102,12 +111,12 @@ export async function GET(req: Request): Promise<NextResponse> {
     const daily: WeatherDaily[] = Array.from(dailyMap.entries())
       .filter(([key]) => key !== todayKey)
       .slice(0, 5)
-      .map(([, { temps, item }]) => ({
+      .map(([, { temps, pops, item }]) => ({
         date: formatDate(item.dt),
         temp_min: Math.round(Math.min(...temps)),
         temp_max: Math.round(Math.max(...temps)),
         icon: item.weather[0]?.icon ?? "01d",
-        pop: item.pop,
+        pop: Math.max(...pops),
       }))
 
     const weatherData: WeatherData = {

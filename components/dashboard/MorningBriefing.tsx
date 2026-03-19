@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { WeatherInline } from "@/components/dashboard/WeatherInline"
+import { WeatherInline, useWeatherLocation } from "@/components/dashboard/WeatherInline"
 
 interface DashboardScheduleItem {
   id: string
@@ -169,6 +169,8 @@ export function MorningBriefing() {
     createMutation.mutate(name)
   }
 
+  const weatherLocation = useWeatherLocation()
+
   const now = new Date()
   const dateStr = now.toLocaleDateString("ko-KR", {
     year: "numeric",
@@ -191,7 +193,9 @@ export function MorningBriefing() {
         <div className="mt-1">
           <WeatherInline />
         </div>
-        <p className="text-zinc-500 text-base mt-1">{dateStr}</p>
+        <p className="text-zinc-500 text-sm mt-1">
+          {dateStr}{weatherLocation && <span className="ml-2 text-zinc-600">· {weatherLocation}</span>}
+        </p>
       </div>
 
       {/* 오늘 일정 */}
