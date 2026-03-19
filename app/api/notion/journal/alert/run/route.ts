@@ -15,6 +15,26 @@ function isAuthorized(req: NextRequest): boolean {
   return auth === `Bearer ${expected}`
 }
 
+// Vercel Cron에서 GET으로 호출
+export async function GET(req: NextRequest) {
+  try {
+    // Vercel Cron은 CRON_SECRET 헤더로 인증
+    const cronSecret = process.env.CRON_SECRET
+    const authHeader = req.headers.get("authorization")
+    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(req.url)
+    const days = parseDays(searchParams.get("days"))
+    const result = await runJournalAlertPipeline(days)
+    return NextResponse.json({ ok: true, days, ...result })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error"
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     if (!isAuthorized(req)) {
