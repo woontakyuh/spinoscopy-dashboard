@@ -8,9 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArticleFilter } from "@/components/scholar/ArticleFilter"
 import { ArticleList } from "@/components/scholar/ArticleList"
 import { ArticleDetail } from "@/components/scholar/ArticleDetail"
-import { ArticleSummaryBar } from "@/components/scholar/ArticleSummaryBar"
-import { StatsOverview } from "@/components/scholar/StatsOverview"
-import { JournalTrend } from "@/components/scholar/JournalTrend"
+import { DashboardCharts } from "@/components/scholar/DashboardCharts"
 import type { JournalArticle, JournalFilter, JournalQueryResult, JournalStats } from "@/lib/types/journal"
 
 function buildQueryString(filter: JournalFilter): string {
@@ -25,6 +23,7 @@ function buildQueryString(filter: JournalFilter): string {
 }
 
 export default function ScholarPage() {
+  const [activeTab, setActiveTab] = useState("dashboard")
   const [selectedArticle, setSelectedArticle] = useState<JournalArticle | null>(null)
   const [filter, setFilter] = useState<JournalFilter>({
     interest: "all",
@@ -50,6 +49,7 @@ export default function ScholarPage() {
       setHasMore(data.has_more)
       return data
     },
+    enabled: activeTab === "browse",
   })
 
   const { data: stats } = useQuery<JournalStats>({
@@ -60,6 +60,7 @@ export default function ScholarPage() {
       return res.json()
     },
     staleTime: 5 * 60 * 1000,
+    enabled: activeTab === "browse",
   })
 
   useEffect(() => {
@@ -88,19 +89,27 @@ export default function ScholarPage() {
     setFilter({ ...newFilter, cursor: undefined })
   }
 
+  function handleViewArticles() {
+    setActiveTab("browse")
+  }
+
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="🔬 Scholar" />
       <div className="p-3 md:p-6 max-w-5xl w-full">
-        <Tabs defaultValue="browse">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="bg-zinc-800 border border-zinc-700 mb-4 md:mb-6 flex-wrap h-auto gap-0.5 p-1">
-            <TabsTrigger value="browse" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400">
+            <TabsTrigger value="dashboard" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-zinc-400">
+              📊 Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="browse" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-zinc-400">
               논문 탐색
             </TabsTrigger>
-            <TabsTrigger value="stats" className="data-[state=active]:bg-violet-600 data-[state=active]:text-white text-zinc-400">
-              📊 통계
-            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="dashboard" className="space-y-4">
+            <DashboardCharts onViewArticles={handleViewArticles} />
+          </TabsContent>
 
           <TabsContent value="browse" className="space-y-4">
             {selectedArticle ? (
@@ -112,7 +121,6 @@ export default function ScholarPage() {
               </div>
             ) : (
               <>
-                <ArticleSummaryBar stats={stats} articles={allArticles} onSelect={setSelectedArticle} />
                 <ArticleFilter filter={filter} onFilterChange={handleFilterChange} stats={stats} />
                 {isLoading ? (
                   <div className="space-y-2">
@@ -135,13 +143,6 @@ export default function ScholarPage() {
                 )}
               </>
             )}
-          </TabsContent>
-
-          <TabsContent value="stats" className="space-y-4">
-            <StatsOverview />
-            <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900">
-              <JournalTrend stats={stats} />
-            </div>
           </TabsContent>
         </Tabs>
       </div>
