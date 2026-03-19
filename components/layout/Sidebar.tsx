@@ -6,12 +6,12 @@ import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 
 const NAV_ITEMS = [
-  { icon: "🩺", label: "Clinicus", href: "/agents/clinicus", active: true },
-  { icon: "🔬", label: "Scholar", href: "/agents/scholar", active: true },
-  { icon: "📋", label: "Jarvis", href: "/agents/jarvis", active: true },
-  { icon: "💰", label: "Vault", href: "/agents/vault", active: true },
-  { icon: "🥋", label: "Sensei", href: "/agents/sensei", active: true },
-  { icon: "🛰️", label: "AI Radar", href: "/agents/radar", active: true },
+  { icon: "🩺", label: "Clinicus", href: "/agents/clinicus", active: true, color: "bg-emerald-600" },
+  { icon: "🔬", label: "Scholar", href: "/agents/scholar", active: true, color: "bg-indigo-600" },
+  { icon: "📋", label: "Jarvis", href: "/agents/jarvis", active: true, color: "bg-blue-600" },
+  { icon: "💰", label: "Vault", href: "/agents/vault", active: true, color: "bg-amber-600" },
+  { icon: "🥋", label: "Sensei", href: "/agents/sensei", active: true, color: "bg-orange-600" },
+  { icon: "🛰️", label: "AI Radar", href: "/agents/radar", active: true, color: "bg-cyan-600" },
 ]
 
 export function Sidebar() {
@@ -61,7 +61,7 @@ export function Sidebar() {
               className={cn(
                 "flex items-center justify-center md:justify-start gap-3 px-2 md:px-3 py-2 rounded-lg transition-colors text-sm",
                 isCurrentPage
-                  ? "bg-blue-600 text-white"
+                  ? `${item.color} text-white`
                   : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
               )}
             >

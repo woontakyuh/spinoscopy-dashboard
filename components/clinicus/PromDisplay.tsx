@@ -26,7 +26,7 @@ function ScoreBadge({ label, value, sub }: { label: string; value: string; sub?:
   return (
     <div className="flex flex-col items-center bg-zinc-800 rounded-lg px-3 py-2 min-w-[72px]">
       <span className="text-zinc-400 text-[10px] uppercase tracking-wide">{label}</span>
-      <span className="text-white font-semibold text-sm mt-0.5">{value}</span>
+      <span className="text-white font-semibold text-sm mt-0.5 num">{value}</span>
       {sub && <span className="text-zinc-500 text-[10px] mt-0.5">{sub}</span>}
     </div>
   )

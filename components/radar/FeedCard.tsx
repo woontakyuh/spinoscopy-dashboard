@@ -71,7 +71,7 @@ export function FeedCard({ item }: FeedCardProps) {
   }
 
   return (
-    <div className="border border-zinc-700 rounded-lg p-3 bg-zinc-800/50 space-y-2">
+    <div className="border border-zinc-700 rounded-lg p-3 bg-zinc-800/50 space-y-2 card-hover">
       <div className="flex flex-wrap items-start gap-2">
         <a
           href={item.url}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { WeatherDetail } from "./WeatherDetail"
@@ -41,10 +41,6 @@ function useGeolocation() {
 
 export function WeatherInline() {
   const { coords } = useGeolocation()
-  const [open, setOpen] = useState(false)
-  const [pinned, setPinned] = useState(false)
-  const hoverTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ["weather", coords?.lat, coords?.lon],
@@ -54,72 +50,33 @@ export function WeatherInline() {
     refetchInterval: 600000,
   })
 
-  const handleMouseEnter = useCallback(() => {
-    if (pinned) return
-    if (hoverTimeout.current) clearTimeout(hoverTimeout.current)
-    setOpen(true)
-  }, [pinned])
-
-  const handleMouseLeave = useCallback(() => {
-    if (pinned) return
-    hoverTimeout.current = setTimeout(() => setOpen(false), 200)
-  }, [pinned])
-
-  const handleClick = useCallback(() => {
-    if (pinned) {
-      setPinned(false)
-      setOpen(false)
-    } else {
-      setPinned(true)
-      setOpen(true)
-    }
-  }, [pinned])
-
-  const handleOpenChange = useCallback((value: boolean) => {
-    if (!value) {
-      setPinned(false)
-      setOpen(false)
-    }
-  }, [])
-
   if (!coords || isLoading || !data) return null
 
   const { current } = data
 
   return (
-    <div
-      ref={containerRef}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      <Popover open={open} onOpenChange={handleOpenChange}>
-        <PopoverTrigger asChild>
-          <button
-            onClick={handleClick}
-            className="inline-flex items-center gap-1 text-left text-zinc-400 hover:text-zinc-300 transition-colors cursor-pointer text-sm"
-          >
-            <span>It&apos;s {current.temp}°C and {current.description}, feels like {current.feels_like}°. High {current.temp_max}°, Low {current.temp_min}°.</span>
-            <img
-              src={`https://openweathermap.org/img/wn/${current.icon}@2x.png`}
-              alt={current.description}
-              className="w-6 h-6 -my-0.5"
-            />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent
-          className="w-[520px] bg-zinc-900 border-zinc-700 p-0 max-h-[80vh] overflow-y-auto scrollbar-hide"
-          align="start"
-          sideOffset={8}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-        >
-          <div className="p-4 space-y-4">
-            <WeatherDetail data={data} />
-            <WeatherMap lat={coords.lat} lon={coords.lon} data={data} />
-          </div>
-        </PopoverContent>
-      </Popover>
-    </div>
+    <Popover>
+      <PopoverTrigger asChild>
+        <button className="inline-flex items-center gap-1 text-left text-zinc-400 hover:text-zinc-300 transition-colors cursor-pointer text-sm">
+          <span>It&apos;s {current.temp}°C and {current.description}, feels like {current.feels_like}°. High {current.temp_max}°, Low {current.temp_min}°.</span>
+          <img
+            src={`https://openweathermap.org/img/wn/${current.icon}@2x.png`}
+            alt={current.description}
+            className="w-6 h-6 -my-0.5"
+          />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-[520px] bg-zinc-900 border-zinc-700 p-0 max-h-[80vh] overflow-y-auto scrollbar-hide"
+        align="start"
+        sideOffset={8}
+      >
+        <div className="p-4 space-y-4">
+          <WeatherDetail data={data} />
+          <WeatherMap lat={coords.lat} lon={coords.lon} data={data} />
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 

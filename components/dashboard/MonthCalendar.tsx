@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/ui/empty-state"
 
 interface DashboardScheduleItem {
   id: string
@@ -337,7 +338,7 @@ export function MonthCalendar() {
             <Skeleton className="h-12 w-full bg-zinc-800" />
           </div>
         ) : selectedEvents.length === 0 ? (
-          <p className="text-zinc-500 text-sm">일정이 없습니다.</p>
+          <EmptyState icon="📅" message="일정이 없습니다." />
         ) : (
           <div className="space-y-2">
             {selectedEvents.map((event) => (

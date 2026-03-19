@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { Skeleton } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/ui/empty-state"
 
 interface DashboardSurgeryItem {
   page_id: string
@@ -43,7 +44,7 @@ export function TodaySurgery() {
       {error ? (
         <p className="text-red-400 text-sm">수술 데이터를 불러오지 못했습니다.</p>
       ) : (surgeries ?? []).length === 0 ? (
-        <p className="text-zinc-500 text-sm">오늘 예정된 수술이 없습니다.</p>
+        <EmptyState icon="🩺" message="오늘 예정된 수술이 없습니다." />
       ) : (
         <div className="space-y-2">
           {(surgeries ?? []).map((surgery) => (
@@ -52,7 +53,7 @@ export function TodaySurgery() {
               href={surgery.url}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-3 bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 hover:border-zinc-600 transition-colors"
+              className="flex items-center gap-3 bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 hover:border-zinc-600 card-hover"
             >
               <div className="w-10 h-10 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center text-lg shrink-0">
                 🔪

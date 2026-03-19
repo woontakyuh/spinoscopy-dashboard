@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/ui/empty-state"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -266,7 +267,7 @@ export function TodayTodo() {
       ) : error ? (
         <p className="text-red-400 text-sm">할 일을 불러오지 못했습니다.</p>
       ) : (todos ?? []).length === 0 ? (
-        <p className="text-zinc-500 text-sm">오늘 처리할 할 일이 없습니다.</p>
+        <EmptyState icon="✅" message="오늘 처리할 할 일이 없습니다." />
       ) : (
         <div className="space-y-2">
           {(todos ?? []).map((todo) => {

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { WeatherInline, useWeatherLocation } from "@/components/dashboard/WeatherInline"
+import { EmptyState } from "@/components/ui/empty-state"
 
 interface DashboardScheduleItem {
   id: string
@@ -213,7 +214,7 @@ export function MorningBriefing() {
         ) : error ? (
           <p className="text-red-400 text-sm">일정을 불러오지 못했습니다.</p>
         ) : (schedules ?? []).length === 0 ? (
-          <p className="text-zinc-500 text-sm">오늘 일정이 없습니다.</p>
+          <EmptyState icon="📅" message="오늘 일정이 없습니다." />
         ) : (
           <div className="space-y-2">
             {(schedules ?? []).map((item) => (

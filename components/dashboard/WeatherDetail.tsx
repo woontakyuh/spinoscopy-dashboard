@@ -25,7 +25,7 @@ export function WeatherDetail({ data }: { data: WeatherData }) {
       {/* 현재 날씨 헤더 */}
       <div className="text-center pb-2">
         <p className="text-sm text-zinc-400">{data.location}</p>
-        <p className="text-5xl font-light tracking-tight mt-1">{current.temp}°</p>
+        <p className="text-5xl font-light tracking-tight mt-1 num">{current.temp}°</p>
         <p className="text-sm text-zinc-300 mt-1 capitalize">{current.description}</p>
         <p className="text-sm text-zinc-400 mt-0.5">
           최고 {current.temp_max}° · 최저 {current.temp_min}°
@@ -49,7 +49,7 @@ export function WeatherDetail({ data }: { data: WeatherData }) {
                 {h.pop > 0.1 && (
                   <span className="text-[10px] text-blue-400 font-medium">{Math.round(h.pop * 100)}%</span>
                 )}
-                <span className="text-sm font-medium">{h.temp}°</span>
+                <span className="text-sm font-medium num">{h.temp}°</span>
               </div>
             ))}
           </div>

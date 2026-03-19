@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/ui/empty-state"
 import { FeedCard } from "./FeedCard"
 import type { FeedCategory, FeedItem, FeedResponse, FeedSource, FeedTier } from "@/lib/types/radar"
 
@@ -48,6 +49,7 @@ export function RadarFeed() {
   const sources = useMultiSelect<FeedSource>()
   const [categoryFilter, setCategoryFilter] = useState<FeedCategory | "all">("all")
   const [highOnly, setHighOnly] = useState(false)
+  const [visibleCount, setVisibleCount] = useState(20)
 
   const feedQuery = useQuery({
     queryKey: ["radar-feed"],
@@ -222,13 +224,25 @@ export function RadarFeed() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900">
-          <p className="text-zinc-500 text-sm">피드가 비어있습니다.</p>
+          <EmptyState icon="🛰️" message="피드가 비어있습니다." />
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((item) => (
+          {filtered.slice(0, visibleCount).map((item) => (
             <FeedCard key={item.id} item={item} />
           ))}
+          {filtered.length > visibleCount && (
+            <div className="flex justify-center pt-2 pb-4">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs border-zinc-700 text-zinc-400 hover:text-white"
+                onClick={() => setVisibleCount(prev => prev + 20)}
+              >
+                더보기 ({filtered.length - visibleCount}개 남음)
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

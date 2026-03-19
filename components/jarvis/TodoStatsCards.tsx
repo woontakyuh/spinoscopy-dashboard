@@ -39,10 +39,10 @@ export function TodoStatsCards({ activeTodos, doneTodos }: TodoStatsProps) {
       <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-4">
         <div className="flex items-baseline justify-between mb-2">
           <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">완료율</span>
-          <span className="text-sm text-zinc-300">
+          <span className="text-sm text-zinc-300 num">
             <span className="text-green-400 font-medium">{doneCount}</span>
             <span className="text-zinc-500"> / {total}건</span>
-            <span className="text-zinc-400 ml-1.5 font-medium">{pct}%</span>
+            <span className="text-zinc-400 ml-1.5 font-semibold">{pct}%</span>
           </span>
         </div>
         <div className="h-2.5 rounded-full bg-zinc-800 overflow-hidden">
