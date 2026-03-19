@@ -149,7 +149,8 @@ export function formatNDI(raw: string): string {
 //   U = 1 - 0.096 - Σ(dim coefficients) - N4(0.078 if any dim ≥ 4)
 // ---------------------------------------------------------------------------
 export function parseEQ5D(raw: string): EQ5DResult | null {
-  const parts = raw.trim().split("/")
+  // "XXXXX/VAS" 또는 "XXXXX, VAS" 형식 모두 지원
+  const parts = raw.trim().split(/[\/,]\s*/)
   if (parts.length !== 2) return null
   const profileStr = parts[0].trim()
   const eqVas = Number(parts[1].trim())
