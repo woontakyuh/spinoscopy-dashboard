@@ -88,13 +88,23 @@ export function formatVAS(raw: string, region: "cervical" | "lumbar" | "unknown"
 // ---------------------------------------------------------------------------
 export function parseODI(raw: string): ODIResult | null {
   const parts = raw.trim().split("/")
-  if (parts.length !== 2) return null
-  const [score, max] = parts.map(s => Number(s.trim()))
+  let score: number
+  let max: number
+  if (parts.length === 2) {
+    score = Number(parts[0].trim())
+    max = Number(parts[1].trim())
+  } else if (parts.length === 1) {
+    // ODI 기본 만점 50 (raw만 입력된 경우)
+    score = Number(parts[0].trim())
+    max = 50
+  } else {
+    return null
+  }
   if (isNaN(score) || isNaN(max) || max === 0) return null
   return {
     raw: score,
     max,
-    score: Math.round((score / max) * 1000) / 10, // 1 decimal
+    score: Math.round((score / max) * 1000) / 10,
   }
 }
 
@@ -124,8 +134,18 @@ export function formatJOA(raw: string): string {
 // ---------------------------------------------------------------------------
 export function parseNDI(raw: string): NDIResult | null {
   const parts = raw.trim().split("/")
-  if (parts.length !== 2) return null
-  const [score, max] = parts.map(s => Number(s.trim()))
+  let score: number
+  let max: number
+  if (parts.length === 2) {
+    score = Number(parts[0].trim())
+    max = Number(parts[1].trim())
+  } else if (parts.length === 1) {
+    // NDI 기본 만점 50 (raw만 입력된 경우)
+    score = Number(parts[0].trim())
+    max = 50
+  } else {
+    return null
+  }
   if (isNaN(score) || isNaN(max) || max === 0) return null
   return {
     raw: score,

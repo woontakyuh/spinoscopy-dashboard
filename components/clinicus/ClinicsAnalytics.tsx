@@ -712,17 +712,18 @@ function PatientListRow({ patient, isExpanded, onToggle }: {
           isExpanded ? "bg-zinc-800/30" : ""
         }`}
       >
-        <span className="text-sm text-zinc-200 w-[80px] shrink-0 truncate font-medium">{patient.name || "—"}</span>
-        <span className="text-xs text-zinc-500 w-[36px] shrink-0 num">{patient.age || "—"}</span>
-        <span className={`text-xs w-[20px] shrink-0 font-medium ${
+        <span className="text-[11px] text-zinc-500 w-[76px] shrink-0 num">{patient.op_date ?? "—"}</span>
+        <span className="text-sm text-zinc-200 w-[64px] shrink-0 truncate font-medium">{patient.name || "—"}</span>
+        <span className="text-xs text-zinc-500 w-[30px] shrink-0 num">{patient.age || "—"}</span>
+        <span className={`text-xs w-[18px] shrink-0 font-medium ${
           patient.sex === "M" ? "text-blue-400" : patient.sex === "F" ? "text-pink-400" : "text-zinc-600"
         }`}>
           {patient.sex || "—"}
         </span>
         <span className="text-xs text-zinc-400 flex-1 truncate">{patient.op_name || "—"}</span>
-        <span className="text-[11px] text-zinc-600 w-[60px] shrink-0 truncate">{patient.level || "—"}</span>
-        <span className="text-[11px] text-zinc-600 w-[80px] shrink-0 num">{patient.op_date ?? "—"}</span>
-        <span className="text-[11px] text-zinc-600 w-[60px] shrink-0 truncate">{patient.hospital.join(", ") || "—"}</span>
+        <span className="text-[11px] text-zinc-600 w-[80px] shrink-0 truncate">{patient.class_b.join(", ") || "—"}</span>
+        <span className="text-[11px] text-zinc-600 w-[50px] shrink-0 truncate">{patient.level || "—"}</span>
+        <span className="text-[11px] text-zinc-600 w-[50px] shrink-0 truncate">{patient.hospital.join(", ") || "—"}</span>
         <span className={`text-zinc-500 text-xs transition-transform shrink-0 ${isExpanded ? "rotate-180" : ""}`}>
           ▼
         </span>
@@ -774,15 +775,16 @@ function PatientList({ patients }: { patients: PatientRow[] }) {
       </div>
 
       {/* Table header */}
-      <div className="flex items-center gap-3 px-4 py-2 border-b border-zinc-700/50 text-[10px] text-zinc-600 uppercase tracking-wider font-medium">
-        <span className="w-[80px] shrink-0">이름</span>
-        <span className="w-[36px] shrink-0">나이</span>
-        <span className="w-[20px] shrink-0">성별</span>
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-zinc-700/50 text-[10px] text-zinc-600 uppercase tracking-wider font-medium">
+        <span className="w-[76px] shrink-0">수술일</span>
+        <span className="w-[64px] shrink-0">이름</span>
+        <span className="w-[30px] shrink-0">나이</span>
+        <span className="w-[18px] shrink-0">성</span>
         <span className="flex-1">수술명</span>
-        <span className="w-[60px] shrink-0">Level</span>
-        <span className="w-[80px] shrink-0">날짜</span>
-        <span className="w-[60px] shrink-0">병원</span>
-        <span className="w-[16px] shrink-0"></span>
+        <span className="w-[80px] shrink-0">진단</span>
+        <span className="w-[50px] shrink-0">Level</span>
+        <span className="w-[50px] shrink-0">병원</span>
+        <span className="w-[14px] shrink-0"></span>
       </div>
 
       {sorted.slice(0, visibleCount).map(p => (
@@ -817,13 +819,14 @@ function PatientList({ patients }: { patients: PatientRow[] }) {
    ═══════════════════════════════════════════════════════════════════ */
 
 function GroupBySelector({
-  value, onChange, excludeDimensions,
+  value, onChange,
 }: {
   value: Dimension | null
   onChange: (dim: Dimension | null) => void
-  excludeDimensions: Set<Dimension>
+  excludeDimensions?: Set<Dimension>
 }) {
-  const available = DIMENSIONS.filter(d => !excludeDimensions.has(d.key))
+  // 모든 차원을 비교 기준으로 선택 가능 (필터 사용 여부 무관)
+  const available = DIMENSIONS
 
   return (
     <div className="flex items-center gap-2 flex-wrap px-3 py-2.5 rounded-xl bg-zinc-900/80 border border-zinc-700/60 animate-fade-in-up">
@@ -902,6 +905,7 @@ export function ClinicsAnalytics() {
     },
     staleTime: 5 * 60 * 1000,
     enabled: filtersActive,
+    placeholderData: (prev) => prev,
   })
 
   const toggleFilter = useCallback((key: FilterKey, value: string) => {
