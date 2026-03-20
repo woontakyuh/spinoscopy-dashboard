@@ -948,6 +948,7 @@ export function ClinicsAnalytics() {
   }, [allPatients, filters, filtersActive])
 
   // Aggregations per dimension (cross-filtering)
+  // 전체 카테고리 목록(schema)을 기반으로, 필터된 데이터에서 카운트 계산
   const dimensionCounts = useMemo(() => {
     if (!filtersActive || allPatients.length === 0) return null
     const result: Record<Dimension, Record<string, number>> = {
@@ -957,10 +958,17 @@ export function ClinicsAnalytics() {
       const otherFilters = { ...filters }
       delete otherFilters[dim.key]
       const subFiltered = applyFilters(allPatients, otherFilters)
-      result[dim.key] = countBy(subFiltered, dim.key)
+      const counts = countBy(subFiltered, dim.key)
+      // schema에 있는 항목은 0이라도 포함 (전체 목록 유지)
+      if (categoriesQuery.data?.[dim.key]) {
+        for (const opt of categoriesQuery.data[dim.key]) {
+          if (!(opt.name in counts)) counts[opt.name] = 0
+        }
+      }
+      result[dim.key] = counts
     }
     return result
-  }, [allPatients, filters, filtersActive])
+  }, [allPatients, filters, filtersActive, categoriesQuery.data])
 
   // Dimensions currently used as filters (for groupBy exclusion)
   const usedDimensions = useMemo(() => {

@@ -115,6 +115,19 @@ export async function getAuthorizedClient(): Promise<InstanceType<typeof google.
     saveTokens({ ...oauth2Client.credentials, ...tokens, scope: SCOPES.join(" ") })
   })
 
+  // 토큰 만료 시 자동 리프레시
+  const expiryDate = storedTokens.expiry_date as number | undefined
+  if (expiryDate && expiryDate < Date.now() && storedTokens.refresh_token) {
+    try {
+      const { credentials: refreshed } = await oauth2Client.refreshAccessToken()
+      oauth2Client.setCredentials(refreshed)
+      saveTokens({ ...refreshed, scope: SCOPES.join(" ") })
+    } catch (e) {
+      console.error("Google token refresh failed:", e instanceof Error ? e.message : e)
+      return null
+    }
+  }
+
   return oauth2Client
 }
 
