@@ -171,6 +171,28 @@ export async function listSenseiEntries(): Promise<SenseiEntry[]> {
   return response.results.map(toEntry)
 }
 
+export async function listAllSenseiEntries(): Promise<SenseiEntry[]> {
+  const dbId = getDbId()
+  let allPages: NotionPage[] = []
+  let cursor: string | null = null
+
+  do {
+    const body: Record<string, unknown> = {
+      page_size: 100,
+      sorts: [{ property: "Date", direction: "descending" }],
+    }
+    if (cursor) body.start_cursor = cursor
+    const response = await notionRequest<NotionQueryResponse & { has_more: boolean; next_cursor: string | null }>(
+      `/databases/${dbId}/query`,
+      { method: "POST", body: JSON.stringify(body) },
+    )
+    allPages = allPages.concat(response.results)
+    cursor = response.has_more ? response.next_cursor : null
+  } while (cursor)
+
+  return allPages.map(toEntry)
+}
+
 async function ensureSessionTypeProperty(dbId: string): Promise<void> {
   const db = await notionRequest<{ properties: Record<string, { type: string }> }>(`/databases/${dbId}`)
   if (db.properties.SessionType) return
