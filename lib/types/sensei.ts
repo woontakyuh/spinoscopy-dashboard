@@ -23,3 +23,45 @@ export interface StructuredBjjNote {
   sparringTags: string[]
   note: string
 }
+
+// RPG System Types
+
+export interface BjjAttributes {
+  guard: number
+  passing: number
+  control: number
+  finishing: number
+  takedowns: number
+  legLocks: number
+}
+
+export interface BjjStats {
+  level: number
+  totalSessions: number
+  xpCurrent: number
+  xpToNext: number
+  belt: string
+  attributes: BjjAttributes
+  ovr: number
+  ovrRole: string
+  playstyle: string
+  recentFocus: string[]
+  streaks: { current: number; best: number }
+  giRatio: number
+}
+
+export interface Archetype {
+  name: string
+  flag: string
+  nickname: string
+  team: string
+  stats: BjjAttributes
+  tags: string[]
+  playstyle: string
+  ruleSet: "gi" | "nogi" | "both"
+  category: "gi-legend" | "gi-active" | "nogi" | "special"
+  isCustom?: boolean
+  editableStats?: boolean
+  styleReferences?: string[]
+  bio?: string
+}
