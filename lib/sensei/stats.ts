@@ -12,20 +12,42 @@ const CATEGORY_ATTR_MAP: Record<string, keyof BjjAttributes> = {
   LegLocks: "legLocks",
 }
 
+// Default profile — 프로모션 기록이 없을 때 fallback
+const DEFAULT_PROFILE = {
+  belt: "blue",
+  beltStripes: 3,
+  trainingStartDate: "2019-12-01",
+}
+
+// 프로모션 엔트리 note에서 벨트 정보 파싱: "[BELT:blue:3] ..."
+function parseBeltFromNote(note: string): { belt: string; stripes: number } | null {
+  const match = note.match(/\[BELT:(\w+):(\d)\]/)
+  if (!match) return null
+  return { belt: match[1], stripes: parseInt(match[2]) }
+}
+
+function getLatestBeltInfo(entries: SenseiEntry[]): { belt: string; stripes: number } {
+  const promotions = entries
+    .filter((e) => e.sessionType === "promotion" && e.note)
+    .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
+
+  for (const promo of promotions) {
+    const info = parseBeltFromNote(promo.note)
+    if (info) return info
+  }
+  return { belt: DEFAULT_PROFILE.belt, stripes: DEFAULT_PROFILE.beltStripes }
+}
+
 // XP thresholds per level (cumulative sessions)
 function xpForLevel(level: number): number {
-  // Level 1: 0, Level 2: 5, Level 3: 12, Level 4: 22, Level 5: 35...
-  // Formula: sum(3 + level) roughly
   if (level <= 1) return 0
   return Math.floor(2.5 * level * level)
 }
 
-function determineBelt(totalSessions: number): string {
-  if (totalSessions >= 200) return "black"
-  if (totalSessions >= 120) return "brown"
-  if (totalSessions >= 60) return "purple"
-  if (totalSessions >= 20) return "blue"
-  return "white"
+function trainingMonthsSince(startDate: string): number {
+  const start = new Date(startDate)
+  const now = new Date()
+  return (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth())
 }
 
 function determinePlaystyle(attrs: BjjAttributes): string {
@@ -138,21 +160,30 @@ export function calculateBjjStats(entries: SenseiEntry[]): BjjStats {
     }
   }
 
-  // Normalize to 0-100 with diversity bonus
-  const maxCount = Math.max(...Object.values(categoryCounts), 1)
+  // Belt-capped absolute scaling
+  // 1) raw score 0-100 from sqrt(tagCount)
+  // 2) scale by belt ceiling: raw/100 * beltMax
+  const beltInfo = getLatestBeltInfo(entries)
+  const BELT_CAPS: Record<string, number> = {
+    white: 20, blue: 40, purple: 55, brown: 65, black: 75,
+  }
+  const beltCap = BELT_CAPS[beltInfo.belt] ?? 40
+
   const attributes: BjjAttributes = { guard: 0, passing: 0, control: 0, finishing: 0, takedowns: 0, legLocks: 0 }
 
   for (const key of Object.keys(attributes) as (keyof BjjAttributes)[]) {
     const raw = categoryCounts[key]
-    // Base score from frequency (0-80 range)
-    const frequencyScore = Math.min(80, (raw / maxCount) * 80)
-    // Diversity bonus: unique tags in this category (0-20 range)
+    // Raw score: sqrt-based 0-100
+    const rawScore = Math.min(100, 10 * Math.sqrt(raw))
+    // Diversity bonus on raw score
     const categoryName = Object.entries(CATEGORY_ATTR_MAP).find(([, v]) => v === key)?.[0]
     const uniqueTagsInCategory = categoryName
       ? Object.keys(tagFrequency).filter((t) => TAG_TO_CATEGORY[t] === categoryName).length
       : 0
-    const diversityBonus = Math.min(20, uniqueTagsInCategory * 4)
-    attributes[key] = Math.round(Math.min(100, frequencyScore + diversityBonus))
+    const diversityBonus = Math.min(15, uniqueTagsInCategory * 2)
+    const totalRaw = Math.min(100, rawScore + diversityBonus)
+    // Apply belt cap: raw/100 * beltMax
+    attributes[key] = Math.round((totalRaw / 100) * beltCap)
   }
 
   // Level & XP
@@ -194,7 +225,10 @@ export function calculateBjjStats(entries: SenseiEntry[]): BjjStats {
     totalSessions,
     xpCurrent,
     xpToNext: Math.max(xpToNext, 1),
-    belt: determineBelt(totalSessions),
+    belt: getLatestBeltInfo(entries).belt,
+    beltStripes: getLatestBeltInfo(entries).stripes,
+    trainingStartDate: DEFAULT_PROFILE.trainingStartDate,
+    trainingMonths: trainingMonthsSince(DEFAULT_PROFILE.trainingStartDate),
     attributes,
     ovr,
     ovrRole: role,

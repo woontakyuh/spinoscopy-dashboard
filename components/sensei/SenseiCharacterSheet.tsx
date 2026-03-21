@@ -129,7 +129,7 @@ export function SenseiCharacterSheet() {
                   color: BELT_COLORS[stats.belt] === "#18181b" ? "#a1a1aa" : BELT_COLORS[stats.belt],
                 }}
               >
-                {stats.belt} belt
+                {stats.belt} belt {stats.beltStripes > 0 && `${"▎".repeat(stats.beltStripes)}`}
               </Badge>
               <Badge variant="outline" className="text-[10px] border-zinc-600 text-zinc-400">
                 {stats.playstyle}
@@ -141,8 +141,12 @@ export function SenseiCharacterSheet() {
             {/* Quick Stats */}
             <div className="flex flex-wrap gap-3 mt-3">
               <div className="text-center">
+                <p className="text-lg font-bold text-white">{Math.floor(stats.trainingMonths / 12)}년 {stats.trainingMonths % 12}개월</p>
+                <p className="text-[10px] text-zinc-500">수련 기간</p>
+              </div>
+              <div className="text-center">
                 <p className="text-lg font-bold text-white">{stats.totalSessions}</p>
-                <p className="text-[10px] text-zinc-500">총 수련</p>
+                <p className="text-[10px] text-zinc-500">기록된 수련</p>
               </div>
               <div className="text-center">
                 <p className="text-lg font-bold text-orange-400">{stats.streaks.current}주</p>

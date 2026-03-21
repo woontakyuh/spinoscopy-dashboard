@@ -36,6 +36,8 @@ export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [promotionNote, setPromotionNote] = useState("")
+  const [promotionBelt, setPromotionBelt] = useState("blue")
+  const [promotionStripes, setPromotionStripes] = useState(3)
   const [showPromotionForm, setShowPromotionForm] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -268,6 +270,30 @@ export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
               ✕
             </button>
           </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <label className="text-zinc-300 text-xs font-medium">벨트</label>
+            <select
+              value={promotionBelt}
+              onChange={(e) => setPromotionBelt(e.target.value)}
+              className="rounded-lg border border-zinc-700 bg-zinc-800 text-white px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-yellow-500 [color-scheme:dark]"
+            >
+              <option value="white">White</option>
+              <option value="blue">Blue</option>
+              <option value="purple">Purple</option>
+              <option value="brown">Brown</option>
+              <option value="black">Black</option>
+            </select>
+            <label className="text-zinc-300 text-xs font-medium">그랄</label>
+            <select
+              value={promotionStripes}
+              onChange={(e) => setPromotionStripes(Number(e.target.value))}
+              className="rounded-lg border border-zinc-700 bg-zinc-800 text-white px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-yellow-500 [color-scheme:dark]"
+            >
+              {[0, 1, 2, 3, 4].map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </div>
           <textarea
             value={promotionNote}
             onChange={(e) => setPromotionNote(e.target.value)}
@@ -281,7 +307,11 @@ export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
             type="button"
             className="w-full bg-yellow-600 hover:bg-yellow-500 text-white"
             disabled={promotionMutation.isPending}
-            onClick={() => promotionMutation.mutate({ date: showPromotionForm, note: promotionNote.trim() || undefined })}
+            onClick={() => {
+              const beltTag = `[BELT:${promotionBelt}:${promotionStripes}]`
+              const fullNote = promotionNote.trim() ? `${beltTag} ${promotionNote.trim()}` : beltTag
+              promotionMutation.mutate({ date: showPromotionForm, note: fullNote })
+            }}
           >
             {promotionMutation.isPending ? "저장 중..." : "승급식 저장"}
           </Button>

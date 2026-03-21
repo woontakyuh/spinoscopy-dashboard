@@ -12,6 +12,12 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Fundamental Master",
     ruleSet: "gi",
     category: "gi-legend",
+    gameplan: [
+      { position: "Closed", action: "클로즈드 가드에서 크로스 칼라 그립 확보", next: ["Mount", "BackTake"] },
+      { position: "Mount", action: "마운트 → S-마운트 전환, 크로스 초크 위협", next: ["S-Mount"] },
+      { position: "S-Mount", action: "크로스 칼라 초크 or 암바 피니쉬", next: [] },
+      { position: "BackTake", action: "백 컨트롤 → RNC 피니쉬", next: [] },
+    ],
   },
   {
     name: "Leandro Lo",
@@ -23,6 +29,13 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Dynamic Passer",
     ruleSet: "gi",
     category: "gi-legend",
+    gameplan: [
+      { position: "Open", action: "스탠딩에서 그립 파이팅 → 토헤안도 진입", next: ["Torreando", "KCP"] },
+      { position: "Torreando", action: "토헤안도 패스로 사이드 확보", next: ["SideCtrl"] },
+      { position: "KCP", action: "니컷 패스 → 사이드 or 마운트", next: ["SideCtrl", "Mount"] },
+      { position: "SideCtrl", action: "백테이크 or 마운트 전환", next: ["BackTake", "Mount"] },
+      { position: "BackTake", action: "RNC 피니쉬", next: [] },
+    ],
   },
   {
     name: "Marcelo Garcia",
@@ -34,6 +47,11 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Dynamic Guard / Back Taker",
     ruleSet: "gi",
     category: "gi-legend",
+    gameplan: [
+      { position: "Butterfly", action: "버터플라이에서 암드래그 or X가드 진입", next: ["BackTake", "XG"] },
+      { position: "XG", action: "X가드 스윕 → 탑 포지션", next: ["BackTake", "SideCtrl"] },
+      { position: "BackTake", action: "시트벨트 그립 → RNC 피니쉬", next: [] },
+    ],
   },
   {
     name: "Rafa Mendes",
@@ -45,6 +63,11 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Berimbolo Innovator",
     ruleSet: "gi",
     category: "gi-legend",
+    gameplan: [
+      { position: "DLR", action: "드라히바에서 베림볼로 진입", next: ["Bolo"] },
+      { position: "Bolo", action: "베림볼로 인버트 → 백 확보", next: ["BackTake"] },
+      { position: "BackTake", action: "칼라 그립 → RNC or 초크 피니쉬", next: [] },
+    ],
   },
   {
     name: "Lucas Leite",
@@ -56,6 +79,12 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Coyote Half Guard",
     ruleSet: "gi",
     category: "gi-legend",
+    gameplan: [
+      { position: "HG", action: "하프가드에서 언더훅 확보 → 코요테 셋업", next: ["Sit-up"] },
+      { position: "Sit-up", action: "싯업 가드 → 싱글레그 스윕", next: ["SingleSweep"] },
+      { position: "SingleSweep", action: "스윕 성공 → 백테이크", next: ["BackTake"] },
+      { position: "BackTake", action: "RNC 피니쉬", next: [] },
+    ],
   },
   {
     name: "Lucas Lepri",
@@ -67,6 +96,12 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Precision Passer",
     ruleSet: "gi",
     category: "gi-legend",
+    gameplan: [
+      { position: "KShield", action: "니쉴드에서 프레임 확보 → 가드 리커버리", next: ["KCP"] },
+      { position: "KCP", action: "정밀한 니컷 패스 → 사이드 컨트롤", next: ["SideCtrl"] },
+      { position: "SideCtrl", action: "백테이크 전환", next: ["BackTake"] },
+      { position: "BackTake", action: "RNC 피니쉬", next: [] },
+    ],
   },
   {
     name: "Bernardo Faria",
@@ -78,6 +113,12 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Deep Half / Pressure Pass",
     ruleSet: "gi",
     category: "gi-legend",
+    gameplan: [
+      { position: "DHG", action: "딥하프 진입 → 싱글레그 스윕", next: ["SingleSweep"] },
+      { position: "SingleSweep", action: "스윕 → 탑 포지션 확보", next: ["Smash", "Stack"] },
+      { position: "Smash", action: "스매시 패스 → 사이드 프레셔", next: ["SideCtrl"] },
+      { position: "Stack", action: "스택 패스 → 사이드 컨트롤", next: ["SideCtrl"] },
+    ],
   },
   {
     name: "Romulo Barral",
@@ -89,6 +130,12 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Spider Guard Master",
     ruleSet: "gi",
     category: "gi-legend",
+    gameplan: [
+      { position: "Spider", action: "스파이더 가드에서 라쏘 전환 or 스윕", next: ["Lasso", "Mount"] },
+      { position: "Lasso", action: "라쏘 → 트라이앵글 or 오모플라타 셋업", next: ["Triangle", "Omo"] },
+      { position: "Triangle", action: "트라이앵글 초크 피니쉬", next: [] },
+      { position: "Omo", action: "오모플라타 → 스윕 or 서브미션", next: [] },
+    ],
   },
 
   // ===== Gi Active =====
@@ -102,6 +149,12 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Explosive All-Rounder",
     ruleSet: "both",
     category: "gi-active",
+    gameplan: [
+      { position: "DLR", action: "드라히바에서 베림볼로 or 스윕", next: ["Bolo", "BackTake"] },
+      { position: "Bolo", action: "베림볼로 → 백테이크", next: ["BackTake"] },
+      { position: "Takedown", action: "폭발적 테이크다운 → 탑 컨트롤", next: ["KCP", "Mount"] },
+      { position: "BackTake", action: "RNC or 암바 피니쉬", next: [] },
+    ],
   },
   {
     name: "Tainan Dalpra",
@@ -113,6 +166,13 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Systematic Passer",
     ruleSet: "gi",
     category: "gi-active",
+    gameplan: [
+      { position: "DLR", action: "드라히바에서 체계적 패스 셋업", next: ["KCP", "LongStep"] },
+      { position: "KCP", action: "니컷 패스 → 마운트", next: ["Mount"] },
+      { position: "LongStep", action: "롱스텝 패스 → 사이드 → 백테이크", next: ["BackTake"] },
+      { position: "Mount", action: "마운트에서 RNC 셋업 → 백테이크", next: ["BackTake"] },
+      { position: "BackTake", action: "RNC 피니쉬", next: [] },
+    ],
   },
   {
     name: "Diego Pato",
@@ -124,6 +184,12 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Dynamic Scrambler",
     ruleSet: "both",
     category: "gi-active",
+    gameplan: [
+      { position: "Butterfly", action: "버터플라이 → SLX 전환", next: ["SLX"] },
+      { position: "SLX", action: "SLX → 레그 엔탱글먼트 or 스윕", next: ["Ashi", "BackTake"] },
+      { position: "Ashi", action: "아시가라미 → 힐훅 or 토홀드", next: [] },
+      { position: "BackTake", action: "기요틴 or RNC 피니쉬", next: [] },
+    ],
   },
   {
     name: "Mayssa Bastos",
@@ -135,6 +201,12 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Guard Specialist",
     ruleSet: "gi",
     category: "gi-active",
+    gameplan: [
+      { position: "DLR", action: "드라히바에서 베림볼로 or 스윕", next: ["Bolo", "BackTake"] },
+      { position: "Closed", action: "클로즈드에서 암바 or 트라이앵글 셋업", next: ["ArmB", "Triangle"] },
+      { position: "Bolo", action: "베림볼로 → 백테이크", next: ["BackTake"] },
+      { position: "BackTake", action: "초크 피니쉬", next: [] },
+    ],
   },
   {
     name: "Adam Wardzinski",
@@ -146,6 +218,12 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Butterfly Guard Master",
     ruleSet: "gi",
     category: "gi-active",
+    gameplan: [
+      { position: "Butterfly", action: "버터플라이에서 힙 스윕 or X가드 진입", next: ["HipSweep", "XG"] },
+      { position: "XG", action: "X가드 → 싱글레그 스윕", next: ["SingleSweep"] },
+      { position: "HipSweep", action: "스윕 → 탑 → 스매시 패스", next: ["Smash", "KCP"] },
+      { position: "Smash", action: "스매시 패스 → 사이드 → 기무라", next: [] },
+    ],
   },
 
   // ===== No-Gi =====
@@ -159,6 +237,12 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Dominant All-Rounder",
     ruleSet: "nogi",
     category: "nogi",
+    gameplan: [
+      { position: "Butterfly", action: "숄더 크런치 → 스윕 or 패스 셋업", next: ["KCP", "Torreando"] },
+      { position: "KCP", action: "니컷 패스 → 마운트", next: ["Mount"] },
+      { position: "Mount", action: "마운트에서 암바 or 백테이크", next: ["BackTake", "ArmB"] },
+      { position: "BackTake", action: "바디 트라이앵글 → RNC 피니쉬", next: [] },
+    ],
   },
   {
     name: "Kade Ruotolo",
@@ -170,6 +254,12 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Relentless Attacker",
     ruleSet: "nogi",
     category: "nogi",
+    gameplan: [
+      { position: "Takedown", action: "싱글레그 테이크다운 → 탑 프레셔", next: ["SideCtrl", "BackTake"] },
+      { position: "SideCtrl", action: "사이드에서 다스 초크 셋업", next: ["Darce"] },
+      { position: "Darce", action: "다스 초크 피니쉬", next: [] },
+      { position: "BackTake", action: "RNC 피니쉬", next: [] },
+    ],
   },
   {
     name: "Mikey Musumeci",
@@ -181,6 +271,12 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Guard Wizard / Leg Locker",
     ruleSet: "nogi",
     category: "nogi",
+    gameplan: [
+      { position: "DLR", action: "드라히바에서 SLX 진입", next: ["SLX"] },
+      { position: "SLX", action: "SLX → 레그 엔탱글먼트", next: ["Ashi", "Saddle"] },
+      { position: "Ashi", action: "아시가라미 → 새들 전환", next: ["Saddle"] },
+      { position: "Saddle", action: "인사이드 힐훅 피니쉬", next: [] },
+    ],
   },
   {
     name: "Cole Abate",
@@ -192,6 +288,12 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Complete Grappler",
     ruleSet: "nogi",
     category: "nogi",
+    gameplan: [
+      { position: "DLR", action: "드라히바에서 백테이크 셋업", next: ["BackTake", "SLX"] },
+      { position: "SLX", action: "SLX → 아시 진입 → 힐훅", next: ["Ashi"] },
+      { position: "BackTake", action: "백 컨트롤 → RNC 피니쉬", next: [] },
+      { position: "Ashi", action: "힐훅 피니쉬", next: [] },
+    ],
   },
   {
     name: "Kaynan Duarte",
@@ -203,6 +305,12 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Pressure Monster",
     ruleSet: "nogi",
     category: "nogi",
+    gameplan: [
+      { position: "Takedown", action: "더블레그 or 바디락 테이크다운", next: ["Smash", "Stack"] },
+      { position: "Smash", action: "스매시 패스 → 마운트", next: ["Mount"] },
+      { position: "Mount", action: "마운트 프레셔 → 암바 or RNC", next: ["ArmB", "BackTake"] },
+      { position: "BackTake", action: "RNC 피니쉬", next: [] },
+    ],
   },
   {
     name: "Diogo Reis",
@@ -214,6 +322,12 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Dynamic Scrambler",
     ruleSet: "nogi",
     category: "nogi",
+    gameplan: [
+      { position: "Butterfly", action: "버터플라이에서 SLX 전환", next: ["SLX"] },
+      { position: "SLX", action: "SLX → 아시 or 스윕", next: ["Ashi", "BackTake"] },
+      { position: "Ashi", action: "힐훅 or 토홀드 피니쉬", next: [] },
+      { position: "BackTake", action: "기요틴 셋업 → 피니쉬", next: [] },
+    ],
   },
   {
     name: "Craig Jones",
@@ -225,6 +339,12 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Leg Lock Specialist",
     ruleSet: "nogi",
     category: "nogi",
+    gameplan: [
+      { position: "KShield", action: "니쉴드에서 SLX 진입", next: ["SLX"] },
+      { position: "SLX", action: "SLX → 아시가라미 → 새들", next: ["Ashi", "Saddle"] },
+      { position: "Ashi", action: "아시 → 힐훅 or 니바", next: [] },
+      { position: "Saddle", action: "새들에서 인사이드 힐훅 피니쉬", next: [] },
+    ],
   },
 
   // ===== Special =====
@@ -242,5 +362,12 @@ export const ARCHETYPES: Archetype[] = [
     editableStats: true,
     styleReferences: ["Lucas Leite", "Lucas Lepri"],
     bio: "30\uc138, \ube14\ub799\ubca8\ud2b8(2018~), \ud398\ub354\uae09. 2026 IBJJF European 3\uc704. \ucf54\uc694\ud14c\ud558\ud504/\uc2ef\uc5c5 \uc704\uc8fc.",
+    gameplan: [
+      { position: "HG", action: "하프가드 언더훅 → 코요테/싯업 전환", next: ["Sit-up"] },
+      { position: "Sit-up", action: "싱글레그 스윕 or 힙 스윕", next: ["SingleSweep", "HipSweep"] },
+      { position: "SingleSweep", action: "스윕 → 마운트 or 백테이크", next: ["Mount", "BackTake"] },
+      { position: "Mount", action: "마운트에서 RNC 셋업", next: ["BackTake"] },
+      { position: "BackTake", action: "RNC 피니쉬", next: [] },
+    ],
   },
 ]

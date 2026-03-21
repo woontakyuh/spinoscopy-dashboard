@@ -2,6 +2,7 @@
 
 import type { Archetype } from "@/lib/types/sensei"
 import { Badge } from "@/components/ui/badge"
+import { AthleteAvatar } from "./AthleteAvatar"
 import { calculateOvr } from "@/lib/sensei/ovr"
 
 interface PlayerCardProps {
@@ -34,17 +35,13 @@ export function PlayerCard({ archetype, isSelected, onClick }: PlayerCardProps) 
       `}
     >
       <div className="flex items-start gap-3">
-        {/* OVR Badge */}
-        <div className="flex flex-col items-center shrink-0">
-          <div className="w-10 h-10 rounded-lg bg-zinc-900 border border-zinc-600 flex items-center justify-center">
-            <span className="text-sm font-black text-white">{ovr}</span>
-          </div>
-          <span className="text-[8px] text-zinc-500 mt-0.5">{role.split(" ")[0]}</span>
-        </div>
+        {/* Avatar */}
+        <AthleteAvatar name={archetype.name} imageUrl={archetype.imageUrl} size={44} />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-sm font-bold text-white">{archetype.flag} {archetype.name}</span>
+            <span className="text-xs font-black text-zinc-400">{ovr}</span>
           </div>
           <p className="text-[10px] text-zinc-500">&ldquo;{archetype.nickname}&rdquo; — {archetype.team}</p>
           <div className="flex flex-wrap gap-1 mt-1.5">
@@ -58,6 +55,7 @@ export function PlayerCard({ archetype, isSelected, onClick }: PlayerCardProps) 
             <Badge variant="outline" className="text-[8px] border-zinc-600 text-zinc-400">
               {archetype.playstyle}
             </Badge>
+            <span className="text-[8px] text-zinc-600">{role}</span>
           </div>
         </div>
       </div>

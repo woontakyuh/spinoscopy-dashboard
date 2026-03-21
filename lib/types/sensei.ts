@@ -41,6 +41,9 @@ export interface BjjStats {
   xpCurrent: number
   xpToNext: number
   belt: string
+  beltStripes: number
+  trainingStartDate: string
+  trainingMonths: number
   attributes: BjjAttributes
   ovr: number
   ovrRole: string
@@ -48,6 +51,12 @@ export interface BjjStats {
   recentFocus: string[]
   streaks: { current: number; best: number }
   giRatio: number
+}
+
+export interface GameplanStep {
+  position: string
+  action: string
+  next: string[]
 }
 
 export interface Archetype {
@@ -60,6 +69,9 @@ export interface Archetype {
   playstyle: string
   ruleSet: "gi" | "nogi" | "both"
   category: "gi-legend" | "gi-active" | "nogi" | "special"
+  gameplan: GameplanStep[]
+  imageUrl?: string
+  videoUrl?: string
   isCustom?: boolean
   editableStats?: boolean
   styleReferences?: string[]

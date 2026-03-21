@@ -8,6 +8,8 @@ import { calculateOvr } from "@/lib/sensei/ovr"
 import { RadarChart } from "./RadarChart"
 import { StatBar } from "./StatBar"
 import { PlayerCard } from "./PlayerCard"
+import { AthleteAvatar } from "./AthleteAvatar"
+import { GameplanFlow } from "./GameplanFlow"
 import type { Archetype, BjjStats } from "@/lib/types/sensei"
 
 type CategoryFilter = "all" | "gi-legend" | "gi-active" | "nogi" | "special"
@@ -97,8 +99,9 @@ export function SenseiHeroes() {
       {/* Selected Player Detail */}
       {selected && (
         <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex items-start gap-4">
+            <AthleteAvatar name={selected.name} imageUrl={selected.imageUrl} size={56} />
+            <div className="flex-1">
               <h3 className="text-lg font-bold text-white">
                 {selected.flag} {selected.name}
               </h3>
@@ -106,7 +109,7 @@ export function SenseiHeroes() {
                 &ldquo;{selected.nickname}&rdquo; — {selected.team}
               </p>
             </div>
-            <div className="text-center">
+            <div className="text-center shrink-0">
               <div className="text-2xl font-black text-white">{calculateOvr(selected.stats).ovr}</div>
               <p className="text-[10px] text-zinc-500">{calculateOvr(selected.stats).role}</p>
             </div>
@@ -175,6 +178,13 @@ export function SenseiHeroes() {
               ))}
             </div>
           </div>
+
+          {/* Gameplan Flow */}
+          {selected.gameplan.length > 0 && (
+            <div className="border-t border-zinc-700 pt-3">
+              <GameplanFlow gameplan={selected.gameplan} playerName={selected.name} />
+            </div>
+          )}
 
           {/* My Position Analysis */}
           {myStats && (
