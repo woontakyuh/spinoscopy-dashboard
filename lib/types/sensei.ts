@@ -35,6 +35,13 @@ export interface BjjAttributes {
   legLocks: number
 }
 
+export interface BjjStatsSet {
+  attributes: BjjAttributes
+  ovr: number
+  ovrRole: string
+  closestArchetype: string | null
+}
+
 export interface BjjStats {
   level: number
   totalSessions: number
@@ -44,9 +51,9 @@ export interface BjjStats {
   beltStripes: number
   trainingStartDate: string
   trainingMonths: number
-  attributes: BjjAttributes
-  ovr: number
-  ovrRole: string
+  gi: BjjStatsSet
+  nogi: BjjStatsSet
+  combined: BjjStatsSet
   playstyle: string
   recentFocus: string[]
   streaks: { current: number; best: number }
@@ -72,8 +79,88 @@ export interface Archetype {
   gameplan: GameplanStep[]
   imageUrl?: string
   videoUrl?: string
+  ovrFloor?: number
   isCustom?: boolean
   editableStats?: boolean
   styleReferences?: string[]
   bio?: string
+}
+
+// User Profile (Phase 2 확장 대비)
+export interface UserProfile {
+  name: string
+  belt: string
+  stripes: number
+  trainingStartDate: string
+  gym: string
+  instructor: string
+  avatarUrl?: string
+  baseStats: { gi: BjjAttributes; nogi: BjjAttributes }
+  nextGoalTitle?: string
+  nextGoalText?: string
+  nextGoalProgress?: number
+  // Phase 2
+  gymId?: string
+  role?: "student" | "instructor" | "admin"
+  userId?: string
+}
+
+// Competition Types
+export interface MatchResult {
+  round: string
+  opponent?: string
+  result: "승" | "패" | "무"
+  method?: string
+  points?: string
+  duration?: string
+}
+
+export interface MyCompetition {
+  id: string
+  name: string
+  date: string
+  registrationDeadline?: string
+  location: string
+  ruleSet: "gi" | "nogi" | "both"
+  organization: string
+  division?: string
+  status: "참가예정" | "등록완료" | "미정" | "불참" | "완료"
+  weightClass?: string
+  result?: string
+  matchResults?: MatchResult[]
+  fee?: number
+  notes?: string
+  url?: string
+}
+
+export interface CoachEntry {
+  name: string
+  division: string
+  result?: string
+}
+
+export interface FollowedEvent {
+  id: string
+  name: string
+  date: string
+  location: string
+  organization: string
+  ruleSet: "gi" | "nogi" | "both"
+  type: "major"
+  coachEntries?: CoachEntry[]
+  notes?: string
+  url?: string
+}
+
+export interface PromotionEvent {
+  date: string
+  belt: string
+  stripe?: number
+  note?: string
+}
+
+// Skill Tree
+export interface SkillConnection {
+  from: string
+  to: string[]
 }

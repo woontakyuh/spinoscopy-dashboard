@@ -12,6 +12,7 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Fundamental Master",
     ruleSet: "gi",
     category: "gi-legend",
+    ovrFloor: 85,
     gameplan: [
       { position: "Closed", action: "클로즈드 가드에서 크로스 칼라 그립 확보", next: ["Mount", "BackTake"] },
       { position: "Mount", action: "마운트 → S-마운트 전환, 크로스 초크 위협", next: ["S-Mount"] },
@@ -29,6 +30,7 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Dynamic Passer",
     ruleSet: "gi",
     category: "gi-legend",
+    ovrFloor: 85,
     gameplan: [
       { position: "Open", action: "스탠딩에서 그립 파이팅 → 토헤안도 진입", next: ["Torreando", "KCP"] },
       { position: "Torreando", action: "토헤안도 패스로 사이드 확보", next: ["SideCtrl"] },
@@ -47,6 +49,7 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Dynamic Guard / Back Taker",
     ruleSet: "gi",
     category: "gi-legend",
+    ovrFloor: 85,
     gameplan: [
       { position: "Butterfly", action: "버터플라이에서 암드래그 or X가드 진입", next: ["BackTake", "XG"] },
       { position: "XG", action: "X가드 스윕 → 탑 포지션", next: ["BackTake", "SideCtrl"] },
@@ -63,6 +66,7 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Berimbolo Innovator",
     ruleSet: "gi",
     category: "gi-legend",
+    ovrFloor: 83,
     gameplan: [
       { position: "DLR", action: "드라히바에서 베림볼로 진입", next: ["Bolo"] },
       { position: "Bolo", action: "베림볼로 인버트 → 백 확보", next: ["BackTake"] },
@@ -79,6 +83,7 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Coyote Half Guard",
     ruleSet: "gi",
     category: "gi-legend",
+    ovrFloor: 80,
     gameplan: [
       { position: "HG", action: "하프가드에서 언더훅 확보 → 코요테 셋업", next: ["Sit-up"] },
       { position: "Sit-up", action: "싯업 가드 → 싱글레그 스윕", next: ["SingleSweep"] },
@@ -96,6 +101,7 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Precision Passer",
     ruleSet: "gi",
     category: "gi-legend",
+    ovrFloor: 85,
     gameplan: [
       { position: "KShield", action: "니쉴드에서 프레임 확보 → 가드 리커버리", next: ["KCP"] },
       { position: "KCP", action: "정밀한 니컷 패스 → 사이드 컨트롤", next: ["SideCtrl"] },
@@ -113,6 +119,7 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Deep Half / Pressure Pass",
     ruleSet: "gi",
     category: "gi-legend",
+    ovrFloor: 85,
     gameplan: [
       { position: "DHG", action: "딥하프 진입 → 싱글레그 스윕", next: ["SingleSweep"] },
       { position: "SingleSweep", action: "스윕 → 탑 포지션 확보", next: ["Smash", "Stack"] },
@@ -130,6 +137,7 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Spider Guard Master",
     ruleSet: "gi",
     category: "gi-legend",
+    ovrFloor: 85,
     gameplan: [
       { position: "Spider", action: "스파이더 가드에서 라쏘 전환 or 스윕", next: ["Lasso", "Mount"] },
       { position: "Lasso", action: "라쏘 → 트라이앵글 or 오모플라타 셋업", next: ["Triangle", "Omo"] },
@@ -149,6 +157,7 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Explosive All-Rounder",
     ruleSet: "both",
     category: "gi-active",
+    ovrFloor: 88,
     gameplan: [
       { position: "DLR", action: "드라히바에서 베림볼로 or 스윕", next: ["Bolo", "BackTake"] },
       { position: "Bolo", action: "베림볼로 → 백테이크", next: ["BackTake"] },
@@ -166,6 +175,7 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Systematic Passer",
     ruleSet: "gi",
     category: "gi-active",
+    ovrFloor: 80,
     gameplan: [
       { position: "DLR", action: "드라히바에서 체계적 패스 셋업", next: ["KCP", "LongStep"] },
       { position: "KCP", action: "니컷 패스 → 마운트", next: ["Mount"] },
@@ -184,6 +194,7 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Dynamic Scrambler",
     ruleSet: "both",
     category: "gi-active",
+    ovrFloor: 83,
     gameplan: [
       { position: "Butterfly", action: "버터플라이 → SLX 전환", next: ["SLX"] },
       { position: "SLX", action: "SLX → 레그 엔탱글먼트 or 스윕", next: ["Ashi", "BackTake"] },
@@ -201,6 +212,7 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Guard Specialist",
     ruleSet: "gi",
     category: "gi-active",
+    ovrFloor: 85,
     gameplan: [
       { position: "DLR", action: "드라히바에서 베림볼로 or 스윕", next: ["Bolo", "BackTake"] },
       { position: "Closed", action: "클로즈드에서 암바 or 트라이앵글 셋업", next: ["ArmB", "Triangle"] },
@@ -218,6 +230,7 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Butterfly Guard Master",
     ruleSet: "gi",
     category: "gi-active",
+    ovrFloor: 80,
     gameplan: [
       { position: "Butterfly", action: "버터플라이에서 힙 스윕 or X가드 진입", next: ["HipSweep", "XG"] },
       { position: "XG", action: "X가드 → 싱글레그 스윕", next: ["SingleSweep"] },
@@ -237,6 +250,7 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Dominant All-Rounder",
     ruleSet: "nogi",
     category: "nogi",
+    ovrFloor: 88,
     gameplan: [
       { position: "Butterfly", action: "숄더 크런치 → 스윕 or 패스 셋업", next: ["KCP", "Torreando"] },
       { position: "KCP", action: "니컷 패스 → 마운트", next: ["Mount"] },
@@ -254,6 +268,7 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Relentless Attacker",
     ruleSet: "nogi",
     category: "nogi",
+    ovrFloor: 80,
     gameplan: [
       { position: "Takedown", action: "싱글레그 테이크다운 → 탑 프레셔", next: ["SideCtrl", "BackTake"] },
       { position: "SideCtrl", action: "사이드에서 다스 초크 셋업", next: ["Darce"] },
@@ -271,6 +286,7 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Guard Wizard / Leg Locker",
     ruleSet: "nogi",
     category: "nogi",
+    ovrFloor: 85,
     gameplan: [
       { position: "DLR", action: "드라히바에서 SLX 진입", next: ["SLX"] },
       { position: "SLX", action: "SLX → 레그 엔탱글먼트", next: ["Ashi", "Saddle"] },
@@ -288,6 +304,7 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Complete Grappler",
     ruleSet: "nogi",
     category: "nogi",
+    ovrFloor: 80,
     gameplan: [
       { position: "DLR", action: "드라히바에서 백테이크 셋업", next: ["BackTake", "SLX"] },
       { position: "SLX", action: "SLX → 아시 진입 → 힐훅", next: ["Ashi"] },
@@ -305,6 +322,7 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Pressure Monster",
     ruleSet: "nogi",
     category: "nogi",
+    ovrFloor: 85,
     gameplan: [
       { position: "Takedown", action: "더블레그 or 바디락 테이크다운", next: ["Smash", "Stack"] },
       { position: "Smash", action: "스매시 패스 → 마운트", next: ["Mount"] },
@@ -322,6 +340,7 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Dynamic Scrambler",
     ruleSet: "nogi",
     category: "nogi",
+    ovrFloor: 80,
     gameplan: [
       { position: "Butterfly", action: "버터플라이에서 SLX 전환", next: ["SLX"] },
       { position: "SLX", action: "SLX → 아시 or 스윕", next: ["Ashi", "BackTake"] },
@@ -339,6 +358,7 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Leg Lock Specialist",
     ruleSet: "nogi",
     category: "nogi",
+    ovrFloor: 75,
     gameplan: [
       { position: "KShield", action: "니쉴드에서 SLX 진입", next: ["SLX"] },
       { position: "SLX", action: "SLX → 아시가라미 → 새들", next: ["Ashi", "Saddle"] },
@@ -358,6 +378,7 @@ export const ARCHETYPES: Archetype[] = [
     playstyle: "Coyote Half Guard Specialist",
     ruleSet: "gi",
     category: "special",
+    ovrFloor: 70,
     isCustom: true,
     editableStats: true,
     styleReferences: ["Lucas Leite", "Lucas Lepri"],

@@ -44,4 +44,7 @@ scripts/
 
 # legacy planning tool
 .sisyphus/
+
+# superpowers brainstorming
+.superpowers/
 credentials.json

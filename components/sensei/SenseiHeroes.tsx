@@ -138,7 +138,7 @@ export function SenseiHeroes() {
             </h4>
             <RadarChart
               attributes={selected.stats}
-              compareAttributes={myStats?.attributes ?? null}
+              compareAttributes={myStats?.combined.attributes ?? null}
               compareName="Me"
             />
           </div>
@@ -155,9 +155,9 @@ export function SenseiHeroes() {
                     </span>
                     {myStats && (
                       <span className={`text-[10px] font-mono ${
-                        myStats.attributes[key] >= selected.stats[key] ? "text-green-400" : "text-zinc-600"
+                        myStats.combined.attributes[key] >= selected.stats[key] ? "text-green-400" : "text-zinc-600"
                       }`}>
-                        ({myStats.attributes[key] >= selected.stats[key] ? "+" : ""}{myStats.attributes[key] - selected.stats[key]})
+                        ({myStats.combined.attributes[key] >= selected.stats[key] ? "+" : ""}{myStats.combined.attributes[key] - selected.stats[key]})
                       </span>
                     )}
                   </div>
@@ -193,7 +193,7 @@ export function SenseiHeroes() {
               {(() => {
                 const diffs = (Object.keys(ATTR_LABELS) as (keyof typeof ATTR_LABELS)[]).map((key) => ({
                   key,
-                  diff: myStats.attributes[key] - selected.stats[key],
+                  diff: myStats.combined.attributes[key] - selected.stats[key],
                   label: ATTR_LABELS[key],
                 }))
                 const strengths = diffs.filter((d) => d.diff >= 0).sort((a, b) => b.diff - a.diff)

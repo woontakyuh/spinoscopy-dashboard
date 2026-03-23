@@ -123,6 +123,31 @@ for (const [category, tags] of Object.entries(TAG_CATEGORIES)) {
   }
 }
 
+// Gi/NoGi tag classification
+export type TagRuleSet = "common" | "gi" | "nogi"
+
+const GI_ONLY_TAGS = new Set([
+  "Spider", "Lasso", "Lapel", "Worm", "RWorm", "Squid", "Octopus", "CrabRide", "Truck",
+  "BowArrow", "CrossChoke", "Ezekiel", "Baseball",
+])
+
+const NOGI_ONLY_TAGS = new Set([
+  "Rubber", "KGuard", "NSChoke",
+  "IHH", "OHH", "Estima", "ToeHold", "KneeBar", "50/50", "Ashi", "SLAshi", "Saddle", "OutAshi",
+])
+
+export function getTagRuleSet(tag: string): TagRuleSet {
+  if (GI_ONLY_TAGS.has(tag)) return "gi"
+  if (NOGI_ONLY_TAGS.has(tag)) return "nogi"
+  return "common"
+}
+
+export function isTagForRuleSet(tag: string, ruleSet: "gi" | "nogi"): boolean {
+  const tagRs = getTagRuleSet(tag)
+  if (tagRs === "common") return true
+  return tagRs === ruleSet
+}
+
 export function buildTagReferencePrompt(): string {
   const sections: string[] = []
   for (const [category, tags] of Object.entries(TAG_CATEGORIES)) {

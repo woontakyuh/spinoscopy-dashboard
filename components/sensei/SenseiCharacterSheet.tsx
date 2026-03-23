@@ -49,12 +49,12 @@ function findClosestArchetype(stats: BjjStats): Archetype | null {
 
   for (const arch of ARCHETYPES) {
     const d = Math.sqrt(
-      (stats.attributes.guard - arch.stats.guard) ** 2 +
-      (stats.attributes.passing - arch.stats.passing) ** 2 +
-      (stats.attributes.control - arch.stats.control) ** 2 +
-      (stats.attributes.finishing - arch.stats.finishing) ** 2 +
-      (stats.attributes.takedowns - arch.stats.takedowns) ** 2 +
-      (stats.attributes.legLocks - arch.stats.legLocks) ** 2
+      (stats.combined.attributes.guard - arch.stats.guard) ** 2 +
+      (stats.combined.attributes.passing - arch.stats.passing) ** 2 +
+      (stats.combined.attributes.control - arch.stats.control) ** 2 +
+      (stats.combined.attributes.finishing - arch.stats.finishing) ** 2 +
+      (stats.combined.attributes.takedowns - arch.stats.takedowns) ** 2 +
+      (stats.combined.attributes.legLocks - arch.stats.legLocks) ** 2
     )
     if (d < bestDistance) {
       bestDistance = d
@@ -113,9 +113,9 @@ export function SenseiCharacterSheet() {
                 background: `${BELT_COLORS[stats.belt] || "#18181b"}15`,
               }}
             >
-              {stats.ovr}
+              {stats.combined.ovr}
             </div>
-            <span className="text-[10px] text-zinc-500 uppercase tracking-wider">{stats.ovrRole}</span>
+            <span className="text-[10px] text-zinc-500 uppercase tracking-wider">{stats.combined.ovrRole}</span>
           </div>
 
           <div className="flex-1 min-w-0">
@@ -188,7 +188,7 @@ export function SenseiCharacterSheet() {
           )}
         </div>
         <RadarChart
-          attributes={stats.attributes}
+          attributes={stats.combined.attributes}
           compareAttributes={compareArchetype?.stats ?? null}
           compareName={compareArchetype?.name}
         />
@@ -208,7 +208,7 @@ export function SenseiCharacterSheet() {
           <StatBar
             key={key}
             label={ATTR_LABELS[key]}
-            value={stats.attributes[key]}
+            value={stats.combined.attributes[key]}
             color={ATTR_COLORS[key]}
           />
         ))}
