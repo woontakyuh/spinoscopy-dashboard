@@ -3,10 +3,12 @@
 import { useState, useEffect, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import {
-  BarChart, Bar, XAxis, YAxis, Cell, LabelList, ResponsiveContainer,
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  ResponsiveContainer,
 } from "recharts"
-import { RadarChart } from "./RadarChart"
-import { XPBar } from "./XPBar"
 import { loadUserProfile } from "@/lib/sensei/userProfile"
 import { ARCHETYPES } from "@/lib/sensei/archetypes"
 import type { BjjStats, BjjAttributes, UserProfile } from "@/lib/types/sensei"
@@ -16,131 +18,69 @@ interface SenseiDashboardProps {
   onAskCoach: (question?: string) => void
 }
 
-// ─── Design Tokens (DESIGN-SYSTEM.md) ────────────────────────
-const C = {
-  belt: { white: "#d4d4d8", blue: "#3b82f6", purple: "#a855f7", brown: "#92400e", black: "#27272a" } as Record<string, string>,
-  cat: { guard: "#a855f7", passing: "#22c55e", control: "#f97316", finishing: "#ef4444", takedowns: "#06b6d4", legLocks: "#eab308" } as Record<string, string>,
-  tx1: "#ffffff",
-  tx2: "rgba(255,255,255,0.5)",
-  tx3: "rgba(255,255,255,0.25)",
-  bgCard: "rgba(255,255,255,0.03)",
-  bgAccent: "rgba(255,255,255,0.05)",
-  border: "rgba(255,255,255,0.06)",
-}
-
-const BELT_DISPLAY: Record<string, string> = { white: "화이트벨트", blue: "블루벨트", purple: "퍼플벨트", brown: "브라운벨트", black: "블랙벨트" }
-const ATTR_CFG: { key: keyof BjjAttributes; label: string; color: string }[] = [
-  { key: "guard", label: "Guard", color: "#a855f7" },
-  { key: "passing", label: "Passing", color: "#22c55e" },
-  { key: "control", label: "Control", color: "#f97316" },
-  { key: "finishing", label: "Finishing", color: "#ef4444" },
-  { key: "takedowns", label: "Takedowns", color: "#06b6d4" },
-  { key: "legLocks", label: "Leg Locks", color: "#eab308" },
+const STAT_BARS: { key: keyof BjjAttributes; name: string; color: string }[] = [
+  { key: "guard", name: "Guard", color: "bg-purple-500" },
+  { key: "passing", name: "Passing", color: "bg-green-500" },
+  { key: "control", name: "Control", color: "bg-orange-600" },
+  { key: "finishing", name: "Finishing", color: "bg-red-500" },
+  { key: "takedowns", name: "Takedowns", color: "bg-cyan-500" },
+  { key: "legLocks", name: "Leg Locks", color: "bg-yellow-500" },
 ]
 
-// ─── Card (flat, no shadow, max rounded-xl=12px) ─────────────
-function Card({ children, accent, className = "", onClick }: {
-  children: React.ReactNode; accent?: boolean; className?: string; onClick?: () => void
-}) {
-  return (
-    <div
-      className={`rounded-xl p-5 ${className}`}
-      style={{ background: accent ? C.bgAccent : C.bgCard, border: `1px solid ${C.border}` }}
-      onClick={onClick}
-      onKeyDown={onClick ? (e) => { if (e.key === "Enter") onClick() } : undefined}
-      role={onClick ? "button" : undefined}
-      tabIndex={onClick ? 0 : undefined}
-    >
-      {children}
-    </div>
-  )
-}
-
-function Lbl({ children }: { children: React.ReactNode }) {
-  return <span className="text-[13px] font-medium tracking-[0.5px]" style={{ color: C.tx2 }}>{children}</span>
-}
-
-// ─── Belt Bar (28px, flat) ───────────────────────────────────
 const BELTS = [
-  { name: "white", color: "#d4d4d8", kr: "화이트" },
-  { name: "blue", color: "#3b82f6", kr: "블루" },
-  { name: "purple", color: "#a855f7", kr: "퍼플" },
-  { name: "brown", color: "#92400e", kr: "브라운" },
-  { name: "black", color: "#27272a", kr: "블랙" },
+  { id: "white", color: "bg-zinc-200" },
+  { id: "blue", color: "bg-blue-600" },
+  { id: "purple", color: "bg-purple-600" },
+  { id: "brown", color: "bg-amber-800" },
+  { id: "black", color: "bg-zinc-900" },
 ]
 
-function BeltBar({ belt, stripes }: { belt: string; stripes: number }) {
-  const idx = BELTS.findIndex((b) => b.name === belt)
-  const pct = ((Math.max(idx, 0) * 5 + Math.min(stripes, 4)) / 24) * 100
-  return (
-    <div>
-      <div className="relative h-7 rounded flex overflow-hidden">
-        {BELTS.map((b, i) => (
-          <div
-            key={b.name}
-            className="flex-1 relative flex items-center justify-evenly"
-            style={{
-              background: b.color,
-              opacity: pct >= (i / 5) * 100 ? 1 : 0.2,
-              borderRight: i < 4 ? "1px solid rgba(0,0,0,0.3)" : undefined,
-            }}
-          >
-            {[1, 2, 3, 4].map((s) => (
-              <div key={s} className="h-[60%] rounded-sm" style={{ width: 3, background: b.name === "white" ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.3)" }} />
-            ))}
-          </div>
-        ))}
-        <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10" style={{ left: `${pct}%` }}>
-          <div className="w-3 h-3 rounded-full bg-white" style={{ border: `2px solid ${C.belt[belt] || "#3b82f6"}` }} />
-        </div>
-      </div>
-      <div className="flex mt-1">
-        {BELTS.map((b) => <span key={b.name} className="flex-1 text-[11px] text-center" style={{ color: C.tx3 }}>{b.kr}</span>)}
-      </div>
-    </div>
-  )
-}
-
-// ─── Avatar SVG ──────────────────────────────────────────────
-function Avatar({ belt }: { belt: string }) {
-  const bc = C.belt[belt] || "#3b82f6"
-  return (
-    <svg viewBox="0 0 120 160" className="w-full h-full" style={{ maxWidth: 120 }}>
-      <circle cx="60" cy="30" r="20" fill="#52525b" />
-      <path d="M32 58 Q32 48 42 46 L60 52 L78 46 Q88 48 88 58 L88 118 L32 118 Z" fill="#d4d4d8" stroke="#a1a1aa" strokeWidth="0.5" />
-      <path d="M50 52 L60 70 L70 52" fill="none" stroke="#a1a1aa" strokeWidth="1" />
-      <rect x="32" y="86" width="56" height="7" rx="1" fill={bc} />
-      <path d="M57 93 Q54 100 48 104 M63 93 Q66 100 72 104" fill="none" stroke={bc} strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M32 118 L36 152 L54 152 L60 122 L66 152 L84 152 L88 118 Z" fill="#3f3f46" />
-    </svg>
-  )
+function getClipPath(index: number, length: number) {
+  if (index === 0)
+    return "polygon(0% 0%, calc(100% - 1.5rem) 0%, 100% 50%, calc(100% - 1.5rem) 100%, 0% 100%)"
+  if (index === length - 1)
+    return "polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%, 1.5rem 50%)"
+  return "polygon(0% 0%, calc(100% - 1.5rem) 0%, 100% 50%, calc(100% - 1.5rem) 100%, 0% 100%, 1.5rem 50%)"
 }
 
 function fmtDur(m: number): string {
-  const y = Math.floor(m / 12); const mo = m % 12
+  const y = Math.floor(m / 12)
+  const mo = m % 12
   if (y === 0) return `${mo}개월`
   if (mo === 0) return `${y}년`
   return `${y}년 ${mo}개월`
 }
 
-// ─── Main ────────────────────────────────────────────────────
 export function SenseiDashboard({ onNavigate, onAskCoach }: SenseiDashboardProps) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [hoveredStripes, setHoveredStripes] = useState(false)
   const [coachQ, setCoachQ] = useState("")
+  const [giMode, setGiMode] = useState<"gi" | "nogi">("gi")
+
   useEffect(() => { setProfile(loadUserProfile()) }, [])
 
   const { data, isLoading, error } = useQuery<{ stats: BjjStats; tagFrequencies: Record<string, number> }>({
     queryKey: ["sensei-stats"],
-    queryFn: async () => { const r = await fetch("/api/notion/sensei/stats"); if (!r.ok) throw new Error("err"); return r.json() },
+    queryFn: async () => {
+      const r = await fetch("/api/notion/sensei/stats")
+      if (!r.ok) throw new Error("err")
+      return r.json()
+    },
   })
 
   const { data: coachData } = useQuery<{ reply: string }>({
     queryKey: ["sensei-coach-oneliner", data?.stats?.level],
     queryFn: async () => {
-      const r = await fetch("/api/ai/sensei-coach", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: "oneliner", stats: data?.stats }) })
-      if (!r.ok) throw new Error("err"); return r.json()
+      const r = await fetch("/api/ai/sensei-coach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "oneliner", stats: data?.stats }),
+      })
+      if (!r.ok) throw new Error("err")
+      return r.json()
     },
-    enabled: !!data?.stats, staleTime: 1000 * 60 * 30,
+    enabled: !!data?.stats,
+    staleTime: 1000 * 60 * 30,
   })
 
   const arch = useMemo(() => {
@@ -148,140 +88,305 @@ export function SenseiDashboard({ onNavigate, onAskCoach }: SenseiDashboardProps
     return ARCHETYPES.find((a) => a.name === data.stats.combined.closestArchetype) ?? null
   }, [data])
 
-  const barData = useMemo(() => {
-    if (!data?.stats) return []
-    const a = data.stats.combined.attributes
-    return ATTR_CFG.map(({ key, label, color }) => ({ name: label, value: a[key], color }))
-  }, [data])
-
-  if (isLoading || !profile) return <div className="flex justify-center py-20"><span className="text-[13px]" style={{ color: C.tx2 }}>스탯 불러오는 중...</span></div>
-  if (error || !data) return <div className="text-center py-20"><p className="text-[13px]" style={{ color: "#ef4444" }}>스탯을 불러올 수 없습니다</p></div>
+  if (isLoading || !profile) {
+    return (
+      <div className="flex justify-center py-20">
+        <span className="text-sm text-zinc-500 animate-pulse">스탯 불러오는 중...</span>
+      </div>
+    )
+  }
+  if (error || !data) {
+    return (
+      <div className="text-center py-20">
+        <p className="text-sm text-red-400">스탯을 불러올 수 없습니다</p>
+      </div>
+    )
+  }
 
   const { stats, tagFrequencies } = data
+  const activeStats = stats[giMode]
+  const attrs = activeStats.attributes
+
+  const radarData = [
+    { subject: "Guard", value: attrs.guard, fullMark: 100 },
+    { subject: "Passing", value: attrs.passing, fullMark: 100 },
+    { subject: "Control", value: attrs.control, fullMark: 100 },
+    { subject: "Finishing", value: attrs.finishing, fullMark: 100 },
+    { subject: "Takedowns", value: attrs.takedowns, fullMark: 100 },
+    { subject: "Leg Locks", value: attrs.legLocks, fullMark: 100 },
+  ]
+
+  const trainingTimeStr = fmtDur(stats.trainingMonths)
 
   return (
-    <div className="max-w-[1080px] mx-auto space-y-4">
-      {/* ═══ Profile 3-col ═══ */}
-      <Card>
-        <div className="grid grid-cols-[80px_1fr] md:grid-cols-[140px_1fr_280px] gap-5">
-          <div className="flex items-center justify-center">
-            <div className="w-[120px] h-[140px] rounded-xl overflow-hidden" style={{ background: C.bgAccent }}>
-              <Avatar belt={stats.belt} />
-            </div>
-          </div>
-          <div className="flex flex-col justify-center gap-1.5">
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <span className="text-[24px] font-semibold tracking-[-0.3px] text-white">{profile.name}</span>
-              <span className="text-[13px] font-medium" style={{ color: "#3b82f6" }}>Lv.{stats.level}</span>
-              <span className="text-[13px] font-medium" style={{ color: C.tx2 }}>{stats.playstyle}</span>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[13px] font-medium" style={{ color: C.belt[stats.belt] || "#3b82f6" }}>
-                현재: {BELT_DISPLAY[stats.belt] || stats.belt} {stats.beltStripes}그랄
-              </span>
-              <span className="text-[13px] font-medium" style={{ color: C.tx2 }}>OVR {stats.combined.ovr}</span>
-            </div>
-            <XPBar current={stats.xpCurrent} total={stats.xpToNext} level={stats.level} />
-          </div>
-          <div className="col-span-full md:col-span-1 rounded-xl p-4" style={{ background: C.bgAccent, border: `1px solid ${C.border}` }}>
-            <Lbl>최근 수련 기록</Lbl>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 mt-2 text-[12px]">
-              {([["수련 기간", fmtDur(stats.trainingMonths)], ["기록된 수련", `${stats.totalSessions}회`], ["연속", `${stats.streaks.current}주`], ["최장", `${stats.streaks.best}주`], ["Gi 비율", `${Math.round(stats.giRatio * 100)}%`]] as [string, string][]).map(([k, v]) => (
-                <div key={k} className="contents">
-                  <dt style={{ color: C.tx2 }}>{k}</dt>
-                  <dd className="text-right font-medium text-white">{v}</dd>
+    <div className="min-h-0 text-zinc-100 font-sans">
+      <div className="max-w-4xl mx-auto space-y-6">
+
+        {/* ═══ 상단 프로필 & 요약 카드 ═══ */}
+        <div className="bg-[#121212] border border-zinc-800 rounded-2xl p-6">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+
+            {/* 좌측 레벨 및 기본 정보 */}
+            <div className="flex items-center gap-6">
+              <div className="w-16 h-16 rounded-xl bg-zinc-800 flex items-center justify-center border border-zinc-700">
+                <span className="text-2xl font-semibold text-white">{stats.level}</span>
+              </div>
+              <div>
+                <div className="flex items-center gap-3 mb-1">
+                  <h1 className="text-xl font-semibold">Lv.{stats.level}</h1>
+                  <span className="px-2 py-0.5 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-xs font-medium uppercase tracking-wider">
+                    {stats.belt} {"I".repeat(stats.beltStripes)}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full border border-zinc-700 bg-zinc-800 text-zinc-400 text-xs">
+                    {activeStats.ovrRole}
+                  </span>
+                  {/* Gi/NoGi 토글 */}
+                  <div className="flex gap-1 ml-2">
+                    <button
+                      onClick={() => setGiMode("gi")}
+                      className={`px-2 py-0.5 rounded text-xs transition-colors ${
+                        giMode === "gi" ? "bg-blue-500/20 text-blue-400 border border-blue-500/30" : "text-zinc-500 border border-transparent"
+                      }`}
+                    >
+                      Gi
+                    </button>
+                    <button
+                      onClick={() => setGiMode("nogi")}
+                      className={`px-2 py-0.5 rounded text-xs transition-colors ${
+                        giMode === "nogi" ? "bg-red-500/20 text-red-400 border border-red-500/30" : "text-zinc-500 border border-transparent"
+                      }`}
+                    >
+                      NoGi
+                    </button>
+                  </div>
                 </div>
-              ))}
-            </dl>
-          </div>
-        </div>
-      </Card>
 
-      {/* ═══ Belt ═══ */}
-      <Card><BeltBar belt={stats.belt} stripes={stats.beltStripes} /></Card>
-
-      {/* ═══ Radar + BarChart ═══ */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card onClick={() => onNavigate("stats")}>
-          <Lbl>능력치 레이더</Lbl>
-          <div className="mt-2"><RadarChart attributes={stats.combined.attributes} compareAttributes={arch?.stats ?? null} compareName={arch?.name} maxDomain={40} /></div>
-        </Card>
-        <Card>
-          <Lbl>능력치 상세</Lbl>
-          <div className="mt-2">
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={barData} margin={{ top: 20, right: 0, left: 0, bottom: 0 }}>
-                <XAxis dataKey="name" tick={{ fill: C.tx2, fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis hide domain={[0, 40]} />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={40}>
-                  <LabelList dataKey="value" position="top" style={{ fill: C.tx1, fontSize: 14, fontWeight: 600 }} />
-                  {barData.map((e, i) => <Cell key={String(i)} fill={e.color} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          {arch && (
-            <div className="mt-2 text-center">
-              <span className="text-[11px]" style={{ color: C.tx3 }}>가장 유사한 아키타입: </span>
-              <span className="text-[12px] font-medium" style={{ color: C.tx2 }}>{arch.flag} {arch.name} — {arch.playstyle}</span>
+                {/* 경험치 바 */}
+                <div className="w-full max-w-xs mt-3">
+                  <div className="flex justify-between text-xs text-zinc-500 mb-1.5">
+                    <span>Lv.{stats.level} &rarr; Lv.{stats.level + 1}</span>
+                    <span>{stats.xpCurrent} / {stats.xpToNext} XP</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-orange-600 rounded-full"
+                      style={{ width: `${(stats.xpCurrent / stats.xpToNext) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
-        </Card>
-      </div>
 
-      {/* ═══ Focus + Goal ═══ */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <Lbl>최근 포커스</Lbl>
-          <div className="flex flex-wrap gap-2 mt-3">
-            {stats.recentFocus.length > 0 ? stats.recentFocus.map((tag) => {
-              const color = C.cat[Object.keys(C.cat).find((k) => tag.toLowerCase().includes(k)) || ""] || "#a855f7"
+            {/* 우측 수련 기록 요약 */}
+            <div className="grid grid-cols-4 gap-6 text-center md:text-left mt-4 md:mt-0">
+              <div>
+                <p className="text-lg font-semibold text-zinc-100">{trainingTimeStr}</p>
+                <p className="text-xs text-zinc-500">수련 기간</p>
+              </div>
+              <div>
+                <p className="text-lg font-semibold text-zinc-100">{stats.totalSessions}</p>
+                <p className="text-xs text-zinc-500">기록된 수련</p>
+              </div>
+              <div>
+                <p className="text-lg font-semibold text-orange-500">{stats.streaks.current}주</p>
+                <p className="text-xs text-zinc-500">연속 ({stats.streaks.best}주 최장)</p>
+              </div>
+              <div>
+                <p className="text-lg font-semibold text-zinc-100">{Math.round(stats.giRatio * 100)}%</p>
+                <p className="text-xs text-zinc-500">Gi 비율</p>
+              </div>
+            </div>
+          </div>
+
+          {/* ═══ 벨트 쉐브론 타임라인 ═══ */}
+          <div className="flex items-center mt-10 h-14 relative w-full gap-0.5">
+            {BELTS.map((belt, idx) => {
+              const isActive = stats.belt.toLowerCase().includes(belt.id)
+              const isPast = BELTS.findIndex((b) => b.id === stats.belt) >= idx
+
               return (
-                <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[12px] font-medium" style={{ background: `${color}1F`, color: `${color}cc` }}>
-                  {tag}
-                  {tagFrequencies[tag] && <span style={{ opacity: 0.6, fontSize: 11 }}>{tagFrequencies[tag]}</span>}
-                </span>
+                <div
+                  key={belt.id}
+                  className={`relative h-full flex-1 ${belt.color} ${
+                    !isPast ? "opacity-40 grayscale" : ""
+                  }`}
+                  style={{ clipPath: getClipPath(idx, BELTS.length) }}
+                >
+                  {belt.id === stats.belt && isActive && (
+                    <div className="absolute right-8 top-0 h-full w-14 bg-zinc-950 flex justify-evenly items-center py-2 px-1">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div
+                          key={String(i)}
+                          className={`w-1.5 h-full transition-colors duration-200 ${
+                            i < stats.beltStripes ? "bg-white" : "bg-zinc-800"
+                          }`}
+                          onMouseEnter={() => setHoveredStripes(true)}
+                          onMouseLeave={() => setHoveredStripes(false)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
               )
-            }) : <span className="text-[12px]" style={{ color: C.tx3 }}>수련 기록이 쌓이면 태그가 표시됩니다</span>}
-          </div>
-        </Card>
-        <Card accent>
-          <div className="flex items-center justify-between">
-            <Lbl>{profile.nextGoalTitle || "목표"}</Lbl>
-            {profile.nextGoalProgress != null && <span className="text-[13px] font-semibold tabular-nums text-white">{profile.nextGoalProgress}%</span>}
-          </div>
-          {profile.nextGoalText && <p className="text-[13px] mt-1" style={{ color: C.tx2 }}>{profile.nextGoalText}</p>}
-          <div className="h-2 rounded mt-3 overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
-            <div className="h-full rounded" style={{ width: `${profile.nextGoalProgress ?? 0}%`, background: "#3b82f6" }} />
-          </div>
-        </Card>
-      </div>
+            })}
 
-      {/* ═══ Coach ═══ */}
-      <Card>
-        <div className="flex items-center gap-3">
-          <span className="text-[16px]">🤖</span>
-          <p className="flex-1 text-[13px] leading-relaxed" style={{ color: coachData?.reply ? C.tx2 : C.tx3 }}>
-            {coachData?.reply || "코치 추천 로딩 중..."}
-          </p>
-          <input
-            type="text" value={coachQ} onChange={(e) => setCoachQ(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && coachQ.trim()) { onAskCoach(coachQ.trim()); setCoachQ("") } }}
-            placeholder="코치에게 질문..."
-            className="w-[220px] px-3 py-2 rounded-lg text-[13px] text-white/90 placeholder:text-white/25 focus:outline-none"
-            style={{ background: C.bgCard, border: `1px solid rgba(255,255,255,0.08)` }}
-          />
+            {hoveredStripes && (
+              <div className="absolute top-[-50px] left-[35%] transform -translate-x-1/2 bg-zinc-800 text-xs px-3 py-2 rounded-lg border border-zinc-700 z-10 pointer-events-none">
+                <p className="text-zinc-200">현재 등급</p>
+                <p className="font-medium text-white">{stats.belt.toUpperCase()} {stats.beltStripes}그랄</p>
+                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-zinc-800 rotate-45 border-r border-b border-zinc-700" />
+              </div>
+            )}
+          </div>
         </div>
-      </Card>
 
-      {/* ═══ Nav ═══ */}
-      <div className="flex gap-2 flex-wrap pt-4" style={{ borderTop: `1px solid ${C.border}` }}>
-        {[{ t: "journal", l: "수련 기록", i: "📝" }, { t: "stats", l: "상세 스탯", i: "📊" }, { t: "heroes", l: "BJJ Heroes", i: "🏆" }, { t: "competition", l: "대회", i: "📅" }].map(({ t, l, i }) => (
-          <button key={t} type="button" onClick={() => onNavigate(t)} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] transition-all hover:text-white/70"
-            style={{ background: C.bgCard, border: `1px solid rgba(255,255,255,0.08)`, color: C.tx2 }}>
-            <span>{i}</span><span>{l}</span>
-          </button>
-        ))}
+        {/* ═══ 하단 2단 그리드 ═══ */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          {/* 좌측: 능력치 레이더 차트 */}
+          <div
+            className="bg-[#121212] border border-zinc-800 rounded-2xl p-6 flex flex-col items-center cursor-pointer hover:border-zinc-700 transition-colors"
+            onClick={() => onNavigate("stats")}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === "Enter") onNavigate("stats") }}
+          >
+            <h3 className="text-sm font-medium text-zinc-400 w-full mb-4">능력치 레이더</h3>
+            <div className="w-full h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                  <PolarGrid stroke="#27272a" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: "#a1a1aa", fontSize: 11 }} />
+                  <Radar name="Stats" dataKey="value" stroke="#f97316" strokeWidth={2} fill="#f97316" fillOpacity={0.2} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+            {arch && (
+              <p className="text-xs text-zinc-500 mt-2">
+                가장 유사한 아키타입: {arch.flag}{" "}
+                <span className="text-zinc-300 font-medium">{arch.name}</span> — {arch.playstyle}
+              </p>
+            )}
+          </div>
+
+          {/* 우측: 6축 능력치 바 & 최근 포커스 & 목표 */}
+          <div className="bg-[#121212] border border-zinc-800 rounded-2xl p-6 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-sm font-medium text-zinc-400">6축 능력치</h3>
+                <span className="text-xs text-zinc-500">OVR <span className="text-lg font-semibold text-white">{activeStats.ovr}</span></span>
+              </div>
+              <div className="space-y-4">
+                {STAT_BARS.map((stat) => (
+                  <div key={stat.name} className="flex flex-col gap-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-zinc-400">{stat.name}</span>
+                      <span className="font-semibold text-zinc-200">{attrs[stat.key]}</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full ${stat.color} rounded-full transition-all duration-500`}
+                        style={{ width: `${attrs[stat.key]}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 최근 포커스 */}
+            <div className="mt-8 pt-6 border-t border-zinc-800">
+              <h3 className="text-sm font-medium text-zinc-400 mb-3">최근 포커스</h3>
+              <div className="flex flex-wrap gap-2">
+                {stats.recentFocus.length > 0 ? stats.recentFocus.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-2.5 py-1 bg-orange-900/20 text-orange-500 border border-orange-900/50 rounded text-xs font-medium"
+                  >
+                    {tag}
+                    {tagFrequencies[tag] ? <span className="ml-1 text-orange-700">{tagFrequencies[tag]}</span> : null}
+                  </span>
+                )) : (
+                  <span className="text-xs text-zinc-600">수련 기록이 쌓이면 표시됩니다</span>
+                )}
+              </div>
+            </div>
+
+            {/* 목표 프로그레스 */}
+            {profile?.nextGoalTitle && (
+              <div className="mt-4 pt-4 border-t border-zinc-800">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium text-zinc-400">{profile.nextGoalTitle}</h3>
+                  <span className="text-xs font-medium text-zinc-300">{profile.nextGoalProgress ?? 0}%</span>
+                </div>
+                {profile.nextGoalText && (
+                  <p className="text-xs text-zinc-500 mb-2">{profile.nextGoalText}</p>
+                )}
+                <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                    style={{ width: `${profile.nextGoalProgress ?? 0}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ═══ Coach 한 줄 추천 ═══ */}
+        <div className="bg-[#121212] border border-zinc-800 rounded-2xl px-6 py-4">
+          <div className="flex items-center gap-3">
+            <span className="text-base">🤖</span>
+            <p className="flex-1 text-sm text-zinc-400 leading-relaxed">
+              {coachData?.reply || "코치 추천 로딩 중..."}
+            </p>
+            <div className="flex gap-2 shrink-0">
+              <input
+                type="text"
+                value={coachQ}
+                onChange={(e) => setCoachQ(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && coachQ.trim()) {
+                    onAskCoach(coachQ.trim())
+                    setCoachQ("")
+                  }
+                }}
+                placeholder="코치에게 질문..."
+                className="w-[180px] px-3 py-1.5 rounded-lg text-xs text-white bg-zinc-800 border border-zinc-700 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (coachQ.trim()) { onAskCoach(coachQ.trim()); setCoachQ("") }
+                  else onAskCoach()
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs text-zinc-400 bg-zinc-800 border border-zinc-700 hover:text-zinc-200 hover:border-zinc-600 transition-colors"
+              >
+                질문
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══ 하단 네비 ═══ */}
+        <div className="flex gap-2 flex-wrap pt-2 border-t border-zinc-800">
+          {[
+            { t: "journal", l: "수련 기록", i: "📝" },
+            { t: "stats", l: "상세 스탯", i: "📊" },
+            { t: "heroes", l: "BJJ Heroes", i: "🏆" },
+            { t: "competition", l: "대회", i: "📅" },
+          ].map(({ t, l, i }) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => onNavigate(t)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs text-zinc-500 bg-zinc-900 border border-zinc-800 hover:text-zinc-300 hover:border-zinc-700 transition-colors"
+            >
+              <span>{i}</span>
+              <span>{l}</span>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )
