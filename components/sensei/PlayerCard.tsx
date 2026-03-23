@@ -29,8 +29,8 @@ export function PlayerCard({ archetype, isSelected, onClick }: PlayerCardProps) 
       className={`
         w-full text-left rounded-xl p-3 border transition-all
         ${isSelected
-          ? "border-orange-500/60 bg-orange-500/5 ring-1 ring-orange-500/30"
-          : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-600"
+          ? "border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.05)]"
+          : "border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.03)] hover:border-[rgba(255,255,255,0.12)]"
         }
       `}
     >
@@ -40,22 +40,22 @@ export function PlayerCard({ archetype, isSelected, onClick }: PlayerCardProps) 
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-sm font-bold text-white">{archetype.flag} {archetype.name}</span>
-            <span className="text-xs font-black text-zinc-400">{ovr}</span>
+            <span className="text-[13px] font-semibold text-white">{archetype.flag} {archetype.name}</span>
+            <span className="text-[12px] font-semibold text-[rgba(255,255,255,0.5)]">{ovr}</span>
           </div>
-          <p className="text-[10px] text-zinc-500">&ldquo;{archetype.nickname}&rdquo; — {archetype.team}</p>
+          <p className="text-[11px] text-[rgba(255,255,255,0.25)]">&ldquo;{archetype.nickname}&rdquo; — {archetype.team}</p>
           <div className="flex flex-wrap gap-1 mt-1.5">
             <Badge
               variant="outline"
-              className="text-[8px]"
-              style={{ borderColor: `${badge.color}40`, color: badge.color }}
+              className="text-[11px]"
+              style={{ borderColor: `${badge.color}20`, color: badge.color, background: `${badge.color}12` }}
             >
               {badge.label}
             </Badge>
-            <Badge variant="outline" className="text-[8px] border-zinc-600 text-zinc-400">
+            <Badge variant="outline" className="text-[11px] border-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.5)]">
               {archetype.playstyle}
             </Badge>
-            <span className="text-[8px] text-zinc-600">{role}</span>
+            <span className="text-[11px] text-[rgba(255,255,255,0.25)]">{role}</span>
           </div>
         </div>
       </div>

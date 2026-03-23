@@ -39,7 +39,7 @@ export function GameplanFlow({ gameplan, playerName }: GameplanFlowProps) {
 
   return (
     <div>
-      <h4 className="text-xs text-zinc-400 mb-3">
+      <h4 className="text-[12px] text-[rgba(255,255,255,0.5)] mb-3">
         {playerName}의 시그니처 게임플랜
       </h4>
       <div className="space-y-1">
@@ -56,7 +56,7 @@ export function GameplanFlow({ gameplan, playerName }: GameplanFlowProps) {
                   style={{ borderColor: color, background: isLast ? color : "transparent" }}
                 />
                 {!isLast && (
-                  <div className="w-px flex-1 min-h-4" style={{ background: `${color}40` }} />
+                  <div className="w-px flex-1 min-h-4" style={{ background: `${color}20` }} />
                 )}
               </div>
 
@@ -64,19 +64,19 @@ export function GameplanFlow({ gameplan, playerName }: GameplanFlowProps) {
               <div className="flex-1 pb-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span
-                    className="text-xs font-mono font-bold px-1.5 py-0.5 rounded"
-                    style={{ color, background: `${color}15`, border: `1px solid ${color}30` }}
+                    className="text-[12px] font-mono font-semibold px-1.5 py-0.5 rounded-lg"
+                    style={{ color, background: `${color}12`, border: `1px solid ${color}20` }}
                   >
                     {step.position}
                   </span>
                   {step.next.length > 0 && (
                     <div className="flex items-center gap-1">
-                      <span className="text-[10px] text-zinc-600">→</span>
+                      <span className="text-[11px] text-[rgba(255,255,255,0.25)]">→</span>
                       {step.next.map((n) => (
                         <span
                           key={n}
-                          className="text-[9px] font-mono px-1 py-0.5 rounded"
-                          style={{ color: getColor(n), background: `${getColor(n)}10` }}
+                          className="text-[11px] font-mono px-1 py-0.5 rounded-lg"
+                          style={{ color: getColor(n), background: `${getColor(n)}0d` }}
                         >
                           {n}
                         </span>
@@ -84,7 +84,7 @@ export function GameplanFlow({ gameplan, playerName }: GameplanFlowProps) {
                     </div>
                   )}
                 </div>
-                <p className="text-[10px] text-zinc-400 mt-0.5">{step.action}</p>
+                <p className="text-[11px] text-[rgba(255,255,255,0.5)] mt-0.5">{step.action}</p>
               </div>
             </div>
           )

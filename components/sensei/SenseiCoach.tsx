@@ -25,11 +25,11 @@ const SUGGESTED_QUESTIONS = [
 ]
 
 const BELT_COLORS: Record<string, string> = {
-  white: "bg-white text-black",
-  blue: "bg-blue-600 text-white",
-  purple: "bg-purple-600 text-white",
-  brown: "bg-amber-800 text-white",
-  black: "bg-black text-white border border-zinc-600",
+  white: "bg-[rgba(212,212,216,0.12)] text-[#d4d4d8]",
+  blue: "bg-[rgba(59,130,246,0.12)] text-[#3b82f6]",
+  purple: "bg-[rgba(168,85,247,0.12)] text-[#a855f7]",
+  brown: "bg-[rgba(146,64,14,0.12)] text-[#b45309]",
+  black: "bg-[rgba(39,39,42,0.12)] text-white border border-[rgba(255,255,255,0.06)]",
 }
 
 const ATTR_LABELS: Record<string, string> = {
@@ -112,48 +112,48 @@ export function SenseiCoach({ initialQuestion, onQuestionConsumed }: SenseiCoach
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Stats Summary */}
-      <div className="border-b border-zinc-800 shrink-0">
+      <div className="border-b border-[rgba(255,255,255,0.06)] shrink-0">
         <button
           onClick={() => setStatsOpen(!statsOpen)}
-          className="w-full px-4 py-3 flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+          className="w-full px-4 py-3 flex items-center gap-2 text-[13px] text-[rgba(255,255,255,0.5)] hover:text-white transition-colors"
         >
           <span>📊</span>
           <span>내 스탯 요약</span>
-          <span className="ml-auto text-xs">{statsOpen ? "▼" : "▶"}</span>
+          <span className="ml-auto text-[11px]">{statsOpen ? "▼" : "▶"}</span>
         </button>
 
         {statsOpen && stats && (
           <div className="px-4 pb-3 space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <Badge className={`${BELT_COLORS[stats.belt] ?? "bg-zinc-700"} text-xs`}>
+              <Badge className={`${BELT_COLORS[stats.belt] ?? "bg-[rgba(255,255,255,0.05)]"} text-[11px]`}>
                 {stats.belt.toUpperCase()} {stats.beltStripes > 0 && `${"I".repeat(stats.beltStripes)}`}
               </Badge>
-              <span className="text-xs text-zinc-400">
+              <span className="text-[11px] text-[rgba(255,255,255,0.5)]">
                 Lv.{stats.level} · {stats.trainingMonths}개월 · 🔥 {stats.streaks.current}일
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="bg-zinc-900 rounded-lg p-2">
-                <div className="text-zinc-400 mb-1">Gi OVR {stats.gi.ovr}</div>
-                <div className="text-zinc-500 text-[10px]">{stats.gi.ovrRole}</div>
+            <div className="grid grid-cols-2 gap-2 text-[12px]">
+              <div className="bg-[rgba(255,255,255,0.03)] rounded-xl p-2">
+                <div className="text-[rgba(255,255,255,0.5)] mb-1">Gi OVR {stats.gi.ovr}</div>
+                <div className="text-[rgba(255,255,255,0.25)] text-[11px]">{stats.gi.ovrRole}</div>
                 <div className="mt-1 space-y-0.5">
                   {Object.entries(stats.gi.attributes).map(([key, val]) => (
                     <div key={key} className="flex justify-between">
-                      <span className="text-zinc-500">{ATTR_LABELS[key]}</span>
-                      <span className="text-zinc-300">{val}</span>
+                      <span className="text-[rgba(255,255,255,0.25)]">{ATTR_LABELS[key]}</span>
+                      <span className="text-white">{val}</span>
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="bg-zinc-900 rounded-lg p-2">
-                <div className="text-zinc-400 mb-1">NoGi OVR {stats.nogi.ovr}</div>
-                <div className="text-zinc-500 text-[10px]">{stats.nogi.ovrRole}</div>
+              <div className="bg-[rgba(255,255,255,0.03)] rounded-xl p-2">
+                <div className="text-[rgba(255,255,255,0.5)] mb-1">NoGi OVR {stats.nogi.ovr}</div>
+                <div className="text-[rgba(255,255,255,0.25)] text-[11px]">{stats.nogi.ovrRole}</div>
                 <div className="mt-1 space-y-0.5">
                   {Object.entries(stats.nogi.attributes).map(([key, val]) => (
                     <div key={key} className="flex justify-between">
-                      <span className="text-zinc-500">{ATTR_LABELS[key]}</span>
-                      <span className="text-zinc-300">{val}</span>
+                      <span className="text-[rgba(255,255,255,0.25)]">{ATTR_LABELS[key]}</span>
+                      <span className="text-white">{val}</span>
                     </div>
                   ))}
                 </div>
@@ -167,13 +167,13 @@ export function SenseiCoach({ initialQuestion, onQuestionConsumed }: SenseiCoach
       <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0 p-4 space-y-3">
         {messages.length === 0 && !chatMutation.isPending && (
           <div className="flex flex-col items-center justify-center h-full gap-4">
-            <div className="text-zinc-500 text-sm">코치에게 질문해보세요</div>
+            <div className="text-[rgba(255,255,255,0.25)] text-[13px]">코치에게 질문해보세요</div>
             <div className="flex flex-wrap gap-2 justify-center max-w-md">
               {SUGGESTED_QUESTIONS.map((q) => (
                 <button
                   key={q}
                   onClick={() => sendMessage(q)}
-                  className="px-3 py-1.5 text-xs rounded-full border border-zinc-700 text-zinc-400 hover:border-orange-500 hover:text-orange-400 transition-colors"
+                  className="px-3 py-1.5 text-[12px] rounded-xl border border-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.5)] hover:border-[rgba(255,255,255,0.12)] hover:text-white transition-colors"
                 >
                   {q}
                 </button>
@@ -185,10 +185,10 @@ export function SenseiCoach({ initialQuestion, onQuestionConsumed }: SenseiCoach
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
-              className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap ${
+              className={`max-w-[85%] rounded-xl px-4 py-2.5 text-[13px] whitespace-pre-wrap ${
                 msg.role === "user"
-                  ? "bg-orange-600/20 text-orange-100 rounded-br-md"
-                  : "bg-zinc-800 text-zinc-200 rounded-bl-md"
+                  ? "bg-[rgba(59,130,246,0.12)] text-white rounded-br-md"
+                  : "bg-[rgba(255,255,255,0.03)] text-[rgba(255,255,255,0.8)] rounded-bl-md"
               }`}
             >
               {msg.content}
@@ -198,7 +198,7 @@ export function SenseiCoach({ initialQuestion, onQuestionConsumed }: SenseiCoach
 
         {chatMutation.isPending && (
           <div className="flex justify-start">
-            <div className="bg-zinc-800 rounded-2xl rounded-bl-md px-4 py-2.5 text-sm text-zinc-400">
+            <div className="bg-[rgba(255,255,255,0.03)] rounded-xl rounded-bl-md px-4 py-2.5 text-[13px] text-[rgba(255,255,255,0.5)]">
               <span className="inline-flex gap-1">
                 <span className="animate-bounce" style={{ animationDelay: "0ms" }}>·</span>
                 <span className="animate-bounce" style={{ animationDelay: "150ms" }}>·</span>
@@ -210,19 +210,19 @@ export function SenseiCoach({ initialQuestion, onQuestionConsumed }: SenseiCoach
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="shrink-0 border-t border-zinc-800 p-3 flex gap-2">
+      <form onSubmit={handleSubmit} className="shrink-0 border-t border-[rgba(255,255,255,0.06)] p-3 flex gap-2">
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="코치에게 질문..."
           disabled={chatMutation.isPending}
-          className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:opacity-50"
+          className="flex-1 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-xl px-3 py-2 text-[13px] text-white placeholder-[rgba(255,255,255,0.25)] focus:outline-none focus:ring-1 focus:ring-[rgba(255,255,255,0.12)] focus:border-transparent disabled:opacity-50"
         />
         <Button
           type="submit"
           disabled={!input.trim() || chatMutation.isPending}
-          className="bg-orange-600 hover:bg-orange-500 text-white px-4 rounded-lg disabled:opacity-50"
+          className="bg-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.08)] text-white px-4 rounded-xl disabled:opacity-50"
         >
           전송
         </Button>

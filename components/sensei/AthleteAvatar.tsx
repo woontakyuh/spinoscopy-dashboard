@@ -44,7 +44,7 @@ export function AthleteAvatar({ name, imageUrl, size = 40, className = "" }: Ath
         alt={name}
         width={size}
         height={size}
-        className={`rounded-lg object-cover ${className}`}
+        className={`rounded-xl object-cover ${className}`}
         style={{ width: size, height: size }}
         onError={() => setImgError(true)}
       />
@@ -53,12 +53,12 @@ export function AthleteAvatar({ name, imageUrl, size = 40, className = "" }: Ath
 
   return (
     <div
-      className={`rounded-lg flex items-center justify-center font-bold text-white shrink-0 ${className}`}
+      className={`rounded-xl flex items-center justify-center font-semibold text-white shrink-0 ${className}`}
       style={{
         width: size,
         height: size,
-        background: `${color}30`,
-        border: `1px solid ${color}50`,
+        background: `${color}1e`,
+        border: `1px solid ${color}30`,
         fontSize: size * 0.35,
         color,
       }}
