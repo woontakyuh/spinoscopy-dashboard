@@ -128,8 +128,12 @@ export function SenseiDashboard({ onNavigate, onAskCoach }: SenseiDashboardProps
 
             {/* 좌측 레벨 및 기본 정보 */}
             <div className="flex items-center gap-6">
-              <div className="w-16 h-16 rounded-xl bg-zinc-800 flex items-center justify-center border border-zinc-700">
-                <span className="text-2xl font-semibold text-white">{stats.level}</span>
+              <div className="w-20 h-[100px] rounded-xl overflow-hidden bg-zinc-800 border border-zinc-700 shrink-0">
+                <img
+                  src="/images/character_full.png"
+                  alt="Character"
+                  className="w-full h-full object-cover object-top"
+                />
               </div>
               <div>
                 <div className="flex items-center gap-3 mb-1">
@@ -367,6 +371,17 @@ export function SenseiDashboard({ onNavigate, onAskCoach }: SenseiDashboardProps
             </div>
           </div>
         </div>
+
+        {/* ═══ View Character Sheet ═══ */}
+        <button
+          type="button"
+          onClick={() => onNavigate("character")}
+          className="w-full bg-[#121212] border border-zinc-800 rounded-2xl px-6 py-3 flex items-center justify-center gap-2 text-sm text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition-colors"
+        >
+          <span>⚔️</span>
+          <span>View full character sheet</span>
+          <span className="text-zinc-600">→</span>
+        </button>
 
         {/* ═══ 하단 네비 ═══ */}
         <div className="flex gap-2 flex-wrap pt-2 border-t border-zinc-800">

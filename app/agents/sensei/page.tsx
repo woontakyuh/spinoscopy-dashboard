@@ -9,11 +9,13 @@ import { SenseiStats } from "@/components/sensei/SenseiStats"
 import { SenseiHeroes } from "@/components/sensei/SenseiHeroes"
 import { SenseiCompetition } from "@/components/sensei/SenseiCompetition"
 import { SenseiCoach } from "@/components/sensei/SenseiCoach"
+import { SenseiCharacterSheet } from "@/components/sensei/SenseiCharacterSheet"
 
-type SenseiTab = "dashboard" | "journal" | "stats" | "heroes" | "competition" | "coach"
+type SenseiTab = "dashboard" | "character" | "journal" | "stats" | "heroes" | "competition" | "coach"
 
 const TABS: { id: SenseiTab; label: string; icon: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: "\ud83c\udfe0" },
+  { id: "character", label: "Character", icon: "\u2694\ufe0f" },
   { id: "journal", label: "Journal", icon: "\ud83d\udcdd" },
   { id: "stats", label: "Stats", icon: "\ud83d\udcca" },
   { id: "heroes", label: "BJJ Heroes", icon: "\ud83c\udfc6" },
@@ -71,6 +73,8 @@ export default function SenseiPage() {
             onAskCoach={navigateToCoach}
           />
         )}
+
+        {activeTab === "character" && <SenseiCharacterSheet />}
 
         {activeTab === "journal" && (
           <div>
