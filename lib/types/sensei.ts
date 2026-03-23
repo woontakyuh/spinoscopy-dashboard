@@ -159,8 +159,40 @@ export interface PromotionEvent {
   note?: string
 }
 
-// Skill Tree
-export interface SkillConnection {
+// Skill Tree v3 — 교본 기반
+
+export type PositionLayer = "standing" | "guard" | "passing" | "control" | "submission" | "leglock"
+export type PositionPerspective = "top" | "bottom" | "neutral"
+export type TransitionType = "sweep" | "pass" | "transition" | "submission" | "escape" | "takedown" | "guard_pull" | "recovery"
+
+export interface Position {
+  id: string
+  name: string
+  nameKr: string
+  layer: PositionLayer
+  family?: string
+  perspective?: PositionPerspective
+  lessonNumbers?: number[]
+  ruleSet: "common" | "gi" | "nogi"
+  children?: string[]
+  parent?: string
+}
+
+export interface Transition {
   from: string
-  to: string[]
+  to: string
+  action: string
+  actionEn: string
+  condition?: string
+  type: TransitionType
+  lessonNumber?: number
+  videoUrl?: string
+  ruleSet: "common" | "gi" | "nogi"
+}
+
+export interface LessonVideo {
+  title: string
+  titleKr: string
+  url: string
+  category: string
 }
