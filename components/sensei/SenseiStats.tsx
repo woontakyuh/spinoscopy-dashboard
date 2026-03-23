@@ -300,104 +300,364 @@ function TransitionBadge({ type }: { type: string }) {
   )
 }
 
-// ─── View 1: Position Map ────────────────────────────────────
+// ─── View 1: Position Map — SVG Graph ────────────────────────
+
+type LayerFilter = "all" | "guard" | "passing" | "control" | "leglock"
+const LAYER_FILTERS: { id: LayerFilter; label: string }[] = [
+  { id: "all", label: "전체" },
+  { id: "guard", label: "가드" },
+  { id: "passing", label: "패스" },
+  { id: "control", label: "컨트롤" },
+  { id: "leglock", label: "레그락" },
+]
+
+// Manual x,y layout for each position
+const NODE_XY: Record<string, { x: number; y: number }> = {
+  // Standing (row 0)
+  standing: { x: 480, y: 40 },
+  // Guard — Closed (row 1)
+  closed: { x: 100, y: 150 },
+  // Guard — Half (row 2)
+  hg: { x: 250, y: 150 },
+  dhg: { x: 180, y: 250 },
+  kshield: { x: 300, y: 250 },
+  halfbutt: { x: 240, y: 330 },
+  waiter: { x: 120, y: 330 },
+  // Guard — Sitting
+  situp: { x: 420, y: 250 },
+  // Guard — Open (row 2-3)
+  open: { x: 580, y: 150 },
+  dlr: { x: 530, y: 250 },
+  rdlr: { x: 650, y: 250 },
+  bolo: { x: 590, y: 330 },
+  spider: { x: 760, y: 250 },
+  lasso: { x: 830, y: 330 },
+  lapel: { x: 870, y: 250 },
+  worm: { x: 920, y: 330 },
+  squid: { x: 980, y: 330 },
+  rubber: { x: 700, y: 330 },
+  kguard: { x: 470, y: 330 },
+  // Guard — Butterfly/SLX (row 3-4)
+  butterfly: { x: 340, y: 400 },
+  slx: { x: 460, y: 400 },
+  xg: { x: 400, y: 470 },
+  // Passing (row 5)
+  hq: { x: 480, y: 540 },
+  kcp: { x: 320, y: 600 },
+  torreando: { x: 440, y: 600 },
+  overunder: { x: 560, y: 600 },
+  legdrag: { x: 680, y: 600 },
+  halfpass: { x: 200, y: 600 },
+  smash: { x: 560, y: 660 },
+  longstep: { x: 680, y: 660 },
+  // Control Top (row 6)
+  side_top: { x: 200, y: 740 },
+  kob_top: { x: 350, y: 740 },
+  mount_top: { x: 500, y: 740 },
+  ns_top: { x: 650, y: 740 },
+  back_top: { x: 800, y: 740 },
+  turtle_top: { x: 900, y: 740 },
+  // Control Bottom (row 7)
+  side_bottom: { x: 200, y: 830 },
+  kob_bottom: { x: 350, y: 830 },
+  mount_bottom: { x: 500, y: 830 },
+  back_bottom: { x: 800, y: 830 },
+  turtle_bottom: { x: 900, y: 830 },
+  // Leg Locks (row 8)
+  ashi: { x: 300, y: 920 },
+  slashi: { x: 420, y: 920 },
+  saddle: { x: 540, y: 920 },
+  outashi: { x: 660, y: 920 },
+  "5050": { x: 780, y: 920 },
+  // Submissions (row 9)
+  rnc: { x: 100, y: 1010 },
+  triangle: { x: 200, y: 1010 },
+  armb: { x: 300, y: 1010 },
+  kimura: { x: 400, y: 1010 },
+  guillotine: { x: 500, y: 1010 },
+  darce: { x: 600, y: 1010 },
+  crosschoke: { x: 700, y: 1010 },
+  bowarrow: { x: 780, y: 1010 },
+  ezekiel: { x: 860, y: 1010 },
+  americana: { x: 940, y: 1010 },
+  ihh: { x: 300, y: 1000 },
+  ohh: { x: 420, y: 1000 },
+  sfl: { x: 540, y: 1000 },
+  kneebar: { x: 660, y: 1000 },
+  toehold: { x: 780, y: 1000 },
+}
+
+const NW = 80 // node width
+const NH = 34 // node height
+
+function isPositionInFilter(pos: Position, filter: LayerFilter): boolean {
+  if (filter === "all") return true
+  if (filter === "guard") return pos.layer === "guard" || pos.layer === "standing"
+  if (filter === "passing") return pos.layer === "passing" || pos.layer === "guard" || pos.layer === "control"
+  if (filter === "control") return pos.layer === "control" || pos.layer === "submission"
+  if (filter === "leglock") return pos.layer === "leglock" || pos.layer === "submission" || pos.layer === "guard"
+  return true
+}
 
 function PositionMapView({ positionFreq }: { positionFreq: Record<string, number> }) {
-  const standing = POSITIONS.filter((p) => p.layer === "standing")
-  const guards = POSITIONS.filter((p) => p.layer === "guard")
-  const passing = POSITIONS.filter((p) => p.layer === "passing")
-  const controlTop = POSITIONS.filter((p) => p.layer === "control" && p.perspective === "top")
-  const controlBottom = POSITIONS.filter((p) => p.layer === "control" && p.perspective === "bottom")
-  const leglocks = POSITIONS.filter((p) => p.layer === "leglock")
-  const submissions = POSITIONS.filter((p) => p.layer === "submission")
+  const [filter, setFilter] = useState<LayerFilter>("all")
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  const guardFamilies: Record<string, Position[]> = {}
-  for (const g of guards) {
-    const fam = g.family || "other"
-    if (!guardFamilies[fam]) guardFamilies[fam] = []
-    guardFamilies[fam].push(g)
-  }
+  const visiblePositions = useMemo(
+    () => POSITIONS.filter((p) => NODE_XY[p.id] && isPositionInFilter(p, filter)),
+    [filter],
+  )
+  const visibleIds = useMemo(() => new Set(visiblePositions.map((p) => p.id)), [visiblePositions])
 
-  const familyLabels: Record<string, string> = {
-    closed: "클로즈",
-    half: "하프",
-    open: "오픈",
-    sitting: "시팅",
-    butterfly: "버터플라이/SLX",
-  }
+  const visibleTransitions = useMemo(
+    () => TRANSITIONS.filter((t) => visibleIds.has(t.from) && visibleIds.has(t.to) && NODE_XY[t.from] && NODE_XY[t.to]),
+    [visibleIds],
+  )
+
+  // Connected set for highlight
+  const connectedIds = useMemo(() => {
+    if (!selectedId) return null
+    const ids = new Set<string>([selectedId])
+    for (const t of TRANSITIONS) {
+      if (t.from === selectedId) ids.add(t.to)
+      if (t.to === selectedId) ids.add(t.from)
+    }
+    return ids
+  }, [selectedId])
+
+  const connectedEdges = useMemo(() => {
+    if (!selectedId) return null
+    return new Set(
+      TRANSITIONS.filter((t) => t.from === selectedId || t.to === selectedId).map((t) => `${t.from}-${t.to}`)
+    )
+  }, [selectedId])
+
+  const selectedTransitions = useMemo(
+    () => (selectedId ? getTransitionsFrom(selectedId) : []),
+    [selectedId],
+  )
+
+  // SVG bounds
+  const svgW = 1060
+  const svgH = filter === "all" ? 1060 : filter === "guard" ? 520 : filter === "control" ? 400 : 600
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {/* Standing */}
-      <LayerSection label="스탠딩" color={LAYER_COLORS.standing}>
-        {standing.map((p) => (
-          <PositionNode key={p.id} position={p} frequency={positionFreq[p.id] || 0} />
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {/* Layer Filter */}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {LAYER_FILTERS.map((f) => (
+          <button
+            key={f.id}
+            onClick={() => { setFilter(f.id); setSelectedId(null) }}
+            style={{
+              padding: "4px 12px",
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: 500,
+              border: filter === f.id ? "1px solid rgba(255,255,255,0.15)" : `1px solid ${BORDER_DEFAULT}`,
+              background: filter === f.id ? "rgba(255,255,255,0.06)" : CARD.background,
+              color: filter === f.id ? TEXT.primary : TEXT.secondary,
+              cursor: "pointer",
+            }}
+          >
+            {f.label}
+          </button>
         ))}
-      </LayerSection>
+      </div>
 
-      {/* Guard by family */}
-      <LayerSection label="가드" color={LAYER_COLORS.guard}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, width: "100%" }}>
-          {Object.entries(guardFamilies).map(([fam, positions]) => (
-            <div key={fam}>
-              <div style={{ fontSize: 11, color: TEXT.secondary, marginBottom: 6 }}>
-                {familyLabels[fam] || fam}
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {positions.map((p) => (
-                  <PositionNode key={p.id} position={p} frequency={positionFreq[p.id] || 0} />
-                ))}
-              </div>
+      {/* SVG Graph */}
+      <div style={{ overflowX: "auto", borderRadius: 8, border: `1px solid ${BORDER_DEFAULT}` }}>
+        <svg width={svgW} height={svgH} style={{ display: "block", background: "rgba(255,255,255,0.01)" }}>
+          <defs>
+            <marker id="arrow" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto">
+              <path d="M0,0 L6,2 L0,4" fill="rgba(255,255,255,0.15)" />
+            </marker>
+          </defs>
+
+          {/* Edges */}
+          {visibleTransitions.map((t, i) => {
+            const from = NODE_XY[t.from]
+            const to = NODE_XY[t.to]
+            if (!from || !to) return null
+            const edgeKey = `${t.from}-${t.to}`
+            const isHighlighted = connectedEdges?.has(edgeKey)
+            const isDimmed = connectedEdges && !isHighlighted
+            const edgeColor = TRANSITION_TYPE_COLORS[t.type] || "rgba(255,255,255,0.12)"
+
+            return (
+              <line
+                key={`e-${String(i)}`}
+                x1={from.x} y1={from.y}
+                x2={to.x} y2={to.y}
+                stroke={isDimmed ? "rgba(255,255,255,0.03)" : isHighlighted ? edgeColor : "rgba(255,255,255,0.08)"}
+                strokeWidth={isHighlighted ? 2 : 1}
+                strokeOpacity={isDimmed ? 0.3 : isHighlighted ? 0.8 : 0.4}
+                markerEnd={isHighlighted ? undefined : "url(#arrow)"}
+              />
+            )
+          })}
+
+          {/* Nodes */}
+          {visiblePositions.map((pos) => {
+            const xy = NODE_XY[pos.id]
+            if (!xy) return null
+            const layerColor = LAYER_COLORS[pos.layer] || "#a855f7"
+            const hasLesson = (pos.lessonNumbers?.length ?? 0) > 0
+            const freq = positionFreq[pos.id] || 0
+            const isSelected = selectedId === pos.id
+            const isConnected = connectedIds?.has(pos.id)
+            const isDimmed = connectedIds && !isConnected
+            const opacity = isDimmed ? 0.2 : isSelected ? 1 : isConnected ? 0.9 : freq > 0 ? 0.8 : 0.5
+
+            return (
+              <g
+                key={pos.id}
+                onClick={() => setSelectedId(selectedId === pos.id ? null : pos.id)}
+                style={{ cursor: "pointer" }}
+              >
+                <rect
+                  x={xy.x - NW / 2}
+                  y={xy.y - NH / 2}
+                  width={NW}
+                  height={NH}
+                  rx={6}
+                  fill={isSelected ? colorWithAlpha(layerColor, 0.15) : colorWithAlpha(layerColor, 0.05)}
+                  stroke={layerColor}
+                  strokeWidth={isSelected ? 2 : 1}
+                  strokeDasharray={hasLesson ? undefined : "4 2"}
+                  opacity={opacity}
+                />
+                <text
+                  x={xy.x}
+                  y={xy.y + 1}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fill={isDimmed ? TEXT.tertiary : TEXT.primary}
+                  fontSize={11}
+                  fontWeight={500}
+                  opacity={opacity}
+                >
+                  {pos.nameKr}
+                </text>
+                {freq > 0 && !isDimmed && (
+                  <text
+                    x={xy.x + NW / 2 - 4}
+                    y={xy.y - NH / 2 + 8}
+                    textAnchor="end"
+                    fill={layerColor}
+                    fontSize={9}
+                    opacity={0.7}
+                  >
+                    {freq}
+                  </text>
+                )}
+                {hasLesson && !isDimmed && (
+                  <text
+                    x={xy.x - NW / 2 + 4}
+                    y={xy.y - NH / 2 + 8}
+                    textAnchor="start"
+                    fill={layerColor}
+                    fontSize={8}
+                    opacity={0.5}
+                  >
+                    #{pos.lessonNumbers![0]}
+                  </text>
+                )}
+              </g>
+            )
+          })}
+        </svg>
+      </div>
+
+      {/* Info Panel — selected node transitions */}
+      {selectedId && (
+        <div
+          style={{
+            background: "rgba(255,255,255,0.02)",
+            border: `1px solid ${BORDER_DEFAULT}`,
+            borderRadius: 8,
+            padding: 12,
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 600, color: TEXT.primary, marginBottom: 8 }}>
+            {getPositionById(selectedId)?.nameKr} — 전환 목록
+          </div>
+          {selectedTransitions.length === 0 ? (
+            <div style={{ fontSize: 12, color: TEXT.tertiary }}>등록된 전환이 없습니다</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {selectedTransitions.map((t, i) => {
+                const toPos = getPositionById(t.to)
+                return (
+                  <div
+                    key={String(i)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      flexWrap: "wrap",
+                      padding: "6px 8px",
+                      borderRadius: 6,
+                      background: "rgba(255,255,255,0.02)",
+                      border: `1px solid ${BORDER_DEFAULT}`,
+                    }}
+                  >
+                    <TransitionBadge type={t.type} />
+                    <span style={{ fontSize: 12, color: TEXT.primary, fontWeight: 500 }}>
+                      {t.action}
+                    </span>
+                    <span style={{ fontSize: 11, color: TEXT.tertiary }}>
+                      → {toPos?.nameKr || t.to}
+                    </span>
+                    {t.condition && (
+                      <span style={{ fontSize: 11, color: TEXT.secondary, fontStyle: "italic" }}>
+                        ({t.condition})
+                      </span>
+                    )}
+                    {t.lessonNumber && (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          color: LAYER_COLORS[getPositionById(selectedId)?.layer || "guard"],
+                          background: colorWithAlpha(LAYER_COLORS[getPositionById(selectedId)?.layer || "guard"], 0.1),
+                          borderRadius: 4,
+                          padding: "1px 4px",
+                        }}
+                      >
+                        #{t.lessonNumber}
+                      </span>
+                    )}
+                    {t.videoUrl && (
+                      <a href={t.videoUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, textDecoration: "none" }} title="영상 보기">
+                        📺
+                      </a>
+                    )}
+                  </div>
+                )
+              })}
             </div>
-          ))}
+          )}
         </div>
-      </LayerSection>
+      )}
 
-      {/* Passing */}
-      <LayerSection label="패싱" color={LAYER_COLORS.passing}>
-        {passing.map((p) => (
-          <PositionNode key={p.id} position={p} frequency={positionFreq[p.id] || 0} />
-        ))}
-      </LayerSection>
-
-      {/* Control — Top */}
-      <LayerSection label="컨트롤 (탑)" color={LAYER_COLORS.control}>
-        {controlTop.map((p) => (
-          <PositionNode key={p.id} position={p} frequency={positionFreq[p.id] || 0} />
-        ))}
-      </LayerSection>
-
-      {/* Control — Bottom */}
-      <LayerSection label="컨트롤 (바텀)" color={LAYER_COLORS.control}>
-        {controlBottom.map((p) => (
-          <PositionNode key={p.id} position={p} frequency={positionFreq[p.id] || 0} />
-        ))}
-      </LayerSection>
-
-      {/* Leg Locks */}
-      <LayerSection label="레그락" color={LAYER_COLORS.leglock}>
-        {leglocks.map((p) => (
-          <PositionNode key={p.id} position={p} frequency={positionFreq[p.id] || 0} />
-        ))}
-      </LayerSection>
-
-      {/* Submissions */}
-      <LayerSection label="서브미션" color={LAYER_COLORS.submission}>
-        {submissions.map((p) => (
-          <PositionNode key={p.id} position={p} frequency={positionFreq[p.id] || 0} />
-        ))}
-      </LayerSection>
-
-      {/* Connection legend */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, paddingTop: 8 }}>
+      {/* Legend */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, paddingTop: 4 }}>
         {Object.entries(LAYER_COLORS).map(([layer, color]) => (
           <div key={layer} style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <div style={{ width: 10, height: 10, borderRadius: 3, background: colorWithAlpha(color, 0.3), border: `1px solid ${color}` }} />
             <span style={{ fontSize: 11, color: TEXT.secondary }}>
-              {layer === "standing" ? "스탠딩" : layer === "guard" ? "가드" : layer === "passing" ? "패싱" : layer === "control" ? "컨트롤" : layer === "submission" ? "서브미션" : "레그락"}
+              {{ standing: "스탠딩", guard: "가드", passing: "패싱", control: "컨트롤", submission: "서브미션", leglock: "레그락" }[layer]}
             </span>
           </div>
         ))}
+        <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 8 }}>
+          <div style={{ width: 16, height: 0, border: "1px solid rgba(255,255,255,0.3)" }} />
+          <span style={{ fontSize: 11, color: TEXT.secondary }}>교본</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <div style={{ width: 16, height: 0, border: "1px dashed rgba(255,255,255,0.2)" }} />
+          <span style={{ fontSize: 11, color: TEXT.secondary }}>심화</span>
+        </div>
       </div>
     </div>
   )
