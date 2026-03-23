@@ -24,9 +24,10 @@ interface RadarChartProps {
   attributes: BjjAttributes
   compareAttributes?: BjjAttributes | null
   compareName?: string
+  maxDomain?: number
 }
 
-export function RadarChart({ attributes, compareAttributes, compareName }: RadarChartProps) {
+export function RadarChart({ attributes, compareAttributes, compareName, maxDomain = 40 }: RadarChartProps) {
   const data = (Object.keys(ATTR_LABELS) as (keyof BjjAttributes)[]).map((key) => ({
     subject: ATTR_LABELS[key],
     me: attributes[key],
@@ -34,39 +35,43 @@ export function RadarChart({ attributes, compareAttributes, compareName }: Radar
   }))
 
   return (
-    <ResponsiveContainer width="100%" height={280}>
-      <RechartsRadarChart data={data} cx="50%" cy="50%" outerRadius="75%">
-        <PolarGrid stroke="#3f3f46" />
+    <ResponsiveContainer width="100%" height={250}>
+      <RechartsRadarChart data={data} cx="50%" cy="50%" outerRadius="72%">
+        <PolarGrid stroke="rgba(255,255,255,0.06)" />
         <PolarAngleAxis
           dataKey="subject"
-          tick={{ fill: "#a1a1aa", fontSize: 11 }}
+          tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 11 }}
         />
         <PolarRadiusAxis
           angle={90}
-          domain={[0, 100]}
-          tick={{ fill: "#52525b", fontSize: 9 }}
-          tickCount={6}
+          domain={[0, maxDomain]}
+          tick={{ fill: "rgba(255,255,255,0.25)", fontSize: 9 }}
+          tickCount={5}
         />
         <Radar
           name="Me"
           dataKey="me"
-          stroke="#f97316"
-          fill="#f97316"
-          fillOpacity={0.25}
-          strokeWidth={2}
+          stroke="#3b82f6"
+          fill="#3b82f6"
+          fillOpacity={0.15}
+          strokeWidth={1.5}
         />
         {compareAttributes && (
           <Radar
             name={compareName || "Compare"}
             dataKey="compare"
-            stroke="#3b82f6"
-            fill="#3b82f6"
-            fillOpacity={0.1}
-            strokeWidth={1.5}
+            stroke="rgba(255,255,255,0.25)"
+            fill="rgba(255,255,255,0.05)"
+            fillOpacity={0.05}
+            strokeWidth={1}
             strokeDasharray="4 4"
           />
         )}
-        {compareAttributes && <Legend wrapperStyle={{ fontSize: 11, color: "#a1a1aa" }} />}
+        {compareAttributes && (
+          <Legend
+            wrapperStyle={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}
+          />
+        )}
       </RechartsRadarChart>
     </ResponsiveContainer>
   )

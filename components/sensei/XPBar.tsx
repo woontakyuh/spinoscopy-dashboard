@@ -12,20 +12,17 @@ export function XPBar({ current, total, level }: XPBarProps) {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-zinc-400">
+        <span className="text-[11px] text-white/25">
           Lv.{level} → Lv.{level + 1}
         </span>
-        <span className="text-xs text-zinc-500">
+        <span className="text-[11px] text-white/25 tabular-nums">
           {current} / {total} XP
         </span>
       </div>
-      <div className="h-3 bg-zinc-800 rounded-full overflow-hidden border border-zinc-700">
+      <div className="h-[8px] rounded-[4px] overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
         <div
-          className="h-full rounded-full transition-all duration-700 ease-out"
-          style={{
-            width: `${pct}%`,
-            background: "linear-gradient(90deg, #f59e0b, #f97316, #ef4444)",
-          }}
+          className="h-full rounded-[4px] transition-all duration-500 ease-out"
+          style={{ width: `${pct}%`, background: "#3b82f6" }}
         />
       </div>
     </div>

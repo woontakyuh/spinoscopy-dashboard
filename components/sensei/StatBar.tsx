@@ -13,18 +13,15 @@ export function StatBar({ label, value, max = 100, color }: StatBarProps) {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-zinc-400">{label}</span>
-        <span className="text-xs font-mono font-bold" style={{ color }}>
+        <span className="text-[13px] font-medium text-white/45">{label}</span>
+        <span className="text-[13px] font-semibold tabular-nums" style={{ color }}>
           {value}
         </span>
       </div>
-      <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+      <div className="h-[6px] rounded-[3px] overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
         <div
-          className="h-full rounded-full transition-all duration-700 ease-out"
-          style={{
-            width: `${pct}%`,
-            background: `linear-gradient(90deg, ${color}88, ${color})`,
-          }}
+          className="h-full rounded-[3px] transition-all duration-500 ease-out"
+          style={{ width: `${pct}%`, background: color }}
         />
       </div>
     </div>
