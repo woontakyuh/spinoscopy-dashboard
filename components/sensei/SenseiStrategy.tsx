@@ -427,6 +427,14 @@ function ContextAddMenu({ x, y, onSelect, onDelete, onAddVideo, onClose, current
   const [showPicker, setShowPicker] = useState(false)
   const [showVideoInput, setShowVideoInput] = useState(false)
   const [videoUrl, setVideoUrl] = useState(currentVideoUrl || "")
+  const [customPos, setCustomPos] = useState("")
+
+  function handleAdd() {
+    const posId = selectedPos || (customPos.trim() ? `custom_${customPos.trim().toLowerCase().replace(/\s+/g, "_")}` : null)
+    if (!posId) return
+    const posName = selectedPos ? (POSITIONS.find((p) => p.id === selectedPos)?.nameKr || selectedPos) : customPos.trim()
+    onSelect(posId, action.trim() || posName)
+  }
   const [filterLayer, setFilterLayer] = useState<string | null>(null)
   const [selectedPos, setSelectedPos] = useState<string | null>(null)
   const [action, setAction] = useState("")
@@ -531,7 +539,7 @@ function ContextAddMenu({ x, y, onSelect, onDelete, onAddVideo, onClose, current
               return (
                 <button
                   key={p.id}
-                  onClick={() => setSelectedPos(p.id)}
+                  onClick={() => { setSelectedPos(p.id); setCustomPos("") }}
                   className={`px-1.5 py-0.5 rounded text-[10px] border ${selectedPos === p.id ? "text-white" : "text-zinc-500 border-zinc-800"}`}
                   style={selectedPos === p.id ? { color: c, borderColor: `${c}50`, background: `${c}15` } : {}}
                 >
@@ -540,20 +548,30 @@ function ContextAddMenu({ x, y, onSelect, onDelete, onAddVideo, onClose, current
               )
             })}
           </div>
-          {selectedPos && (
+          {/* 커스텀 포지션 직접 입력 */}
+          <div className="flex gap-1 items-center">
+            <span className="text-[10px] text-zinc-600">또는 직접 입력:</span>
+            <input
+              type="text"
+              value={customPos}
+              onChange={(e) => { setCustomPos(e.target.value); if (e.target.value) setSelectedPos(null) }}
+              placeholder="롤언더, 크루시픽스 등"
+              className="flex-1 px-2 py-1 rounded text-[10px] bg-zinc-800 border border-zinc-700 text-white placeholder:text-zinc-600 focus:outline-none"
+            />
+          </div>
+          {(selectedPos || customPos.trim()) && (
             <div className="flex gap-1">
               <input
                 type="text"
                 value={action}
                 onChange={(e) => setAction(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && action.trim()) { onSelect(selectedPos, action.trim()) } }}
-                placeholder="액션 (예: 스윕)"
+                onKeyDown={(e) => { if (e.key === "Enter") { handleAdd() } }}
+                placeholder="설명 (선택, 비워도 OK)"
                 className="flex-1 px-2 py-1 rounded text-[10px] bg-zinc-800 border border-zinc-700 text-white placeholder:text-zinc-600 focus:outline-none"
               />
               <button
-                onClick={() => { if (action.trim()) onSelect(selectedPos, action.trim()) }}
-                disabled={!action.trim()}
-                className="px-2 py-1 rounded text-[10px] bg-zinc-700 text-white disabled:opacity-30"
+                onClick={handleAdd}
+                className="px-2 py-1 rounded text-[10px] bg-zinc-700 text-white"
               >
                 추가
               </button>
@@ -1040,7 +1058,9 @@ export function SenseiStrategy() {
               onStepClick={(idx: number) => setSelectedStep(selectedStep === idx ? null : idx)}
               editMode={editMode}
               onAddFromNode={(fromIdx: number, newStep: StrategyStep) => {
-                if (!selected || selected.type !== "mine") return
+                if (!selected) return
+                // pro 전략이면 자동 import 후 수정
+                if (selected.type !== "mine") { importProStrategy(selected); return }
                 const newFlowIdx = selected.flow.length
                 // 새 스텝 추가 + from 노드에 branch 연결
                 const updatedFlow = selected.flow.map((s, i) => {
@@ -1056,7 +1076,8 @@ export function SenseiStrategy() {
                 persist(updated)
               }}
               onDeleteStep={(idx: number) => {
-                if (!selected || selected.type !== "mine") return
+                if (!selected) return
+                if (selected.type !== "mine") { importProStrategy(selected); return }
                 const deletedFlow = selected.flow.filter((_, i) => i !== idx)
                 // branches의 nextStepIndex 보정: 삭제된 인덱스 이후는 -1, 삭제된 인덱스를 가리키면 제거
                 const fixedFlow = deletedFlow.map((s) => {
@@ -1076,7 +1097,8 @@ export function SenseiStrategy() {
                 setSelectedStep(null)
               }}
               onUpdateStepVideo={(idx: number, url: string) => {
-                if (!selected || selected.type !== "mine") return
+                if (!selected) return
+                if (selected.type !== "mine") { importProStrategy(selected); return }
                 const updated = myStrategies.map((s) => {
                   if (s.id !== selected.id) return s
                   const flow = s.flow.map((st, i) =>
