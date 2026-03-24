@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button"
 import { loadMyStrategies, saveMyStrategies, getAllProStrategies } from "@/lib/sensei/strategies"
 import { POSITIONS, getPositionById } from "@/lib/sensei/skillConnections"
 import type { Strategy, StrategyStep } from "@/lib/types/sensei"
+import { SenseiHeroes } from "./SenseiHeroes"
 
-type ViewMode = "mine" | "pro"
+type ViewMode = "mine" | "pro" | "skilltree"
 
 const LAYER_COLORS: Record<string, string> = {
   standing: "#06b6d4", guard: "#a855f7", passing: "#22c55e",
@@ -953,11 +954,19 @@ export function SenseiStrategy() {
             >
               선수 전략
             </button>
+            <button
+              onClick={() => { setViewMode("skilltree"); setEditMode(false); setSelectedStep(null) }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                viewMode === "skilltree" ? "bg-purple-500/15 text-purple-400 border border-purple-500/30" : "text-zinc-500 border border-zinc-800"
+              }`}
+            >
+              BJJ Heroes
+            </button>
           </div>
 
-          <div className="h-4 w-px bg-zinc-800" />
+          {viewMode !== "skilltree" && <div className="h-4 w-px bg-zinc-800" />}
 
-          <div className="flex gap-1.5 flex-wrap flex-1">
+          {viewMode !== "skilltree" && <div className="flex gap-1.5 flex-wrap flex-1">
             {strategies.map((s) => (
               <button
                 key={s.id}
@@ -969,7 +978,7 @@ export function SenseiStrategy() {
                 {s.proName || s.name}
               </button>
             ))}
-          </div>
+          </div>}
 
           {viewMode === "mine" && (
             <Button
@@ -1007,8 +1016,11 @@ export function SenseiStrategy() {
         )}
       </div>
 
+      {/* ═══ BJJ Heroes (skilltree view) ═══ */}
+      {viewMode === "skilltree" && <SenseiHeroes />}
+
       {/* ═══ Strategy Content ═══ */}
-      {selected && (
+      {viewMode !== "skilltree" && selected && (
         <div className="bg-[#121212] border border-zinc-800 rounded-2xl p-6">
           {/* Header */}
           <div className="flex items-start justify-between mb-4">

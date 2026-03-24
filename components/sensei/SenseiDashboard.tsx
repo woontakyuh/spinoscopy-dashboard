@@ -15,7 +15,6 @@ import type { BjjStats, BjjAttributes, UserProfile } from "@/lib/types/sensei"
 
 interface SenseiDashboardProps {
   onNavigate: (tab: string) => void
-  onAskCoach: (question?: string) => void
 }
 
 const STAT_BARS: { key: keyof BjjAttributes; name: string; color: string }[] = [
@@ -51,10 +50,13 @@ function fmtDur(m: number): string {
   return `${y}년 ${mo}개월`
 }
 
-export function SenseiDashboard({ onNavigate, onAskCoach }: SenseiDashboardProps) {
+export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [hoveredStripes, setHoveredStripes] = useState(false)
   const [coachQ, setCoachQ] = useState("")
+  const [coachExpanded, setCoachExpanded] = useState(false)
+  const [coachMessages, setCoachMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([])
+  const [coachLoading, setCoachLoading] = useState(false)
   const [giMode, setGiMode] = useState<"gi" | "nogi">("gi")
 
   useEffect(() => { setProfile(loadUserProfile()) }, [])
@@ -82,6 +84,27 @@ export function SenseiDashboard({ onNavigate, onAskCoach }: SenseiDashboardProps
     enabled: !!data?.stats,
     staleTime: 1000 * 60 * 30,
   })
+
+  async function sendCoachMessage(text: string) {
+    if (coachLoading) return
+    const userMsg = { role: "user" as const, content: text }
+    setCoachMessages((prev) => [...prev, userMsg])
+    setCoachQ("")
+    setCoachLoading(true)
+    setCoachExpanded(true)
+    try {
+      const r = await fetch("/api/ai/sensei-coach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, history: coachMessages, stats: data?.stats }),
+      })
+      if (r.ok) {
+        const d = await r.json()
+        setCoachMessages((prev) => [...prev, { role: "assistant", content: d.reply }])
+      }
+    } catch { /* ignore */ }
+    setCoachLoading(false)
+  }
 
   const arch = useMemo(() => {
     if (!data?.stats?.combined.closestArchetype) return null
@@ -337,58 +360,83 @@ export function SenseiDashboard({ onNavigate, onAskCoach }: SenseiDashboardProps
           </div>
         </div>
 
-        {/* ═══ Coach 한 줄 추천 ═══ */}
-        <div className="bg-[#121212] border border-zinc-800 rounded-2xl px-6 py-4">
-          <div className="flex items-center gap-3">
-            <span className="text-base">🤖</span>
-            <p className="flex-1 text-sm text-zinc-400 leading-relaxed">
-              {coachData?.reply || "코치 추천 로딩 중..."}
-            </p>
-            <div className="flex gap-2 shrink-0">
+        {/* ═══ Coach 임베드 (접힘/펼침) ═══ */}
+        <div className="bg-[#121212] border border-zinc-800 rounded-2xl overflow-hidden">
+          {/* 접힌 상태: 한줄 추천 + 질문 입력 */}
+          <div className="px-6 py-4">
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={() => setCoachExpanded(!coachExpanded)} className="text-base shrink-0">
+                🤖
+              </button>
+              <p className="flex-1 text-sm text-zinc-400 leading-relaxed">
+                {coachData?.reply || "코치 추천 로딩 중..."}
+              </p>
+              <button
+                type="button"
+                onClick={() => setCoachExpanded(!coachExpanded)}
+                className="text-xs text-zinc-600 hover:text-zinc-400 shrink-0"
+              >
+                {coachExpanded ? "접기 ▲" : "채팅 ▼"}
+              </button>
+            </div>
+
+            {/* 질문 입력 (항상 보임) */}
+            <div className="flex gap-2 mt-3">
               <input
                 type="text"
                 value={coachQ}
                 onChange={(e) => setCoachQ(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && coachQ.trim()) {
-                    onAskCoach(coachQ.trim())
-                    setCoachQ("")
-                  }
+                  if (e.key === "Enter" && coachQ.trim()) sendCoachMessage(coachQ.trim())
                 }}
                 placeholder="코치에게 질문..."
-                className="w-[180px] px-3 py-1.5 rounded-lg text-xs text-white bg-zinc-800 border border-zinc-700 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600"
+                className="flex-1 px-3 py-1.5 rounded-lg text-xs text-white bg-zinc-800 border border-zinc-700 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600"
               />
               <button
                 type="button"
-                onClick={() => {
-                  if (coachQ.trim()) { onAskCoach(coachQ.trim()); setCoachQ("") }
-                  else onAskCoach()
-                }}
-                className="px-3 py-1.5 rounded-lg text-xs text-zinc-400 bg-zinc-800 border border-zinc-700 hover:text-zinc-200 hover:border-zinc-600 transition-colors"
+                onClick={() => { if (coachQ.trim()) sendCoachMessage(coachQ.trim()) }}
+                disabled={!coachQ.trim() || coachLoading}
+                className="px-3 py-1.5 rounded-lg text-xs text-zinc-400 bg-zinc-800 border border-zinc-700 hover:text-zinc-200 hover:border-zinc-600 transition-colors disabled:opacity-30"
               >
                 질문
               </button>
             </div>
           </div>
-        </div>
 
-        {/* ═══ View Character Sheet ═══ */}
-        <button
-          type="button"
-          onClick={() => onNavigate("character")}
-          className="w-full bg-[#121212] border border-zinc-800 rounded-2xl px-6 py-3 flex items-center justify-center gap-2 text-sm text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition-colors"
-        >
-          <span>⚔️</span>
-          <span>View full character sheet</span>
-          <span className="text-zinc-600">→</span>
-        </button>
+          {/* 펼친 상태: 채팅 영역 */}
+          {coachExpanded && (
+            <div className="border-t border-zinc-800 max-h-[400px] overflow-y-auto px-6 py-4 space-y-3">
+              {coachMessages.length === 0 && !coachLoading && (
+                <p className="text-xs text-zinc-600 text-center py-4">질문을 입력하면 AI 코치가 답변합니다</p>
+              )}
+              {coachMessages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs whitespace-pre-wrap ${
+                    msg.role === "user"
+                      ? "bg-blue-500/10 text-blue-100 rounded-br-md"
+                      : "bg-zinc-800 text-zinc-200 rounded-bl-md"
+                  }`}>
+                    {msg.content}
+                  </div>
+                </div>
+              ))}
+              {coachLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-zinc-800 rounded-2xl rounded-bl-md px-4 py-2.5 text-xs text-zinc-400">
+                    <span className="animate-pulse">답변 생성 중...</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* ═══ 하단 네비 ═══ */}
         <div className="flex gap-2 flex-wrap pt-2 border-t border-zinc-800">
           {[
+            { t: "me", l: "캐릭터", i: "🥋" },
             { t: "journal", l: "수련 기록", i: "📝" },
-            { t: "stats", l: "상세 스탯", i: "📊" },
-            { t: "heroes", l: "BJJ Heroes", i: "🏆" },
+            { t: "strategy", l: "전략", i: "🎯" },
             { t: "competition", l: "대회", i: "📅" },
           ].map(({ t, l, i }) => (
             <button
