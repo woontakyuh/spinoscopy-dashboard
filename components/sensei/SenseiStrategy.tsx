@@ -110,13 +110,14 @@ function savePositions(strategyId: string, pos: Record<number, { x: number; y: n
   localStorage.setItem(`sensei-strategy-${strategyId}-positions`, JSON.stringify(pos))
 }
 
-function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNode, onDeleteStep }: {
+function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNode, onDeleteStep, onUpdateStepVideo }: {
   strategy: Strategy
   onStepClick: (idx: number) => void
   selectedStep: number | null
   editMode: boolean
   onAddFromNode?: (fromIdx: number, step: StrategyStep) => void
   onDeleteStep?: (idx: number) => void
+  onUpdateStepVideo?: (idx: number, url: string) => void
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [positions, setPositions] = useState<Record<number, { x: number; y: number }>>({})
@@ -184,7 +185,6 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
   }
 
   function handleContextMenu(e: React.MouseEvent, idx: number) {
-    if (!editMode) return
     e.preventDefault()
     setCtxMenu({ x: e.clientX, y: e.clientY, stepIdx: idx })
   }
@@ -391,6 +391,7 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
           <ContextAddMenu
             x={ctxMenu.x}
             y={ctxMenu.y}
+            currentVideoUrl={strategy.flow[ctxMenu.stepIdx]?.videoUrl}
             onSelect={(posId, action) => {
               if (onAddFromNode) {
                 onAddFromNode(ctxMenu.stepIdx, { positionId: posId, action })
@@ -399,6 +400,10 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
             }}
             onDelete={() => {
               if (onDeleteStep) onDeleteStep(ctxMenu.stepIdx)
+              setCtxMenu(null)
+            }}
+            onAddVideo={(url) => {
+              if (onUpdateStepVideo) onUpdateStepVideo(ctxMenu.stepIdx, url)
               setCtxMenu(null)
             }}
             onClose={() => setCtxMenu(null)}
@@ -411,13 +416,17 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
 
 // ─── Context Menu: 새 스텝 추가 ──────────────────────────────
 
-function ContextAddMenu({ x, y, onSelect, onDelete, onClose }: {
+function ContextAddMenu({ x, y, onSelect, onDelete, onAddVideo, onClose, currentVideoUrl }: {
   x: number; y: number
   onSelect: (posId: string, action: string) => void
   onDelete: () => void
+  onAddVideo: (url: string) => void
   onClose: () => void
+  currentVideoUrl?: string
 }) {
   const [showPicker, setShowPicker] = useState(false)
+  const [showVideoInput, setShowVideoInput] = useState(false)
+  const [videoUrl, setVideoUrl] = useState(currentVideoUrl || "")
   const [filterLayer, setFilterLayer] = useState<string | null>(null)
   const [selectedPos, setSelectedPos] = useState<string | null>(null)
   const [action, setAction] = useState("")
@@ -447,7 +456,7 @@ function ContextAddMenu({ x, y, onSelect, onDelete, onClose }: {
       }}
       className="bg-zinc-900 border border-zinc-700 rounded-lg py-1 text-xs"
     >
-      {!showPicker ? (
+      {!showPicker && !showVideoInput ? (
         <>
           <button
             onClick={() => setShowPicker(true)}
@@ -457,6 +466,13 @@ function ContextAddMenu({ x, y, onSelect, onDelete, onClose }: {
             새 스텝 추가 (여기서 연결)
           </button>
           <button
+            onClick={() => setShowVideoInput(true)}
+            className="w-full text-left px-3 py-2 text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
+          >
+            <span className="text-zinc-500">📺</span>
+            {currentVideoUrl ? "유튜브 링크 수정" : "유튜브 링크 추가"}
+          </button>
+          <button
             onClick={onDelete}
             className="w-full text-left px-3 py-2 text-red-400/70 hover:bg-zinc-800 hover:text-red-400 flex items-center gap-2"
           >
@@ -464,6 +480,36 @@ function ContextAddMenu({ x, y, onSelect, onDelete, onClose }: {
             이 스텝 삭제
           </button>
         </>
+      ) : showVideoInput ? (
+        <div className="p-2 space-y-2">
+          <p className="text-zinc-500 text-[10px] px-1">유튜브 링크:</p>
+          <div className="flex gap-1">
+            <input
+              type="text"
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && videoUrl.trim()) { onAddVideo(videoUrl.trim()) } }}
+              placeholder="https://youtu.be/..."
+              className="flex-1 px-2 py-1 rounded text-[10px] bg-zinc-800 border border-zinc-700 text-white placeholder:text-zinc-600 focus:outline-none"
+              autoFocus
+            />
+            <button
+              onClick={() => { if (videoUrl.trim()) onAddVideo(videoUrl.trim()) }}
+              disabled={!videoUrl.trim()}
+              className="px-2 py-1 rounded text-[10px] bg-zinc-700 text-white disabled:opacity-30"
+            >
+              저장
+            </button>
+          </div>
+          {currentVideoUrl && (
+            <button
+              onClick={() => { onAddVideo(""); }}
+              className="text-[10px] text-red-400/60 hover:text-red-400 px-1"
+            >
+              링크 삭제
+            </button>
+          )}
+        </div>
       ) : (
         <div className="p-2 space-y-2">
           <p className="text-zinc-500 text-[10px] px-1">연결할 포지션 선택:</p>
@@ -1028,6 +1074,17 @@ export function SenseiStrategy() {
                 )
                 persist(updated)
                 setSelectedStep(null)
+              }}
+              onUpdateStepVideo={(idx: number, url: string) => {
+                if (!selected || selected.type !== "mine") return
+                const updated = myStrategies.map((s) => {
+                  if (s.id !== selected.id) return s
+                  const flow = s.flow.map((st, i) =>
+                    i === idx ? { ...st, videoUrl: url || undefined } : st
+                  )
+                  return { ...s, flow, updatedAt: new Date().toISOString().slice(0, 10) }
+                })
+                persist(updated)
               }}
             />
           ) : (
