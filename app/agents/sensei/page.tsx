@@ -10,14 +10,16 @@ import { SenseiHeroes } from "@/components/sensei/SenseiHeroes"
 import { SenseiCompetition } from "@/components/sensei/SenseiCompetition"
 import { SenseiCoach } from "@/components/sensei/SenseiCoach"
 import { SenseiCharacterSheet } from "@/components/sensei/SenseiCharacterSheet"
+import { SenseiStrategy } from "@/components/sensei/SenseiStrategy"
 
-type SenseiTab = "dashboard" | "character" | "journal" | "stats" | "heroes" | "competition" | "coach"
+type SenseiTab = "dashboard" | "character" | "journal" | "stats" | "strategy" | "heroes" | "competition" | "coach"
 
 const TABS: { id: SenseiTab; label: string; icon: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: "\ud83c\udfe0" },
   { id: "character", label: "Character", icon: "\u2694\ufe0f" },
   { id: "journal", label: "Journal", icon: "\ud83d\udcdd" },
   { id: "stats", label: "Stats", icon: "\ud83d\udcca" },
+  { id: "strategy", label: "Strategy", icon: "\ud83c\udfaf" },
   { id: "heroes", label: "BJJ Heroes", icon: "\ud83c\udfc6" },
   { id: "competition", label: "Competition", icon: "\ud83d\udcc5" },
   { id: "coach", label: "Coach", icon: "\ud83e\udd16" },
@@ -85,6 +87,7 @@ export default function SenseiPage() {
         )}
 
         {activeTab === "stats" && <SenseiStats />}
+        {activeTab === "strategy" && <SenseiStrategy />}
         {activeTab === "heroes" && <SenseiHeroes />}
         {activeTab === "competition" && <SenseiCompetition />}
         {activeTab === "coach" && (

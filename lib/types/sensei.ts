@@ -159,6 +159,37 @@ export interface PromotionEvent {
   note?: string
 }
 
+// Strategy
+export interface Strategy {
+  id: string
+  name: string
+  description?: string
+  ruleSet: "gi" | "nogi"
+  type: "mine" | "pro"
+  proName?: string
+  flow: StrategyStep[]
+  createdAt: string
+  updatedAt: string
+  tags?: string[]
+  notes?: string
+}
+
+export interface StrategyStep {
+  positionId: string
+  action: string
+  condition?: string
+  branches?: StrategyBranch[]
+  lessonNumber?: number
+  videoUrl?: string
+  notes?: string
+}
+
+export interface StrategyBranch {
+  condition: string
+  nextStepIndex: number
+  alternateFlow?: StrategyStep[]
+}
+
 // Skill Tree v3 — 교본 기반
 
 export type PositionLayer = "standing" | "guard" | "passing" | "control" | "submission" | "leglock"
