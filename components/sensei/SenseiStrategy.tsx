@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { loadMyStrategies, saveMyStrategies, getAllProStrategies } from "@/lib/sensei/strategies"
@@ -23,134 +23,282 @@ function newId(): string {
   return `strat-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
 }
 
-// ─── Flow Renderer: absolute div 노드 + SVG 라인 ─────────────
+// ─── Flow Renderer: BFS layout + drag + persist ──────────────
 
 const NODE_W = 160
 const NODE_H = 56
-const GAP_Y = 100
-const PAD = 30
 
-interface FlowNode {
-  idx: number
-  x: number
-  y: number
-  step: StrategyStep
+function hexRgb(hex: string): string {
+  const h = hex.startsWith("#") ? hex.slice(1) : hex
+  if (h.length < 6) return "168,85,247"
+  return `${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)}`
 }
 
-function layoutFlow(flow: StrategyStep[]): { nodes: FlowNode[]; width: number; height: number } {
-  if (flow.length === 0) return { nodes: [], width: 400, height: 80 }
-  const nodes: FlowNode[] = []
-  const centerX = 280
-  for (let i = 0; i < flow.length; i++) {
-    nodes.push({ idx: i, x: centerX, y: PAD + i * GAP_Y, step: flow[i] })
+// BFS auto layout: 분기 있으면 좌우로 퍼짐
+function autoLayout(flow: StrategyStep[]): Record<number, { x: number; y: number }> {
+  if (flow.length === 0) return {}
+
+  // Build adjacency from branches
+  const childrenOf = new Map<number, number[]>()
+  const hasParent = new Set<number>()
+  flow.forEach((step, i) => {
+    const targets: number[] = []
+    if (step.branches) {
+      for (const b of step.branches) {
+        if (b.nextStepIndex >= 0 && b.nextStepIndex < flow.length) {
+          targets.push(b.nextStepIndex)
+          hasParent.add(b.nextStepIndex)
+        }
+      }
+    }
+    // Also connect sequential next if no branches point forward
+    if (i + 1 < flow.length && !targets.includes(i + 1)) {
+      targets.push(i + 1)
+      hasParent.add(i + 1)
+    }
+    childrenOf.set(i, targets)
+  })
+
+  // BFS level assignment
+  const levels = new Map<number, number>()
+  const roots = flow.map((_, i) => i).filter((i) => !hasParent.has(i) || i === 0)
+  const queue: { idx: number; level: number }[] = roots.map((idx) => ({ idx, level: 0 }))
+  while (queue.length > 0) {
+    const { idx, level } = queue.shift()!
+    if (levels.has(idx)) continue
+    levels.set(idx, level)
+    const children = childrenOf.get(idx) || []
+    for (const c of children) {
+      if (!levels.has(c)) queue.push({ idx: c, level: level + 1 })
+    }
   }
-  return { nodes, width: Math.max(620, centerX + NODE_W / 2 + 200), height: PAD + flow.length * GAP_Y + NODE_H }
+  // Assign remaining unvisited
+  flow.forEach((_, i) => { if (!levels.has(i)) levels.set(i, (levels.size > 0 ? Math.max(...levels.values()) : 0) + 1) })
+
+  // Group by level
+  const groups = new Map<number, number[]>()
+  levels.forEach((lv, idx) => {
+    if (!groups.has(lv)) groups.set(lv, [])
+    groups.get(lv)!.push(idx)
+  })
+
+  const positions: Record<number, { x: number; y: number }> = {}
+  const sortedLevels = Array.from(groups.keys()).sort((a, b) => a - b)
+  for (const lv of sortedLevels) {
+    const group = groups.get(lv)!
+    const totalW = group.length * (NODE_W + 40)
+    const startX = Math.max(20, (700 - totalW) / 2)
+    group.forEach((idx, gi) => {
+      positions[idx] = { x: startX + gi * (NODE_W + 40) + NODE_W / 2, y: lv * 120 + 40 }
+    })
+  }
+  return positions
 }
 
-function FlowChart({ strategy, onStepClick, selectedStep }: {
+// localStorage persist
+function loadPositions(strategyId: string): Record<number, { x: number; y: number }> | null {
+  if (typeof window === "undefined") return null
+  try {
+    const raw = localStorage.getItem(`sensei-strategy-${strategyId}-positions`)
+    if (raw) return JSON.parse(raw)
+  } catch { /* ignore */ }
+  return null
+}
+
+function savePositions(strategyId: string, pos: Record<number, { x: number; y: number }>): void {
+  if (typeof window === "undefined") return
+  localStorage.setItem(`sensei-strategy-${strategyId}-positions`, JSON.stringify(pos))
+}
+
+function FlowChart({ strategy, onStepClick, selectedStep, editMode }: {
   strategy: Strategy
   onStepClick: (idx: number) => void
   selectedStep: number | null
+  editMode: boolean
 }) {
-  const { nodes, width, height } = useMemo(() => layoutFlow(strategy.flow), [strategy.flow])
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [positions, setPositions] = useState<Record<number, { x: number; y: number }>>({})
+  const [dragging, setDragging] = useState<number | null>(null)
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
 
-  // Connected set for dim logic
+  // Init positions: load from storage or autoLayout
+  useEffect(() => {
+    const saved = loadPositions(strategy.id)
+    if (saved && Object.keys(saved).length === strategy.flow.length) {
+      setPositions(saved)
+    } else {
+      setPositions(autoLayout(strategy.flow))
+    }
+  }, [strategy.id, strategy.flow])
+
+  // Save on edit mode exit
+  const saveCurrentPositions = useCallback(() => {
+    if (Object.keys(positions).length > 0) savePositions(strategy.id, positions)
+  }, [strategy.id, positions])
+
+  useEffect(() => {
+    if (!editMode && Object.keys(positions).length > 0) saveCurrentPositions()
+  }, [editMode, saveCurrentPositions, positions])
+
+  // Drag handlers
+  const handleMouseDown = useCallback((e: React.MouseEvent, idx: number) => {
+    if (!editMode || !containerRef.current) return
+    e.preventDefault()
+    e.stopPropagation()
+    const rect = containerRef.current.getBoundingClientRect()
+    const pos = positions[idx]
+    if (!pos) return
+    setDragging(idx)
+    setDragOffset({ x: e.clientX - rect.left - pos.x, y: e.clientY - rect.top - pos.y })
+  }, [editMode, positions])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (dragging === null || !containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    setPositions((prev) => ({
+      ...prev,
+      [dragging]: {
+        x: Math.max(NODE_W / 2, e.clientX - rect.left - dragOffset.x),
+        y: Math.max(NODE_H / 2, e.clientY - rect.top - dragOffset.y),
+      },
+    }))
+  }, [dragging, dragOffset])
+
+  const handleMouseUp = useCallback(() => { setDragging(null) }, [])
+
+  // Connected set for dim
   const connectedIds = useMemo(() => {
-    if (selectedStep === null) return null
+    if (selectedStep === null || editMode) return null
     const ids = new Set<number>([selectedStep])
     const step = strategy.flow[selectedStep]
     if (step?.branches) {
-      for (const b of step.branches) {
-        if (b.nextStepIndex >= 0) ids.add(b.nextStepIndex)
-      }
+      for (const b of step.branches) { if (b.nextStepIndex >= 0) ids.add(b.nextStepIndex) }
     }
-    // Also find steps that branch TO this one
     strategy.flow.forEach((s, i) => {
       if (s.branches?.some((b) => b.nextStepIndex === selectedStep)) ids.add(i)
     })
     return ids
-  }, [selectedStep, strategy.flow])
+  }, [selectedStep, strategy.flow, editMode])
+
+  // Canvas size
+  const canvasW = useMemo(() => {
+    let maxX = 600
+    for (const p of Object.values(positions)) { if (p.x + NODE_W / 2 + 30 > maxX) maxX = p.x + NODE_W / 2 + 30 }
+    return maxX
+  }, [positions])
+  const canvasH = useMemo(() => {
+    let maxY = 200
+    for (const p of Object.values(positions)) { if (p.y + NODE_H + 30 > maxY) maxY = p.y + NODE_H + 30 }
+    return maxY
+  }, [positions])
+
+  // Build edges
+  const edges = useMemo(() => {
+    const result: { fromIdx: number; toIdx: number; condition: string; isBranch: boolean }[] = []
+    strategy.flow.forEach((step, i) => {
+      // Sequential
+      if (i + 1 < strategy.flow.length) {
+        const hasBranchToNext = step.branches?.some((b) => b.nextStepIndex === i + 1)
+        if (!hasBranchToNext) {
+          result.push({ fromIdx: i, toIdx: i + 1, condition: "", isBranch: false })
+        }
+      }
+      // Branches
+      if (step.branches) {
+        for (const b of step.branches) {
+          if (b.nextStepIndex >= 0 && b.nextStepIndex < strategy.flow.length) {
+            result.push({ fromIdx: i, toIdx: b.nextStepIndex, condition: b.condition, isBranch: true })
+          }
+        }
+      }
+    })
+    return result
+  }, [strategy.flow])
+
+  if (Object.keys(positions).length === 0) return null
 
   return (
-    <div className="overflow-x-auto rounded-lg" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
-      <div style={{ position: "relative", width, height, minWidth: width, background: "rgba(255,255,255,0.01)" }}>
+    <div
+      ref={containerRef}
+      className="overflow-auto rounded-lg"
+      style={{ border: "1px solid rgba(255,255,255,0.06)", position: "relative", minHeight: Math.max(canvasH, 200) }}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+    >
+      <div style={{ width: canvasW, height: canvasH, position: "relative" }}>
+        {/* SVG: lines (z-0) */}
+        <svg style={{ position: "absolute", top: 0, left: 0, width: canvasW, height: canvasH, zIndex: 0, pointerEvents: "none" }}>
+          {edges.map((edge, i) => {
+            const from = positions[edge.fromIdx]
+            const to = positions[edge.toIdx]
+            if (!from || !to) return null
+            const isHighlighted = connectedIds?.has(edge.fromIdx) && connectedIds?.has(edge.toIdx)
+            const dimmed = connectedIds && !isHighlighted
+            const color = isHighlighted ? posColor(strategy.flow[edge.toIdx]?.positionId || "") : "rgba(255,255,255,0.08)"
 
-        {/* SVG layer: lines only (z-0) */}
-        <svg style={{ position: "absolute", top: 0, left: 0, width, height, zIndex: 0, pointerEvents: "none" }}>
-          {/* Main sequential lines */}
-          {nodes.map((node, i) => {
-            if (i === 0) return null
-            const prev = nodes[i - 1]
-            const dimmed = connectedIds && (!connectedIds.has(i) || !connectedIds.has(i - 1))
+            if (!edge.isBranch) {
+              // Straight sequential line
+              return (
+                <line
+                  key={`e-${String(i)}`}
+                  x1={from.x} y1={from.y + NODE_H / 2}
+                  x2={to.x} y2={to.y - NODE_H / 2}
+                  stroke={dimmed ? "rgba(255,255,255,0.03)" : isHighlighted ? color : "rgba(255,255,255,0.08)"}
+                  strokeWidth={isHighlighted ? 2.5 : 1.2}
+                  strokeOpacity={dimmed ? 0.3 : isHighlighted ? 0.5 : 0.15}
+                />
+              )
+            }
+
+            // Branch curve
+            const exitX = from.x + NODE_W / 2 - 10
+            const exitY = from.y + NODE_H / 4
+            const enterX = to.x - NODE_W / 2 + 10
+            const enterY = to.y
+            const midX = (exitX + enterX) / 2 + Math.abs(edge.toIdx - edge.fromIdx) * 15
             return (
-              <line
-                key={`seq-${String(i)}`}
-                x1={prev.x} y1={prev.y + NODE_H}
-                x2={node.x} y2={node.y}
-                stroke={dimmed ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.08)"}
-                strokeWidth={1.2}
+              <path
+                key={`e-${String(i)}`}
+                d={`M${exitX},${exitY} C${midX},${exitY} ${midX},${enterY} ${enterX},${enterY}`}
+                fill="none"
+                stroke={dimmed ? "rgba(255,255,255,0.03)" : isHighlighted ? color : "rgba(255,255,255,0.06)"}
+                strokeWidth={isHighlighted ? 2.5 : 1.2}
+                strokeDasharray={edge.isBranch ? "6,3" : undefined}
+                strokeOpacity={dimmed ? 0.3 : isHighlighted ? 0.5 : 0.1}
               />
             )
           })}
-
-          {/* Branch lines */}
-          {nodes.map((node) => {
-            const branches = node.step.branches
-            if (!branches) return null
-            return branches.map((b, bi) => {
-              const target = b.nextStepIndex >= 0 ? nodes.find((n) => n.idx === b.nextStepIndex) : null
-              if (!target) return null
-              const isHighlighted = connectedIds?.has(node.idx) && connectedIds?.has(target.idx)
-              const dimmed = connectedIds && !isHighlighted
-              const color = isHighlighted ? posColor(target.step.positionId) : "rgba(255,255,255,0.08)"
-
-              // Curved path: exit right side, curve to target
-              const exitX = node.x + NODE_W / 2
-              const exitY = node.y + NODE_H / 2 + bi * 6
-              const enterX = target.x + NODE_W / 2
-              const enterY = target.y + NODE_H / 2
-              const cpX = Math.max(exitX, enterX) + 40 + bi * 30
-
-              return (
-                <path
-                  key={`br-${node.idx}-${String(bi)}`}
-                  d={`M${exitX},${exitY} C${cpX},${exitY} ${cpX},${enterY} ${enterX},${enterY}`}
-                  fill="none"
-                  stroke={dimmed ? "rgba(255,255,255,0.03)" : color}
-                  strokeWidth={isHighlighted ? 2.5 : 1.2}
-                  strokeOpacity={dimmed ? 0.3 : isHighlighted ? 0.7 : 0.4}
-                />
-              )
-            })
-          })}
         </svg>
 
-        {/* Div layer: nodes (z-10) */}
-        {nodes.map((node) => {
-          const color = posColor(node.step.positionId)
-          const pos = getPositionById(node.step.positionId)
-          const isSelected = selectedStep === node.idx
-          const isHub = node.step.action.includes("★")
-          const dimmed = connectedIds && !connectedIds.has(node.idx)
+        {/* Nodes (z-10) */}
+        {strategy.flow.map((step, idx) => {
+          const pos = positions[idx]
+          if (!pos) return null
+          const color = posColor(step.positionId)
+          const posInfo = getPositionById(step.positionId)
+          const isSelected = selectedStep === idx
+          const isHub = step.action.includes("★")
+          const dimmed = connectedIds && !connectedIds.has(idx)
 
           return (
             <div
-              key={node.idx}
-              onClick={() => onStepClick(node.idx)}
+              key={idx}
+              onMouseDown={(e) => handleMouseDown(e, idx)}
+              onClick={() => { if (!editMode) onStepClick(idx) }}
               style={{
                 position: "absolute",
-                left: node.x - NODE_W / 2,
-                top: node.y,
+                left: pos.x - NODE_W / 2,
+                top: pos.y - NODE_H / 2,
                 width: NODE_W,
-                height: NODE_H,
-                zIndex: 10,
-                cursor: "pointer",
-                transition: "opacity 150ms ease",
+                zIndex: dragging === idx ? 100 : 10,
+                cursor: editMode ? (dragging === idx ? "grabbing" : "grab") : "pointer",
                 opacity: dimmed ? 0.12 : 1,
+                transition: dragging === idx ? "none" : "opacity 150ms ease",
               }}
             >
               <div
-                className="w-full h-full rounded-lg flex flex-col items-center justify-center gap-0.5 px-2"
+                className="w-full rounded-xl flex flex-col items-center justify-center gap-0.5 px-3 py-2"
                 style={{
                   background: `rgba(${hexRgb(color)},${isSelected ? 0.15 : 0.06})`,
                   border: `${isHub ? 2.5 : 1.5}px solid rgba(${hexRgb(color)},${isSelected ? 0.6 : 0.3})`,
@@ -159,85 +307,65 @@ function FlowChart({ strategy, onStepClick, selectedStep }: {
                 <div className="flex items-center gap-1.5">
                   {isHub && <span style={{ color, fontSize: 10 }}>★</span>}
                   <span className="text-[11px] font-medium" style={{ color }}>
-                    {pos?.nameKr || node.step.positionId}
+                    {posInfo?.nameKr || step.positionId}
                   </span>
-                  {node.step.lessonNumber && (
+                  {step.lessonNumber && (
                     <a
-                      href={node.step.videoUrl || "#"}
+                      href={step.videoUrl || "#"}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
                       className="text-[9px] hover:underline"
                       style={{ color, opacity: 0.6 }}
                     >
-                      #{node.step.lessonNumber}
-                    </a>
-                  )}
-                  {node.step.videoUrl && !node.step.lessonNumber && (
-                    <a
-                      href={node.step.videoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-[10px]"
-                    >
-                      📺
+                      #{step.lessonNumber}
                     </a>
                   )}
                 </div>
                 <span className="text-[9px] text-center leading-tight" style={{ color: "rgba(255,255,255,0.45)" }}>
-                  {node.step.action.replace("★ ", "").slice(0, 28)}{node.step.action.length > 28 ? "…" : ""}
+                  {step.action.replace("★ ", "").slice(0, 30)}{step.action.length > 30 ? "…" : ""}
                 </span>
               </div>
             </div>
           )
         })}
 
-        {/* Branch condition labels (absolute div on midpoint) */}
-        {nodes.map((node) => {
-          const branches = node.step.branches
-          if (!branches) return null
-          return branches.map((b, bi) => {
-            const target = b.nextStepIndex >= 0 ? nodes.find((n) => n.idx === b.nextStepIndex) : null
-            if (!target) return null
-            const dimmed = connectedIds && !(connectedIds.has(node.idx) && connectedIds.has(target.idx))
-            const midX = Math.max(node.x + NODE_W / 2, target.x + NODE_W / 2) + 50 + bi * 30
-            const midY = (node.y + NODE_H / 2 + target.y + NODE_H / 2) / 2
+        {/* Branch condition labels (z-15) */}
+        {edges.filter((e) => e.isBranch && e.condition).map((edge, i) => {
+          const from = positions[edge.fromIdx]
+          const to = positions[edge.toIdx]
+          if (!from || !to) return null
+          const dimmed = connectedIds && !(connectedIds.has(edge.fromIdx) && connectedIds.has(edge.toIdx))
+          const midX = (from.x + NODE_W / 2 + to.x - NODE_W / 2) / 2 + Math.abs(edge.toIdx - edge.fromIdx) * 8
+          const midY = (from.y + to.y) / 2
 
-            return (
-              <div
-                key={`lbl-${node.idx}-${String(bi)}`}
-                onClick={() => onStepClick(target.idx)}
-                style={{
-                  position: "absolute",
-                  left: midX - 4,
-                  top: midY - 8,
-                  zIndex: 15,
-                  cursor: "pointer",
-                  opacity: dimmed ? 0.12 : 1,
-                  transition: "opacity 150ms ease",
-                }}
-              >
-                <span className="text-[9px] px-1.5 py-0.5 rounded whitespace-nowrap" style={{
-                  color: "rgba(255,255,255,0.4)",
-                  background: "rgba(255,255,255,0.03)",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                }}>
-                  {b.condition}
-                </span>
-              </div>
-            )
-          })
+          return (
+            <div
+              key={`lbl-${String(i)}`}
+              onClick={() => onStepClick(edge.toIdx)}
+              style={{
+                position: "absolute",
+                left: midX,
+                top: midY - 8,
+                zIndex: 15,
+                cursor: "pointer",
+                opacity: dimmed ? 0.12 : 1,
+                transition: "opacity 150ms ease",
+              }}
+            >
+              <span className="text-[9px] px-1.5 py-0.5 rounded whitespace-nowrap" style={{
+                color: "rgba(255,255,255,0.4)",
+                background: "rgba(10,10,10,0.8)",
+                border: "1px solid rgba(255,255,255,0.06)",
+              }}>
+                {edge.condition}
+              </span>
+            </div>
+          )
         })}
       </div>
     </div>
   )
-}
-
-function hexRgb(hex: string): string {
-  const h = hex.startsWith("#") ? hex.slice(1) : hex
-  if (h.length < 6) return "168,85,247"
-  return `${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)}`
 }
 
 // ─── Strategy Builder (자연어 + 클릭 선택) ───────────────────
@@ -688,6 +816,7 @@ export function SenseiStrategy() {
               strategy={selected}
               selectedStep={selectedStep}
               onStepClick={(idx: number) => setSelectedStep(selectedStep === idx ? null : idx)}
+              editMode={editMode}
             />
           ) : (
             <div className="text-center py-8 text-xs text-zinc-600">
