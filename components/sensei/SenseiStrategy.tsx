@@ -23,13 +23,12 @@ function newId(): string {
   return `strat-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
 }
 
-// ─── SVG Flow Renderer (박스 + 연결선) ───────────────────────
+// ─── Flow Renderer: absolute div 노드 + SVG 라인 ─────────────
 
-const NODE_W = 140
-const NODE_H = 52
-const GAP_Y = 24
-const BRANCH_GAP_X = 160
-const PAD = 24
+const NODE_W = 160
+const NODE_H = 56
+const GAP_Y = 100
+const PAD = 30
 
 interface FlowNode {
   idx: number
@@ -39,179 +38,206 @@ interface FlowNode {
 }
 
 function layoutFlow(flow: StrategyStep[]): { nodes: FlowNode[]; width: number; height: number } {
-  if (flow.length === 0) return { nodes: [], width: 400, height: 100 }
-
+  if (flow.length === 0) return { nodes: [], width: 400, height: 80 }
   const nodes: FlowNode[] = []
-  const centerX = 300
-  let y = PAD
-
+  const centerX = 280
   for (let i = 0; i < flow.length; i++) {
-    nodes.push({ idx: i, x: centerX, y, step: flow[i] })
-    y += NODE_H + GAP_Y
-
-    // If branches exist, add horizontal space
-    const branches = flow[i].branches
-    if (branches && branches.length > 1) {
-      y += 8
-    }
+    nodes.push({ idx: i, x: centerX, y: PAD + i * GAP_Y, step: flow[i] })
   }
-
-  const maxX = centerX + NODE_W / 2 + BRANCH_GAP_X + PAD
-  return { nodes, width: Math.max(600, maxX), height: y + PAD }
+  return { nodes, width: Math.max(620, centerX + NODE_W / 2 + 200), height: PAD + flow.length * GAP_Y + NODE_H }
 }
 
-function FlowSVG({ strategy, onStepClick, selectedStep, onVideoClick }: {
+function FlowChart({ strategy, onStepClick, selectedStep }: {
   strategy: Strategy
   onStepClick: (idx: number) => void
   selectedStep: number | null
-  onVideoClick?: (url: string) => void
 }) {
   const { nodes, width, height } = useMemo(() => layoutFlow(strategy.flow), [strategy.flow])
 
+  // Connected set for dim logic
+  const connectedIds = useMemo(() => {
+    if (selectedStep === null) return null
+    const ids = new Set<number>([selectedStep])
+    const step = strategy.flow[selectedStep]
+    if (step?.branches) {
+      for (const b of step.branches) {
+        if (b.nextStepIndex >= 0) ids.add(b.nextStepIndex)
+      }
+    }
+    // Also find steps that branch TO this one
+    strategy.flow.forEach((s, i) => {
+      if (s.branches?.some((b) => b.nextStepIndex === selectedStep)) ids.add(i)
+    })
+    return ids
+  }, [selectedStep, strategy.flow])
+
   return (
-    <div className="overflow-x-auto" style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.06)" }}>
-      <svg width={width} height={height} style={{ display: "block", background: "rgba(255,255,255,0.01)", minWidth: width }}>
-        {/* Edges: main flow line */}
-        {nodes.map((node, i) => {
-          if (i === 0) return null
-          const prev = nodes[i - 1]
-          return (
-            <line
-              key={`main-${String(i)}`}
-              x1={prev.x} y1={prev.y + NODE_H / 2}
-              x2={node.x} y2={node.y - NODE_H / 2}
-              stroke="rgba(255,255,255,0.1)"
-              strokeWidth={1.5}
-            />
-          )
-        })}
+    <div className="overflow-x-auto rounded-lg" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+      <div style={{ position: "relative", width, height, minWidth: width, background: "rgba(255,255,255,0.01)" }}>
 
-        {/* Branch lines */}
-        {nodes.map((node) => {
-          const branches = node.step.branches
-          if (!branches) return null
-          return branches.map((b, bi) => {
-            const targetNode = b.nextStepIndex >= 0 ? nodes.find((n) => n.idx === b.nextStepIndex) : null
-            if (!targetNode) return null
-            const offsetX = (bi + 1) * 20
-            const midY = (node.y + NODE_H / 2 + targetNode.y - NODE_H / 2) / 2
+        {/* SVG layer: lines only (z-0) */}
+        <svg style={{ position: "absolute", top: 0, left: 0, width, height, zIndex: 0, pointerEvents: "none" }}>
+          {/* Main sequential lines */}
+          {nodes.map((node, i) => {
+            if (i === 0) return null
+            const prev = nodes[i - 1]
+            const dimmed = connectedIds && (!connectedIds.has(i) || !connectedIds.has(i - 1))
             return (
-              <g key={`br-${node.idx}-${String(bi)}`}>
-                <path
-                  d={`M${node.x + NODE_W / 2} ${node.y + 10 + bi * 8}
-                      Q${node.x + NODE_W / 2 + offsetX} ${midY}
-                      ${targetNode.x + NODE_W / 2 - 4} ${targetNode.y}`}
-                  fill="none"
-                  stroke={posColor(targetNode.step.positionId)}
-                  strokeWidth={1}
-                  strokeOpacity={0.3}
-                  strokeDasharray="4 3"
-                />
-                {/* Branch label */}
-                <text
-                  x={node.x + NODE_W / 2 + offsetX + 4}
-                  y={midY}
-                  fontSize={9}
-                  fill="rgba(255,255,255,0.25)"
-                >
-                  {b.condition}
-                </text>
-              </g>
+              <line
+                key={`seq-${String(i)}`}
+                x1={prev.x} y1={prev.y + NODE_H}
+                x2={node.x} y2={node.y}
+                stroke={dimmed ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.08)"}
+                strokeWidth={1.2}
+              />
             )
-          })
-        })}
+          })}
 
-        {/* Nodes */}
+          {/* Branch lines */}
+          {nodes.map((node) => {
+            const branches = node.step.branches
+            if (!branches) return null
+            return branches.map((b, bi) => {
+              const target = b.nextStepIndex >= 0 ? nodes.find((n) => n.idx === b.nextStepIndex) : null
+              if (!target) return null
+              const isHighlighted = connectedIds?.has(node.idx) && connectedIds?.has(target.idx)
+              const dimmed = connectedIds && !isHighlighted
+              const color = isHighlighted ? posColor(target.step.positionId) : "rgba(255,255,255,0.08)"
+
+              // Curved path: exit right side, curve to target
+              const exitX = node.x + NODE_W / 2
+              const exitY = node.y + NODE_H / 2 + bi * 6
+              const enterX = target.x + NODE_W / 2
+              const enterY = target.y + NODE_H / 2
+              const cpX = Math.max(exitX, enterX) + 40 + bi * 30
+
+              return (
+                <path
+                  key={`br-${node.idx}-${String(bi)}`}
+                  d={`M${exitX},${exitY} C${cpX},${exitY} ${cpX},${enterY} ${enterX},${enterY}`}
+                  fill="none"
+                  stroke={dimmed ? "rgba(255,255,255,0.03)" : color}
+                  strokeWidth={isHighlighted ? 2.5 : 1.2}
+                  strokeOpacity={dimmed ? 0.3 : isHighlighted ? 0.7 : 0.4}
+                />
+              )
+            })
+          })}
+        </svg>
+
+        {/* Div layer: nodes (z-10) */}
         {nodes.map((node) => {
           const color = posColor(node.step.positionId)
           const pos = getPositionById(node.step.positionId)
           const isSelected = selectedStep === node.idx
-          const isCore = node.step.action.includes("★")
-          const hasVideo = !!node.step.videoUrl
+          const isHub = node.step.action.includes("★")
+          const dimmed = connectedIds && !connectedIds.has(node.idx)
 
           return (
-            <g
+            <div
               key={node.idx}
               onClick={() => onStepClick(node.idx)}
-              style={{ cursor: "pointer" }}
+              style={{
+                position: "absolute",
+                left: node.x - NODE_W / 2,
+                top: node.y,
+                width: NODE_W,
+                height: NODE_H,
+                zIndex: 10,
+                cursor: "pointer",
+                transition: "opacity 150ms ease",
+                opacity: dimmed ? 0.12 : 1,
+              }}
             >
-              <rect
-                x={node.x - NODE_W / 2}
-                y={node.y - NODE_H / 2}
-                width={NODE_W}
-                height={NODE_H}
-                rx={8}
-                fill={isSelected ? `${color}20` : "rgba(255,255,255,0.03)"}
-                stroke={color}
-                strokeWidth={isSelected ? 2 : isCore ? 1.5 : 1}
-                strokeOpacity={isSelected ? 0.8 : 0.3}
-              />
-              {/* Position name */}
-              <text
-                x={node.x}
-                y={node.y - 6}
-                textAnchor="middle"
-                fill={color}
-                fontSize={11}
-                fontWeight={500}
+              <div
+                className="w-full h-full rounded-lg flex flex-col items-center justify-center gap-0.5 px-2"
+                style={{
+                  background: `rgba(${hexRgb(color)},${isSelected ? 0.15 : 0.06})`,
+                  border: `${isHub ? 2.5 : 1.5}px solid rgba(${hexRgb(color)},${isSelected ? 0.6 : 0.3})`,
+                }}
               >
-                {pos?.nameKr || node.step.positionId}
-              </text>
-              {/* Action (truncated) */}
-              <text
-                x={node.x}
-                y={node.y + 10}
-                textAnchor="middle"
-                fill="rgba(255,255,255,0.5)"
-                fontSize={9}
-              >
-                {node.step.action.replace("★ ", "").slice(0, 22)}{node.step.action.length > 22 ? "…" : ""}
-              </text>
-              {/* Lesson # badge */}
-              {node.step.lessonNumber && (
-                <text
-                  x={node.x + NODE_W / 2 - 6}
-                  y={node.y - NODE_H / 2 + 12}
-                  textAnchor="end"
-                  fill={color}
-                  fontSize={8}
-                  opacity={0.6}
-                >
-                  #{node.step.lessonNumber}
-                </text>
-              )}
-              {/* Video icon */}
-              {hasVideo && (
-                <text
-                  x={node.x - NODE_W / 2 + 8}
-                  y={node.y - NODE_H / 2 + 12}
-                  fontSize={10}
-                  style={{ cursor: "pointer" }}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    if (onVideoClick && node.step.videoUrl) onVideoClick(node.step.videoUrl)
-                  }}
-                >
-                  📺
-                </text>
-              )}
-              {/* Core marker */}
-              {isCore && (
-                <text
-                  x={node.x - NODE_W / 2 + 8}
-                  y={node.y + NODE_H / 2 - 4}
-                  fontSize={10}
-                  fill={color}
-                >
-                  ★
-                </text>
-              )}
-            </g>
+                <div className="flex items-center gap-1.5">
+                  {isHub && <span style={{ color, fontSize: 10 }}>★</span>}
+                  <span className="text-[11px] font-medium" style={{ color }}>
+                    {pos?.nameKr || node.step.positionId}
+                  </span>
+                  {node.step.lessonNumber && (
+                    <a
+                      href={node.step.videoUrl || "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-[9px] hover:underline"
+                      style={{ color, opacity: 0.6 }}
+                    >
+                      #{node.step.lessonNumber}
+                    </a>
+                  )}
+                  {node.step.videoUrl && !node.step.lessonNumber && (
+                    <a
+                      href={node.step.videoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-[10px]"
+                    >
+                      📺
+                    </a>
+                  )}
+                </div>
+                <span className="text-[9px] text-center leading-tight" style={{ color: "rgba(255,255,255,0.45)" }}>
+                  {node.step.action.replace("★ ", "").slice(0, 28)}{node.step.action.length > 28 ? "…" : ""}
+                </span>
+              </div>
+            </div>
           )
         })}
-      </svg>
+
+        {/* Branch condition labels (absolute div on midpoint) */}
+        {nodes.map((node) => {
+          const branches = node.step.branches
+          if (!branches) return null
+          return branches.map((b, bi) => {
+            const target = b.nextStepIndex >= 0 ? nodes.find((n) => n.idx === b.nextStepIndex) : null
+            if (!target) return null
+            const dimmed = connectedIds && !(connectedIds.has(node.idx) && connectedIds.has(target.idx))
+            const midX = Math.max(node.x + NODE_W / 2, target.x + NODE_W / 2) + 50 + bi * 30
+            const midY = (node.y + NODE_H / 2 + target.y + NODE_H / 2) / 2
+
+            return (
+              <div
+                key={`lbl-${node.idx}-${String(bi)}`}
+                onClick={() => onStepClick(target.idx)}
+                style={{
+                  position: "absolute",
+                  left: midX - 4,
+                  top: midY - 8,
+                  zIndex: 15,
+                  cursor: "pointer",
+                  opacity: dimmed ? 0.12 : 1,
+                  transition: "opacity 150ms ease",
+                }}
+              >
+                <span className="text-[9px] px-1.5 py-0.5 rounded whitespace-nowrap" style={{
+                  color: "rgba(255,255,255,0.4)",
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                }}>
+                  {b.condition}
+                </span>
+              </div>
+            )
+          })
+        })}
+      </div>
     </div>
   )
+}
+
+function hexRgb(hex: string): string {
+  const h = hex.startsWith("#") ? hex.slice(1) : hex
+  if (h.length < 6) return "168,85,247"
+  return `${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)}`
 }
 
 // ─── Strategy Builder (자연어 + 클릭 선택) ───────────────────
@@ -658,11 +684,10 @@ export function SenseiStrategy() {
 
           {/* SVG Flow Chart */}
           {selected.flow.length > 0 ? (
-            <FlowSVG
+            <FlowChart
               strategy={selected}
               selectedStep={selectedStep}
-              onStepClick={(idx) => setSelectedStep(selectedStep === idx ? null : idx)}
-              onVideoClick={(url) => window.open(url, "_blank")}
+              onStepClick={(idx: number) => setSelectedStep(selectedStep === idx ? null : idx)}
             />
           ) : (
             <div className="text-center py-8 text-xs text-zinc-600">
