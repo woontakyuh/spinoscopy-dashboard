@@ -148,6 +148,7 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
   // Pointer-capture drag: most reliable, works even outside element
   function onPointerDown(e: React.PointerEvent, idx: number) {
     if (!editMode) return
+    if (e.button !== 0) return // 왼클릭만 드래그 (우클릭은 컨텍스트메뉴용)
     e.preventDefault()
     e.stopPropagation()
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
@@ -389,7 +390,6 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
           <ContextAddMenu
             x={ctxMenu.x}
             y={ctxMenu.y}
-            fromIdx={ctxMenu.stepIdx}
             onSelect={(posId, action) => {
               if (onAddFromNode) {
                 onAddFromNode(ctxMenu.stepIdx, { positionId: posId, action })
@@ -406,8 +406,8 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
 
 // ─── Context Menu: 새 스텝 추가 ──────────────────────────────
 
-function ContextAddMenu({ x, y, fromIdx, onSelect, onClose }: {
-  x: number; y: number; fromIdx: number
+function ContextAddMenu({ x, y, onSelect, onClose }: {
+  x: number; y: number
   onSelect: (posId: string, action: string) => void
   onClose: () => void
 }) {
@@ -771,17 +771,29 @@ export function SenseiStrategy() {
     }
     const updated = [...myStrategies, imported]
     persist(updated)
-    setViewMode("mine")
     setSelectedId(imported.id)
+    setViewMode("mine")
+    setEditMode(true)
+    setShowBuilder(true)
   }
 
   function addStep(step: StrategyStep) {
     if (!selected || selected.type !== "mine") return
-    const updated = myStrategies.map((s) =>
-      s.id === selected.id
-        ? { ...s, flow: [...s.flow, step], updatedAt: new Date().toISOString().slice(0, 10) }
-        : s
-    )
+    const newIdx = selected.flow.length
+    const updated = myStrategies.map((s) => {
+      if (s.id !== selected.id) return s
+      const flow = [...s.flow]
+      // 마지막 노드에 새 스텝으로 branch 자동 연결
+      if (flow.length > 0) {
+        const lastStep = { ...flow[flow.length - 1] }
+        const branches = lastStep.branches ? [...lastStep.branches] : []
+        branches.push({ condition: step.action.slice(0, 20), nextStepIndex: newIdx })
+        lastStep.branches = branches
+        flow[flow.length - 1] = lastStep
+      }
+      flow.push(step)
+      return { ...s, flow, updatedAt: new Date().toISOString().slice(0, 10) }
+    })
     persist(updated)
   }
 
