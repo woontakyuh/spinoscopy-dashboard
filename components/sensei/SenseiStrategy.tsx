@@ -256,7 +256,7 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode }: {
       className="overflow-auto rounded-lg"
       style={{ border: "1px solid rgba(255,255,255,0.06)", position: "relative", minHeight: Math.max(canvasH, 200) }}
     >
-      <div style={{ width: canvasW, height: canvasH, position: "relative" }}>
+      <div ref={innerRef} style={{ width: canvasW, height: canvasH, position: "relative" }}>
         {/* SVG: lines (z-0) */}
         <svg style={{ position: "absolute", top: 0, left: 0, width: canvasW, height: canvasH, zIndex: 0, pointerEvents: "none" }}>
           {edges.map((edge, i) => {

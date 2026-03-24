@@ -1,6 +1,7 @@
-import type { Strategy, Archetype } from "@/lib/types/sensei"
+import type { Strategy, StrategyStep, Archetype } from "@/lib/types/sensei"
 import { ARCHETYPES } from "./archetypes"
 import { getVideoForLesson } from "./lessonVideos"
+import { getPositionById } from "./skillConnections"
 
 // ─── Tag → Position ID 매핑 ──────────────────────────────────
 const TAG_TO_POS: Record<string, string> = {
@@ -169,6 +170,29 @@ export const MY_STRATEGIES: Strategy[] = [
 // ─── 아키타입 → Strategy 변환 ────────────────────────────────
 
 export function archetypeToStrategy(arch: Archetype): Strategy {
+  // First pass: create flow with positionIds
+  const flow: StrategyStep[] = arch.gameplan.map((gp) => ({
+    positionId: tagToPositionId(gp.position),
+    action: gp.action,
+  }))
+
+  // Second pass: resolve gp.next → actual step indices by matching positionId
+  arch.gameplan.forEach((gp, i) => {
+    if (gp.next.length === 0) return
+    const branches = gp.next.map((nextTag) => {
+      const targetPosId = tagToPositionId(nextTag)
+      // Find the step in flow that matches this positionId (search after current)
+      let targetIdx = flow.findIndex((s, j) => j > i && s.positionId === targetPosId)
+      if (targetIdx === -1) targetIdx = flow.findIndex((s) => s.positionId === targetPosId)
+      return {
+        condition: getPositionById(targetPosId)?.nameKr || nextTag,
+        nextStepIndex: targetIdx,
+      }
+    }).filter((b) => b.nextStepIndex >= 0 && b.nextStepIndex !== i)
+
+    if (branches.length > 0) flow[i].branches = branches
+  })
+
   return {
     id: `pro-${arch.name.toLowerCase().replace(/\s+/g, "-")}`,
     name: `${arch.name}의 게임플랜`,
@@ -178,16 +202,7 @@ export function archetypeToStrategy(arch: Archetype): Strategy {
     proName: arch.name,
     createdAt: "",
     updatedAt: "",
-    flow: arch.gameplan.map((gp, _idx) => ({
-      positionId: tagToPositionId(gp.position),
-      action: gp.action,
-      branches: gp.next.length > 0
-        ? gp.next.map((n) => ({
-            condition: n,
-            nextStepIndex: -1,
-          }))
-        : undefined,
-    })),
+    flow,
   }
 }
 
