@@ -117,11 +117,13 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode }: {
   editMode: boolean
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const innerRef = useRef<HTMLDivElement>(null)
   const [positions, setPositions] = useState<Record<number, { x: number; y: number }>>({})
-  const [dragging, setDragging] = useState<number | null>(null)
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const dragRef = useRef<{ idx: number; offsetX: number; offsetY: number } | null>(null)
+  const [draggingIdx, setDraggingIdx] = useState<number | null>(null)
+  const didDragRef = useRef(false)
 
-  // Init positions: load from storage or autoLayout
+  // Init positions
   useEffect(() => {
     const saved = loadPositions(strategy.id)
     if (saved && Object.keys(saved).length === strategy.flow.length) {
@@ -132,39 +134,70 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode }: {
   }, [strategy.id, strategy.flow])
 
   // Save on edit mode exit
-  const saveCurrentPositions = useCallback(() => {
-    if (Object.keys(positions).length > 0) savePositions(strategy.id, positions)
-  }, [strategy.id, positions])
-
   useEffect(() => {
-    if (!editMode && Object.keys(positions).length > 0) saveCurrentPositions()
-  }, [editMode, saveCurrentPositions, positions])
+    if (!editMode) {
+      setPositions((cur) => {
+        if (Object.keys(cur).length > 0) savePositions(strategy.id, cur)
+        return cur
+      })
+    }
+  }, [editMode, strategy.id])
 
-  // Drag handlers
-  const handleMouseDown = useCallback((e: React.MouseEvent, idx: number) => {
-    if (!editMode || !containerRef.current) return
+  // Document-level mouse move/up for reliable drag
+  useEffect(() => {
+    if (!editMode) return
+
+    function onMove(e: MouseEvent) {
+      const drag = dragRef.current
+      if (!drag || !innerRef.current) return
+      didDragRef.current = true
+      const rect = innerRef.current.getBoundingClientRect()
+      const scrollEl = containerRef.current
+      const scrollX = scrollEl?.scrollLeft ?? 0
+      const scrollY = scrollEl?.scrollTop ?? 0
+      const newX = e.clientX - rect.left + scrollX - drag.offsetX
+      const newY = e.clientY - rect.top + scrollY - drag.offsetY
+      setPositions((prev) => ({
+        ...prev,
+        [drag.idx]: { x: Math.max(NODE_W / 2, newX), y: Math.max(NODE_H / 2, newY) },
+      }))
+    }
+
+    function onUp() {
+      dragRef.current = null
+      setDraggingIdx(null)
+    }
+
+    document.addEventListener("mousemove", onMove)
+    document.addEventListener("mouseup", onUp)
+    return () => {
+      document.removeEventListener("mousemove", onMove)
+      document.removeEventListener("mouseup", onUp)
+    }
+  }, [editMode])
+
+  function handleNodeMouseDown(e: React.MouseEvent, idx: number) {
+    if (!editMode || !innerRef.current) return
     e.preventDefault()
-    e.stopPropagation()
-    const rect = containerRef.current.getBoundingClientRect()
+    didDragRef.current = false
+    const rect = innerRef.current.getBoundingClientRect()
+    const scrollEl = containerRef.current
+    const scrollX = scrollEl?.scrollLeft ?? 0
+    const scrollY = scrollEl?.scrollTop ?? 0
     const pos = positions[idx]
     if (!pos) return
-    setDragging(idx)
-    setDragOffset({ x: e.clientX - rect.left - pos.x, y: e.clientY - rect.top - pos.y })
-  }, [editMode, positions])
+    dragRef.current = {
+      idx,
+      offsetX: e.clientX - rect.left + scrollX - pos.x,
+      offsetY: e.clientY - rect.top + scrollY - pos.y,
+    }
+    setDraggingIdx(idx)
+  }
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (dragging === null || !containerRef.current) return
-    const rect = containerRef.current.getBoundingClientRect()
-    setPositions((prev) => ({
-      ...prev,
-      [dragging]: {
-        x: Math.max(NODE_W / 2, e.clientX - rect.left - dragOffset.x),
-        y: Math.max(NODE_H / 2, e.clientY - rect.top - dragOffset.y),
-      },
-    }))
-  }, [dragging, dragOffset])
-
-  const handleMouseUp = useCallback(() => { setDragging(null) }, [])
+  function handleNodeClick(idx: number) {
+    if (editMode && didDragRef.current) return // 드래그 후에는 클릭 무시
+    if (!editMode) onStepClick(idx)
+  }
 
   // Connected set for dim
   const connectedIds = useMemo(() => {
@@ -222,9 +255,6 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode }: {
       ref={containerRef}
       className="overflow-auto rounded-lg"
       style={{ border: "1px solid rgba(255,255,255,0.06)", position: "relative", minHeight: Math.max(canvasH, 200) }}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
     >
       <div style={{ width: canvasW, height: canvasH, position: "relative" }}>
         {/* SVG: lines (z-0) */}
@@ -284,17 +314,17 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode }: {
           return (
             <div
               key={idx}
-              onMouseDown={(e) => handleMouseDown(e, idx)}
-              onClick={() => { if (!editMode) onStepClick(idx) }}
+              onMouseDown={(e) => handleNodeMouseDown(e, idx)}
+              onClick={() => handleNodeClick(idx)}
               style={{
                 position: "absolute",
                 left: pos.x - NODE_W / 2,
                 top: pos.y - NODE_H / 2,
                 width: NODE_W,
-                zIndex: dragging === idx ? 100 : 10,
-                cursor: editMode ? (dragging === idx ? "grabbing" : "grab") : "pointer",
+                zIndex: draggingIdx === idx ? 100 : 10,
+                cursor: editMode ? (draggingIdx === idx ? "grabbing" : "grab") : "pointer",
                 opacity: dimmed ? 0.12 : 1,
-                transition: dragging === idx ? "none" : "opacity 150ms ease",
+                transition: draggingIdx === idx ? "none" : "opacity 150ms ease",
               }}
             >
               <div
