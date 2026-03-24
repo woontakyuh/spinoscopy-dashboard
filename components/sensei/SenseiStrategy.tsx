@@ -330,7 +330,7 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
                 <div className="flex items-center gap-1.5">
                   {isHub && <span style={{ color, fontSize: 10 }}>★</span>}
                   <span className="text-[11px] font-medium" style={{ color }}>
-                    {posInfo?.nameKr || step.positionId}
+                    {posInfo?.nameKr || step.positionId.replace(/^custom_/, "")}
                   </span>
                   {step.lessonNumber && (
                     <a
@@ -340,8 +340,22 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
                       onClick={(e) => e.stopPropagation()}
                       className="text-[9px] hover:underline"
                       style={{ color, opacity: 0.6 }}
+                      title="교본 영상"
                     >
-                      #{step.lessonNumber}
+                      📖#{step.lessonNumber}
+                    </a>
+                  )}
+                  {step.videoUrl && !step.lessonNumber && (
+                    <a
+                      href={step.videoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-[9px] hover:underline"
+                      style={{ opacity: 0.8 }}
+                      title="유튜브 영상"
+                    >
+                      ▶️
                     </a>
                   )}
                 </div>
