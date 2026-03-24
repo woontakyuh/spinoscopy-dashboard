@@ -5,6 +5,7 @@ import { TopBar } from "@/components/layout/TopBar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DashboardCharts } from "@/components/scholar/DashboardCharts"
 import { PaperDB } from "@/components/scholar/PaperDB"
+import { ResearchPipeline } from "@/components/scholar/ResearchPipeline"
 
 export default function ScholarPage() {
   const [activeTab, setActiveTab] = useState("dashboard")
@@ -25,6 +26,9 @@ export default function ScholarPage() {
             <TabsTrigger value="browse" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-zinc-400">
               Paper DB
             </TabsTrigger>
+            <TabsTrigger value="research" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-zinc-400">
+              연구 현황
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboard" className="space-y-4">
@@ -33,6 +37,10 @@ export default function ScholarPage() {
 
           <TabsContent value="browse" className="space-y-4">
             <PaperDB />
+          </TabsContent>
+
+          <TabsContent value="research" className="space-y-4">
+            <ResearchPipeline />
           </TabsContent>
         </Tabs>
       </div>
