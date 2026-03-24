@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useRef, useCallback } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { loadMyStrategies, saveMyStrategies, getAllProStrategies } from "@/lib/sensei/strategies"
@@ -110,18 +110,20 @@ function savePositions(strategyId: string, pos: Record<number, { x: number; y: n
   localStorage.setItem(`sensei-strategy-${strategyId}-positions`, JSON.stringify(pos))
 }
 
-function FlowChart({ strategy, onStepClick, selectedStep, editMode }: {
+function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNode }: {
   strategy: Strategy
   onStepClick: (idx: number) => void
   selectedStep: number | null
   editMode: boolean
+  onAddFromNode?: (fromIdx: number, step: StrategyStep) => void
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const innerRef = useRef<HTMLDivElement>(null)
   const [positions, setPositions] = useState<Record<number, { x: number; y: number }>>({})
-  const dragRef = useRef<{ idx: number; offsetX: number; offsetY: number } | null>(null)
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null)
-  const didDragRef = useRef(false)
+  const dragStartPos = useRef<{ x: number; y: number } | null>(null)
+  const hasMoved = useRef(false)
+  // Context menu for "새 스텝 추가"
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; stepIdx: number } | null>(null)
 
   // Init positions
   useEffect(() => {
@@ -143,60 +145,46 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode }: {
     }
   }, [editMode, strategy.id])
 
-  // Document-level mouse move/up for reliable drag
-  useEffect(() => {
+  // Pointer-capture drag: most reliable, works even outside element
+  function onPointerDown(e: React.PointerEvent, idx: number) {
     if (!editMode) return
-
-    function onMove(e: MouseEvent) {
-      const drag = dragRef.current
-      if (!drag || !innerRef.current) return
-      didDragRef.current = true
-      const rect = innerRef.current.getBoundingClientRect()
-      const scrollEl = containerRef.current
-      const scrollX = scrollEl?.scrollLeft ?? 0
-      const scrollY = scrollEl?.scrollTop ?? 0
-      const newX = e.clientX - rect.left + scrollX - drag.offsetX
-      const newY = e.clientY - rect.top + scrollY - drag.offsetY
-      setPositions((prev) => ({
-        ...prev,
-        [drag.idx]: { x: Math.max(NODE_W / 2, newX), y: Math.max(NODE_H / 2, newY) },
-      }))
-    }
-
-    function onUp() {
-      dragRef.current = null
-      setDraggingIdx(null)
-    }
-
-    document.addEventListener("mousemove", onMove)
-    document.addEventListener("mouseup", onUp)
-    return () => {
-      document.removeEventListener("mousemove", onMove)
-      document.removeEventListener("mouseup", onUp)
-    }
-  }, [editMode])
-
-  function handleNodeMouseDown(e: React.MouseEvent, idx: number) {
-    if (!editMode || !innerRef.current) return
     e.preventDefault()
-    didDragRef.current = false
-    const rect = innerRef.current.getBoundingClientRect()
-    const scrollEl = containerRef.current
-    const scrollX = scrollEl?.scrollLeft ?? 0
-    const scrollY = scrollEl?.scrollTop ?? 0
+    e.stopPropagation()
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
     const pos = positions[idx]
     if (!pos) return
-    dragRef.current = {
-      idx,
-      offsetX: e.clientX - rect.left + scrollX - pos.x,
-      offsetY: e.clientY - rect.top + scrollY - pos.y,
-    }
+    dragStartPos.current = { x: e.clientX - pos.x, y: e.clientY - pos.y }
+    hasMoved.current = false
     setDraggingIdx(idx)
   }
 
+  function onPointerMove(e: React.PointerEvent, idx: number) {
+    if (draggingIdx !== idx || !dragStartPos.current) return
+    hasMoved.current = true
+    const newX = e.clientX - dragStartPos.current.x
+    const newY = e.clientY - dragStartPos.current.y
+    setPositions((prev) => ({
+      ...prev,
+      [idx]: { x: Math.max(NODE_W / 2, newX), y: Math.max(NODE_H / 2, newY) },
+    }))
+  }
+
+  function onPointerUp(e: React.PointerEvent, idx: number) {
+    if (draggingIdx !== idx) return
+    ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
+    dragStartPos.current = null
+    setDraggingIdx(null)
+  }
+
   function handleNodeClick(idx: number) {
-    if (editMode && didDragRef.current) return // 드래그 후에는 클릭 무시
+    if (editMode && hasMoved.current) return
     if (!editMode) onStepClick(idx)
+  }
+
+  function handleContextMenu(e: React.MouseEvent, idx: number) {
+    if (!editMode) return
+    e.preventDefault()
+    setCtxMenu({ x: e.clientX, y: e.clientY, stepIdx: idx })
   }
 
   // Connected set for dim
@@ -256,7 +244,7 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode }: {
       className="overflow-auto rounded-lg"
       style={{ border: "1px solid rgba(255,255,255,0.06)", position: "relative", minHeight: Math.max(canvasH, 200) }}
     >
-      <div ref={innerRef} style={{ width: canvasW, height: canvasH, position: "relative" }}>
+      <div style={{ width: canvasW, height: canvasH, position: "relative" }}>
         {/* SVG: lines (z-0) */}
         <svg style={{ position: "absolute", top: 0, left: 0, width: canvasW, height: canvasH, zIndex: 0, pointerEvents: "none" }}>
           {edges.map((edge, i) => {
@@ -314,8 +302,11 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode }: {
           return (
             <div
               key={idx}
-              onMouseDown={(e) => handleNodeMouseDown(e, idx)}
+              onPointerDown={(e) => onPointerDown(e, idx)}
+              onPointerMove={(e) => onPointerMove(e, idx)}
+              onPointerUp={(e) => onPointerUp(e, idx)}
               onClick={() => handleNodeClick(idx)}
+              onContextMenu={(e) => handleContextMenu(e, idx)}
               style={{
                 position: "absolute",
                 left: pos.x - NODE_W / 2,
@@ -393,7 +384,122 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode }: {
             </div>
           )
         })}
+        {/* Context menu: 새 스텝 추가 (편집 모드 우클릭) */}
+        {ctxMenu && (
+          <ContextAddMenu
+            x={ctxMenu.x}
+            y={ctxMenu.y}
+            fromIdx={ctxMenu.stepIdx}
+            onSelect={(posId, action) => {
+              if (onAddFromNode) {
+                onAddFromNode(ctxMenu.stepIdx, { positionId: posId, action })
+              }
+              setCtxMenu(null)
+            }}
+            onClose={() => setCtxMenu(null)}
+          />
+        )}
       </div>
+    </div>
+  )
+}
+
+// ─── Context Menu: 새 스텝 추가 ──────────────────────────────
+
+function ContextAddMenu({ x, y, fromIdx, onSelect, onClose }: {
+  x: number; y: number; fromIdx: number
+  onSelect: (posId: string, action: string) => void
+  onClose: () => void
+}) {
+  const [showPicker, setShowPicker] = useState(false)
+  const [filterLayer, setFilterLayer] = useState<string | null>(null)
+  const [selectedPos, setSelectedPos] = useState<string | null>(null)
+  const [action, setAction] = useState("")
+
+  const layers = ["guard", "passing", "control", "submission", "standing", "leglock"]
+  const layerLabels: Record<string, string> = {
+    standing: "스탠딩", guard: "가드", passing: "패싱", control: "컨트롤", submission: "서브미션", leglock: "레그락",
+  }
+
+  const filtered = filterLayer ? POSITIONS.filter((p) => p.layer === filterLayer) : POSITIONS.filter((p) => p.layer !== "submission")
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      const target = e.target as HTMLElement
+      if (!target.closest("[data-ctx-menu]")) onClose()
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [onClose])
+
+  return (
+    <div
+      data-ctx-menu
+      style={{
+        position: "fixed", left: x, top: y, zIndex: 200,
+        minWidth: showPicker ? 280 : 160,
+      }}
+      className="bg-zinc-900 border border-zinc-700 rounded-lg py-1 text-xs"
+    >
+      {!showPicker ? (
+        <button
+          onClick={() => setShowPicker(true)}
+          className="w-full text-left px-3 py-2 text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
+        >
+          <span className="text-zinc-500">+</span>
+          새 스텝 추가 (여기서 연결)
+        </button>
+      ) : (
+        <div className="p-2 space-y-2">
+          <p className="text-zinc-500 text-[10px] px-1">연결할 포지션 선택:</p>
+          <div className="flex gap-1 flex-wrap">
+            {layers.map((l) => (
+              <button
+                key={l}
+                onClick={() => setFilterLayer(filterLayer === l ? null : l)}
+                className={`px-1.5 py-0.5 rounded text-[10px] ${filterLayer === l ? "text-white bg-zinc-700" : "text-zinc-500"}`}
+                style={filterLayer === l ? { color: LAYER_COLORS[l] } : {}}
+              >
+                {layerLabels[l]}
+              </button>
+            ))}
+          </div>
+          <div className="max-h-28 overflow-y-auto flex flex-wrap gap-1">
+            {filtered.map((p) => {
+              const c = LAYER_COLORS[p.layer] || "#a855f7"
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => setSelectedPos(p.id)}
+                  className={`px-1.5 py-0.5 rounded text-[10px] border ${selectedPos === p.id ? "text-white" : "text-zinc-500 border-zinc-800"}`}
+                  style={selectedPos === p.id ? { color: c, borderColor: `${c}50`, background: `${c}15` } : {}}
+                >
+                  {p.nameKr}
+                </button>
+              )
+            })}
+          </div>
+          {selectedPos && (
+            <div className="flex gap-1">
+              <input
+                type="text"
+                value={action}
+                onChange={(e) => setAction(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && action.trim()) { onSelect(selectedPos, action.trim()) } }}
+                placeholder="액션 (예: 스윕)"
+                className="flex-1 px-2 py-1 rounded text-[10px] bg-zinc-800 border border-zinc-700 text-white placeholder:text-zinc-600 focus:outline-none"
+              />
+              <button
+                onClick={() => { if (action.trim()) onSelect(selectedPos, action.trim()) }}
+                disabled={!action.trim()}
+                className="px-2 py-1 rounded text-[10px] bg-zinc-700 text-white disabled:opacity-30"
+              >
+                추가
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -803,7 +909,20 @@ export function SenseiStrategy() {
           <div className="flex items-start justify-between mb-4">
             <div>
               <div className="flex items-center gap-2 flex-wrap mb-1">
-                <h2 className="text-base font-semibold text-white">{selected.name}</h2>
+                {editMode && selected.type === "mine" ? (
+                  <input
+                    type="text"
+                    value={selected.name}
+                    onChange={(e) => {
+                      const updated = myStrategies.map((s) => s.id === selected.id ? { ...s, name: e.target.value } : s)
+                      persist(updated)
+                    }}
+                    className="text-base font-semibold text-white bg-transparent border-b border-zinc-700 focus:border-zinc-500 focus:outline-none pb-0.5"
+                    style={{ minWidth: 200 }}
+                  />
+                ) : (
+                  <h2 className="text-base font-semibold text-white">{selected.name}</h2>
+                )}
                 <Badge className="text-[10px] border-zinc-700 bg-zinc-800 text-zinc-400">{selected.ruleSet.toUpperCase()}</Badge>
                 {selected.proName && <Badge className="text-[10px] border-blue-500/30 bg-blue-500/10 text-blue-400">{selected.proName}</Badge>}
               </div>
@@ -847,6 +966,22 @@ export function SenseiStrategy() {
               selectedStep={selectedStep}
               onStepClick={(idx: number) => setSelectedStep(selectedStep === idx ? null : idx)}
               editMode={editMode}
+              onAddFromNode={(fromIdx: number, newStep: StrategyStep) => {
+                if (!selected || selected.type !== "mine") return
+                const newFlowIdx = selected.flow.length
+                // 새 스텝 추가 + from 노드에 branch 연결
+                const updatedFlow = selected.flow.map((s, i) => {
+                  if (i !== fromIdx) return s
+                  const branches = s.branches ? [...s.branches] : []
+                  branches.push({ condition: newStep.action, nextStepIndex: newFlowIdx })
+                  return { ...s, branches }
+                })
+                updatedFlow.push(newStep)
+                const updated = myStrategies.map((s) =>
+                  s.id === selected.id ? { ...s, flow: updatedFlow, updatedAt: new Date().toISOString().slice(0, 10) } : s
+                )
+                persist(updated)
+              }}
             />
           ) : (
             <div className="text-center py-8 text-xs text-zinc-600">
