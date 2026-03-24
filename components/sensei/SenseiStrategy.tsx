@@ -110,12 +110,13 @@ function savePositions(strategyId: string, pos: Record<number, { x: number; y: n
   localStorage.setItem(`sensei-strategy-${strategyId}-positions`, JSON.stringify(pos))
 }
 
-function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNode }: {
+function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNode, onDeleteStep }: {
   strategy: Strategy
   onStepClick: (idx: number) => void
   selectedStep: number | null
   editMode: boolean
   onAddFromNode?: (fromIdx: number, step: StrategyStep) => void
+  onDeleteStep?: (idx: number) => void
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [positions, setPositions] = useState<Record<number, { x: number; y: number }>>({})
@@ -396,6 +397,10 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
               }
               setCtxMenu(null)
             }}
+            onDelete={() => {
+              if (onDeleteStep) onDeleteStep(ctxMenu.stepIdx)
+              setCtxMenu(null)
+            }}
             onClose={() => setCtxMenu(null)}
           />
         )}
@@ -406,9 +411,10 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
 
 // ─── Context Menu: 새 스텝 추가 ──────────────────────────────
 
-function ContextAddMenu({ x, y, onSelect, onClose }: {
+function ContextAddMenu({ x, y, onSelect, onDelete, onClose }: {
   x: number; y: number
   onSelect: (posId: string, action: string) => void
+  onDelete: () => void
   onClose: () => void
 }) {
   const [showPicker, setShowPicker] = useState(false)
@@ -442,13 +448,22 @@ function ContextAddMenu({ x, y, onSelect, onClose }: {
       className="bg-zinc-900 border border-zinc-700 rounded-lg py-1 text-xs"
     >
       {!showPicker ? (
-        <button
-          onClick={() => setShowPicker(true)}
-          className="w-full text-left px-3 py-2 text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
-        >
-          <span className="text-zinc-500">+</span>
-          새 스텝 추가 (여기서 연결)
-        </button>
+        <>
+          <button
+            onClick={() => setShowPicker(true)}
+            className="w-full text-left px-3 py-2 text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
+          >
+            <span className="text-zinc-500">+</span>
+            새 스텝 추가 (여기서 연결)
+          </button>
+          <button
+            onClick={onDelete}
+            className="w-full text-left px-3 py-2 text-red-400/70 hover:bg-zinc-800 hover:text-red-400 flex items-center gap-2"
+          >
+            <span className="text-red-500/50">×</span>
+            이 스텝 삭제
+          </button>
+        </>
       ) : (
         <div className="p-2 space-y-2">
           <p className="text-zinc-500 text-[10px] px-1">연결할 포지션 선택:</p>
@@ -993,6 +1008,26 @@ export function SenseiStrategy() {
                   s.id === selected.id ? { ...s, flow: updatedFlow, updatedAt: new Date().toISOString().slice(0, 10) } : s
                 )
                 persist(updated)
+              }}
+              onDeleteStep={(idx: number) => {
+                if (!selected || selected.type !== "mine") return
+                const deletedFlow = selected.flow.filter((_, i) => i !== idx)
+                // branches의 nextStepIndex 보정: 삭제된 인덱스 이후는 -1, 삭제된 인덱스를 가리키면 제거
+                const fixedFlow = deletedFlow.map((s) => {
+                  if (!s.branches) return s
+                  const fixed = s.branches
+                    .filter((b) => b.nextStepIndex !== idx)
+                    .map((b) => ({
+                      ...b,
+                      nextStepIndex: b.nextStepIndex > idx ? b.nextStepIndex - 1 : b.nextStepIndex,
+                    }))
+                  return { ...s, branches: fixed.length > 0 ? fixed : undefined }
+                })
+                const updated = myStrategies.map((s) =>
+                  s.id === selected.id ? { ...s, flow: fixedFlow, updatedAt: new Date().toISOString().slice(0, 10) } : s
+                )
+                persist(updated)
+                setSelectedStep(null)
               }}
             />
           ) : (
