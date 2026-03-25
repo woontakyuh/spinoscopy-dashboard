@@ -16,6 +16,11 @@ interface SenseiPostBody {
   type?: "promotion"
   classInput?: string
   sparringInput?: string
+  studyInput?: string
+  videoUrl?: string
+  videoTitle?: string
+  todayFocus?: string
+  focusApplied?: boolean
   date?: string
   rawInput?: string
   instructor?: string
@@ -23,11 +28,13 @@ interface SenseiPostBody {
 }
 
 function buildRawInput(body: SenseiPostBody): string {
+  const studyText = (body.studyInput ?? "").trim()
   const classText = (body.classInput ?? "").trim()
   const sparringText = (body.sparringInput ?? "").trim()
 
-  if (classText || sparringText) {
+  if (studyText || classText || sparringText) {
     const parts: string[] = []
+    if (studyText) parts.push(`[공부] ${studyText}`)
     if (classText) parts.push(`[수업] ${classText}`)
     if (sparringText) parts.push(`[스파링] ${sparringText}`)
     return parts.join("\n\n")
@@ -61,17 +68,29 @@ export async function POST(req: NextRequest) {
       structured.date = body.date
     }
 
-    // 수업 내용 유무로 sessionType 결정: 수업 있으면 class, 수업 없이 스파링만 있으면 openmat
+    // sessionType 결정
+    const studyText = (body.studyInput ?? "").trim()
     const classText = (body.classInput ?? "").trim()
     const sparringText = (body.sparringInput ?? "").trim()
     if (classText) {
       structured.sessionType = "class"
     } else if (sparringText) {
       structured.sessionType = "openmat"
-      // openmat: 수업 없이 스파링만 → 모든 태그를 sparringTags로 병합
       structured.sparringTags = [...new Set([...structured.sparringTags, ...structured.classTags])]
       structured.classTags = []
+    } else if (studyText || body.videoUrl) {
+      structured.sessionType = "study"
+      // study-only: AI가 classTags/sparringTags에 넣은 태그를 studyTags로 이동
+      structured.studyTags = [...new Set([...structured.studyTags, ...structured.classTags, ...structured.sparringTags])]
+      structured.classTags = []
+      structured.sparringTags = []
     }
+
+    // study 필드 전달
+    if (body.videoUrl) structured.videoUrl = body.videoUrl
+    if (body.videoTitle) structured.videoTitle = body.videoTitle
+    if (body.todayFocus) structured.todayFocus = body.todayFocus
+    structured.focusApplied = body.focusApplied ?? false
 
     // instructor 오버라이드 (form에서 전달된 경우)
     if (body.instructor) {
@@ -88,6 +107,7 @@ export async function POST(req: NextRequest) {
       // 병합된 태그를 structured에 반영하여 응답
       structured.classTags = Array.from(new Set([...existing.entry.classTags, ...structured.classTags]))
       structured.sparringTags = Array.from(new Set([...existing.entry.sparringTags, ...structured.sparringTags]))
+      structured.studyTags = Array.from(new Set([...(existing.entry.studyTags || []), ...structured.studyTags]))
       appended = true
     } else {
       pageId = await createSenseiEntry(structured, rawInput)

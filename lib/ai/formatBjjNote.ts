@@ -68,12 +68,13 @@ function isOpenMat(instructor: string, sourceText: string): boolean {
 function buildSystemPrompt(tags: SenseiTagOptions): string {
   const classStr = tags.classTags.length > 0 ? tags.classTags.join(", ") : "(아직 없음)"
   const sparringStr = tags.sparringTags.length > 0 ? tags.sparringTags.join(", ") : "(아직 없음)"
+  const studyStr = tags.studyTags.length > 0 ? tags.studyTags.join(", ") : "(아직 없음)"
   const instructorStr = tags.instructors.length > 0 ? tags.instructors.join(", ") : "Open Mat"
   const gymStr = tags.gyms.length > 0 ? tags.gyms.join(", ") : "DT Wire"
 
   return [
     "주짓수 수련 노트를 Notion DB 형식 JSON으로 정리하라. JSON만 출력.",
-    '{"title":"string","date":"YYYY-MM-DD","instructor":"string","gym":"string","classTags":["string"],"sparringTags":["string"],"note":"string"}',
+    '{"title":"string","date":"YYYY-MM-DD","instructor":"string","gym":"string","classTags":["string"],"sparringTags":["string"],"studyTags":["string"],"note":"string"}',
     "",
     "title: 30자 내외 한국어.",
     `instructor: 기존 값 중 선택: ${instructorStr}. 해당 없으면 "Open Mat".`,
@@ -85,13 +86,14 @@ function buildSystemPrompt(tags: SenseiTagOptions): string {
     "태그 규칙 (매우 중요):",
     `- classTags 기존: ${classStr}`,
     `- sparringTags 기존: ${sparringStr}`,
+    `- studyTags 기존: ${studyStr}`,
     "- 메모에 명시적으로 언급된 기술만 태그하라. 추론하거나 연관 기술을 추가하지 마라.",
     "- 예: '하프가드'만 언급 → HG만. DLR, RDLR, K-G 등 연관 가드를 임의로 추가 금지.",
     "- 기존 태그와 동일한 기술이면 기존 태그명 그대로 사용.",
     "- 레퍼런스에 있는 기술이면 반드시 해당 약어 사용 (예: Half Guard → HG, Torreando Pass → TP).",
     "- 레퍼런스에 없는 새로운 기술이면 영문 약어를 만들어서 사용.",
     "- 한국어 기술명은 반드시 영문 약어로 변환 (예: 하프가드 → HG, 토레안도 → TP).",
-    "- 수업에서 배운 기술 → classTags, 스파링에서 사용한 기술 → sparringTags.",
+    "- 수업에서 배운 기술 → classTags, 스파링에서 사용한 기술 → sparringTags, [공부]에서 본 기술 → studyTags.",
     "",
     "note: 핵심 내용 + 개선 포인트를 한국어 불릿으로 정리.",
     "date 불명확하면 오늘 날짜 사용.",
@@ -133,6 +135,7 @@ export async function formatBjjNote(rawInput: string, tags: SenseiTagOptions): P
   const instructor = asString(parsed.instructor) ?? "Open Mat"
   const classTags = dedup(Array.isArray(parsed.classTags) ? parsed.classTags.filter((t): t is string => typeof t === "string") : [])
   const sparringTags = dedup(Array.isArray(parsed.sparringTags) ? parsed.sparringTags.filter((t): t is string => typeof t === "string") : [])
+  const studyTags = dedup(Array.isArray(parsed.studyTags) ? parsed.studyTags.filter((t): t is string => typeof t === "string") : [])
 
   // sessionType과 태그 병합은 API route에서 form 입력 기반으로 결정
   const sessionType: SenseiSessionType = "class"
@@ -145,6 +148,7 @@ export async function formatBjjNote(rawInput: string, tags: SenseiTagOptions): P
     gym: asString(parsed.gym) ?? (tags.gyms[0] || "DT Wire"),
     classTags,
     sparringTags,
+    studyTags,
     note: pickNote(parsed.note, rawInput),
   }
 }
