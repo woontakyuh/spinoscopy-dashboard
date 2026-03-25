@@ -8,6 +8,8 @@ interface NotionProperty {
   date?: { start: string; end: string | null } | null
   select?: { name: string } | null
   multi_select?: Array<{ name: string }>
+  checkbox?: boolean
+  url?: string | null
 }
 
 interface NotionPage {
@@ -117,6 +119,7 @@ function toEntry(page: NotionPage): SenseiEntry {
   const sessionTypeRaw = p.SessionType?.select?.name
   const sessionType = sessionTypeRaw === "openmat" ? "openmat" as const
     : sessionTypeRaw === "promotion" ? "promotion" as const
+    : sessionTypeRaw === "study" ? "study" as const
     : "class" as const
   return {
     id: page.id,
@@ -127,6 +130,11 @@ function toEntry(page: NotionPage): SenseiEntry {
     gym: p.Gym?.select?.name ?? "",
     classTags: getMulti(p.Class),
     sparringTags: getMulti(p.Sparring),
+    studyTags: getMulti(p["Study Tags"]),
+    videoUrl: p["Video URL"]?.url || undefined,
+    videoTitle: getText(p["Video Title"]) || undefined,
+    todayFocus: getText(p["Today Focus"]) || undefined,
+    focusApplied: p["Focus Applied"]?.checkbox ?? false,
     note: getText(p.Note),
     url: page.url,
   }
@@ -143,6 +151,7 @@ interface NotionDbSchema {
 export interface SenseiTagOptions {
   classTags: string[]
   sparringTags: string[]
+  studyTags: string[]
   instructors: string[]
   gyms: string[]
 }
@@ -153,6 +162,7 @@ export async function fetchTagOptions(): Promise<SenseiTagOptions> {
   return {
     classTags: (db.properties.Class?.multi_select?.options ?? []).map((o) => o.name),
     sparringTags: (db.properties.Sparring?.multi_select?.options ?? []).map((o) => o.name),
+    studyTags: (db.properties["Study Tags"]?.multi_select?.options ?? []).map((o) => o.name),
     instructors: (db.properties.Instructor?.select?.options ?? []).map((o) => o.name),
     gyms: (db.properties.Gym?.select?.options ?? []).map((o) => o.name),
   }
@@ -207,6 +217,7 @@ async function ensureSessionTypeProperty(dbId: string): Promise<void> {
               { name: "class", color: "purple" },
               { name: "openmat", color: "green" },
               { name: "promotion", color: "yellow" },
+              { name: "study", color: "blue" },
             ],
           },
         },
@@ -243,6 +254,7 @@ export async function appendToSenseiEntry(
 ): Promise<string> {
   const mergedClassTags = Array.from(new Set([...existing.classTags, ...newInput.classTags]))
   const mergedSparringTags = Array.from(new Set([...existing.sparringTags, ...newInput.sparringTags]))
+  const mergedStudyTags = Array.from(new Set([...(existing.studyTags || []), ...(newInput.studyTags || [])]))
 
   const existingNote = existing.note || ""
   const newNote = summarizeForProperty(newInput.note)
@@ -255,6 +267,7 @@ export async function appendToSenseiEntry(
     body: JSON.stringify({
       properties: {
         Class: { multi_select: mergedClassTags.map((name) => ({ name })) },
+        "Study Tags": { multi_select: mergedStudyTags.map((name) => ({ name })) },
         Sparring: { multi_select: mergedSparringTags.map((name) => ({ name })) },
         Note: { rich_text: [{ text: { content: mergedNote.slice(0, 2000) } }] },
       },
@@ -320,6 +333,11 @@ export async function createSenseiEntry(input: StructuredBjjNote, rawInput: stri
         Gym: { select: { name: input.gym } },
         Class: { multi_select: input.classTags.map((name) => ({ name })) },
         Sparring: { multi_select: input.sparringTags.map((name) => ({ name })) },
+        "Study Tags": { multi_select: (input.studyTags || []).map((name) => ({ name })) },
+        ...(input.videoUrl ? { "Video URL": { url: input.videoUrl } } : {}),
+        ...(input.videoTitle ? { "Video Title": { rich_text: [{ text: { content: input.videoTitle } }] } } : {}),
+        ...(input.todayFocus ? { "Today Focus": { rich_text: [{ text: { content: input.todayFocus } }] } } : {}),
+        "Focus Applied": { checkbox: input.focusApplied ?? false },
         Note: { rich_text: [{ text: { content: summarizeForProperty(input.note) } }] },
       },
       children: buildPageBlocks(input, rawInput),

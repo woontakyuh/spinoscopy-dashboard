@@ -1,4 +1,4 @@
-export type SenseiSessionType = "class" | "openmat" | "promotion"
+export type SenseiSessionType = "class" | "openmat" | "promotion" | "study"
 
 export interface SenseiEntry {
   id: string
@@ -9,6 +9,11 @@ export interface SenseiEntry {
   gym: string
   classTags: string[]
   sparringTags: string[]
+  studyTags: string[]
+  videoUrl?: string
+  videoTitle?: string
+  todayFocus?: string
+  focusApplied?: boolean
   note: string
   url: string
 }
@@ -21,7 +26,20 @@ export interface StructuredBjjNote {
   gym: string
   classTags: string[]
   sparringTags: string[]
+  studyTags: string[]
+  videoUrl?: string
+  videoTitle?: string
+  todayFocus?: string
+  focusApplied?: boolean
   note: string
+}
+
+export interface LearningCycle {
+  tag: string
+  study: boolean
+  class: boolean
+  sparring: boolean
+  lastDate: string
 }
 
 // RPG System Types
@@ -63,6 +81,8 @@ export interface BjjStats {
   sessions2026Nogi: number
   attendanceRate: number
   lastCeremonyDate: string
+  completedCycles: LearningCycle[]
+  inProgressCycles: LearningCycle[]
 }
 
 export interface GameplanStep {
