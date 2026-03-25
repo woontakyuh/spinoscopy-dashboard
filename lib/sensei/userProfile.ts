@@ -13,9 +13,6 @@ export const DEFAULT_PROFILE: UserProfile = {
     gi: { guard: 0, passing: 0, control: 0, finishing: 0, takedowns: 0, legLocks: 0 },
     nogi: { guard: 0, passing: 0, control: 0, finishing: 0, takedowns: 0, legLocks: 0 },
   },
-  nextGoalTitle: "블루벨트 4그랄",
-  nextGoalText: "현재: 블루벨트 3그랄",
-  nextGoalProgress: 75,
   role: "student",
 }
 

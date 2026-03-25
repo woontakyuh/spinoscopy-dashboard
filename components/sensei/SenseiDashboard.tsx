@@ -42,11 +42,6 @@ function getClipPath(index: number, length: number) {
   return "polygon(0% 0%, calc(100% - 1.5rem) 0%, 100% 50%, calc(100% - 1.5rem) 100%, 0% 100%, 1.5rem 50%)"
 }
 
-// 벨트별 최대 그랄 수
-function maxStripesForBelt(belt: string): number {
-  return belt === "black" ? 10 : 4
-}
-
 // 특정 벨트의 승급 히스토리에서 도달한 그랄 수
 function getStripesForBelt(belt: string): { reached: number; dates: string[] } {
   const entries = PROMOTION_HISTORY.filter((p) => p.belt === belt)
@@ -165,9 +160,7 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
               </div>
               <div>
                 <p className="text-base font-semibold text-zinc-100">
-                  {stats.sessions2026}
-                  {giMode === "gi" && <span className="text-xs text-zinc-500 ml-1">({stats.sessions2026Gi} Gi)</span>}
-                  {giMode === "nogi" && <span className="text-xs text-zinc-500 ml-1">({stats.sessions2026Nogi} NoGi)</span>}
+                  {giMode === "gi" ? stats.sessions2026Gi : stats.sessions2026Nogi}
                 </p>
                 <p className="text-xs text-zinc-500">2026 수련</p>
               </div>
@@ -184,14 +177,15 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
             </div>
           </div>
 
-          {/* ═══ 벨트 쉐브론 타임라인 (모든 벨트 그랄 표시) ═══ */}
+          {/* ═══ 벨트 쉐브론 타임라인 ═══ */}
           <div className="flex items-center mt-8 h-14 relative w-full gap-0.5">
             {BELTS.map((belt, idx) => {
               const isPast = currentBeltIdx >= idx
               const isCurrent = belt.id === stats.belt
               const beltPromo = getStripesForBelt(belt.id)
-              const totalStripes = maxStripesForBelt(belt.id)
               const stripesFilled = isPast ? (isCurrent ? stats.beltStripes : beltPromo.reached) : 0
+              // 5등분: [승급] [1그랄] [2그랄] [3그랄] [4그랄]
+              const slots = [0, 1, 2, 3, 4]
 
               return (
                 <div
@@ -199,37 +193,47 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
                   className={`relative h-full flex-1 ${belt.color} ${!isPast ? "opacity-30 grayscale" : ""}`}
                   style={{ clipPath: getClipPath(idx, BELTS.length) }}
                 >
-                  {/* 모든 벨트에 그랄 표시 */}
-                  {isPast && (
-                    <div className="absolute right-6 top-0 h-full w-12 bg-zinc-950/80 flex justify-evenly items-center py-2 px-0.5">
-                      {Array.from({ length: Math.min(totalStripes, 4) }).map((_, si) => {
-                        const filled = si < stripesFilled
-                        return (
-                          <div
-                            key={String(si)}
-                            className={`w-1.5 h-full transition-colors ${filled ? "bg-white" : "bg-zinc-800"}`}
-                            onMouseEnter={() => setHoveredBelt({ belt: belt.id, stripe: si })}
-                            onMouseLeave={() => setHoveredBelt(null)}
-                          />
-                        )
-                      })}
-                    </div>
-                  )}
+                  {/* 균등 분포 그랄 마커 */}
+                  <div className="absolute inset-0 flex items-center">
+                    {slots.map((si) => {
+                      const filled = isPast && si <= stripesFilled
+                      const isSlotBeltStart = si === 0
+                      return (
+                        <div
+                          key={si}
+                          className="flex-1 flex items-center justify-center h-full"
+                          style={{ minWidth: 20, cursor: isPast ? "pointer" : "default" }}
+                          onMouseEnter={() => isPast && setHoveredBelt({ belt: belt.id, stripe: si })}
+                          onMouseLeave={() => setHoveredBelt(null)}
+                        >
+                          {isSlotBeltStart ? (
+                            <div className={`w-2 h-2 rounded-full ${filled ? "bg-white" : "bg-zinc-700"}`} />
+                          ) : (
+                            <div className={`w-1.5 h-[60%] rounded-sm ${filled ? "bg-white" : "bg-zinc-800/60"}`} />
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               )
             })}
 
             {/* Hover tooltip */}
             {hoveredBelt && (() => {
-              const promoDate = getPromotionDate(hoveredBelt.belt, hoveredBelt.stripe + 1)
+              const isStart = hoveredBelt.stripe === 0
+              const promoDate = isStart
+                ? getPromotionDate(hoveredBelt.belt, 0) || PROMOTION_HISTORY.find((p) => p.belt === hoveredBelt.belt)?.date
+                : getPromotionDate(hoveredBelt.belt, hoveredBelt.stripe)
               const beltIdx = BELTS.findIndex((b) => b.id === hoveredBelt.belt)
-              const leftPct = ((beltIdx + 0.5) / BELTS.length) * 100
+              const slotPct = (beltIdx + (hoveredBelt.stripe + 0.5) / 5) / BELTS.length * 100
+              const label = isStart ? `${hoveredBelt.belt} 승급` : `${hoveredBelt.belt} ${hoveredBelt.stripe}그랄`
               return (
                 <div
                   className="absolute top-[-52px] bg-zinc-800 text-xs px-3 py-2 rounded-lg border border-zinc-700 z-20 pointer-events-none whitespace-nowrap"
-                  style={{ left: `${leftPct}%`, transform: "translateX(-50%)" }}
+                  style={{ left: `${slotPct}%`, transform: "translateX(-50%)" }}
                 >
-                  <p className="text-zinc-200">{hoveredBelt.belt} {hoveredBelt.stripe + 1}그랄</p>
+                  <p className="text-zinc-200">{label}</p>
                   {promoDate && <p className="text-zinc-400">{promoDate}</p>}
                   <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-zinc-800 rotate-45 border-r border-b border-zinc-700" />
                 </div>
@@ -306,18 +310,6 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
               </div>
             </div>
 
-            {profile?.nextGoalTitle && (
-              <div className="mt-4 pt-4 border-t border-zinc-800">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium text-zinc-400">{profile.nextGoalTitle}</h3>
-                  <span className="text-xs font-medium text-zinc-300">{profile.nextGoalProgress ?? 0}%</span>
-                </div>
-                {profile.nextGoalText && <p className="text-xs text-zinc-500 mb-2">{profile.nextGoalText}</p>}
-                <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-600 rounded-full transition-all duration-500" style={{ width: `${profile.nextGoalProgress ?? 0}%` }} />
-                </div>
-              </div>
-            )}
           </div>
         </div>
 

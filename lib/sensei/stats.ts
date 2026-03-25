@@ -147,6 +147,7 @@ function calculateStreaks(entries: SenseiEntry[]): { current: number; best: numb
 function calculateAttributesForRuleSet(
   entries: SenseiEntry[],
   ruleSet: "gi" | "nogi" | "combined",
+  beltCap: number,
 ): { attrs: BjjAttributes; tagFreq: Record<string, number> } {
   const sessions = entries.filter((e) => e.sessionType !== "promotion")
   const categoryCounts: Record<keyof BjjAttributes, number> = {
@@ -182,7 +183,8 @@ function calculateAttributesForRuleSet(
       ? Object.keys(tagFreq).filter((t) => TAG_TO_CATEGORY[t] === categoryName).length
       : 0
     const diversityBonus = Math.min(15, uniqueTags * 2)
-    attrs[key] = Math.round(Math.min(100, rawScore + diversityBonus))
+    const totalRaw = Math.min(100, rawScore + diversityBonus)
+    attrs[key] = Math.round((totalRaw / 100) * beltCap)
   }
 
   return { attrs, tagFreq }
@@ -202,10 +204,11 @@ export function calculateBjjStats(entries: SenseiEntry[]): BjjStats {
   const sessions = entries.filter((e) => e.sessionType !== "promotion")
   const totalSessions = sessions.length
   const beltInfo = getLatestBeltInfo(entries)
+  const beltCap = BELT_CAPS[beltInfo.belt] ?? 40
 
-  const { attrs: giAttrs, tagFreq: giTagFreq } = calculateAttributesForRuleSet(entries, "gi")
-  const { attrs: nogiAttrs, tagFreq: nogiTagFreq } = calculateAttributesForRuleSet(entries, "nogi")
-  const { attrs: combinedAttrs } = calculateAttributesForRuleSet(entries, "combined")
+  const { attrs: giAttrs, tagFreq: giTagFreq } = calculateAttributesForRuleSet(entries, "gi", beltCap)
+  const { attrs: nogiAttrs, tagFreq: nogiTagFreq } = calculateAttributesForRuleSet(entries, "nogi", beltCap)
+  const { attrs: combinedAttrs } = calculateAttributesForRuleSet(entries, "combined", beltCap)
 
   // 2026 sessions + attendance
   const sessions2026 = sessions.filter((e) => e.date?.startsWith("2026")).length
