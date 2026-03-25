@@ -26,8 +26,8 @@ function newId(): string {
 
 // ─── Flow Renderer: BFS layout + drag + persist ──────────────
 
-const NODE_W = 160
-const NODE_H = 56
+const NODE_W = 130
+const NODE_H = 48
 
 function hexRgb(hex: string): string {
   const h = hex.startsWith("#") ? hex.slice(1) : hex
@@ -87,10 +87,10 @@ function autoLayout(flow: StrategyStep[]): Record<number, { x: number; y: number
   const sortedLevels = Array.from(groups.keys()).sort((a, b) => a - b)
   for (const lv of sortedLevels) {
     const group = groups.get(lv)!
-    const totalW = group.length * (NODE_W + 40)
-    const startX = Math.max(20, (700 - totalW) / 2)
+    const totalW = group.length * (NODE_W + 30)
+    const startX = Math.max(20, (800 - totalW) / 2)
     group.forEach((idx, gi) => {
-      positions[idx] = { x: startX + gi * (NODE_W + 40) + NODE_W / 2, y: lv * 120 + 40 }
+      positions[idx] = { x: startX + gi * (NODE_W + 30) + NODE_W / 2, y: lv * 110 + 40 }
     })
   }
   return positions
@@ -128,25 +128,34 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
   // Context menu for "새 스텝 추가"
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; stepIdx: number } | null>(null)
 
-  // Init positions
+  // Init positions: 기존 위치 유지, 새 노드만 배치, 삭제된 노드 정리
   useEffect(() => {
     const saved = loadPositions(strategy.id)
-    if (saved && Object.keys(saved).length === strategy.flow.length) {
-      setPositions(saved)
+    if (saved && Object.keys(saved).length > 0) {
+      const merged: Record<number, { x: number; y: number }> = {}
+      // 기존 위치 복원
+      strategy.flow.forEach((_, idx) => {
+        if (saved[idx]) {
+          merged[idx] = saved[idx]
+        } else {
+          // 새 노드: 부모 노드 아래 배치
+          const parentIdx = strategy.flow.findIndex((s) => s.branches?.some((b) => b.nextStepIndex === idx))
+          const parentPos = parentIdx >= 0 ? (saved[parentIdx] || merged[parentIdx]) : null
+          merged[idx] = parentPos
+            ? { x: parentPos.x + 80, y: parentPos.y + 110 }
+            : { x: 400, y: idx * 110 + 40 }
+        }
+      })
+      setPositions(merged)
     } else {
       setPositions(autoLayout(strategy.flow))
     }
-  }, [strategy.id, strategy.flow])
+  }, [strategy.id, strategy.flow.length])
 
-  // Save on edit mode exit
+  // 자동 저장 (positions 변경될 때마다)
   useEffect(() => {
-    if (!editMode) {
-      setPositions((cur) => {
-        if (Object.keys(cur).length > 0) savePositions(strategy.id, cur)
-        return cur
-      })
-    }
-  }, [editMode, strategy.id])
+    if (Object.keys(positions).length > 0) savePositions(strategy.id, positions)
+  }, [positions, strategy.id])
 
   // Pointer-capture drag: most reliable, works even outside element
   function onPointerDown(e: React.PointerEvent, idx: number) {
@@ -169,7 +178,7 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
     const newY = e.clientY - dragStartPos.current.y
     setPositions((prev) => ({
       ...prev,
-      [idx]: { x: Math.max(NODE_W / 2, newX), y: Math.max(NODE_H / 2, newY) },
+      [idx]: { x: Math.max(10, newX), y: Math.max(10, newY) },
     }))
   }
 
@@ -206,12 +215,12 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
 
   // Canvas size
   const canvasW = useMemo(() => {
-    let maxX = 600
+    let maxX = 900
     for (const p of Object.values(positions)) { if (p.x + NODE_W / 2 + 30 > maxX) maxX = p.x + NODE_W / 2 + 30 }
     return maxX
   }, [positions])
   const canvasH = useMemo(() => {
-    let maxY = 200
+    let maxY = 500
     for (const p of Object.values(positions)) { if (p.y + NODE_H + 30 > maxY) maxY = p.y + NODE_H + 30 }
     return maxY
   }, [positions])
@@ -245,7 +254,8 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
     <div
       ref={containerRef}
       className="overflow-auto rounded-lg"
-      style={{ border: "1px solid rgba(255,255,255,0.06)", position: "relative", minHeight: Math.max(canvasH, 200) }}
+      onClick={(e) => { if (e.target === e.currentTarget || (e.target as HTMLElement).tagName === "svg") onStepClick(-1) }}
+      style={{ border: "1px solid rgba(255,255,255,0.06)", position: "relative", minHeight: Math.max(canvasH, 500) }}
     >
       <div style={{ width: canvasW, height: canvasH, position: "relative" }}>
         {/* SVG: lines (z-0) */}
@@ -803,6 +813,7 @@ export function SenseiStrategy() {
   const [showNewForm, setShowNewForm] = useState(false)
   const [newName, setNewName] = useState("")
   const [newRuleSet, setNewRuleSet] = useState<"gi" | "nogi">("gi")
+  const [editingTabId, setEditingTabId] = useState<string | null>(null)
 
   const proStrategies = useMemo(() => getAllProStrategies(), [])
 
@@ -933,64 +944,86 @@ export function SenseiStrategy() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4">
-      {/* ═══ Top Bar ═══ */}
-      <div className="bg-[#121212] border border-zinc-800 rounded-2xl p-4">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex gap-1">
+    <div className="max-w-5xl mx-auto space-y-4">
+      {/* ═══ 내 경기플로우 탭 ═══ */}
+      <div className="bg-[#121212] border border-zinc-800 rounded-2xl p-3">
+        <div className="flex items-center gap-1.5 overflow-x-auto">
+          {/* 내 플로우 탭들 */}
+          {myStrategies.map((s) => (
             <button
-              onClick={() => { setViewMode("mine"); setEditMode(false); setSelectedStep(null) }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                viewMode === "mine" ? "bg-orange-500/15 text-orange-400 border border-orange-500/30" : "text-zinc-500 border border-zinc-800"
+              key={s.id}
+              onClick={() => { setViewMode("mine"); setSelectedId(s.id); setSelectedStep(null); setEditMode(false) }}
+              onDoubleClick={() => { setViewMode("mine"); setSelectedId(s.id); setEditingTabId(s.id) }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                viewMode === "mine" && selected?.id === s.id
+                  ? "bg-zinc-800 text-white border border-zinc-700"
+                  : "text-zinc-500 border border-zinc-800/50 hover:text-zinc-300"
               }`}
             >
-              내 전략
+              {editingTabId === s.id ? (
+                <input
+                  type="text"
+                  value={s.name}
+                  onChange={(e) => { persist(myStrategies.map((ms) => ms.id === s.id ? { ...ms, name: e.target.value } : ms)) }}
+                  onBlur={() => setEditingTabId(null)}
+                  onKeyDown={(e) => { if (e.key === "Enter") setEditingTabId(null) }}
+                  className="bg-transparent border-b border-zinc-600 text-white text-xs w-24 focus:outline-none"
+                  autoFocus
+                />
+              ) : (
+                <span>{s.name}</span>
+              )}
+              <span className={`text-[9px] ${s.ruleSet === "gi" ? "text-blue-400/60" : "text-red-400/60"}`}>
+                {s.ruleSet === "gi" ? "Gi" : "NoGi"}
+              </span>
             </button>
-            <button
-              onClick={() => { setViewMode("pro"); setEditMode(false); setSelectedStep(null) }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                viewMode === "pro" ? "bg-blue-500/15 text-blue-400 border border-blue-500/30" : "text-zinc-500 border border-zinc-800"
-              }`}
-            >
-              선수 전략
-            </button>
-            <button
-              onClick={() => { setViewMode("skilltree"); setEditMode(false); setSelectedStep(null) }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                viewMode === "skilltree" ? "bg-purple-500/15 text-purple-400 border border-purple-500/30" : "text-zinc-500 border border-zinc-800"
-              }`}
-            >
-              BJJ Heroes
-            </button>
-          </div>
+          ))}
 
-          {viewMode !== "skilltree" && <div className="h-4 w-px bg-zinc-800" />}
+          {/* + 새 플로우 */}
+          <button
+            onClick={() => setShowNewForm(!showNewForm)}
+            className="px-2.5 py-1.5 rounded-lg text-xs text-zinc-600 border border-dashed border-zinc-800 hover:text-zinc-400 hover:border-zinc-600 transition-colors whitespace-nowrap"
+          >
+            +
+          </button>
 
-          {viewMode !== "skilltree" && <div className="flex gap-1.5 flex-wrap flex-1">
-            {strategies.map((s) => (
+          <div className="h-4 w-px bg-zinc-800 mx-1 shrink-0" />
+
+          {/* 선수 전략 / BJJ Heroes */}
+          <button
+            onClick={() => { setViewMode("pro"); setEditMode(false); setSelectedStep(null) }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+              viewMode === "pro" ? "bg-blue-500/15 text-blue-400 border border-blue-500/30" : "text-zinc-500 border border-zinc-800/50"
+            }`}
+          >
+            선수 전략
+          </button>
+          <button
+            onClick={() => { setViewMode("skilltree"); setEditMode(false); setSelectedStep(null) }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+              viewMode === "skilltree" ? "bg-purple-500/15 text-purple-400 border border-purple-500/30" : "text-zinc-500 border border-zinc-800/50"
+            }`}
+          >
+            Heroes
+          </button>
+        </div>
+
+        {/* 선수 전략 서브 셀렉터 */}
+        {viewMode === "pro" && (
+          <div className="flex gap-1.5 flex-wrap mt-2 pt-2 border-t border-zinc-800">
+            {proStrategies.map((s) => (
               <button
                 key={s.id}
-                onClick={() => { setSelectedId(s.id); setSelectedStep(null); setEditMode(false) }}
-                className={`px-2.5 py-1 rounded-lg text-xs transition-colors ${
+                onClick={() => { setSelectedId(s.id); setSelectedStep(null) }}
+                className={`px-2 py-1 rounded-lg text-xs transition-colors ${
                   selected?.id === s.id ? "bg-zinc-800 text-white border border-zinc-700" : "text-zinc-500 border border-zinc-800/50 hover:text-zinc-300"
                 }`}
               >
                 {s.proName || s.name}
               </button>
             ))}
-          </div>}
-
-          {viewMode === "mine" && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs border-zinc-700 text-zinc-400"
-              onClick={() => setShowNewForm(!showNewForm)}
-            >
-              + 새 전략
-            </Button>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* New strategy form */}
         {showNewForm && (
