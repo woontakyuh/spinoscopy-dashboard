@@ -5,15 +5,15 @@ import { TopBar } from "@/components/layout/TopBar"
 import { SenseiCapture } from "@/components/sensei/SenseiCapture"
 import { SenseiCalendar } from "@/components/sensei/SenseiCalendar"
 import { SenseiDashboard } from "@/components/sensei/SenseiDashboard"
-import { SenseiMe } from "@/components/sensei/SenseiMe"
+import { SenseiStats } from "@/components/sensei/SenseiStats"
 import { SenseiStrategy } from "@/components/sensei/SenseiStrategy"
 import { SenseiCompetition } from "@/components/sensei/SenseiCompetition"
 
-type SenseiTab = "dashboard" | "me" | "journal" | "strategy" | "competition"
+type SenseiTab = "dashboard" | "skilltree" | "journal" | "strategy" | "competition"
 
 const TABS: { id: SenseiTab; label: string; icon: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: "\ud83c\udfe0" },
-  { id: "me", label: "Me", icon: "\ud83e\udd4b" },
+  { id: "skilltree", label: "Skill Tree", icon: "\ud83c\udf33" },
   { id: "journal", label: "Journal", icon: "\ud83d\udcdd" },
   { id: "strategy", label: "Strategy", icon: "\ud83c\udfaf" },
   { id: "competition", label: "Competition", icon: "\ud83d\udcc5" },
@@ -37,10 +37,7 @@ export default function SenseiPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`
                 px-3 py-2.5 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap
-                ${activeTab === tab.id
-                  ? "text-white"
-                  : "text-zinc-500 hover:text-zinc-300"
-                }
+                ${activeTab === tab.id ? "text-white" : "text-zinc-500 hover:text-zinc-300"}
               `}
             >
               <span className="flex items-center gap-1.5">
@@ -56,12 +53,16 @@ export default function SenseiPage() {
       </div>
 
       {/* Tab Content */}
-      <div className={`${activeTab === "dashboard" ? "p-3 md:p-6 max-w-6xl" : "p-3 md:p-6 max-w-5xl"} w-full`}>
+      <div className={`${
+        activeTab === "dashboard" ? "p-3 md:p-6 max-w-6xl"
+        : activeTab === "strategy" ? "p-3 md:p-6 max-w-7xl"
+        : "p-3 md:p-6 max-w-5xl"
+      } w-full`}>
         {activeTab === "dashboard" && (
           <SenseiDashboard onNavigate={(tab) => setActiveTab(tab as SenseiTab)} />
         )}
 
-        {activeTab === "me" && <SenseiMe />}
+        {activeTab === "skilltree" && <SenseiStats />}
 
         {activeTab === "journal" && (
           <div>

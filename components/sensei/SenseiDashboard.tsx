@@ -119,63 +119,62 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
 
   return (
     <div className="min-h-0 text-zinc-100 font-sans">
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-5xl mx-auto">
+        <div className="bg-[#121212] border border-zinc-800 rounded-2xl overflow-hidden grid grid-cols-1 md:grid-cols-[300px_1fr]">
 
-        {/* ═══ 상단 프로필 ═══ */}
-        <div className="bg-[#121212] border border-zinc-800 rounded-2xl p-6">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          {/* ═══ 좌측: 전신 캐릭터 ═══ */}
+          <div className="hidden md:flex flex-col items-center justify-end bg-[#0e0e0e] min-h-[700px]">
+            {!imgError ? (
+              <img src="/images/character_full.png" alt="Character" className="w-full max-w-[300px] h-auto object-contain" onError={() => setImgError(true)} />
+            ) : (
+              <svg viewBox="0 0 120 160" className="w-40 h-auto mb-8">
+                <circle cx="60" cy="30" r="20" fill="#52525b" />
+                <path d="M32 58 Q32 48 42 46 L60 52 L78 46 Q88 48 88 58 L88 118 L32 118 Z" fill="#d4d4d8" stroke="#a1a1aa" strokeWidth="0.5" />
+                <rect x="32" y="86" width="56" height="7" rx="1" fill={BELTS.find((b) => b.id === stats.belt)?.hex || "#3b82f6"} />
+                <path d="M32 118 L36 152 L54 152 L60 122 L66 152 L84 152 L88 118 Z" fill="#3f3f46" />
+              </svg>
+            )}
+          </div>
 
-            {/* 좌측: 아바타 + 이름 + playstyle */}
-            <div className="flex items-center gap-5">
-              <div className="w-20 h-[100px] rounded-xl overflow-hidden bg-zinc-800 border border-zinc-700 shrink-0">
-                {!imgError ? (
-                  <img src="/images/character_full.png" alt="Character" className="w-full h-full object-cover object-top" onError={() => setImgError(true)} />
-                ) : (
-                  <svg viewBox="0 0 120 160" className="w-full h-full">
-                    <circle cx="60" cy="30" r="20" fill="#52525b" />
-                    <path d="M32 58 Q32 48 42 46 L60 52 L78 46 Q88 48 88 58 L88 118 L32 118 Z" fill="#d4d4d8" stroke="#a1a1aa" strokeWidth="0.5" />
-                    <rect x="32" y="86" width="56" height="7" rx="1" fill={BELTS.find((b) => b.id === stats.belt)?.hex || "#3b82f6"} />
-                    <path d="M32 118 L36 152 L54 152 L60 122 L66 152 L84 152 L88 118 Z" fill="#3f3f46" />
-                  </svg>
-                )}
-              </div>
-              <div>
-                <div className="flex items-center gap-3 mb-1 flex-wrap">
-                  <h1 className="text-xl font-semibold text-white">{profile.name}</h1>
-                  <span className="text-sm text-zinc-500">{stats.playstyle}</span>
-                </div>
-                {/* Gi/NoGi 토글 */}
-                <div className="flex gap-1 mt-2">
-                  <button onClick={() => setGiMode("gi")} className={`px-2.5 py-0.5 rounded text-xs transition-colors ${giMode === "gi" ? "bg-blue-500/20 text-blue-400 border border-blue-500/30" : "text-zinc-500 border border-transparent"}`}>Gi</button>
-                  <button onClick={() => setGiMode("nogi")} className={`px-2.5 py-0.5 rounded text-xs transition-colors ${giMode === "nogi" ? "bg-red-500/20 text-red-400 border border-red-500/30" : "text-zinc-500 border border-transparent"}`}>NoGi</button>
-                </div>
-              </div>
-            </div>
+          {/* ═══ 우측: 전체 대시보드 콘텐츠 ═══ */}
+          <div className="p-6 space-y-6">
 
-            {/* 우측: 수련 요약 */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center md:text-left mt-4 md:mt-0">
-              <div>
-                <p className="text-base font-semibold text-zinc-100">2019.11</p>
-                <p className="text-xs text-zinc-500">수련 시작</p>
-              </div>
-              <div>
-                <p className="text-base font-semibold text-zinc-100">
-                  {giMode === "gi" ? stats.sessions2026Gi : stats.sessions2026Nogi}
-                </p>
-                <p className="text-xs text-zinc-500">2026 수련</p>
-              </div>
-              <div>
-                <p className="text-base font-semibold text-zinc-100">{Math.round(stats.giRatio * 100)}%</p>
-                <p className="text-xs text-zinc-500">Gi 비율</p>
-              </div>
-              <div>
-                <p className={`text-base font-semibold ${stats.attendanceRate >= 60 ? "text-green-400" : stats.attendanceRate >= 30 ? "text-yellow-400" : "text-red-400"}`}>
-                  {stats.attendanceRate}%
-                </p>
-                <p className="text-xs text-zinc-500">출석률 (승급 이후)</p>
-              </div>
+        {/* 프로필 헤더 */}
+        <div>
+          <div className="flex items-center gap-3 mb-2 flex-wrap">
+            <h1 className="text-xl font-semibold text-white">{profile.name}</h1>
+            <span className="text-sm text-zinc-500">{stats.playstyle}</span>
+            {/* Gi/NoGi 토글 */}
+            <div className="flex gap-1 ml-auto">
+              <button onClick={() => setGiMode("gi")} className={`px-2.5 py-0.5 rounded text-xs transition-colors ${giMode === "gi" ? "bg-blue-500/20 text-blue-400 border border-blue-500/30" : "text-zinc-500 border border-transparent"}`}>Gi</button>
+              <button onClick={() => setGiMode("nogi")} className={`px-2.5 py-0.5 rounded text-xs transition-colors ${giMode === "nogi" ? "bg-red-500/20 text-red-400 border border-red-500/30" : "text-zinc-500 border border-transparent"}`}>NoGi</button>
             </div>
           </div>
+
+          {/* 수련 요약 */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center sm:text-left">
+            <div>
+              <p className="text-base font-semibold text-zinc-100">2019.11</p>
+              <p className="text-xs text-zinc-500">수련 시작</p>
+            </div>
+            <div>
+              <p className="text-base font-semibold text-zinc-100">
+                {giMode === "gi" ? stats.sessions2026Gi : stats.sessions2026Nogi}
+              </p>
+              <p className="text-xs text-zinc-500">2026 {giMode === "gi" ? "Gi" : "NoGi"} 수련</p>
+            </div>
+            <div>
+              <p className="text-base font-semibold text-zinc-100">{Math.round(stats.giRatio * 100)}%</p>
+              <p className="text-xs text-zinc-500">Gi 비율</p>
+            </div>
+            <div>
+              <p className={`text-base font-semibold ${stats.attendanceRate >= 60 ? "text-green-400" : stats.attendanceRate >= 30 ? "text-yellow-400" : "text-red-400"}`}>
+                {stats.attendanceRate}%
+              </p>
+              <p className="text-xs text-zinc-500">출석률 (승급 이후)</p>
+            </div>
+          </div>
+        </div>
 
           {/* ═══ 벨트 쉐브론 타임라인 ═══ */}
           <div className="flex items-center mt-8 h-14 relative w-full gap-0.5">
@@ -248,10 +247,10 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
           {/* 좌측: 레이더 차트 (100점 기준 + 벨트 한계 점선) */}
           <div
             className="bg-[#121212] border border-zinc-800 rounded-2xl p-6 flex flex-col items-center cursor-pointer hover:border-zinc-700 transition-colors"
-            onClick={() => onNavigate("me")}
+            onClick={() => onNavigate("skilltree")}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => { if (e.key === "Enter") onNavigate("me") }}
+            onKeyDown={(e) => { if (e.key === "Enter") onNavigate("skilltree") }}
           >
             <h3 className="text-sm font-medium text-zinc-400 w-full mb-4">능력치 레이더</h3>
             <div className="w-full h-[280px]">
@@ -348,15 +347,15 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
           )}
         </div>
 
-        {/* ═══ 하단 네비 ═══ */}
+        {/* 하단 네비 */}
         <div className="flex gap-2 flex-wrap pt-2 border-t border-zinc-800">
-          {[{ t: "me", l: "캐릭터", i: "🥋" }, { t: "journal", l: "수련 기록", i: "📝" }, { t: "strategy", l: "전략", i: "🎯" }, { t: "competition", l: "대회", i: "📅" }].map(({ t, l, i }) => (
-            <button key={t} type="button" onClick={() => onNavigate(t)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs text-zinc-500 bg-zinc-900 border border-zinc-800 hover:text-zinc-300 hover:border-zinc-700 transition-colors">
+          {[{ t: "skilltree", l: "Skill Tree", i: "🌳" }, { t: "journal", l: "수련 기록", i: "📝" }, { t: "strategy", l: "전략", i: "🎯" }, { t: "competition", l: "대회", i: "📅" }].map(({ t, l, i }) => (
+            <button key={t} type="button" onClick={() => onNavigate(t)} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs text-zinc-500 bg-zinc-900 border border-zinc-800 hover:text-zinc-300 hover:border-zinc-700 transition-colors">
               <span>{i}</span><span>{l}</span>
             </button>
           ))}
         </div>
+      </div>
       </div>
     </div>
   )
