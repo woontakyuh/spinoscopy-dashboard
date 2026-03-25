@@ -120,14 +120,14 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
   return (
     <div className="min-h-0 text-zinc-100 font-sans">
       <div className="max-w-5xl mx-auto">
-        <div className="bg-[#121212] border border-zinc-800 rounded-2xl overflow-hidden grid grid-cols-1 md:grid-cols-[300px_1fr]">
-
-          {/* ═══ 좌측: 전신 캐릭터 ═══ */}
-          <div className="hidden md:flex flex-col items-center justify-end bg-[#0e0e0e] min-h-[700px]">
+        {/* ═══ 2컬럼: 캐릭터 + 스탯 ═══ */}
+        <div className="bg-[#121212] border border-zinc-800 rounded-2xl overflow-hidden grid grid-cols-1 md:grid-cols-[280px_1fr]">
+          {/* 좌측: 전신 캐릭터 */}
+          <div className="hidden md:flex flex-col items-center justify-end bg-[#0e0e0e] max-h-[500px] overflow-hidden">
             {!imgError ? (
-              <img src="/images/character_full.png" alt="Character" className="w-full max-w-[300px] h-auto object-contain" onError={() => setImgError(true)} />
+              <img src="/images/character_full.png" alt="Character" className="w-full max-w-[280px] h-full object-contain object-bottom" onError={() => setImgError(true)} />
             ) : (
-              <svg viewBox="0 0 120 160" className="w-40 h-auto mb-8">
+              <svg viewBox="0 0 120 160" className="w-32 h-auto mb-4">
                 <circle cx="60" cy="30" r="20" fill="#52525b" />
                 <path d="M32 58 Q32 48 42 46 L60 52 L78 46 Q88 48 88 58 L88 118 L32 118 Z" fill="#d4d4d8" stroke="#a1a1aa" strokeWidth="0.5" />
                 <rect x="32" y="86" width="56" height="7" rx="1" fill={BELTS.find((b) => b.id === stats.belt)?.hex || "#3b82f6"} />
@@ -135,9 +135,8 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
               </svg>
             )}
           </div>
-
-          {/* ═══ 우측: 전체 대시보드 콘텐츠 ═══ */}
-          <div className="p-6 space-y-6">
+          {/* 우측: 스탯 패널 */}
+          <div className="p-5 space-y-4">
 
         {/* 프로필 헤더 */}
         <div>
@@ -242,18 +241,18 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
         </div>
 
         {/* ═══ 하단 2단 그리드 ═══ */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
-          {/* 좌측: 레이더 차트 (100점 기준 + 벨트 한계 점선) */}
+          {/* 좌측: 레이더 차트 */}
           <div
-            className="bg-[#121212] border border-zinc-800 rounded-2xl p-6 flex flex-col items-center cursor-pointer hover:border-zinc-700 transition-colors"
+            className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 flex flex-col items-center cursor-pointer hover:border-zinc-700 transition-colors"
             onClick={() => onNavigate("skilltree")}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => { if (e.key === "Enter") onNavigate("skilltree") }}
           >
             <h3 className="text-sm font-medium text-zinc-400 w-full mb-4">능력치 레이더</h3>
-            <div className="w-full h-[280px]">
+            <div className="w-full h-[220px]">
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
                   <PolarGrid stroke="#27272a" />
@@ -273,14 +272,14 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
             )}
           </div>
 
-          {/* 우측: 6축 바 + 최근 포커스 + 목표 */}
-          <div className="bg-[#121212] border border-zinc-800 rounded-2xl p-6 flex flex-col justify-between">
+          {/* 우측: 6축 바 + 최근 포커스 */}
+          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-medium text-zinc-400">6축 능력치</h3>
                 <span className="text-xs text-zinc-500">OVR <span className="text-lg font-semibold text-white">{activeStats.ovr}</span></span>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {STAT_BARS.map((stat) => (
                   <div key={stat.name} className="flex flex-col gap-1">
                     <div className="flex justify-between text-xs">
@@ -298,7 +297,7 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
             </div>
 
             {/* 최근 포커스 */}
-            <div className="mt-8 pt-6 border-t border-zinc-800">
+            <div className="mt-4 pt-3 border-t border-zinc-800">
               <h3 className="text-sm font-medium text-zinc-400 mb-3">최근 포커스</h3>
               <div className="flex flex-wrap gap-2">
                 {stats.recentFocus.length > 0 ? stats.recentFocus.map((tag) => (
@@ -311,10 +310,12 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
 
           </div>
         </div>
+          </div>{/* 우측 패널 닫기 */}
+        </div>{/* 2컬럼 grid 닫기 */}
 
-        {/* ═══ Coach 임베드 ═══ */}
-        <div className="bg-[#121212] border border-zinc-800 rounded-2xl overflow-hidden">
-          <div className="px-6 py-4">
+        {/* ═══ Coach 임베드 (full width) ═══ */}
+        <div className="mt-4 bg-[#121212] border border-zinc-800 rounded-2xl overflow-hidden">
+          <div className="px-5 py-3">
             <div className="flex items-center gap-3">
               <button type="button" onClick={() => setCoachExpanded(!coachExpanded)} className="text-base shrink-0">🤖</button>
               <p className="flex-1 text-sm text-zinc-400 leading-relaxed">{coachData?.reply || "코치 추천 로딩 중..."}</p>
@@ -322,7 +323,7 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
                 {coachExpanded ? "접기 ▲" : "채팅 ▼"}
               </button>
             </div>
-            <div className="flex gap-2 mt-3">
+            <div className="flex gap-2 mt-2">
               <input type="text" value={coachQ} onChange={(e) => setCoachQ(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && coachQ.trim()) sendCoachMessage(coachQ.trim()) }}
                 placeholder="코치에게 질문..."
@@ -335,28 +336,27 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
             </div>
           </div>
           {coachExpanded && (
-            <div className="border-t border-zinc-800 max-h-[400px] overflow-y-auto px-6 py-4 space-y-3">
-              {coachMessages.length === 0 && !coachLoading && <p className="text-xs text-zinc-600 text-center py-4">질문을 입력하면 AI 코치가 답변합니다</p>}
+            <div className="border-t border-zinc-800 max-h-[300px] overflow-y-auto px-5 py-3 space-y-2">
+              {coachMessages.length === 0 && !coachLoading && <p className="text-xs text-zinc-600 text-center py-3">질문을 입력하면 AI 코치가 답변합니다</p>}
               {coachMessages.map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs whitespace-pre-wrap ${msg.role === "user" ? "bg-blue-500/10 text-blue-100 rounded-br-md" : "bg-zinc-800 text-zinc-200 rounded-bl-md"}`}>{msg.content}</div>
+                  <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs whitespace-pre-wrap ${msg.role === "user" ? "bg-blue-500/10 text-blue-100 rounded-br-md" : "bg-zinc-800 text-zinc-200 rounded-bl-md"}`}>{msg.content}</div>
                 </div>
               ))}
-              {coachLoading && <div className="flex justify-start"><div className="bg-zinc-800 rounded-2xl rounded-bl-md px-4 py-2.5 text-xs text-zinc-400"><span className="animate-pulse">답변 생성 중...</span></div></div>}
+              {coachLoading && <div className="flex justify-start"><div className="bg-zinc-800 rounded-2xl rounded-bl-md px-3 py-2 text-xs text-zinc-400 animate-pulse">답변 생성 중...</div></div>}
             </div>
           )}
         </div>
 
         {/* 하단 네비 */}
-        <div className="flex gap-2 flex-wrap pt-2 border-t border-zinc-800">
+        <div className="flex gap-2 flex-wrap mt-4 pt-3 border-t border-zinc-800">
           {[{ t: "skilltree", l: "Skill Tree", i: "🌳" }, { t: "journal", l: "수련 기록", i: "📝" }, { t: "strategy", l: "전략", i: "🎯" }, { t: "competition", l: "대회", i: "📅" }].map(({ t, l, i }) => (
             <button key={t} type="button" onClick={() => onNavigate(t)} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs text-zinc-500 bg-zinc-900 border border-zinc-800 hover:text-zinc-300 hover:border-zinc-700 transition-colors">
               <span>{i}</span><span>{l}</span>
             </button>
           ))}
         </div>
-      </div>
-      </div>
+
     </div>
   )
 }
