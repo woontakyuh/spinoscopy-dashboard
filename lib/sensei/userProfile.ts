@@ -6,7 +6,7 @@ export const DEFAULT_PROFILE: UserProfile = {
   name: "여운탁",
   belt: "blue",
   stripes: 3,
-  trainingStartDate: "2019-12-01",
+  trainingStartDate: "2019-11-27",
   gym: "DT Wire",
   instructor: "조준용",
   baseStats: {

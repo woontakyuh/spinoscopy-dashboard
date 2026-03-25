@@ -58,6 +58,11 @@ export interface BjjStats {
   recentFocus: string[]
   streaks: { current: number; best: number }
   giRatio: number
+  sessions2026: number
+  sessions2026Gi: number
+  sessions2026Nogi: number
+  attendanceRate: number
+  lastCeremonyDate: string
 }
 
 export interface GameplanStep {

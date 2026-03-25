@@ -132,9 +132,10 @@ export function SenseiCapture({ selectedDate }: SenseiCaptureProps) {
 
         <Button
           type="button"
-          className="w-full bg-orange-600 hover:bg-orange-500 text-white"
+          className="w-full bg-orange-600 hover:bg-orange-500 text-white min-h-[44px] touch-manipulation"
           disabled={createMutation.isPending || !hasInput}
           onClick={() => createMutation.mutate()}
+          onPointerDown={(e) => { if (!createMutation.isPending && hasInput) { e.preventDefault(); createMutation.mutate() } }}
         >
           {createMutation.isPending ? "정리 중..." : "Sensei로 정리 후 Notion 저장"}
         </Button>

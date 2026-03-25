@@ -13,15 +13,28 @@ const CATEGORY_ATTR_MAP: Record<string, keyof BjjAttributes> = {
   LegLocks: "legLocks",
 }
 
-const BELT_CAPS: Record<string, number> = {
+export const BELT_CAPS: Record<string, number> = {
   white: 20, blue: 40, purple: 55, brown: 65, black: 75,
 }
 
 const DEFAULT_PROFILE = {
   belt: "blue",
   beltStripes: 3,
-  trainingStartDate: "2019-12-01",
+  trainingStartDate: "2019-11-27",
 }
+
+export const PROMOTION_HISTORY = [
+  { date: "2019-11-27", belt: "white", stripes: 0, label: "화이트벨트 시작" },
+  { date: "2020-06-20", belt: "white", stripes: 1, label: "화이트 1그랄" },
+  { date: "2021-01-19", belt: "white", stripes: 2, label: "화이트 2그랄" },
+  { date: "2023-11-10", belt: "white", stripes: 3, label: "화이트 3그랄" },
+  { date: "2024-03-08", belt: "white", stripes: 4, label: "화이트 4그랄" },
+  { date: "2024-07-19", belt: "blue", stripes: 0, label: "블루벨트 승급" },
+  { date: "2025-09-26", belt: "blue", stripes: 2, label: "블루 1+2그랄" },
+  { date: "2026-03-20", belt: "blue", stripes: 3, label: "블루 3그랄" },
+]
+
+export const PROMOTION_CEREMONIES = ["2026-03-20", "2025-09-26"]
 
 function xpForLevel(level: number): number {
   if (level <= 1) return 0
@@ -134,7 +147,6 @@ function calculateStreaks(entries: SenseiEntry[]): { current: number; best: numb
 function calculateAttributesForRuleSet(
   entries: SenseiEntry[],
   ruleSet: "gi" | "nogi" | "combined",
-  beltCap: number,
 ): { attrs: BjjAttributes; tagFreq: Record<string, number> } {
   const sessions = entries.filter((e) => e.sessionType !== "promotion")
   const categoryCounts: Record<keyof BjjAttributes, number> = {
@@ -170,8 +182,7 @@ function calculateAttributesForRuleSet(
       ? Object.keys(tagFreq).filter((t) => TAG_TO_CATEGORY[t] === categoryName).length
       : 0
     const diversityBonus = Math.min(15, uniqueTags * 2)
-    const totalRaw = Math.min(100, rawScore + diversityBonus)
-    attrs[key] = Math.round((totalRaw / 100) * beltCap)
+    attrs[key] = Math.round(Math.min(100, rawScore + diversityBonus))
   }
 
   return { attrs, tagFreq }
@@ -191,11 +202,20 @@ export function calculateBjjStats(entries: SenseiEntry[]): BjjStats {
   const sessions = entries.filter((e) => e.sessionType !== "promotion")
   const totalSessions = sessions.length
   const beltInfo = getLatestBeltInfo(entries)
-  const beltCap = BELT_CAPS[beltInfo.belt] ?? 40
 
-  const { attrs: giAttrs, tagFreq: giTagFreq } = calculateAttributesForRuleSet(entries, "gi", beltCap)
-  const { attrs: nogiAttrs, tagFreq: nogiTagFreq } = calculateAttributesForRuleSet(entries, "nogi", beltCap)
-  const { attrs: combinedAttrs } = calculateAttributesForRuleSet(entries, "combined", beltCap)
+  const { attrs: giAttrs, tagFreq: giTagFreq } = calculateAttributesForRuleSet(entries, "gi")
+  const { attrs: nogiAttrs, tagFreq: nogiTagFreq } = calculateAttributesForRuleSet(entries, "nogi")
+  const { attrs: combinedAttrs } = calculateAttributesForRuleSet(entries, "combined")
+
+  // 2026 sessions + attendance
+  const sessions2026 = sessions.filter((e) => e.date?.startsWith("2026")).length
+  const sessions2026Gi = sessions.filter((e) => e.date?.startsWith("2026") && ![...e.classTags, ...e.sparringTags].includes("NoGi")).length
+  const sessions2026Nogi = sessions2026 - sessions2026Gi
+  const lastCeremony = PROMOTION_CEREMONIES[0] || "2026-01-01"
+  const daysSinceCeremony = Math.max(1, Math.ceil((Date.now() - new Date(lastCeremony).getTime()) / (1000 * 60 * 60 * 24)))
+  const weekdaysSinceCeremony = Math.ceil(daysSinceCeremony * 5 / 7)
+  const sessionsSinceCeremony = sessions.filter((e) => e.date && e.date >= lastCeremony).length
+  const attendanceRate = Math.min(100, Math.round((sessionsSinceCeremony / weekdaysSinceCeremony) * 100))
 
   // Level & XP
   let level = 1
@@ -247,6 +267,11 @@ export function calculateBjjStats(entries: SenseiEntry[]): BjjStats {
     recentFocus,
     streaks: calculateStreaks(entries),
     giRatio,
+    sessions2026,
+    sessions2026Gi,
+    sessions2026Nogi,
+    attendanceRate,
+    lastCeremonyDate: lastCeremony,
   }
 }
 

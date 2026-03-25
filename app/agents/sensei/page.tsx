@@ -25,7 +25,7 @@ export default function SenseiPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <TopBar title="\ud83e\udd4b Sensei" />
+      <TopBar title="Sensei" />
 
       {/* Tab Navigation */}
       <div className="border-b border-zinc-800 bg-zinc-950 sticky top-0 z-10 overflow-x-auto">
