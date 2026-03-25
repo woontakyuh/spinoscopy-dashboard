@@ -30,7 +30,8 @@ export const PROMOTION_HISTORY = [
   { date: "2023-11-10", belt: "white", stripes: 3, label: "화이트 3그랄" },
   { date: "2024-03-08", belt: "white", stripes: 4, label: "화이트 4그랄" },
   { date: "2024-07-19", belt: "blue", stripes: 0, label: "블루벨트 승급" },
-  { date: "2025-09-26", belt: "blue", stripes: 2, label: "블루 1+2그랄" },
+  { date: "2025-09-26", belt: "blue", stripes: 1, label: "블루 1그랄" },
+  { date: "2025-09-26", belt: "blue", stripes: 2, label: "블루 2그랄" },
   { date: "2026-03-20", belt: "blue", stripes: 3, label: "블루 3그랄" },
 ]
 
