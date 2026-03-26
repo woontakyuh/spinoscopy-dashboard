@@ -110,7 +110,10 @@ async function fetchAllPatients(filters?: DimensionFilters): Promise<NotionPage[
   let cursor: string | undefined = undefined
 
   // Notion API 필터 구성: 각 차원에 대해 OR, 차원 간 AND
-  const andClauses: unknown[] = []
+  // Sch=canceled 인 환자는 항상 제외 (수술 취소)
+  const andClauses: unknown[] = [
+    { property: "Sch", select: { does_not_equal: "canceled" } },
+  ]
   if (filters) {
     for (const [dim, values] of Object.entries(filters) as [Dimension, string[]][]) {
       if (!values || values.length === 0) continue

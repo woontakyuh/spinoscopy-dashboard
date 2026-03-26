@@ -55,7 +55,12 @@ export async function searchPatients(query: string): Promise<PatientSearchResult
     {
       method: "POST",
       body: JSON.stringify({
-        filter: { property: "Name", title: { contains: query } },
+        filter: {
+          and: [
+            { property: "Name", title: { contains: query } },
+            { property: "Sch", select: { does_not_equal: "canceled" } },
+          ],
+        },
         sorts: [{ property: "Op Date", direction: "descending" }],
         page_size: 20,
       }),
