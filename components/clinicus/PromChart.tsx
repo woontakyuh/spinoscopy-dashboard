@@ -21,12 +21,16 @@ import {
 } from "@/lib/prom/calculator"
 
 const TIMEPOINTS = [
-  { key: "pre",  label: "수술 전" },
-  { key: "1mo",  label: "1개월" },
-  { key: "3mo",  label: "3개월" },
-  { key: "6mo",  label: "6개월" },
-  { key: "1y",   label: "1년" },
+  { key: "pre",  label: "수술 전", month: 0 },
+  { key: "1mo",  label: "1개월",   month: 1 },
+  { key: "3mo",  label: "3개월",   month: 3 },
+  { key: "6mo",  label: "6개월",   month: 6 },
+  { key: "1y",   label: "1년",    month: 12 },
 ]
+
+const MONTH_TICKS = [0, 1, 3, 6, 12]
+const MONTH_LABELS: Record<number, string> = { 0: "수술 전", 1: "1개월", 3: "3개월", 6: "6개월", 12: "1년" }
+const formatMonth = (v: number) => MONTH_LABELS[v] ?? `${v}mo`
 
 const CHART_STYLE = {
   background: "transparent",
@@ -71,7 +75,7 @@ export function PromChart({ promRecord }: Props) {
     const raw = promRecord[`${tp.key} VAS`] ?? ""
     const v = raw ? parseVAS(raw) : null
     return {
-      name: tp.label,
+      month: tp.month,
       [proxLabel]: v?.proximal ?? null,
       [distLabel]: v?.distal ?? null,
     }
@@ -83,20 +87,20 @@ export function PromChart({ promRecord }: Props) {
     const odi = odiRaw ? parseODI(odiRaw) : null
     const ndi = ndiRaw ? parseNDI(ndiRaw) : null
     const score = odi?.score ?? ndi?.score ?? null
-    return { name: tp.label, [disabilityLabel]: score !== null ? Math.round(score * 10) / 10 : null }
+    return { month: tp.month, [disabilityLabel]: score !== null ? Math.round(score * 10) / 10 : null }
   })
 
   const joaData = TIMEPOINTS.map(tp => {
     const raw = promRecord[`${tp.key} JOA`] ?? ""
     const v = raw ? parseJOA(raw) : null
-    return { name: tp.label, JOA: v }
+    return { month: tp.month, JOA: v }
   })
 
   const eq5dData = TIMEPOINTS.map(tp => {
     const raw = promRecord[`${tp.key} EQ5D`] ?? ""
     const v = raw ? parseEQ5D(raw) : null
     return {
-      name: tp.label,
+      month: tp.month,
       "EQ-5D utility": v?.utility ?? null,
       "EQ VAS": v?.vas ?? null,
     }
@@ -123,7 +127,7 @@ export function PromChart({ promRecord }: Props) {
           <ResponsiveContainer width="100%" height={180} style={CHART_STYLE}>
             <LineChart data={vasData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
-              <XAxis dataKey="name" tick={AXIS_STYLE} />
+              <XAxis type="number" dataKey="month" domain={[0, 12]} ticks={MONTH_TICKS} tickFormatter={formatMonth} tick={AXIS_STYLE} />
               <YAxis domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} tick={AXIS_STYLE} />
               <Tooltip contentStyle={TOOLTIP_STYLE} />
               <Legend wrapperStyle={{ fontSize: 11, color: "#a1a1aa" }} />
@@ -153,7 +157,7 @@ export function PromChart({ promRecord }: Props) {
           <ResponsiveContainer width="100%" height={180} style={CHART_STYLE}>
             <LineChart data={disabilityData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
-              <XAxis dataKey="name" tick={AXIS_STYLE} />
+              <XAxis type="number" dataKey="month" domain={[0, 12]} ticks={MONTH_TICKS} tickFormatter={formatMonth} tick={AXIS_STYLE} />
               <YAxis domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tick={AXIS_STYLE} unit="%" />
               <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${v}%`, disabilityLabel]} />
               <ReferenceLine y={40} stroke="#52525b" strokeDasharray="4 4" label={{ value: "중증", fill: "#71717a", fontSize: 10 }} />
@@ -175,7 +179,7 @@ export function PromChart({ promRecord }: Props) {
           <ResponsiveContainer width="100%" height={180} style={CHART_STYLE}>
             <LineChart data={joaData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
-              <XAxis dataKey="name" tick={AXIS_STYLE} />
+              <XAxis type="number" dataKey="month" domain={[0, 12]} ticks={MONTH_TICKS} tickFormatter={formatMonth} tick={AXIS_STYLE} />
               <YAxis domain={[0, 17]} ticks={[0, 4, 8, 12, 17]} tick={AXIS_STYLE} />
               <Tooltip contentStyle={TOOLTIP_STYLE} />
               <ReferenceLine y={17} stroke="#52525b" strokeDasharray="4 4" label={{ value: "만점", fill: "#71717a", fontSize: 10 }} />
@@ -197,7 +201,7 @@ export function PromChart({ promRecord }: Props) {
           <ResponsiveContainer width="100%" height={180} style={CHART_STYLE}>
             <LineChart data={eq5dData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
-              <XAxis dataKey="name" tick={AXIS_STYLE} />
+              <XAxis type="number" dataKey="month" domain={[0, 12]} ticks={MONTH_TICKS} tickFormatter={formatMonth} tick={AXIS_STYLE} />
               <YAxis
                 yAxisId="utility"
                 domain={[0, 1]}
