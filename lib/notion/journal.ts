@@ -46,6 +46,21 @@ function getMultiSelect(prop: NotionProperty | undefined): string[] {
   return (prop?.multi_select ?? []).map((o) => o.name)
 }
 
+// Notion에서 다양한 이름으로 저장된 저널을 약칭으로 통일
+const JOURNAL_ALIAS: Record<string, string> = {
+  "Eur Spine J": "ESJ",
+  "European Spine Journal": "ESJ",
+  "Global Spine J": "GSJ",
+  "Global Spine Journal": "GSJ",
+  "Spine J": "TSJ",
+  "The Spine Journal": "TSJ",
+  "J Neurosurg Spine": "JNS Spine",
+}
+
+function normalizeJournalName(raw: string): string {
+  return JOURNAL_ALIAS[raw] ?? raw
+}
+
 function toArticle(page: NotionPage): JournalArticle {
   const p = page.properties
   return {
@@ -53,7 +68,7 @@ function toArticle(page: NotionPage): JournalArticle {
     url: page.url,
     title: getText(p.Title),
     authors: getText(p.Author),
-    journal_name: p["Journal Name"]?.select?.name ?? "",
+    journal_name: normalizeJournalName(p["Journal Name"]?.select?.name ?? ""),
     pub_date: p["Publication Date"]?.date?.start ?? null,
     doi_url: p.DOI?.url ?? null,
     abstract: getText(p.Abstract),
