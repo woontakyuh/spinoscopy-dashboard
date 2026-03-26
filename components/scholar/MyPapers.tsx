@@ -1,7 +1,8 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { MY_PAPERS, type PaperRole } from "@/lib/data/my-papers"
+import { MY_PAPERS, SCHOLAR_LINKS, type PaperRole } from "@/lib/data/my-papers"
+import { ExternalLink } from "lucide-react"
 import {
   BarChart,
   Bar,
@@ -11,15 +12,24 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Cell,
 } from "recharts"
 
 /* ── helpers ─────────────────────────────────────────── */
 
 const ROLE_BADGE: Record<PaperRole, { bg: string; text: string; label: string }> = {
-  "1st":           { bg: "var(--status-drafting-bg)",   text: "var(--status-drafting-text)",   label: "1st Author" },
-  corresponding:   { bg: "var(--status-published-bg)",  text: "var(--status-published-text)",  label: "Corresponding" },
-  "co-author":     { bg: "var(--status-idea-bg)",       text: "var(--status-idea-text)",       label: "Co-author" },
+  "1st":           { bg: "var(--status-drafting-bg)",   text: "var(--status-drafting-text)",   label: "1st" },
+  corresponding:   { bg: "var(--status-published-bg)",  text: "var(--status-published-text)",  label: "Corr" },
+  "co-author":     { bg: "var(--status-idea-bg)",       text: "var(--status-idea-text)",       label: "Co" },
+}
+
+const TYPE_COLOR: Record<string, { bg: string; text: string }> = {
+  Original:        { bg: "var(--status-submitted-bg)", text: "var(--status-submitted-text)" },
+  Review:          { bg: "var(--status-revision-bg)",  text: "var(--status-revision-text)" },
+  "Case Report":   { bg: "var(--status-idea-bg)",      text: "var(--status-idea-text)" },
+  "Meta-analysis": { bg: "var(--status-published-bg)", text: "var(--status-published-text)" },
+  RCT:             { bg: "var(--status-published-bg)", text: "var(--status-published-text)" },
+  Video:           { bg: "var(--status-drafting-bg)",   text: "var(--status-drafting-text)" },
+  "Technical Note":{ bg: "var(--status-revision-bg)",  text: "var(--status-revision-text)" },
 }
 
 type Filter = "all" | PaperRole
@@ -81,6 +91,30 @@ export function MyPapers() {
 
   return (
     <div className="space-y-6">
+      {/* ── Profile links ── */}
+      <div className="flex items-center gap-3">
+        <a
+          href={SCHOLAR_LINKS.googleScholar}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+          style={{ backgroundColor: "var(--scholar-metric)", color: "var(--scholar-accent-text)" }}
+        >
+          <ExternalLink className="w-3 h-3" />
+          Google Scholar
+        </a>
+        <a
+          href={SCHOLAR_LINKS.researchGate}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+          style={{ backgroundColor: "var(--scholar-metric)", color: "var(--scholar-accent-text)" }}
+        >
+          <ExternalLink className="w-3 h-3" />
+          ResearchGate
+        </a>
+      </div>
+
       {/* ── Metric cards ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {metrics.map(m => (
@@ -137,7 +171,7 @@ export function MyPapers() {
           </ResponsiveContainer>
         </div>
 
-        {/* Journal distribution */}
+        {/* Journal distribution — 세로 바 */}
         <div
           className="rounded-xl p-4 border"
           style={{ backgroundColor: "var(--scholar-card)", borderColor: "var(--scholar-accent-light)" }}
@@ -146,19 +180,17 @@ export function MyPapers() {
             저널별 분포
           </h3>
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart
-              data={journalData}
-              layout="vertical"
-              margin={{ top: 4, right: 16, bottom: 0, left: 0 }}
-            >
+            <BarChart data={journalData} margin={{ top: 4, right: 4, bottom: 40, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--scholar-accent-light)" />
-              <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "var(--scholar-accent-text)" }} />
-              <YAxis
-                type="category"
+              <XAxis
                 dataKey="journal"
-                width={100}
-                tick={{ fontSize: 10, fill: "var(--scholar-accent-text)" }}
+                tick={{ fontSize: 9, fill: "var(--scholar-accent-text)" }}
+                angle={-35}
+                textAnchor="end"
+                interval={0}
+                height={50}
               />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "var(--scholar-accent-text)" }} />
               <Tooltip
                 contentStyle={{
                   backgroundColor: "var(--scholar-card)",
@@ -168,11 +200,7 @@ export function MyPapers() {
                   color: "var(--scholar-accent-text)",
                 }}
               />
-              <Bar dataKey="count" name="Papers" radius={[0, 4, 4, 0]}>
-                {journalData.map((_, i) => (
-                  <Cell key={i} fill={i === 0 ? "var(--scholar-accent)" : "var(--status-drafting-text)"} fillOpacity={1 - i * 0.05} />
-                ))}
-              </Bar>
+              <Bar dataKey="count" name="Papers" fill="var(--scholar-accent)" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -194,52 +222,69 @@ export function MyPapers() {
             {f.label}
           </button>
         ))}
+        <span className="text-xs self-center ml-2 num" style={{ color: "var(--scholar-accent-text)", opacity: 0.5 }}>
+          {filtered.length}편
+        </span>
       </div>
 
       {/* ── Paper list ── */}
       <div className="space-y-2">
-        {filtered.map(paper => (
-          <div
-            key={paper.id}
-            className="rounded-xl px-4 py-3 border flex items-start gap-3 card-hover cursor-default"
-            style={{
-              backgroundColor: "var(--scholar-card)",
-              borderColor: "var(--scholar-accent-light)",
-            }}
-          >
-            {/* Year */}
-            <span
-              className="text-xs font-mono mt-0.5 shrink-0 num"
-              style={{ color: "var(--scholar-accent)", opacity: 0.7 }}
-            >
-              {paper.year}
-            </span>
-
-            {/* Role badge */}
-            <span
-              className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 mt-0.5 uppercase tracking-wide"
+        {filtered.map(paper => {
+          const typeStyle = TYPE_COLOR[paper.type] ?? TYPE_COLOR.Original
+          return (
+            <div
+              key={paper.id}
+              className="rounded-xl px-4 py-3 border flex items-start gap-3 card-hover cursor-default"
               style={{
-                backgroundColor: ROLE_BADGE[paper.role].bg,
-                color: ROLE_BADGE[paper.role].text,
+                backgroundColor: "var(--scholar-card)",
+                borderColor: "var(--scholar-accent-light)",
               }}
             >
-              {ROLE_BADGE[paper.role].label}
-            </span>
-
-            {/* Title + journal */}
-            <div className="min-w-0 flex-1">
-              <p
-                className="text-sm font-medium leading-snug"
-                style={{ color: "var(--scholar-accent-text)" }}
+              {/* Year */}
+              <span
+                className="text-xs font-mono mt-0.5 shrink-0 num"
+                style={{ color: "var(--scholar-accent)", opacity: 0.7 }}
               >
-                {paper.title}
-              </p>
-              <p className="text-xs mt-0.5 opacity-50" style={{ color: "var(--scholar-accent-text)" }}>
-                {paper.journal}
-              </p>
+                {paper.year}
+              </span>
+
+              {/* Role badge */}
+              <span
+                className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 mt-0.5 uppercase tracking-wide"
+                style={{
+                  backgroundColor: ROLE_BADGE[paper.role].bg,
+                  color: ROLE_BADGE[paper.role].text,
+                }}
+              >
+                {ROLE_BADGE[paper.role].label}
+              </span>
+
+              {/* Type badge */}
+              <span
+                className="text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 mt-0.5"
+                style={{
+                  backgroundColor: typeStyle.bg,
+                  color: typeStyle.text,
+                }}
+              >
+                {paper.type}
+              </span>
+
+              {/* Title + journal */}
+              <div className="min-w-0 flex-1">
+                <p
+                  className="text-sm font-medium leading-snug"
+                  style={{ color: "var(--scholar-accent-text)" }}
+                >
+                  {paper.title}
+                </p>
+                <p className="text-xs mt-0.5 opacity-50" style={{ color: "var(--scholar-accent-text)" }}>
+                  {paper.journal}
+                </p>
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

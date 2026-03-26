@@ -24,19 +24,23 @@ export default function ScholarPage() {
             <TabsTrigger value="my-papers" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-zinc-400">
               My Papers
             </TabsTrigger>
+            <TabsTrigger value="research" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-zinc-400">
+              Research
+            </TabsTrigger>
             <TabsTrigger value="dashboard" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-zinc-400">
-              Dashboard
+              SpineUpToDate
             </TabsTrigger>
             <TabsTrigger value="browse" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-zinc-400">
               Paper DB
-            </TabsTrigger>
-            <TabsTrigger value="research" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-zinc-400">
-              연구 현황
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="my-papers" className="space-y-4">
             <MyPapers />
+          </TabsContent>
+
+          <TabsContent value="research" className="space-y-4">
+            <ResearchPipeline />
           </TabsContent>
 
           <TabsContent value="dashboard" className="space-y-4">
@@ -45,10 +49,6 @@ export default function ScholarPage() {
 
           <TabsContent value="browse" className="space-y-4">
             <PaperDB />
-          </TabsContent>
-
-          <TabsContent value="research" className="space-y-4">
-            <ResearchPipeline />
           </TabsContent>
         </Tabs>
       </div>
