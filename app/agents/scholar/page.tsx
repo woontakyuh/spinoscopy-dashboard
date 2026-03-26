@@ -25,13 +25,13 @@ export default function ScholarPage() {
               My Papers
             </TabsTrigger>
             <TabsTrigger value="research" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-zinc-400">
-              Research
+              My Research
             </TabsTrigger>
             <TabsTrigger value="dashboard" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-zinc-400">
-              SpineUpToDate
+              UpToDate
             </TabsTrigger>
             <TabsTrigger value="browse" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-zinc-400">
-              Paper DB
+              Journal DB
             </TabsTrigger>
           </TabsList>
 
