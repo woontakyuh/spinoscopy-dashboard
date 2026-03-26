@@ -114,18 +114,6 @@ function activeFilterCount(filters: ActiveFilters): number {
   return count
 }
 
-function applyFilters(patients: PatientRow[], filters: ActiveFilters): PatientRow[] {
-  return patients.filter(p => {
-    for (const [key, valueSet] of Object.entries(filters) as [Dimension, Set<string> | undefined][]) {
-      if (!valueSet || valueSet.size === 0) continue
-      // OR within dimension: patient must have at least one matching value
-      const hasMatch = p[key].some(v => valueSet.has(v))
-      if (!hasMatch) return false
-    }
-    return true
-  })
-}
-
 function buildQueryString(filters: ActiveFilters): string {
   const params = new URLSearchParams()
   for (const [key, valueSet] of Object.entries(filters) as [Dimension, Set<string> | undefined][]) {
@@ -943,11 +931,8 @@ export function ClinicsAnalytics() {
 
   const allPatients = patientsQuery.data?.patients ?? []
 
-  // Client-side filter for cross-filtering within loaded data
-  const filtered = useMemo(() => {
-    if (!filtersActive) return []
-    return applyFilters(allPatients, filters)
-  }, [allPatients, filters, filtersActive])
+  // 서버에서 이미 필터된 결과를 사용 (이중 필터링 방지)
+  const filtered = filtersActive ? allPatients : []
 
   // Aggregations per dimension (cross-filtering)
   // 전체 카테고리 목록(schema)을 기반으로, 필터된 데이터에서 카운트 계산
@@ -957,10 +942,8 @@ export function ClinicsAnalytics() {
       op_category: {}, class_a: {}, class_b: {}, surgeon: {}, hospital: {},
     }
     for (const dim of DIMENSIONS) {
-      const otherFilters = { ...filters }
-      delete otherFilters[dim.key]
-      const subFiltered = applyFilters(allPatients, otherFilters)
-      const counts = countBy(subFiltered, dim.key)
+      // 서버 결과에서 각 차원별 카운트 집계
+      const counts = countBy(allPatients, dim.key)
       // schema에 있는 항목은 0이라도 포함 (전체 목록 유지)
       if (categoriesQuery.data?.[dim.key]) {
         for (const opt of categoriesQuery.data[dim.key]) {

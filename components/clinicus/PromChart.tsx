@@ -137,7 +137,7 @@ export function PromChart({ promRecord }: Props) {
                 stroke="#60a5fa"
                 strokeWidth={2}
                 dot={{ r: 4, fill: "#60a5fa" }}
-                connectNulls={false}
+                connectNulls
               />
               <Line
                 type="monotone"
@@ -145,7 +145,7 @@ export function PromChart({ promRecord }: Props) {
                 stroke="#f87171"
                 strokeWidth={2}
                 dot={{ r: 4, fill: "#f87171" }}
-                connectNulls={false}
+                connectNulls
               />
             </LineChart>
           </ResponsiveContainer>
@@ -167,7 +167,7 @@ export function PromChart({ promRecord }: Props) {
                 stroke="#34d399"
                 strokeWidth={2}
                 dot={{ r: 4, fill: "#34d399" }}
-                connectNulls={false}
+                connectNulls
               />
             </LineChart>
           </ResponsiveContainer>
@@ -189,7 +189,7 @@ export function PromChart({ promRecord }: Props) {
                 stroke="#a78bfa"
                 strokeWidth={2}
                 dot={{ r: 4, fill: "#a78bfa" }}
-                connectNulls={false}
+                connectNulls
               />
             </LineChart>
           </ResponsiveContainer>
@@ -226,7 +226,7 @@ export function PromChart({ promRecord }: Props) {
                 stroke="#fb923c"
                 strokeWidth={2}
                 dot={{ r: 4, fill: "#fb923c" }}
-                connectNulls={false}
+                connectNulls
               />
               <Line
                 yAxisId="vas"
@@ -236,7 +236,7 @@ export function PromChart({ promRecord }: Props) {
                 strokeWidth={2}
                 strokeDasharray="5 3"
                 dot={{ r: 4, fill: "#facc15" }}
-                connectNulls={false}
+                connectNulls
               />
             </LineChart>
           </ResponsiveContainer>
