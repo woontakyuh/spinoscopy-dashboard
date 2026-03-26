@@ -9,6 +9,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { PromDisplay } from "./PromDisplay"
 import { PromChart } from "./PromChart"
+import { PatientProfileView } from "./PatientProfileView"
 import type { AnalyticsData, PatientRow, Dimension, TimepointParsed, DimensionSchema } from "@/lib/notion/analytics"
 import type { PatientSearchResult } from "@/lib/types/patient"
 
@@ -744,6 +745,7 @@ function PatientListRow({ patient, isExpanded, onToggle }: {
                 <p className="text-zinc-400 text-xs font-medium mb-2">추이 그래프</p>
                 <PromChart promRecord={promRecord} />
               </div>
+              <PatientProfileView pageId={patient.page_id} />
             </>
           )}
           {!loading && !promRecord && (
