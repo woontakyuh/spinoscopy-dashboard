@@ -24,6 +24,14 @@ const TIMEPOINTS = ["pre", "1mo", "3mo", "6mo", "1y"]
 const TIMEPOINT_LABELS: Record<string, string> = {
   pre: "수술 전", "1mo": "1개월", "3mo": "3개월", "6mo": "6개월", "1y": "1년",
 }
+const TIMEPOINT_MONTHS: Record<string, number> = {
+  pre: 0, "1mo": 1, "3mo": 3, "6mo": 6, "1y": 12,
+}
+const MONTH_TICKS = [0, 1, 3, 6, 12]
+const formatMonth = (v: number) => {
+  const labels: Record<number, string> = { 0: "수술 전", 1: "1개월", 3: "3개월", 6: "6개월", 12: "1년" }
+  return labels[v] ?? `${v}mo`
+}
 
 type Metric = keyof TimepointParsed
 
@@ -531,7 +539,7 @@ function PromTrendCharts({ patients, groupBy }: { patients: PatientRow[]; groupB
         // For grouped charts, we pick the primary metric (first line)
         const primaryMetric = def.lines[0]
         const chartData = TIMEPOINTS.map(tp => {
-          const row: Record<string, string | number | null> = { name: TIMEPOINT_LABELS[tp] }
+          const row: Record<string, string | number | null> = { name: TIMEPOINT_LABELS[tp], month: TIMEPOINT_MONTHS[tp] }
           for (const [sgName, sgPatients] of subgroups) {
             const vals = sgPatients
               .map(p => p.timepoints[tp]?.[primaryMetric.metric])
@@ -561,7 +569,7 @@ function PromTrendCharts({ patients, groupBy }: { patients: PatientRow[]; groupB
     // Normal (non-grouped) mode
     return defs.map(def => {
       const chartData = TIMEPOINTS.map(tp => {
-        const row: Record<string, string | number | null> = { name: TIMEPOINT_LABELS[tp] }
+        const row: Record<string, string | number | null> = { name: TIMEPOINT_LABELS[tp], month: TIMEPOINT_MONTHS[tp] }
         for (const line of def.lines) {
           const vals = patients
             .map(p => p.timepoints[tp]?.[line.metric])
@@ -600,7 +608,7 @@ function PromTrendCharts({ patients, groupBy }: { patients: PatientRow[]; groupB
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={chart.chartData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
-                <XAxis dataKey="name" tick={AXIS_STYLE} />
+                <XAxis type="number" dataKey="month" domain={[0, 12]} ticks={MONTH_TICKS} tickFormatter={formatMonth} tick={AXIS_STYLE} />
                 {chart.dualAxis && !chart.isGrouped ? (
                   <>
                     <YAxis yAxisId="utility" domain={chart.domain} tick={AXIS_STYLE} width={36} />
