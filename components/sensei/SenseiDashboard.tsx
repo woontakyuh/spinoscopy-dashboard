@@ -57,7 +57,7 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
 
   useEffect(() => { setProfile(loadUserProfile()) }, [])
 
-  const { data, isLoading, error } = useQuery<{ stats: BjjStats; tagFrequencies: Record<string, number> }>({
+  const { data, isLoading, error } = useQuery<{ stats: BjjStats; tagFrequencies: Record<string, number>; studyTagFrequencies: Record<string, number> }>({
     queryKey: ["sensei-stats"],
     queryFn: async () => { const r = await fetch("/api/notion/sensei/stats"); if (!r.ok) throw new Error("err"); return r.json() },
   })
@@ -236,6 +236,40 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
                 )) : <span className="text-[10px] text-zinc-600">수련 기록이 쌓이면 표시됩니다</span>}
               </div>
             </div>
+
+            {/* 요즘 관심사 (Study Tags) */}
+            {data.studyTagFrequencies && Object.keys(data.studyTagFrequencies).length > 0 && (
+              <div className="pt-2 border-t border-zinc-800">
+                <h3 className="text-[10px] font-medium text-zinc-500 mb-1.5">🎥 요즘 관심사 (최근 2주 Study)</h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(data.studyTagFrequencies).sort(([, a], [, b]) => b - a).slice(0, 8).map(([tag, count]) => (
+                    <span key={tag} className="px-2 py-0.5 bg-green-900/20 text-green-500 border border-green-900/50 rounded text-[10px] font-medium">
+                      {tag}<span className="ml-1 text-green-700">{count}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 학습 사이클 */}
+            {(stats.completedCycles.length > 0 || stats.inProgressCycles.length > 0) && (
+              <div className="pt-2 border-t border-zinc-800">
+                <h3 className="text-[10px] font-medium text-zinc-500 mb-1.5">학습 사이클 (최근 30일)</h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {stats.completedCycles.map((c) => (
+                    <span key={`cycle-${c.tag}`} className="px-2 py-0.5 bg-emerald-900/20 text-emerald-400 border border-emerald-900/50 rounded text-[10px] font-medium">
+                      🔄 {c.tag}
+                    </span>
+                  ))}
+                  {stats.inProgressCycles.map((c) => (
+                    <span key={`prog-${c.tag}`} className="px-2 py-0.5 bg-zinc-800 text-zinc-400 border border-zinc-700 rounded text-[10px] font-medium">
+                      {c.tag}
+                      <span className="ml-1 text-[9px]">{c.study ? "📹" : ""}{c.class ? "📖" : ""}{c.sparring ? "🥊" : ""}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
           </div>
         </div>

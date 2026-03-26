@@ -157,7 +157,7 @@ function calculateAttributesForRuleSet(
   const tagFreq: Record<string, number> = {}
 
   for (const entry of sessions) {
-    const allTags = [...entry.classTags, ...entry.sparringTags]
+    const allTags = [...entry.classTags, ...entry.sparringTags, ...(entry.studyTags || [])]
     const isNogiSession = allTags.includes("NoGi")
     if (ruleSet === "gi" && isNogiSession) continue
     if (ruleSet === "nogi" && !isNogiSession) continue
@@ -240,7 +240,7 @@ export function calculateBjjStats(entries: SenseiEntry[]): BjjStats {
   const recentSessions = sessions.slice(0, 10)
   const recentTagCounts: Record<string, number> = {}
   for (const entry of recentSessions) {
-    for (const tag of [...entry.classTags, ...entry.sparringTags]) {
+    for (const tag of [...entry.classTags, ...entry.sparringTags, ...(entry.studyTags || [])]) {
       if (tag === "Gi" || tag === "NoGi") continue
       recentTagCounts[tag] = (recentTagCounts[tag] || 0) + 1
     }
@@ -276,6 +276,7 @@ export function calculateBjjStats(entries: SenseiEntry[]): BjjStats {
     sessions2026Nogi,
     attendanceRate,
     lastCeremonyDate: lastCeremony,
+    ...calculateLearningCycles(entries),
   }
 }
 
@@ -283,9 +284,76 @@ export function getTagFrequencies(entries: SenseiEntry[]): Record<string, number
   const freq: Record<string, number> = {}
   for (const entry of entries) {
     if (entry.sessionType === "promotion") continue
-    for (const tag of [...entry.classTags, ...entry.sparringTags]) {
+    for (const tag of [...entry.classTags, ...entry.sparringTags, ...(entry.studyTags || [])]) {
       freq[tag] = (freq[tag] || 0) + 1
     }
   }
   return freq
+}
+
+export function getStudyTagFrequencies(entries: SenseiEntry[]): Record<string, number> {
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - 14)
+  const cutoffStr = cutoff.toISOString().slice(0, 10)
+  const freq: Record<string, number> = {}
+  for (const entry of entries) {
+    if (entry.sessionType === "promotion" || !entry.date || entry.date < cutoffStr) continue
+    for (const tag of (entry.studyTags || [])) {
+      if (tag === "Gi" || tag === "NoGi") continue
+      freq[tag] = (freq[tag] || 0) + 1
+    }
+  }
+  return freq
+}
+
+export function calculateLearningCycles(entries: SenseiEntry[]): {
+  completedCycles: import("@/lib/types/sensei").LearningCycle[]
+  inProgressCycles: import("@/lib/types/sensei").LearningCycle[]
+} {
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - 30)
+  const cutoffStr = cutoff.toISOString().slice(0, 10)
+
+  const tagPresence: Record<string, { study: boolean; class: boolean; sparring: boolean; lastDate: string }> = {}
+
+  for (const entry of entries) {
+    if (entry.sessionType === "promotion" || !entry.date || entry.date < cutoffStr) continue
+    for (const tag of (entry.studyTags || [])) {
+      if (tag === "Gi" || tag === "NoGi") continue
+      if (!tagPresence[tag]) tagPresence[tag] = { study: false, class: false, sparring: false, lastDate: "" }
+      tagPresence[tag].study = true
+      if (entry.date > tagPresence[tag].lastDate) tagPresence[tag].lastDate = entry.date
+    }
+    for (const tag of entry.classTags) {
+      if (tag === "Gi" || tag === "NoGi") continue
+      if (!tagPresence[tag]) tagPresence[tag] = { study: false, class: false, sparring: false, lastDate: "" }
+      tagPresence[tag].class = true
+      if (entry.date > tagPresence[tag].lastDate) tagPresence[tag].lastDate = entry.date
+    }
+    for (const tag of entry.sparringTags) {
+      if (tag === "Gi" || tag === "NoGi") continue
+      if (!tagPresence[tag]) tagPresence[tag] = { study: false, class: false, sparring: false, lastDate: "" }
+      tagPresence[tag].sparring = true
+      if (entry.date > tagPresence[tag].lastDate) tagPresence[tag].lastDate = entry.date
+    }
+  }
+
+  const completed: import("@/lib/types/sensei").LearningCycle[] = []
+  const inProgress: import("@/lib/types/sensei").LearningCycle[] = []
+
+  for (const [tag, p] of Object.entries(tagPresence)) {
+    if (!p.study) continue
+    const cycle = { tag, ...p }
+    if (p.study && p.class && p.sparring) completed.push(cycle)
+    else inProgress.push(cycle)
+  }
+
+  completed.sort((a, b) => b.lastDate.localeCompare(a.lastDate))
+  inProgress.sort((a, b) => {
+    const ac = [a.study, a.class, a.sparring].filter(Boolean).length
+    const bc = [b.study, b.class, b.sparring].filter(Boolean).length
+    return bc - ac
+  })
+
+  return { completedCycles: completed, inProgressCycles: inProgress.slice(0, 10) }
 }
