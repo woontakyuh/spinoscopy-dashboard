@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server"
-import { searchPatients, getPatientProm } from "@/lib/notion/patients"
+import { searchPatients, getPatientProm, getPatientProfile } from "@/lib/notion/patients"
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const q = searchParams.get("q") ?? ""
   const pageId = searchParams.get("pageId")
+  const action = searchParams.get("action")
 
   try {
+    if (pageId && action === "profile") {
+      const profile = await getPatientProfile(pageId)
+      return NextResponse.json(profile)
+    }
     if (pageId) {
       const prom = await getPatientProm(pageId)
       return NextResponse.json(prom)

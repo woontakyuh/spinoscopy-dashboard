@@ -11,6 +11,7 @@ import { PatientDetail } from "@/components/clinicus/PatientDetail"
 import { NewCaseForm } from "@/components/clinicus/NewCaseForm"
 import { ClinicsAnalytics } from "@/components/clinicus/ClinicsAnalytics"
 import { IdeaMemo } from "@/components/clinicus/IdeaMemo"
+import { PatientProfileView } from "@/components/clinicus/PatientProfileView"
 import { useQuery } from "@tanstack/react-query"
 import type { PatientSearchResult } from "@/lib/types/patient"
 
@@ -86,11 +87,14 @@ export default function ClinicusPage() {
               />
             </div>
             {searchPatient ? (
-              <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900">
-                <PatientDetail
-                  patient={searchPatient}
-                  onOpenNotion={() => window.open(searchPatient.url, "_blank")}
-                />
+              <div className="space-y-4">
+                <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900">
+                  <PatientDetail
+                    patient={searchPatient}
+                    onOpenNotion={() => window.open(searchPatient.url, "_blank")}
+                  />
+                </div>
+                <PatientProfileView pageId={searchPatient.page_id} />
               </div>
             ) : (
               <p className="text-zinc-500 text-sm text-center py-8">

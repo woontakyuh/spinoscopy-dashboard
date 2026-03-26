@@ -14,6 +14,8 @@ interface NotionProperty {
   date?: { start: string; end: string | null } | null
   select?: { name: string } | null
   multi_select?: Array<{ name: string }>
+  number?: number | null
+  checkbox?: boolean
 }
 
 interface NotionQueryResponse {
@@ -60,6 +62,159 @@ export async function searchPatients(query: string): Promise<PatientSearchResult
     }
   )
   return response.results.map(toPatientResult)
+}
+
+function getNumber(prop: NotionProperty | undefined): number | null {
+  if (!prop || prop.type !== "number") return null
+  return prop.number ?? null
+}
+
+function getCheckbox(prop: NotionProperty | undefined): boolean {
+  if (!prop || prop.type !== "checkbox") return false
+  return prop.checkbox ?? false
+}
+
+function getSelect(prop: NotionProperty | undefined): string {
+  if (!prop || prop.type !== "select") return ""
+  return prop.select?.name ?? ""
+}
+
+function getDate(prop: NotionProperty | undefined): string | null {
+  if (!prop || prop.type !== "date") return null
+  return prop.date?.start ?? null
+}
+
+export interface PatientProfile {
+  // Basic
+  name: string
+  pt_no: string
+  age: string
+  sex: string
+  op_date: string | null
+  op_name: string
+  hospital: string[]
+  surgeon: string[]
+  level: string
+  preop_dx: string
+  // Classification
+  ctl: string[]
+  class_a: string[]
+  class_b: string[]
+  class_c: string[]
+  op_category: string[]
+  // Clinical
+  pmhx: string
+  note: string
+  cx: string
+  ai_insight: string
+  // Body metrics
+  height: number | null
+  weight: number | null
+  bmi: number | null
+  bmd: number | null
+  // Lab / BTM
+  vitd: number | null
+  vitd_fu: number | null
+  ctx: number | null
+  ctx_fu: number | null
+  p1np: number | null
+  p1np_fu: number | null
+  hba1c: number | null
+  btm_fu_date: string | null
+  // Comorbidities
+  htn: boolean
+  dm: boolean
+  dl: boolean
+  cardiac: boolean
+  renal: boolean
+  liver: boolean
+  // Surgical
+  op_time: number | null
+  ebl: string
+  postop_los: number | null
+  total_los: number | null
+  // Spine parameters
+  pi: number | null
+  pt: number | null
+  ss: number | null
+  // Cost
+  cost_total: string
+  cost_patient: string
+  cost_insurance: string
+  // Links
+  url: string
+  obsidian_link: string
+  // PROM (별도)
+  prom: Record<string, string>
+}
+
+export async function getPatientProfile(pageId: string): Promise<PatientProfile> {
+  const page = await notionRequest<NotionPage>(`/pages/${pageId}`)
+  const p = page.properties
+
+  // PROM
+  const prom: Record<string, string> = {}
+  const timepoints = ["pre", "1mo", "3mo", "6mo", "1y"]
+  const scores = ["VAS", "ODI", "JOA", "NDI", "EQ5D"]
+  for (const tp of timepoints) {
+    for (const sc of scores) {
+      const key = `${tp} ${sc}`
+      prom[key] = getText(p[key])
+    }
+  }
+
+  return {
+    name: getText(p.Name),
+    pt_no: getText(p["Pt No"]),
+    age: getText(p.Age),
+    sex: getSelect(p.Sex),
+    op_date: getDate(p["Op Date"]),
+    op_name: getText(p["Op Name"]),
+    hospital: getMultiSelect(p.Hospital),
+    surgeon: getMultiSelect(p.Surgeon),
+    level: getText(p.Level),
+    preop_dx: getText(p["Preop Dx"]),
+    ctl: getMultiSelect(p.CTL),
+    class_a: getMultiSelect(p.ClassA),
+    class_b: getMultiSelect(p.ClassB),
+    class_c: getMultiSelect(p.ClassC),
+    op_category: getMultiSelect(p["Op Category"]),
+    pmhx: getText(p.PMHx),
+    note: getText(p.Note),
+    cx: getText(p.Cx),
+    ai_insight: getText(p.AI_Insight),
+    height: getNumber(p.Height),
+    weight: getNumber(p.Weight),
+    bmi: getNumber(p.BMI),
+    bmd: getNumber(p.BMD),
+    vitd: getNumber(p.VitD),
+    vitd_fu: getNumber(p.VitD_fu),
+    ctx: getNumber(p.CTx),
+    ctx_fu: getNumber(p.CTx_fu),
+    p1np: getNumber(p.P1NP),
+    p1np_fu: getNumber(p.P1NP_fu),
+    hba1c: getNumber(p.HbA1c),
+    btm_fu_date: getDate(p.BTM_fu_date),
+    htn: getCheckbox(p.HTN),
+    dm: getCheckbox(p.DM),
+    dl: getCheckbox(p.DL),
+    cardiac: getCheckbox(p.Cardiac),
+    renal: getCheckbox(p.Renal),
+    liver: getCheckbox(p.Liver),
+    op_time: getNumber(p["Op time"]),
+    ebl: getText(p.EBL),
+    postop_los: getNumber(p["postop LOS"]),
+    total_los: getNumber(p["total LOS"]),
+    pi: getNumber(p.PI),
+    pt: getNumber(p.PT),
+    ss: getNumber(p.SS),
+    cost_total: getText(p["Cost total"]),
+    cost_patient: getText(p["Cost 환자"]),
+    cost_insurance: getText(p["Cost 공단"]),
+    url: page.url,
+    obsidian_link: getText(p.Obsidian_Link),
+    prom,
+  }
 }
 
 export async function getPatientProm(pageId: string): Promise<Record<string, string>> {
