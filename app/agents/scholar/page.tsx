@@ -7,6 +7,7 @@ import { MyPapers } from "@/components/scholar/MyPapers"
 import { DashboardCharts } from "@/components/scholar/DashboardCharts"
 import { PaperDB } from "@/components/scholar/PaperDB"
 import { ResearchPipeline } from "@/components/scholar/ResearchPipeline"
+import { Editorial } from "@/components/scholar/Editorial"
 
 export default function ScholarPage() {
   const [activeTab, setActiveTab] = useState("my-papers")
@@ -33,6 +34,9 @@ export default function ScholarPage() {
             <TabsTrigger value="browse" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-zinc-400">
               Journal DB
             </TabsTrigger>
+            <TabsTrigger value="editorial" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-zinc-400">
+              Editorial
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="my-papers" className="space-y-4">
@@ -49,6 +53,10 @@ export default function ScholarPage() {
 
           <TabsContent value="browse" className="space-y-4">
             <PaperDB />
+          </TabsContent>
+
+          <TabsContent value="editorial" className="space-y-4">
+            <Editorial />
           </TabsContent>
         </Tabs>
       </div>

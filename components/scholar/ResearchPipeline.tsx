@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -26,11 +26,12 @@ import {
   Save,
   X,
   ChevronDown,
-  ChevronUp,
   Calendar,
   BookOpen,
   Users,
   FileText,
+  AlertTriangle,
+  StickyNote,
 } from "lucide-react"
 import type {
   ResearchProject,
@@ -40,10 +41,12 @@ import type {
 } from "@/lib/types/research"
 import { RESEARCH_STATUSES, STATUS_LABELS } from "@/lib/types/research"
 
-// ── Status Column Config ─────────────────────────────────────
+// ── Lane Config ─────────────────────────────────────────────
 
-interface StatusConfig {
+interface LaneConfig {
+  id: string
   label: string
+  statuses: ResearchStatus[]
   color: string
   bg: string
   border: string
@@ -51,66 +54,68 @@ interface StatusConfig {
   headerBg: string
 }
 
-const STATUS_CONFIG: Record<ResearchStatus, StatusConfig> = {
-  WNS: {
-    label: "WNS",
+const LANES: LaneConfig[] = [
+  {
+    id: "idea",
+    label: "Idea / Lit Review",
+    statuses: ["WNS"],
     color: "text-zinc-300",
     bg: "bg-zinc-800/50",
     border: "border-zinc-700/50",
     dot: "bg-zinc-400",
     headerBg: "bg-zinc-800",
   },
-  "Manuscript drafting": {
-    label: "Drafting",
+  {
+    id: "drafting",
+    label: "Drafting / Editing",
+    statuses: ["Manuscript drafting", "Editing"],
     color: "text-indigo-300",
     bg: "bg-indigo-950/30",
     border: "border-indigo-800/40",
     dot: "bg-indigo-400",
     headerBg: "bg-indigo-900/40",
   },
-  Editing: {
-    label: "Editing",
-    color: "text-amber-300",
-    bg: "bg-amber-950/30",
-    border: "border-amber-800/40",
-    dot: "bg-amber-400",
-    headerBg: "bg-amber-900/40",
-  },
-  Submitted: {
-    label: "Submitted",
+  {
+    id: "submitted",
+    label: "Submitted / Under Review",
+    statuses: ["Submitted"],
     color: "text-cyan-300",
     bg: "bg-cyan-950/30",
     border: "border-cyan-800/40",
     dot: "bg-cyan-400",
     headerBg: "bg-cyan-900/40",
   },
-  Published: {
+  {
+    id: "published",
     label: "Published",
+    statuses: ["Published"],
     color: "text-emerald-300",
     bg: "bg-emerald-950/30",
     border: "border-emerald-800/40",
     dot: "bg-emerald-400",
     headerBg: "bg-emerald-900/40",
   },
-  Hold: {
-    label: "Hold",
+  {
+    id: "hold",
+    label: "On Hold",
+    statuses: ["Hold"],
     color: "text-zinc-400",
     bg: "bg-zinc-900/50",
     border: "border-zinc-700/30",
     dot: "bg-zinc-500",
     headerBg: "bg-zinc-800/60",
   },
-}
-
-// Pipeline display order (Hold at end, separate)
-const PIPELINE_STATUSES: ResearchStatus[] = [
-  "WNS",
-  "Manuscript drafting",
-  "Editing",
-  "Submitted",
-  "Published",
-  "Hold",
 ]
+
+// Status → color config for individual cards (sub-status indicator)
+const STATUS_DOT: Record<ResearchStatus, { dot: string; label: string }> = {
+  WNS: { dot: "bg-zinc-400", label: "WNS" },
+  "Manuscript drafting": { dot: "bg-indigo-400", label: "Drafting" },
+  Editing: { dot: "bg-amber-400", label: "Editing" },
+  Submitted: { dot: "bg-cyan-400", label: "Submitted" },
+  Published: { dot: "bg-emerald-400", label: "Published" },
+  Hold: { dot: "bg-zinc-500", label: "Hold" },
+}
 
 // Known options for select fields
 const KNOWN_AUTHORS = [
@@ -129,7 +134,7 @@ export function ResearchPipeline() {
   const queryClient = useQueryClient()
   const [selectedProject, setSelectedProject] = useState<ResearchProject | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const [mobileExpanded, setMobileExpanded] = useState<ResearchStatus | null>(null)
+  const [mobileExpanded, setMobileExpanded] = useState<string | null>(null)
 
   const { data: projects, isLoading, isError } = useQuery<ResearchProject[]>({
     queryKey: ["research-projects"],
@@ -177,9 +182,9 @@ export function ResearchPipeline() {
     },
   })
 
-  const projectsByStatus = useCallback(
-    (status: ResearchStatus) =>
-      (projects ?? []).filter((p) => p.status === status),
+  const projectsByLane = useCallback(
+    (lane: LaneConfig) =>
+      (projects ?? []).filter((p) => lane.statuses.includes(p.status)),
     [projects]
   )
 
@@ -213,34 +218,29 @@ export function ResearchPipeline() {
         </Button>
       </div>
 
-      {/* Kanban Board */}
+      {/* Kanban Board - 5 Lanes */}
       <div className="overflow-x-auto scrollbar-hide -mx-3 px-3 md:mx-0 md:px-0">
-        <div className="flex gap-3 min-w-[1100px] md:min-w-0 md:grid md:grid-cols-6">
-          {PIPELINE_STATUSES.map((status) => {
-            const config = STATUS_CONFIG[status]
-            const items = projectsByStatus(status)
-            const isExpanded = mobileExpanded === status
+        <div className="flex gap-3 min-w-[1000px] md:min-w-0 md:grid md:grid-cols-5">
+          {LANES.map((lane) => {
+            const items = projectsByLane(lane)
+            const isExpanded = mobileExpanded === lane.id
 
             return (
               <div
-                key={status}
-                className={`flex flex-col rounded-xl border ${config.border} ${config.bg} min-w-[200px] md:min-w-0`}
+                key={lane.id}
+                className={`flex flex-col rounded-xl border ${lane.border} ${lane.bg} min-w-[200px] md:min-w-0`}
               >
                 {/* Column Header */}
                 <button
                   onClick={() =>
-                    setMobileExpanded(isExpanded ? null : status)
+                    setMobileExpanded(isExpanded ? null : lane.id)
                   }
-                  className={`flex items-center justify-between px-3 py-2.5 rounded-t-xl ${config.headerBg} md:cursor-default`}
+                  className={`flex items-center justify-between px-3 py-2.5 rounded-t-xl ${lane.headerBg} md:cursor-default`}
                 >
                   <div className="flex items-center gap-2">
-                    <span
-                      className={`size-2 rounded-full ${config.dot}`}
-                    />
-                    <span
-                      className={`text-sm font-semibold ${config.color}`}
-                    >
-                      {config.label}
+                    <span className={`size-2 rounded-full ${lane.dot}`} />
+                    <span className={`text-sm font-semibold ${lane.color}`}>
+                      {lane.label}
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -270,7 +270,8 @@ export function ResearchPipeline() {
                       <ProjectCard
                         key={project.page_id}
                         project={project}
-                        config={config}
+                        lane={lane}
+                        showSubStatus={lane.statuses.length > 1}
                         isSelected={
                           selectedProject?.page_id === project.page_id
                         }
@@ -323,15 +324,20 @@ export function ResearchPipeline() {
 
 function ProjectCard({
   project,
-  config,
+  lane,
+  showSubStatus,
   isSelected,
   onClick,
 }: {
   project: ResearchProject
-  config: StatusConfig
+  lane: LaneConfig
+  showSubStatus: boolean
   isSelected: boolean
   onClick: () => void
 }) {
+  const warning = getProjectWarning(project)
+  const statusInfo = STATUS_DOT[project.status]
+
   return (
     <button
       onClick={onClick}
@@ -341,6 +347,16 @@ function ProjectCard({
           : "border-zinc-700/40 bg-zinc-900/60 hover:border-zinc-600/60 hover:bg-zinc-800/60"
       }`}
     >
+      {/* Sub-status badge (for merged lanes like Drafting/Editing) */}
+      {showSubStatus && (
+        <div className="mb-1.5">
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-zinc-400 bg-zinc-800/80 px-1.5 py-0.5 rounded">
+            <span className={`size-1.5 rounded-full ${statusInfo.dot}`} />
+            {statusInfo.label}
+          </span>
+        </div>
+      )}
+
       {/* Title */}
       <p className="text-sm font-medium text-zinc-100 line-clamp-2 leading-snug mb-2">
         {project.title}
@@ -353,19 +369,38 @@ function ProjectCard({
         </div>
       )}
 
-      {/* Footer: author + date */}
-      <div className="flex items-center justify-between gap-1">
-        {project.first_author.length > 0 ? (
-          <span className="text-[11px] text-zinc-400 truncate max-w-[110px]">
+      {/* Author info */}
+      <div className="flex items-center gap-1 mb-1.5">
+        {project.first_author.length > 0 && (
+          <span className="text-[11px] text-zinc-400 truncate max-w-[120px]">
             <Users className="size-3 inline mr-0.5 -mt-px" />
-            {project.first_author[0]}
+            1st: {project.first_author[0]}
             {project.first_author.length > 1 && ` +${project.first_author.length - 1}`}
           </span>
-        ) : (
-          <span />
         )}
+      </div>
+      {project.corresponding.length > 0 && (
+        <div className="mb-1.5">
+          <span className="text-[10px] text-zinc-500 truncate block">
+            Corr: {project.corresponding[0]}
+            {project.corresponding.length > 1 && ` +${project.corresponding.length - 1}`}
+          </span>
+        </div>
+      )}
+
+      {/* Warning */}
+      {warning && (
+        <div className="flex items-center gap-1 mb-1.5 px-1.5 py-0.5 bg-amber-950/40 border border-amber-800/30 rounded text-[10px] text-amber-300">
+          <AlertTriangle className="size-3 flex-shrink-0" />
+          <span>{warning}</span>
+        </div>
+      )}
+
+      {/* Footer: date */}
+      <div className="flex items-center justify-end">
         {project.start_date && (
-          <span className="num text-[10px] text-zinc-500 whitespace-nowrap">
+          <span className="num text-[10px] text-zinc-500 whitespace-nowrap flex items-center gap-0.5">
+            <Calendar className="size-2.5" />
             {formatDate(project.start_date)}
           </span>
         )}
@@ -394,6 +429,8 @@ function DetailPanel({
   const [targetJournal, setTargetJournal] = useState(project.target_journal)
   const [startDate, setStartDate] = useState(project.start_date ?? "")
   const [publishDate, setPublishDate] = useState(project.publish_date ?? "")
+  const [memo, setMemo] = useState("")
+  const [showPublishedNote, setShowPublishedNote] = useState(false)
 
   // Re-sync when project changes
   const [prevId, setPrevId] = useState(project.page_id)
@@ -406,6 +443,13 @@ function DetailPanel({
     setTargetJournal(project.target_journal)
     setStartDate(project.start_date ?? "")
     setPublishDate(project.publish_date ?? "")
+    setMemo("")
+    setShowPublishedNote(false)
+  }
+
+  function handleStatusChange(newStatus: ResearchStatus) {
+    setStatus(newStatus)
+    setShowPublishedNote(newStatus === "Published")
   }
 
   function handleSave() {
@@ -468,7 +512,7 @@ function DetailPanel({
         {/* Status */}
         <div>
           <label className="text-xs text-zinc-400 mb-1 block">상태</label>
-          <Select value={status} onValueChange={(v) => setStatus(v as ResearchStatus)}>
+          <Select value={status} onValueChange={(v) => handleStatusChange(v as ResearchStatus)}>
             <SelectTrigger className="w-full bg-zinc-800/80 border-zinc-700 text-white text-sm">
               <SelectValue />
             </SelectTrigger>
@@ -476,13 +520,19 @@ function DetailPanel({
               {RESEARCH_STATUSES.map((s) => (
                 <SelectItem key={s} value={s} className="text-zinc-200">
                   <span className="flex items-center gap-2">
-                    <span className={`size-2 rounded-full ${STATUS_CONFIG[s].dot}`} />
+                    <span className={`size-2 rounded-full ${STATUS_DOT[s].dot}`} />
                     {STATUS_LABELS[s]}
                   </span>
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          {showPublishedNote && (
+            <p className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1">
+              <AlertTriangle className="size-3" />
+              Published로 변경 시 My Papers로 이동 대상
+            </p>
+          )}
         </div>
 
         {/* Target Journal */}
@@ -544,6 +594,21 @@ function DetailPanel({
             value={publishDate}
             onChange={(e) => setPublishDate(e.target.value)}
             className="num bg-zinc-800/80 border-zinc-700 text-white text-sm"
+          />
+        </div>
+
+        {/* Inline Memo */}
+        <div className="md:col-span-2">
+          <label className="text-xs text-zinc-400 mb-1 flex items-center gap-1">
+            <StickyNote className="size-3" />
+            메모 (로컬 전용)
+          </label>
+          <textarea
+            value={memo}
+            onChange={(e) => setMemo(e.target.value)}
+            placeholder="빠른 메모를 입력하세요..."
+            rows={2}
+            className="w-full rounded-md bg-zinc-800/80 border border-zinc-700 text-white text-sm px-3 py-2 resize-none placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 focus:border-indigo-500/50"
           />
         </div>
       </div>
@@ -650,7 +715,7 @@ function CreateDialog({
                   {RESEARCH_STATUSES.map((s) => (
                     <SelectItem key={s} value={s} className="text-zinc-200">
                       <span className="flex items-center gap-2">
-                        <span className={`size-2 rounded-full ${STATUS_CONFIG[s].dot}`} />
+                        <span className={`size-2 rounded-full ${STATUS_DOT[s].dot}`} />
                         {STATUS_LABELS[s]}
                       </span>
                     </SelectItem>
@@ -789,6 +854,19 @@ function formatDate(dateStr: string): string {
   return `${y}.${m}`
 }
 
+function getProjectWarning(project: ResearchProject): string | null {
+  if (!project.start_date) return null
+  const startDate = new Date(project.start_date)
+  const now = new Date()
+  const diffYears = (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 365)
+
+  if (project.status !== "Published" && project.status !== "Hold") {
+    if (diffYears >= 3) return `${Math.floor(diffYears)}년 지연`
+    if (diffYears >= 2) return `${Math.floor(diffYears)}년 경과`
+  }
+  return null
+}
+
 function mapUpdatesToProject(
   updates: ResearchUpdateInput
 ): Partial<ResearchProject> {
@@ -812,8 +890,8 @@ function PipelineSkeleton() {
         <Skeleton className="h-7 w-36 bg-zinc-800" />
         <Skeleton className="h-8 w-20 bg-zinc-800" />
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-        {Array.from({ length: 6 }).map((_, i) => (
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
             <Skeleton className="h-5 w-20 mb-3 bg-zinc-800" />
             <div className="space-y-2">
