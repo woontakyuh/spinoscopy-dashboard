@@ -116,6 +116,54 @@
   --sidebar-ring: oklch(0.552 0.016 285.938);
 }
 
+:root {
+  /* Scholar design tokens */
+  --scholar-bg: #f8f7f4;
+  --scholar-card: #ffffff;
+  --scholar-metric: #f0efe9;
+  --scholar-accent: #534AB7;
+  --scholar-accent-light: #EEEDFE;
+  --scholar-accent-text: #3C3489;
+
+  /* Status colors */
+  --status-published-bg: #E1F5EE;
+  --status-published-text: #085041;
+  --status-revision-bg: #FAEEDA;
+  --status-revision-text: #633806;
+  --status-submitted-bg: #E6F1FB;
+  --status-submitted-text: #0C447C;
+  --status-drafting-bg: #EEEDFE;
+  --status-drafting-text: #3C3489;
+  --status-idea-bg: #F1EFE8;
+  --status-idea-text: #444441;
+  --status-hold-bg: #FCEBEB;
+  --status-hold-text: #791F1F;
+}
+
+.dark {
+  /* Scholar design tokens — dark mode equivalents */
+  --scholar-bg: #0a0a0a;
+  --scholar-card: #18181b;
+  --scholar-metric: #1c1c20;
+  --scholar-accent: #7C74E0;
+  --scholar-accent-light: #1e1d3a;
+  --scholar-accent-text: #a8a0f0;
+
+  /* Status colors — dark mode */
+  --status-published-bg: #0d2f25;
+  --status-published-text: #6ee7b7;
+  --status-revision-bg: #2d1f05;
+  --status-revision-text: #fbbf24;
+  --status-submitted-bg: #0c2340;
+  --status-submitted-text: #60a5fa;
+  --status-drafting-bg: #1e1d3a;
+  --status-drafting-text: #a78bfa;
+  --status-idea-bg: #1c1c1e;
+  --status-idea-text: #a1a1aa;
+  --status-hold-bg: #2d1111;
+  --status-hold-text: #f87171;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
