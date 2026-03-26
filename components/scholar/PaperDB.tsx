@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect, useCallback, Fragment } from "react"
+import { useState, useEffect, useCallback, useMemo, Fragment } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
-import { extractCountry, getCountryFlag } from "@/lib/scholar/country"
-import type { JournalArticle, JournalQueryResult, InterestLevel } from "@/lib/types/journal"
+import { extractCountry, getCountryFlag, TOPIC_GROUPS } from "@/lib/scholar/country"
+import type { JournalArticle, JournalQueryResult, JournalStats, InterestLevel } from "@/lib/types/journal"
 
 // ── Constants ──────────────────────────────────────────────
 
@@ -18,6 +18,21 @@ const INTEREST_OPTIONS: { value: InterestLevel; icon: string }[] = [
   { value: "⚪ 참고", icon: "⚪" },
 ]
 const INTEREST_CYCLE: InterestLevel[] = ["🔴 필독", "🟡 관심", "⚪ 참고"]
+
+const TOPIC_NAMES = Object.keys(TOPIC_GROUPS)
+
+const TOPIC_COLORS: Record<string, string> = {
+  "Endoscopy": "bg-cyan-500/20 text-cyan-300 border-cyan-500/40",
+  "MIS": "bg-teal-500/20 text-teal-300 border-teal-500/40",
+  "Deformity": "bg-purple-500/20 text-purple-300 border-purple-500/40",
+  "Cervical": "bg-blue-500/20 text-blue-300 border-blue-500/40",
+  "AI/ML": "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
+  "Navigation": "bg-amber-500/20 text-amber-300 border-amber-500/40",
+  "Fusion": "bg-rose-500/20 text-rose-300 border-rose-500/40",
+  "Stenosis": "bg-orange-500/20 text-orange-300 border-orange-500/40",
+  "Disc": "bg-sky-500/20 text-sky-300 border-sky-500/40",
+  "Trauma": "bg-red-500/20 text-red-300 border-red-500/40",
+}
 
 const JOURNAL_COLORS: Record<string, string> = {
   TSJ: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
@@ -55,6 +70,23 @@ interface Filters {
   interest: InterestLevel | null
   readStatus: "all" | "unread" | "read"
   search: string
+  topics: string[]
+  categories: string[]
+  yearFrom: number | null
+  yearTo: number | null
+  countries: string[]
+}
+
+const INITIAL_FILTERS: Filters = {
+  journals: [],
+  interest: null,
+  readStatus: "all",
+  search: "",
+  topics: [],
+  categories: [],
+  yearFrom: null,
+  yearTo: null,
+  countries: [],
 }
 
 function buildQueryString(f: Filters): string {
@@ -64,8 +96,23 @@ function buildQueryString(f: Filters): string {
   if (f.readStatus === "unread") params.set("read", "false")
   else if (f.readStatus === "read") params.set("read", "true")
   if (f.search) params.set("search", f.search)
+  if (f.categories.length === 1) params.set("category", f.categories[0])
   params.set("sort", "date_desc")
   return params.toString()
+}
+
+function hasActiveFilters(f: Filters): boolean {
+  return (
+    f.journals.length > 0 ||
+    f.interest !== null ||
+    f.readStatus !== "all" ||
+    f.search !== "" ||
+    f.topics.length > 0 ||
+    f.categories.length > 0 ||
+    f.yearFrom !== null ||
+    f.yearTo !== null ||
+    f.countries.length > 0
+  )
 }
 
 // ── Main Component ──────────────────────────────────────────
@@ -74,12 +121,7 @@ export function PaperDB() {
   const queryClient = useQueryClient()
 
   // Filter state
-  const [filters, setFilters] = useState<Filters>({
-    journals: [],
-    interest: null,
-    readStatus: "all",
-    search: "",
-  })
+  const [filters, setFilters] = useState<Filters>(INITIAL_FILTERS)
   const [searchInput, setSearchInput] = useState("")
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
@@ -105,6 +147,26 @@ export function PaperDB() {
     setHasMore(false)
     setExpandedId(null)
   }, [filterQs])
+
+  // Fetch stats for categories
+  const { data: stats } = useQuery<JournalStats>({
+    queryKey: ["journal", "stats"],
+    queryFn: async () => {
+      const res = await fetch("/api/notion/journal?action=stats")
+      if (!res.ok) throw new Error("통계 조회 실패")
+      return res.json()
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // Top 15 categories from stats
+  const topCategories = useMemo(() => {
+    if (!stats?.by_category) return []
+    return Object.entries(stats.by_category)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 15)
+      .map(([name, count]) => ({ name, count }))
+  }, [stats])
 
   // Query
   const { isLoading, error } = useQuery<JournalQueryResult>({
@@ -135,15 +197,77 @@ export function PaperDB() {
     }
   }, [nextCursor, isLoadingMore, filterQs])
 
-  // Client-side multi-journal filter (API only supports single journal)
-  const displayArticles =
-    filters.journals.length > 1
-      ? allArticles.filter((a) =>
-          filters.journals.some((j) => a.journal_name.includes(j))
-        )
-      : allArticles
+  // Compute top countries from loaded articles
+  const topCountries = useMemo(() => {
+    const countMap: Record<string, number> = {}
+    for (const a of allArticles) {
+      const c = extractCountry(a.affiliations)
+      if (c) countMap[c] = (countMap[c] || 0) + 1
+    }
+    return Object.entries(countMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, count]) => ({ name, count }))
+  }, [allArticles])
 
-  // ── Journal toggle ──
+  // Client-side filtering
+  const displayArticles = useMemo(() => {
+    let list = allArticles
+
+    // multi-journal (API only supports single)
+    if (filters.journals.length > 1) {
+      list = list.filter((a) =>
+        filters.journals.some((j) => a.journal_name.includes(j))
+      )
+    }
+
+    // topics (client-side)
+    if (filters.topics.length > 0) {
+      list = list.filter((a) => {
+        const text = `${a.title} ${a.categories.join(" ")}`.toLowerCase()
+        return filters.topics.some((topic) =>
+          TOPIC_GROUPS[topic]?.some((kw) => text.includes(kw))
+        )
+      })
+    }
+
+    // categories (client-side for multi-select)
+    if (filters.categories.length > 1) {
+      list = list.filter((a) =>
+        filters.categories.some((cat) =>
+          a.categories.some((ac) => ac.toLowerCase().includes(cat.toLowerCase()))
+        )
+      )
+    }
+
+    // year range
+    if (filters.yearFrom !== null) {
+      list = list.filter((a) => {
+        if (!a.pub_date) return false
+        const year = new Date(a.pub_date).getFullYear()
+        return year >= filters.yearFrom!
+      })
+    }
+    if (filters.yearTo !== null) {
+      list = list.filter((a) => {
+        if (!a.pub_date) return false
+        const year = new Date(a.pub_date).getFullYear()
+        return year <= filters.yearTo!
+      })
+    }
+
+    // countries (client-side)
+    if (filters.countries.length > 0) {
+      list = list.filter((a) => {
+        const c = extractCountry(a.affiliations)
+        return c !== null && filters.countries.includes(c)
+      })
+    }
+
+    return list
+  }, [allArticles, filters])
+
+  // ── Toggle helpers ──
   function toggleJournal(j: string) {
     setFilters((prev) => {
       const active = prev.journals.includes(j)
@@ -154,7 +278,6 @@ export function PaperDB() {
     })
   }
 
-  // ── Interest toggle ──
   function toggleInterest(v: InterestLevel) {
     setFilters((prev) => ({
       ...prev,
@@ -162,107 +285,306 @@ export function PaperDB() {
     }))
   }
 
-  // ── Read status ──
   function setReadStatus(s: Filters["readStatus"]) {
     setFilters((prev) => ({ ...prev, readStatus: s }))
   }
 
+  function toggleTopic(topic: string) {
+    setFilters((prev) => {
+      const active = prev.topics.includes(topic)
+      return {
+        ...prev,
+        topics: active ? prev.topics.filter((t) => t !== topic) : [...prev.topics, topic],
+      }
+    })
+  }
+
+  function toggleCategory(cat: string) {
+    setFilters((prev) => {
+      const active = prev.categories.includes(cat)
+      return {
+        ...prev,
+        categories: active ? prev.categories.filter((c) => c !== cat) : [...prev.categories, cat],
+      }
+    })
+  }
+
+  function toggleCountry(country: string) {
+    setFilters((prev) => {
+      const active = prev.countries.includes(country)
+      return {
+        ...prev,
+        countries: active ? prev.countries.filter((c) => c !== country) : [...prev.countries, country],
+      }
+    })
+  }
+
+  function removeFilter(key: string, value?: string) {
+    setFilters((prev) => {
+      switch (key) {
+        case "journal":
+          return { ...prev, journals: prev.journals.filter((j) => j !== value) }
+        case "interest":
+          return { ...prev, interest: null }
+        case "readStatus":
+          return { ...prev, readStatus: "all" }
+        case "search":
+          setSearchInput("")
+          return { ...prev, search: "" }
+        case "topic":
+          return { ...prev, topics: prev.topics.filter((t) => t !== value) }
+        case "category":
+          return { ...prev, categories: prev.categories.filter((c) => c !== value) }
+        case "yearFrom":
+          return { ...prev, yearFrom: null }
+        case "yearTo":
+          return { ...prev, yearTo: null }
+        case "country":
+          return { ...prev, countries: prev.countries.filter((c) => c !== value) }
+        default:
+          return prev
+      }
+    })
+  }
+
+  // Collect active filter tags for summary row
+  const activeFilterTags = useMemo(() => {
+    const tags: { key: string; value?: string; label: string }[] = []
+    for (const j of filters.journals) tags.push({ key: "journal", value: j, label: j })
+    if (filters.interest) tags.push({ key: "interest", label: filters.interest })
+    if (filters.readStatus !== "all") tags.push({ key: "readStatus", label: filters.readStatus === "unread" ? "안읽음" : "읽음" })
+    if (filters.search) tags.push({ key: "search", label: `"${filters.search}"` })
+    for (const t of filters.topics) tags.push({ key: "topic", value: t, label: t })
+    for (const c of filters.categories) tags.push({ key: "category", value: c, label: c })
+    if (filters.yearFrom !== null) tags.push({ key: "yearFrom", label: `${filters.yearFrom}~` })
+    if (filters.yearTo !== null) tags.push({ key: "yearTo", label: `~${filters.yearTo}` })
+    for (const c of filters.countries) tags.push({ key: "country", value: c, label: `${getCountryFlag(c)} ${c}` })
+    return tags
+  }, [filters])
+
   return (
     <div className="space-y-3">
       {/* ── Filter Bar ── */}
-      <div className="flex flex-wrap items-center gap-2 p-2 rounded-lg bg-zinc-900 border border-zinc-800">
-        {/* Journal toggles */}
-        <div className="flex items-center gap-1">
-          {JOURNALS.map((j) => {
-            const active = filters.journals.includes(j)
-            return (
+      <div className="space-y-2 p-2 rounded-lg bg-zinc-900 border border-zinc-800">
+        {/* Row 1: Journal, Interest, Read status, Search */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Journal toggles */}
+          <div className="flex items-center gap-1">
+            {JOURNALS.map((j) => {
+              const active = filters.journals.includes(j)
+              return (
+                <button
+                  key={j}
+                  type="button"
+                  onClick={() => toggleJournal(j)}
+                  className={`px-2 py-1 rounded text-[11px] font-medium transition-colors border ${
+                    active
+                      ? "bg-cyan-600/30 text-cyan-300 border-cyan-500/50"
+                      : "bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-zinc-300"
+                  }`}
+                >
+                  {j}
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="w-px h-5 bg-zinc-700" />
+
+          {/* Interest filter */}
+          <div className="flex items-center gap-1">
+            {INTEREST_OPTIONS.map((opt) => {
+              const active = filters.interest === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => toggleInterest(opt.value)}
+                  className={`w-7 h-7 rounded flex items-center justify-center text-sm transition-colors border ${
+                    active
+                      ? "bg-zinc-700 border-zinc-500"
+                      : "bg-zinc-800 border-zinc-700/50 opacity-50 hover:opacity-100"
+                  }`}
+                >
+                  {opt.icon}
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="w-px h-5 bg-zinc-700" />
+
+          {/* Read status */}
+          <div className="flex items-center rounded-md border border-zinc-700 overflow-hidden">
+            {(
+              [
+                { key: "all", label: "전체" },
+                { key: "unread", label: "안읽음" },
+                { key: "read", label: "읽음" },
+              ] as const
+            ).map((opt) => (
               <button
-                key={j}
+                key={opt.key}
                 type="button"
-                onClick={() => toggleJournal(j)}
-                className={`px-2 py-1 rounded text-[11px] font-medium transition-colors border ${
-                  active
-                    ? "bg-cyan-600/30 text-cyan-300 border-cyan-500/50"
-                    : "bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-zinc-300"
+                onClick={() => setReadStatus(opt.key)}
+                className={`px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                  filters.readStatus === opt.key
+                    ? "bg-zinc-600 text-white"
+                    : "bg-zinc-800 text-zinc-500 hover:text-zinc-300"
                 }`}
               >
-                {j}
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="w-px h-5 bg-zinc-700" />
+
+          {/* Search */}
+          <Input
+            placeholder="검색..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="w-40 bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600 h-7 text-xs"
+          />
+        </div>
+
+        {/* Row 2: Topics */}
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="text-zinc-600 text-[10px] font-medium mr-1 shrink-0">Topic</span>
+          {TOPIC_NAMES.map((topic) => {
+            const active = filters.topics.includes(topic)
+            const colors = TOPIC_COLORS[topic] ?? "bg-zinc-500/20 text-zinc-400 border-zinc-500/40"
+            return (
+              <button
+                key={topic}
+                type="button"
+                onClick={() => toggleTopic(topic)}
+                className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all border ${
+                  active
+                    ? colors
+                    : "bg-zinc-800/60 text-zinc-500 border-zinc-700/50 hover:text-zinc-300 hover:border-zinc-600"
+                }`}
+              >
+                {topic}
               </button>
             )
           })}
         </div>
 
-        <div className="w-px h-5 bg-zinc-700" />
+        {/* Row 3: Categories + Year + Countries */}
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="text-zinc-600 text-[10px] font-medium mr-1 shrink-0">Category</span>
+          {topCategories.length > 0 ? (
+            topCategories.map(({ name, count }) => {
+              const active = filters.categories.includes(name)
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => toggleCategory(name)}
+                  className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-all border ${
+                    active
+                      ? "bg-indigo-500/25 text-indigo-300 border-indigo-500/50"
+                      : "bg-zinc-800/60 text-zinc-500 border-zinc-700/50 hover:text-zinc-300 hover:border-zinc-600"
+                  }`}
+                  title={`${name} (${count})`}
+                >
+                  {name.length > 20 ? name.slice(0, 18) + "..." : name}
+                  <span className="ml-0.5 text-zinc-600">{count}</span>
+                </button>
+              )
+            })
+          ) : (
+            <span className="text-zinc-700 text-[10px]">로딩 중...</span>
+          )}
 
-        {/* Interest filter */}
-        <div className="flex items-center gap-1">
-          {INTEREST_OPTIONS.map((opt) => {
-            const active = filters.interest === opt.value
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => toggleInterest(opt.value)}
-                className={`w-7 h-7 rounded flex items-center justify-center text-sm transition-colors border ${
-                  active
-                    ? "bg-zinc-700 border-zinc-500"
-                    : "bg-zinc-800 border-zinc-700/50 opacity-50 hover:opacity-100"
-                }`}
-              >
-                {opt.icon}
-              </button>
-            )
-          })}
+          <div className="w-px h-4 bg-zinc-700 mx-1" />
+
+          {/* Year range */}
+          <span className="text-zinc-600 text-[10px] font-medium shrink-0">Year</span>
+          <input
+            type="number"
+            placeholder="from"
+            value={filters.yearFrom ?? ""}
+            onChange={(e) =>
+              setFilters((prev) => ({
+                ...prev,
+                yearFrom: e.target.value ? parseInt(e.target.value, 10) : null,
+              }))
+            }
+            className="w-16 h-6 px-1.5 rounded text-[11px] bg-zinc-800 border border-zinc-700 text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500"
+          />
+          <span className="text-zinc-600 text-[10px]">~</span>
+          <input
+            type="number"
+            placeholder="to"
+            value={filters.yearTo ?? ""}
+            onChange={(e) =>
+              setFilters((prev) => ({
+                ...prev,
+                yearTo: e.target.value ? parseInt(e.target.value, 10) : null,
+              }))
+            }
+            className="w-16 h-6 px-1.5 rounded text-[11px] bg-zinc-800 border border-zinc-700 text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500"
+          />
         </div>
 
-        <div className="w-px h-5 bg-zinc-700" />
+        {/* Row 3b: Countries */}
+        {topCountries.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="text-zinc-600 text-[10px] font-medium mr-1 shrink-0">Country</span>
+            {topCountries.map(({ name, count }) => {
+              const active = filters.countries.includes(name)
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => toggleCountry(name)}
+                  className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-all border ${
+                    active
+                      ? "bg-violet-500/25 text-violet-300 border-violet-500/50"
+                      : "bg-zinc-800/60 text-zinc-500 border-zinc-700/50 hover:text-zinc-300 hover:border-zinc-600"
+                  }`}
+                >
+                  {getCountryFlag(name)} {name}
+                  <span className="ml-0.5 text-zinc-600">{count}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
 
-        {/* Read status */}
-        <div className="flex items-center rounded-md border border-zinc-700 overflow-hidden">
-          {(
-            [
-              { key: "all", label: "전체" },
-              { key: "unread", label: "안읽음" },
-              { key: "read", label: "읽음" },
-            ] as const
-          ).map((opt) => (
+        {/* Row 4: Active filter summary */}
+        {hasActiveFilters(filters) && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-zinc-800">
+            <span className="text-zinc-600 text-[10px] shrink-0">필터:</span>
+            {activeFilterTags.map((tag, i) => (
+              <span
+                key={`${tag.key}-${tag.value ?? tag.label}-${i}`}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-300 text-[10px]"
+              >
+                {tag.label}
+                <button
+                  type="button"
+                  onClick={() => removeFilter(tag.key, tag.value)}
+                  className="text-zinc-500 hover:text-zinc-200 transition-colors"
+                >
+                  x
+                </button>
+              </span>
+            ))}
             <button
-              key={opt.key}
               type="button"
-              onClick={() => setReadStatus(opt.key)}
-              className={`px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                filters.readStatus === opt.key
-                  ? "bg-zinc-600 text-white"
-                  : "bg-zinc-800 text-zinc-500 hover:text-zinc-300"
-              }`}
+              onClick={() => {
+                setFilters(INITIAL_FILTERS)
+                setSearchInput("")
+              }}
+              className="text-zinc-500 text-[10px] hover:text-zinc-300 transition-colors ml-auto"
             >
-              {opt.label}
+              초기화
             </button>
-          ))}
-        </div>
-
-        <div className="w-px h-5 bg-zinc-700" />
-
-        {/* Search */}
-        <Input
-          placeholder="검색..."
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          className="w-40 bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600 h-7 text-xs"
-        />
-
-        {/* Active filter count */}
-        {(filters.journals.length > 0 || filters.interest || filters.readStatus !== "all" || filters.search) && (
-          <button
-            type="button"
-            onClick={() => {
-              setFilters({ journals: [], interest: null, readStatus: "all", search: "" })
-              setSearchInput("")
-            }}
-            className="text-zinc-500 text-[11px] hover:text-zinc-300 transition-colors ml-auto"
-          >
-            초기화
-          </button>
+          </div>
         )}
       </div>
 
