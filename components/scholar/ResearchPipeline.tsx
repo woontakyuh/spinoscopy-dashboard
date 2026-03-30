@@ -135,7 +135,7 @@ const KNOWN_AUTHORS = [
 export function ResearchPipeline() {
   const queryClient = useQueryClient()
   const [selectedProject, setSelectedProject] = useState<ResearchProject | null>(null)
-  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  // CreateDialog 제거 — Notion에서 직접 추가
   const [mobileExpanded, setMobileExpanded] = useState<string | null>(null)
 
   const { data: projects, isLoading, isError } = useQuery<ResearchProject[]>({
@@ -170,22 +170,6 @@ export function ResearchPipeline() {
     },
   })
 
-  const createMutation = useMutation({
-    mutationFn: async (input: ResearchCreateInput) => {
-      const res = await fetch("/api/notion/research", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      })
-      if (!res.ok) throw new Error("Failed to create project")
-      return res.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["research-projects"] })
-      setShowCreateDialog(false)
-    },
-  })
-
   const projectsByLane = useCallback(
     (lane: LaneConfig) =>
       (projects ?? []).filter((p) => lane.statuses.includes(p.status)),
@@ -212,14 +196,15 @@ export function ResearchPipeline() {
             {totalCount}건
           </Badge>
         </div>
-        <Button
-          size="sm"
-          onClick={() => setShowCreateDialog(true)}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white gap-1.5"
+        <a
+          href="https://www.notion.so/c222e1a30c074227bb6cb26365cd0509"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
         >
           <Plus className="size-4" />
-          새 연구
-        </Button>
+          새 연구 (Notion)
+        </a>
       </div>
 
       {/* Kanban Board - 5 Lanes */}
@@ -313,13 +298,7 @@ export function ResearchPipeline() {
         />
       )}
 
-      {/* Create Dialog */}
-      <CreateDialog
-        open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
-        onSubmit={(input) => createMutation.mutate(input)}
-        isSubmitting={createMutation.isPending}
-      />
+      {/* 새 연구 추가는 Notion에서 직접 */}
     </div>
   )
 }
