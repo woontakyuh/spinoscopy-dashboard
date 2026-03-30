@@ -30,6 +30,7 @@ function tierTag(tier: FeedTier): string {
     "tier3-research": "radar/tier3-research",
     "medical-ai": "radar/medical-ai",
     social: "radar/social",
+    "thought-leader": "radar/thought-leader",
   }
   return map[tier]
 }

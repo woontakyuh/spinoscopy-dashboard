@@ -1,7 +1,7 @@
 # AI Radar 개발 컨텍스트
 
 ## 역할
-13개 AI/의료 뉴스 소스에서 피드를 수집하여 중요도 점수 + 카테고리 분류 + 한글 요약 제공.
+22개 AI/의료 뉴스 소스에서 피드를 수집하여 중요도 점수 + 카테고리 분류 + 한글 요약 제공.
 
 ## 파일 맵
 
@@ -17,21 +17,21 @@
 - `app/api/ai-feed/summarize/route.ts` — Groq 한글 요약 + 분류 (POST)
 
 ### Lib
-- `lib/radar/sources.ts` — 소스 설정 (13개 소스, tier, cadence, endpoint)
+- `lib/radar/sources.ts` — 소스 설정 (22개 소스, tier, cadence, endpoint)
 - `lib/radar/classify.ts` — 중요도 점수 + 카테고리 분류 로직
 - `lib/radar/obsidian.ts` — Obsidian YAML frontmatter 내보내기
 - `lib/types/radar.ts` — 타입 정의
 
 ## 타입 요약
 ```typescript
-type FeedTier = "tier1-daily" | "tier2-weekly" | "tier3-research" | "medical-ai" | "social"
-type FeedCategory = "model-release" | "tool" | "research" | "policy" | "medical-ai"
-type FeedSource = "tldr-ai" | "the-rundown-ai" | "the-batch" | "import-ai" | "latent-space" | "raschka" | "arxiv" | "hf-daily-papers" | "nature-digital-medicine" | "radiology-ai" | "msr-health" | "x-akhaliq" | "moduletter"
+type FeedTier = "tier1-daily" | "tier2-weekly" | "tier3-research" | "medical-ai" | "social" | "thought-leader"
+type FeedCategory = "model-release" | "tool" | "research" | "policy" | "medical-ai" | "opinion"
+type FeedSource = "tldr-ai" | "the-rundown-ai" | "the-batch" | "import-ai" | "latent-space" | "raschka" | "arxiv" | "hf-daily-papers" | "nature-digital-medicine" | "radiology-ai" | "msr-health" | "x-akhaliq" | "moduletter" | "openai-blog" | "deepmind-blog" | "google-ai-blog" | "karpathy-blog" | "dwarkesh-podcast" | "anthropic-engineering" | "anthropic-research" | "karpathy-youtube" | "lex-fridman-ai"
 interface FeedItem { id, title, url, source, sourceLabel, tier, cadence, author, date, points, commentUrl, summary, categories[], importanceScore(1-5), notes }
-interface RadarSourceConfig { id, label, tier, cadence, intervalHours, mode("rss"|"api"|"html"|"manual"), endpoint, active }
+interface RadarSourceConfig { id, label, tier, cadence, intervalHours, mode("rss"|"api"|"html"|"manual"|"youtube"|"rss+filter"|"atom"), endpoint, active }
 ```
 
-## 소스 구성 (13개)
+## 소스 구성 (22개)
 
 ### Tier 1 — Daily (고빈도)
 - TLDR AI (6h, RSS)
@@ -43,6 +43,11 @@ interface RadarSourceConfig { id, label, tier, cadence, intervalHours, mode("rss
 - Latent Space (168h, RSS)
 - Sebastian Raschka (168h, RSS)
 - 모두레터 (168h, HTML scrape)
+- OpenAI Blog (168h, RSS)
+- Google DeepMind (168h, RSS)
+- Google AI Blog (168h, RSS)
+- Anthropic Engineering (168h, HTML scrape)
+- Anthropic Research (168h, HTML scrape)
 
 ### Tier 3 — Research (학술)
 - arXiv CS.AI+CS.LG (24h, RSS)
@@ -53,8 +58,17 @@ interface RadarSourceConfig { id, label, tier, cadence, intervalHours, mode("rss
 - Radiology AI (168h, RSS)
 - Microsoft Research Health (168h, RSS, filtered)
 
+### Thought Leader (오피니언 리더)
+- Andrej Karpathy Blog (168h, Atom RSS)
+- Karpathy YouTube (168h, YouTube Atom RSS)
+- Dwarkesh Podcast (168h, RSS)
+- Lex Fridman AI (168h, RSS + AI 키워드 필터)
+
 ## 외부 연동
 - **RSS/HTML**: 각 소스의 엔드포인트 (공개 URL)
+- **Atom RSS**: Karpathy Blog (bearblog), YouTube channel feeds
+- **YouTube Atom**: `youtube.com/feeds/videos.xml?channel_id=...` — Atom 형식 (`<entry>`)
+- **RSS+filter**: Lex Fridman — 전체 에피소드에서 AI 관련만 필터
 - **Hugging Face API**: Daily Papers
 - **arXiv API**: RSS 피드
 - **Groq**: Llama 3.3-70b — 한글 요약/분류 (`GROQ_API_KEY`)

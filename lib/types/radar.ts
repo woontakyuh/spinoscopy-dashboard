@@ -1,8 +1,8 @@
-export type FeedTier = "tier1-daily" | "tier2-weekly" | "tier3-research" | "medical-ai" | "social"
+export type FeedTier = "tier1-daily" | "tier2-weekly" | "tier3-research" | "medical-ai" | "social" | "thought-leader"
 
 export type FeedCadence = "6h" | "24h" | "weekly" | "twice-weekly"
 
-export type FeedCategory = "model-release" | "tool" | "research" | "policy" | "medical-ai"
+export type FeedCategory = "model-release" | "tool" | "research" | "policy" | "medical-ai" | "opinion"
 
 export type FeedSource =
   | "tldr-ai"
@@ -18,6 +18,15 @@ export type FeedSource =
   | "msr-health"
   | "x-akhaliq"
   | "moduletter"
+  | "openai-blog"
+  | "deepmind-blog"
+  | "google-ai-blog"
+  | "karpathy-blog"
+  | "dwarkesh-podcast"
+  | "anthropic-engineering"
+  | "anthropic-research"
+  | "karpathy-youtube"
+  | "lex-fridman-ai"
 
 export interface FeedItem {
   id: string
@@ -62,7 +71,7 @@ export interface RadarSourceConfig {
   tier: FeedTier
   cadence: FeedCadence
   intervalHours: number
-  mode: "rss" | "api" | "html" | "manual"
+  mode: "rss" | "api" | "html" | "manual" | "youtube" | "rss+filter" | "atom"
   endpoint: string
   active: boolean
 }

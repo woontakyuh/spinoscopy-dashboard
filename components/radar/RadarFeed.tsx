@@ -13,6 +13,7 @@ const TIER_OPTIONS: Array<{ value: FeedTier; label: string }> = [
   { value: "tier2-weekly", label: "Weekly" },
   { value: "tier3-research", label: "Research" },
   { value: "medical-ai", label: "Medical AI" },
+  { value: "thought-leader", label: "Thought Leader" },
 ]
 
 const CATEGORY_FILTERS: Array<{ value: FeedCategory | "all"; label: string }> = [
@@ -22,6 +23,7 @@ const CATEGORY_FILTERS: Array<{ value: FeedCategory | "all"; label: string }> = 
   { value: "research", label: "Research" },
   { value: "policy", label: "Policy" },
   { value: "medical-ai", label: "Medical" },
+  { value: "opinion", label: "Opinion" },
 ]
 
 function useMultiSelect<T extends string>() {

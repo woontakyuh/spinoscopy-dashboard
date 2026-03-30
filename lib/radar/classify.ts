@@ -81,21 +81,37 @@ export function inferCategories(title: string, source: FeedSource, tier: FeedTie
     if (!categories.includes("research")) categories.push("research")
   }
 
+  // Anthropic 공식 블로그 → research
+  if (source === "anthropic-engineering" || source === "anthropic-research") {
+    if (!categories.includes("research")) categories.push("research")
+  }
+
+  // Thought leader 소스 → opinion
+  if (tier === "thought-leader" || source === "karpathy-youtube" || source === "dwarkesh-podcast" || source === "lex-fridman-ai") {
+    if (!categories.includes("opinion")) categories.push("opinion")
+  }
+
   if (categories.length === 0) categories.push("tool")
 
   return Array.from(new Set(categories))
 }
 
-export function scoreImportance(title: string, categories: FeedCategory[], tier: FeedTier): 1 | 2 | 3 | 4 | 5 {
+export function scoreImportance(title: string, categories: FeedCategory[], tier: FeedTier, source?: FeedSource): 1 | 2 | 3 | 4 | 5 {
   const text = title.toLowerCase()
   let score = 2
 
   if (tier === "tier3-research" || tier === "medical-ai") score += 1
+  if (tier === "thought-leader") score += 1
   if (categories.includes("model-release")) score += 1
   if (categories.includes("policy")) score += 1
   if (categories.includes("medical-ai")) score += 1
   if (includesAny(text, ["breakthrough", "state-of-the-art", "fda", "phase iii", "launch"])) score += 1
   if (includesAny(text, ["opinion", "rumor", "preview"])) score -= 1
+
+  // AI 기업 공식 블로그에서 model-release 언급 시 추가 가중
+  if (source && ["anthropic-engineering", "anthropic-research", "openai-blog", "deepmind-blog"].includes(source)) {
+    if (categories.includes("model-release")) score += 1
+  }
 
   if (score < 1) return 1
   if (score > 5) return 5

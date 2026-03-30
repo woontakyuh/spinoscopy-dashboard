@@ -105,7 +105,7 @@ function toFeedItem(params: {
   const tier = config?.tier ?? "tier1-daily"
   const cadence = config?.cadence ?? "24h"
   const categories = inferCategories(params.title, params.sourceId, tier)
-  const importanceScore = scoreImportance(params.title, categories, tier)
+  const importanceScore = scoreImportance(params.title, categories, tier, params.sourceId)
 
   const base: FeedItem = {
     id: params.id,
@@ -309,6 +309,204 @@ async function fetchSingleModuletter(issueNum: number): Promise<FeedItem | null>
   })
 }
 
+function parseAtomEntries(xml: string): Array<{ title?: string; link?: string; published?: string; author?: string; description?: string }> {
+  const entries: Array<{ title?: string; link?: string; published?: string; author?: string; description?: string }> = []
+  const entryRegex = /<entry>([\s\S]*?)<\/entry>/g
+  for (let match = entryRegex.exec(xml); match !== null; match = entryRegex.exec(xml)) {
+    const block = match[1]
+    const get = (tag: string) => {
+      const m = block.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`))
+      return m ? extractCdata(m[1]) : undefined
+    }
+    const linkMatch = block.match(/<link[^>]*rel="alternate"[^>]*href="([^"]*)"/)
+      ?? block.match(/<link[^>]*href="([^"]*)"/)
+    const descMatch = block.match(/<media:description>([\s\S]*?)<\/media:description>/)
+      ?? block.match(/<summary[^>]*>([\s\S]*?)<\/summary>/)
+    entries.push({
+      title: get("title"),
+      link: linkMatch?.[1],
+      published: get("published") ?? get("updated"),
+      author: get("name"),
+      description: descMatch ? extractCdata(descMatch[1]) : undefined,
+    })
+  }
+  return entries
+}
+
+async function fetchAtomItems(sourceId: FeedItem["source"], endpoint: string, limit = 10): Promise<FeedItem[]> {
+  const config = getSourceConfig(sourceId)
+  const revalidate = (config?.intervalHours ?? 168) * 3600
+
+  const res = await fetch(endpoint, {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; SpinoscopyRadar/1.0)" },
+    next: { revalidate },
+  })
+  if (!res.ok) return []
+
+  const xml = await res.text()
+  const entries = parseAtomEntries(xml)
+
+  return entries
+    .filter((e) => Boolean(e.title && e.link))
+    .slice(0, limit)
+    .map((entry, idx) =>
+      toFeedItem({
+        sourceId,
+        id: `${sourceId}-${idx}`,
+        title: entry.title ?? "Untitled",
+        url: entry.link ?? endpoint,
+        date: normalizeDate(entry.published),
+        author: entry.author ?? null,
+        summary: entry.description?.slice(0, 300) ?? null,
+      })
+    )
+}
+
+async function fetchYoutubeItems(sourceId: FeedItem["source"], endpoint: string, limit = 10): Promise<FeedItem[]> {
+  const config = getSourceConfig(sourceId)
+  const revalidate = (config?.intervalHours ?? 168) * 3600
+
+  const res = await fetch(endpoint, { next: { revalidate } })
+  if (!res.ok) return []
+
+  const xml = await res.text()
+  const entries = parseAtomEntries(xml)
+
+  return entries
+    .filter((e) => Boolean(e.title && e.link))
+    .slice(0, limit)
+    .map((entry, idx) =>
+      toFeedItem({
+        sourceId,
+        id: `${sourceId}-${idx}`,
+        title: entry.title ?? "Untitled",
+        url: entry.link ?? endpoint,
+        date: normalizeDate(entry.published),
+        author: entry.author ?? null,
+        summary: entry.description?.slice(0, 300) ?? null,
+      })
+    )
+}
+
+async function fetchAnthropicItems(sourceId: "anthropic-engineering" | "anthropic-research"): Promise<FeedItem[]> {
+  const config = getSourceConfig(sourceId)
+  const section = sourceId === "anthropic-engineering" ? "engineering" : "research"
+  const url = `https://www.anthropic.com/${section}`
+
+  const res = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; SpinoscopyRadar/1.0)" },
+    next: { revalidate: (config?.intervalHours ?? 168) * 3600 },
+  })
+  if (!res.ok) return []
+
+  const html = await res.text()
+
+  // 날짜 추출 (순서대로 매칭)
+  const dateRegex = /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2}),\s*(\d{4})/g
+  const dates: string[] = []
+  const months: Record<string, string> = {
+    Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06",
+    Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12",
+  }
+  for (let m = dateRegex.exec(html); m !== null; m = dateRegex.exec(html)) {
+    dates.push(`${m[3]}-${months[m[1]]}-${m[2].padStart(2, "0")}`)
+  }
+
+  // 포스트 링크 추출 (href가 class보다 먼저 나옴)
+  const linkPattern = new RegExp(
+    `href="/${section}/([a-z0-9][a-z0-9-]+)"`,
+    "g"
+  )
+
+  const slugSet = new Set<string>()
+  const slugs: string[] = []
+  for (let m = linkPattern.exec(html); m !== null; m = linkPattern.exec(html)) {
+    // team/ 하위 페이지 제외, 중복 제거
+    if (!m[1].startsWith("team") && !slugSet.has(m[1])) {
+      slugSet.add(m[1])
+      slugs.push(m[1])
+    }
+  }
+
+  // 제목 추출
+  // engineering: cardLink 패턴 + headline h3
+  // research: FeaturedGrid → h2 (featuredTitle) + h4 (__title)
+  const titlePattern = section === "research"
+    ? /<h[24]\s+class="[^"]*(?:featuredTitle|__title)[^"]*">([^<]+)/g
+    : /<h[23]\s+class="headline[^"]*">([^<]+)/g
+
+  const titles: string[] = []
+  // engineering의 첫 번째 h2는 섹션 제목이므로 건너뛰기
+  let isFirst = true
+  for (let m = titlePattern.exec(html); m !== null; m = titlePattern.exec(html)) {
+    if (isFirst && section === "engineering") {
+      isFirst = false
+      continue
+    }
+    titles.push(decodeHtmlEntities(m[1].trim()))
+  }
+
+  const items: FeedItem[] = []
+  const count = Math.min(slugs.length, titles.length, 12)
+
+  for (let i = 0; i < count; i++) {
+    items.push(
+      toFeedItem({
+        sourceId,
+        id: `${sourceId}-${slugs[i]}`,
+        title: titles[i],
+        url: `https://www.anthropic.com/${section}/${slugs[i]}`,
+        date: dates[i] ?? "",
+        author: "Anthropic",
+      })
+    )
+  }
+
+  return items
+}
+
+const LEX_AI_GUESTS = [
+  "karpathy", "altman", "amodei", "hassabis", "lecun", "sutskever",
+  "ng", "bengio", "brown", "li", "bubeck", "schulman", "leike",
+  "anthropic", "openai", "deepmind", "meta ai", "google ai",
+]
+
+const LEX_AI_KEYWORDS = [
+  "artificial intelligence", "machine learning", "deep learning",
+  "neural network", "llm", "gpt", "transformer", "agi", "alignment",
+  "reinforcement learning", "computer vision", "nlp",
+]
+
+async function fetchLexFridmanAiItems(): Promise<FeedItem[]> {
+  const config = getSourceConfig("lex-fridman-ai")
+  const res = await fetch("https://lexfridman.com/feed/podcast/", {
+    next: { revalidate: (config?.intervalHours ?? 168) * 3600 },
+  })
+  if (!res.ok) return []
+
+  const xml = await res.text()
+  const rssItems = parseRssItems(xml)
+
+  return rssItems
+    .filter((item) => {
+      if (!item.title || !item.link) return false
+      const text = `${item.title} ${item.guid ?? ""}`.toLowerCase()
+      return LEX_AI_GUESTS.some((g) => text.includes(g))
+        || LEX_AI_KEYWORDS.some((k) => text.includes(k))
+    })
+    .slice(0, 10)
+    .map((item, idx) =>
+      toFeedItem({
+        sourceId: "lex-fridman-ai",
+        id: `lex-ai-${item.guid ?? idx}`,
+        title: item.title ?? "Untitled",
+        url: item.link ?? "https://lexfridman.com/podcast/",
+        date: normalizeDate(item.pubDate),
+        author: "Lex Fridman",
+      })
+    )
+}
+
 async function fetchModuletterItems(): Promise<FeedItem[]> {
   // 기준점: #198 = 2026-03-09 (월요일 발행)
   const refNum = 198
@@ -330,8 +528,15 @@ async function fetchModuletterItems(): Promise<FeedItem[]> {
 
 export async function GET() {
   try {
-    const [batchItems, hfItems, tldrItems, rundownItems, importAiItems, latentSpaceItems, raschkaItems, arxivItems, natureItems, radiologyItems, msrItems, moduletterItems] =
-      await Promise.all([
+    const [
+      batchItems, hfItems, tldrItems, rundownItems, importAiItems,
+      latentSpaceItems, raschkaItems, arxivItems, natureItems,
+      radiologyItems, msrItems, moduletterItems,
+      // Phase 1
+      openaiItems, deepmindItems, googleAiItems, karpathyBlogItems, dwarkeshItems,
+      // Phase 2
+      anthropicEngItems, anthropicResItems, karpathyYtItems, lexAiItems,
+    ] = await Promise.all([
         fetchTheBatchItems().catch(() => []),
         fetchHfDailyPapers().catch(() => []),
         fetchRssItems("tldr-ai", "https://tldr.tech/api/rss/ai").catch(() => []),
@@ -349,6 +554,17 @@ export async function GET() {
           })
         }).catch(() => []),
         fetchModuletterItems().catch(() => []),
+        // Phase 1 — RSS direct
+        fetchRssItems("openai-blog", "https://openai.com/news/rss.xml").catch(() => []),
+        fetchRssItems("deepmind-blog", "https://deepmind.google/blog/rss.xml").catch(() => []),
+        fetchRssItems("google-ai-blog", "https://research.google/blog/rss/").catch(() => []),
+        fetchAtomItems("karpathy-blog", "https://karpathy.bearblog.dev/feed/").catch(() => []),
+        fetchRssItems("dwarkesh-podcast", "https://www.dwarkesh.com/feed").catch(() => []),
+        // Phase 2 — scrape/YouTube/filter
+        fetchAnthropicItems("anthropic-engineering").catch(() => []),
+        fetchAnthropicItems("anthropic-research").catch(() => []),
+        fetchYoutubeItems("karpathy-youtube", "https://www.youtube.com/feeds/videos.xml?channel_id=UCXUPKJO5MZQN11PqgIvyuvQ").catch(() => []),
+        fetchLexFridmanAiItems().catch(() => []),
       ])
 
     const activeSourceCount = RADAR_SOURCES.filter((s) => s.active && s.mode !== "manual").length
@@ -366,6 +582,15 @@ export async function GET() {
       ...radiologyItems,
       ...msrItems,
       ...moduletterItems,
+      ...openaiItems,
+      ...deepmindItems,
+      ...googleAiItems,
+      ...karpathyBlogItems,
+      ...dwarkeshItems,
+      ...anthropicEngItems,
+      ...anthropicResItems,
+      ...karpathyYtItems,
+      ...lexAiItems,
     ]
       .sort((a, b) => {
         if (a.date !== b.date) return b.date.localeCompare(a.date)
