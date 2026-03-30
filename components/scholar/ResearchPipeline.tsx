@@ -87,8 +87,8 @@ const LANES: LaneConfig[] = [
   },
   {
     id: "accepted",
-    label: "Accepted / Published",
-    statuses: ["Accepted", "Published"],
+    label: "Accepted",
+    statuses: ["Accepted"],
     color: "text-emerald-300",
     bg: "bg-emerald-950/30",
     border: "border-emerald-800/40",
@@ -143,7 +143,9 @@ export function ResearchPipeline() {
     queryFn: async () => {
       const res = await fetch("/api/notion/research")
       if (!res.ok) throw new Error("Failed to fetch research projects")
-      return res.json()
+      const all: ResearchProject[] = await res.json()
+      // Published는 My Papers에서 확인 → Research에서 제외
+      return all.filter(p => p.status !== "Published")
     },
   })
 
