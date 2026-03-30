@@ -37,7 +37,7 @@ async function fetchActiveTodos(): Promise<TodoItem[]> {
   return res.json()
 }
 
-async function patchTodo(payload: { page_id: string; status?: string; priority?: string; category?: string }): Promise<void> {
+async function patchTodo(payload: { page_id: string; name?: string; status?: string; priority?: string; category?: string }): Promise<void> {
   const res = await fetch("/api/jarvis/todo", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -116,7 +116,18 @@ export function TodayTodo() {
   const [quickDue, setQuickDue] = useState<DuePreset>("today")
   const [customDate, setCustomDate] = useState<Date | undefined>(undefined)
   const [calendarOpen, setCalendarOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingName, setEditingName] = useState("")
   const today = todayInSeoul()
+
+  const renameMutation = useMutation({
+    mutationFn: ({ pageId, name }: { pageId: string; name: string }) =>
+      patchTodo({ page_id: pageId, name }),
+    onSuccess: () => {
+      setEditingId(null)
+      queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
+    },
+  })
 
   const { data: todos, isLoading, error } = useQuery({
     queryKey: ["dashboard-todo-active"],
@@ -277,10 +288,41 @@ export function TodayTodo() {
                   checked={false}
                   onChange={() => completeMutation.mutate(todo.page_id)}
                 />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm truncate text-zinc-100">
-                    {todo.name}
-                  </p>
+                <div className="min-w-0 flex-1" onClick={(e) => e.preventDefault()}>
+                  {editingId === todo.page_id ? (
+                    <input
+                      autoFocus
+                      className="text-sm w-full bg-zinc-700 border border-zinc-600 rounded px-1.5 py-0.5 text-zinc-100 outline-none focus:border-blue-500"
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          const trimmed = editingName.trim()
+                          if (trimmed && trimmed !== todo.name) {
+                            renameMutation.mutate({ pageId: todo.page_id, name: trimmed })
+                          } else {
+                            setEditingId(null)
+                          }
+                        }
+                        if (e.key === "Escape") setEditingId(null)
+                      }}
+                      onBlur={() => {
+                        const trimmed = editingName.trim()
+                        if (trimmed && trimmed !== todo.name) {
+                          renameMutation.mutate({ pageId: todo.page_id, name: trimmed })
+                        } else {
+                          setEditingId(null)
+                        }
+                      }}
+                    />
+                  ) : (
+                    <p
+                      className="text-sm truncate text-zinc-100 cursor-text hover:text-white"
+                      onClick={() => { setEditingId(todo.page_id); setEditingName(todo.name) }}
+                    >
+                      {todo.name}
+                    </p>
+                  )}
                   <div className="mt-1 flex items-center gap-2">
                     <>
                         <DropdownMenu>
