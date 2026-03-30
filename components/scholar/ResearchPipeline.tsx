@@ -57,8 +57,8 @@ interface LaneConfig {
 const LANES: LaneConfig[] = [
   {
     id: "idea",
-    label: "Lit Review",
-    statuses: ["Lit Review", "WNS"],
+    label: "Idea / Lit Review",
+    statuses: ["Idea", "Lit Review", "WNS"],
     color: "text-zinc-300",
     bg: "bg-zinc-800/50",
     border: "border-zinc-700/50",
@@ -109,6 +109,7 @@ const LANES: LaneConfig[] = [
 
 // Status → color config for individual cards
 const STATUS_DOT: Record<string, { dot: string; label: string }> = {
+  Idea: { dot: "bg-zinc-300", label: "Idea" },
   "Lit Review": { dot: "bg-zinc-400", label: "Lit Review" },
   WNS: { dot: "bg-zinc-400", label: "Lit Review" },
   Drafting: { dot: "bg-indigo-400", label: "Drafting" },

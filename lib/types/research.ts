@@ -1,11 +1,12 @@
 export type ResearchStatus =
-  | "Lit Review" | "Drafting" | "Editing" | "Submitted"
+  | "Idea" | "Lit Review" | "Drafting" | "Editing" | "Submitted"
   | "Revision" | "2nd Review" | "Accepted" | "Published"
   | "Rejected" | "Hold"
   // 레거시 호환
   | "WNS" | "Manuscript drafting" | "\bManscript drafting"
 
 export const RESEARCH_STATUSES: ResearchStatus[] = [
+  "Idea",
   "Lit Review",
   "Drafting",
   "Editing",
@@ -19,6 +20,7 @@ export const RESEARCH_STATUSES: ResearchStatus[] = [
 ]
 
 export const STATUS_LABELS: Record<string, string> = {
+  "Idea": "Idea",
   "Lit Review": "Lit Review",
   "Drafting": "Drafting",
   "Editing": "Editing",
