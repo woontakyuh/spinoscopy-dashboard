@@ -1,22 +1,45 @@
-export type ResearchStatus = "WNS" | "Manuscript drafting" | "Editing" | "Submitted" | "Published" | "Hold"
+export type ResearchStatus =
+  | "Lit Review" | "Drafting" | "Editing" | "Submitted"
+  | "Revision" | "2nd Review" | "Accepted" | "Published"
+  | "Rejected" | "Hold"
+  // 레거시 호환
+  | "WNS" | "Manuscript drafting" | "\bManscript drafting"
 
 export const RESEARCH_STATUSES: ResearchStatus[] = [
-  "WNS",
-  "Manuscript drafting",
+  "Lit Review",
+  "Drafting",
   "Editing",
   "Submitted",
+  "Revision",
+  "2nd Review",
+  "Accepted",
   "Published",
+  "Rejected",
   "Hold",
 ]
 
-export const STATUS_LABELS: Record<ResearchStatus, string> = {
-  "WNS": "WNS",
-  "Manuscript drafting": "Drafting",
+export const STATUS_LABELS: Record<string, string> = {
+  "Lit Review": "Lit Review",
+  "Drafting": "Drafting",
   "Editing": "Editing",
   "Submitted": "Submitted",
+  "Revision": "Revision",
+  "2nd Review": "2nd Review",
+  "Accepted": "Accepted",
   "Published": "Published",
+  "Rejected": "Rejected",
   "Hold": "Hold",
+  // 레거시
+  "WNS": "Lit Review",
+  "Manuscript drafting": "Drafting",
+  "\bManscript drafting": "Drafting",
 }
+
+export const KNOWN_JOURNALS = [
+  "TSJ", "JNS spine", "Neurospine", "Sci Rep", "ONS", "JKNS",
+  "Acta Neuro", "Turkish Neurosurg", "Engineering (MDPI)", "PLOS One",
+  "JMISST", "KJS", "JMIR Med Inform", "Int J Pain", "KJNT", "IJSS", "JNA",
+]
 
 export interface ResearchProject {
   page_id: string

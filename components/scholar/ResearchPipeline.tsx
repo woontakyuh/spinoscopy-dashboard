@@ -39,7 +39,7 @@ import type {
   ResearchCreateInput,
   ResearchUpdateInput,
 } from "@/lib/types/research"
-import { RESEARCH_STATUSES, STATUS_LABELS } from "@/lib/types/research"
+import { RESEARCH_STATUSES, STATUS_LABELS, KNOWN_JOURNALS } from "@/lib/types/research"
 
 // ── Lane Config ─────────────────────────────────────────────
 
@@ -57,8 +57,8 @@ interface LaneConfig {
 const LANES: LaneConfig[] = [
   {
     id: "idea",
-    label: "Idea / Lit Review",
-    statuses: ["WNS"],
+    label: "Lit Review",
+    statuses: ["Lit Review", "WNS"],
     color: "text-zinc-300",
     bg: "bg-zinc-800/50",
     border: "border-zinc-700/50",
@@ -68,7 +68,7 @@ const LANES: LaneConfig[] = [
   {
     id: "drafting",
     label: "Drafting / Editing",
-    statuses: ["Manuscript drafting", "Editing"],
+    statuses: ["Drafting", "Editing", "Manuscript drafting", "\bManscript drafting"],
     color: "text-indigo-300",
     bg: "bg-indigo-950/30",
     border: "border-indigo-800/40",
@@ -77,8 +77,8 @@ const LANES: LaneConfig[] = [
   },
   {
     id: "submitted",
-    label: "Submitted / Under Review",
-    statuses: ["Submitted"],
+    label: "Submitted / Revision",
+    statuses: ["Submitted", "Revision", "2nd Review"],
     color: "text-cyan-300",
     bg: "bg-cyan-950/30",
     border: "border-cyan-800/40",
@@ -86,9 +86,9 @@ const LANES: LaneConfig[] = [
     headerBg: "bg-cyan-900/40",
   },
   {
-    id: "published",
-    label: "Published",
-    statuses: ["Published"],
+    id: "accepted",
+    label: "Accepted / Published",
+    statuses: ["Accepted", "Published"],
     color: "text-emerald-300",
     bg: "bg-emerald-950/30",
     border: "border-emerald-800/40",
@@ -97,8 +97,8 @@ const LANES: LaneConfig[] = [
   },
   {
     id: "hold",
-    label: "On Hold",
-    statuses: ["Hold"],
+    label: "Hold / Rejected",
+    statuses: ["Hold", "Rejected"],
     color: "text-zinc-400",
     bg: "bg-zinc-900/50",
     border: "border-zinc-700/30",
@@ -107,13 +107,20 @@ const LANES: LaneConfig[] = [
   },
 ]
 
-// Status → color config for individual cards (sub-status indicator)
-const STATUS_DOT: Record<ResearchStatus, { dot: string; label: string }> = {
-  WNS: { dot: "bg-zinc-400", label: "WNS" },
+// Status → color config for individual cards
+const STATUS_DOT: Record<string, { dot: string; label: string }> = {
+  "Lit Review": { dot: "bg-zinc-400", label: "Lit Review" },
+  WNS: { dot: "bg-zinc-400", label: "Lit Review" },
+  Drafting: { dot: "bg-indigo-400", label: "Drafting" },
   "Manuscript drafting": { dot: "bg-indigo-400", label: "Drafting" },
+  "\bManscript drafting": { dot: "bg-indigo-400", label: "Drafting" },
   Editing: { dot: "bg-amber-400", label: "Editing" },
   Submitted: { dot: "bg-cyan-400", label: "Submitted" },
-  Published: { dot: "bg-emerald-400", label: "Published" },
+  Revision: { dot: "bg-yellow-400", label: "Revision" },
+  "2nd Review": { dot: "bg-blue-400", label: "2nd Review" },
+  Accepted: { dot: "bg-emerald-400", label: "Accepted" },
+  Published: { dot: "bg-emerald-500", label: "Published" },
+  Rejected: { dot: "bg-red-400", label: "Rejected" },
   Hold: { dot: "bg-zinc-500", label: "Hold" },
 }
 
@@ -121,11 +128,6 @@ const STATUS_DOT: Record<ResearchStatus, { dot: string; label: string }> = {
 const KNOWN_AUTHORS = [
   "여운탁", "김준회", "김태신", "안경득", "정천기", "최일",
   "박성민", "이승환", "조규정", "김세훈", "이재협",
-]
-
-const KNOWN_JOURNALS = [
-  "Neurospine", "JNS spine", "TSJ", "Sci Rep", "Spine",
-  "ESJ", "GSJ", "World Neurosurgery", "JKNS", "BMC",
 ]
 
 // ── Main Component ───────────────────────────────────────────
@@ -538,19 +540,23 @@ function DetailPanel({
         {/* Target Journal */}
         <div>
           <label className="text-xs text-zinc-400 mb-1 block">Target Journal</label>
-          <Select value={targetJournal || "__none"} onValueChange={(v) => setTargetJournal(v === "__none" ? "" : v)}>
-            <SelectTrigger className="w-full bg-zinc-800/80 border-zinc-700 text-white text-sm">
-              <SelectValue placeholder="선택" />
-            </SelectTrigger>
-            <SelectContent className="bg-zinc-800 border-zinc-700">
-              <SelectItem value="__none" className="text-zinc-500">미정</SelectItem>
-              {KNOWN_JOURNALS.map((j) => (
-                <SelectItem key={j} value={j} className="text-zinc-200">
-                  {j}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-wrap gap-1.5 mb-1.5">
+            {KNOWN_JOURNALS.map((j) => (
+              <button key={j} type="button" onClick={() => setTargetJournal(j)}
+                className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors border ${
+                  targetJournal === j
+                    ? "bg-indigo-600/30 text-indigo-300 border-indigo-500/50"
+                    : "bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-zinc-300"
+                }`}
+              >{j}</button>
+            ))}
+          </div>
+          <Input
+            value={targetJournal}
+            onChange={(e) => setTargetJournal(e.target.value)}
+            placeholder="또는 저널명 직접 입력"
+            className="bg-zinc-800/80 border-zinc-700 text-white text-sm"
+          />
         </div>
 
         {/* 1st Author */}
