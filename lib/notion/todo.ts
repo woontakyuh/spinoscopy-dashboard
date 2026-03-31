@@ -153,20 +153,21 @@ function buildQueryFilter(options: TodoQueryOptions): Record<string, unknown> | 
 
 export async function getTodayTodos(): Promise<TodoItem[]> {
   const dbId = getTodoDbId()
-  const today = getTodayInSeoul()
+
+  // 이번주 일요일까지 계산
+  const now = new Date()
+  const dayOfWeek = now.getDay() // 0=일, 6=토
+  const endOfWeek = new Date(now)
+  endOfWeek.setDate(now.getDate() + (7 - dayOfWeek))
+  const weekEnd = endOfWeek.toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
 
   const response = await notionRequest<NotionQueryResponse>(`/databases/${dbId}/query`, {
     method: "POST",
     body: JSON.stringify({
       filter: {
-        or: [
-          { property: "Due", date: { equals: today } },
-          {
-            and: [
-              { property: "Status", select: { does_not_equal: "Done" } },
-              { property: "Due", date: { on_or_before: today } },
-            ],
-          },
+        and: [
+          { property: "Status", select: { does_not_equal: "Done" } },
+          { property: "Due", date: { on_or_before: weekEnd } },
         ],
       },
       sorts: [

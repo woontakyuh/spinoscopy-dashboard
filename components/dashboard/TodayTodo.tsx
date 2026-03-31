@@ -129,6 +129,22 @@ export function TodayTodo() {
     },
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: async (pageId: string) => {
+      setCompletedIds((prev) => new Set(prev).add(pageId))
+      const res = await fetch("/api/jarvis/todo", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ page_id: pageId }),
+      })
+      if (!res.ok) throw new Error("삭제 실패")
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
+      queryClient.invalidateQueries({ queryKey: ["jarvis-todos"] })
+    },
+  })
+
   const { data: todos, isLoading, error } = useQuery({
     queryKey: ["dashboard-todo-active"],
     queryFn: fetchActiveTodos,
@@ -377,6 +393,14 @@ export function TodayTodo() {
                       </>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); deleteMutation.mutate(todo.page_id) }}
+                  className="shrink-0 mt-0.5 p-1 rounded hover:bg-red-900/30 text-zinc-600 hover:text-red-400 transition-colors"
+                  title="삭제"
+                >
+                  <span className="text-xs">✕</span>
+                </button>
               </label>
             )
           })}
