@@ -105,6 +105,23 @@ function getDueDate(preset: DuePreset): string {
   return d.toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
 }
 
+function formatDueRelative(dueStr: string, today: string): { label: string; color: string } | null {
+  if (!dueStr) return null
+  const due = dueStr.slice(0, 10)
+  const dueDate = new Date(due + "T00:00:00+09:00")
+  const todayDate = new Date(today + "T00:00:00+09:00")
+  const diffDays = Math.round((dueDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24))
+
+  if (diffDays < -1) return { label: `D+${Math.abs(diffDays)}`, color: "text-red-400" }
+  if (diffDays === -1) return { label: "D+1", color: "text-red-400" }
+  if (diffDays === 0) return { label: "Today", color: "text-blue-400" }
+  if (diffDays === 1) return { label: "D-1", color: "text-amber-400" }
+  if (diffDays === 2) return { label: "D-2", color: "text-amber-400" }
+  if (diffDays === 3) return { label: "3day", color: "text-zinc-400" }
+  if (diffDays <= 7) return { label: "1wk", color: "text-zinc-500" }
+  return { label: `${diffDays}d`, color: "text-zinc-600" }
+}
+
 
 export function TodayTodo() {
   const queryClient = useQueryClient()
@@ -387,9 +404,10 @@ export function TodayTodo() {
                             ))}
                           </DropdownMenuContent>
                         </DropdownMenu>
-                        {todo.due && todo.due.slice(0, 10) !== today && (
-                          <span className="text-xs text-zinc-500">Due {todo.due.slice(0, 10)}</span>
-                        )}
+                        {todo.due && (() => {
+                          const rel = formatDueRelative(todo.due, today)
+                          return rel ? <span className={`text-xs font-medium num ${rel.color}`}>{rel.label}</span> : null
+                        })()}
                       </>
                   </div>
                 </div>
