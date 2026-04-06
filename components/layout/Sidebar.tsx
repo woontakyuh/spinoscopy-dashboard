@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 const NAV_ITEMS = [
   { icon: "🩺", label: "Clinicus", href: "/agents/clinicus", active: true, color: "bg-emerald-600" },
   { icon: "🔬", label: "Scholar", href: "/agents/scholar", active: true, color: "bg-indigo-600" },
-  { icon: "📋", label: "Dakota", href: "/agents/dakota", active: true, color: "bg-blue-600" },
+  { icon: "📋", image: "/dakota.png", label: "Dakota", href: "/agents/dakota", active: true, color: "bg-blue-600" },
   { icon: "💰", label: "Vault", href: "/agents/vault", active: true, color: "bg-amber-600" },
   { icon: "🥋", label: "Sensei", href: "/agents/sensei", active: true, color: "bg-orange-600" },
   { icon: "🛰️", label: "AI Radar", href: "/agents/radar", active: true, color: "bg-cyan-600" },
@@ -43,7 +43,12 @@ export function Sidebar() {
                 title={item.label}
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-base">{item.icon}</span>
+                  {"image" in item && item.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={item.image} alt={item.label} className="w-5 h-5 rounded-full object-cover" />
+              ) : (
+                <span className="text-base">{item.icon}</span>
+              )}
                   <span className="hidden md:inline text-zinc-500 text-sm">{item.label}</span>
                 </div>
                 <Badge variant="outline" className="hidden md:inline-flex text-xs border-zinc-700 text-zinc-600">
@@ -65,7 +70,12 @@ export function Sidebar() {
                   : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
               )}
             >
-              <span className="text-base">{item.icon}</span>
+              {"image" in item && item.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={item.image} alt={item.label} className="w-5 h-5 rounded-full object-cover" />
+              ) : (
+                <span className="text-base">{item.icon}</span>
+              )}
               <span className="hidden md:inline">{item.label}</span>
             </Link>
           )

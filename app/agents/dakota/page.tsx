@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 export default function DakotaPage() {
   return (
     <div className="flex flex-col min-h-screen">
-      <TopBar title="📋 Dakota" />
+      <TopBar title="Dakota" icon="/dakota.png" />
       <div className="p-3 md:p-6 max-w-6xl w-full">
         <Tabs defaultValue="history">
           <TabsList className="mb-4">

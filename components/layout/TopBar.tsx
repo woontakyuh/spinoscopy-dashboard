@@ -5,9 +5,10 @@ import { ThemeToggle } from "@/components/ui/theme-toggle"
 
 interface TopBarProps {
   title: string
+  icon?: string
 }
 
-export function TopBar({ title }: TopBarProps) {
+export function TopBar({ title, icon }: TopBarProps) {
   const [now, setNow] = useState(new Date())
 
   useEffect(() => {
@@ -30,7 +31,13 @@ export function TopBar({ title }: TopBarProps) {
 
   return (
     <div className="h-12 md:h-14 border-b border-zinc-800 bg-zinc-900 flex items-center justify-between px-3 md:px-6">
-      <h1 className="text-white font-semibold text-sm md:text-base truncate">{title}</h1>
+      <h1 className="text-white font-semibold text-sm md:text-base truncate flex items-center gap-2">
+        {icon && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={icon} alt="" className="w-6 h-6 rounded-full object-cover" />
+        )}
+        {title}
+      </h1>
       <div className="flex items-center gap-2 shrink-0 ml-2">
         <span className="text-zinc-400 text-xs md:text-sm">
           <span className="hidden sm:inline">{dateStr} · </span>{timeStr}
