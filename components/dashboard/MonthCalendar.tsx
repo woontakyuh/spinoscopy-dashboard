@@ -36,7 +36,7 @@ interface ParsedScheduleData {
 }
 
 async function parseNaturalLanguage(text: string): Promise<ParsedScheduleData> {
-  const res = await fetch("/api/jarvis/parse", {
+  const res = await fetch("/api/dakota/parse", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ type: "schedule", text }),
@@ -59,7 +59,7 @@ async function createQuickSchedule(text: string, selectedDate: string): Promise<
   const dateStart = parsed.date_start || selectedDate
 
   // 3) GCal 전용으로 일정 생성
-  const res = await fetch("/api/jarvis/schedule", {
+  const res = await fetch("/api/dakota/schedule", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

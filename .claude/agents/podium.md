@@ -31,7 +31,7 @@ interface DdayInfo { days: number | null, label, isPast }
 ```
 
 ## 외부 연동
-- **Notion DB**: `NOTION_SCHEDULE_DB_ID` — ⚠️ Jarvis와 공유!
+- **Notion DB**: `NOTION_SCHEDULE_DB_ID` — ⚠️ Dakota와 공유!
   - Podium은 "참석" 필드로 발표 관련 항목만 필터
   - `lib/notion/podium.ts`의 `getScheduleDbId()` 사용
 
@@ -44,13 +44,13 @@ interface DdayInfo { days: number | null, label, isPast }
 - `lib/utils/dday.ts`
 
 ## 읽기 전용
-- `lib/notion/schedule.ts` — Jarvis 전용, 절대 수정 금지
+- `lib/notion/schedule.ts` — Dakota 전용, 절대 수정 금지
 - `lib/notion/client.ts`, `lib/utils.ts`
 - `components/ui/`, `components/layout/`
 
 ## 의존성 주의사항
-- **Jarvis와 Schedule DB 공유**: 같은 `NOTION_SCHEDULE_DB_ID` 사용
-- Podium은 `lib/notion/podium.ts`로 독립 쿼리, Jarvis는 `lib/notion/schedule.ts` 사용
+- **Dakota와 Schedule DB 공유**: 같은 `NOTION_SCHEDULE_DB_ID` 사용
+- Podium은 `lib/notion/podium.ts`로 독립 쿼리, Dakota는 `lib/notion/schedule.ts` 사용
 - DB 스키마(속성명) 변경 시 양쪽 모두 영향
 - 참석 select 값: "발표예정", "준비 완료", "참석만", "불참"
 - 분류 select: 30개 옵션 (학회, 세미나, 워크숍 등)

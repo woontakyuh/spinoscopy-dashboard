@@ -17,7 +17,7 @@ Dr. Woon Tak Yuh(척추 신경외과)의 개인 AI 대시보드. 7개 multi-agen
 | Clinicus | 🩺 | `/agents/clinicus` | 환자 PROM 관리, 임상 데이터 |
 | Scholar | 🔬 | `/agents/scholar` | 저널 논문 검색/관리, 알림 |
 | Podium | 🏆 | `/agents/podium` | 학회 발표/컨퍼런스 관리 |
-| Jarvis | 📋 | `/agents/jarvis` | 일정 & 할일 관리 (NLP) |
+| Dakota | 📋 | `/agents/dakota` | 일정 & 할일 관리 (NLP) |
 | Vault | 💰 | `/agents/vault` | 자산/재무 추적 |
 | Sensei | 🥋 | `/agents/sensei` | BJJ 훈련 로그 |
 | AI Radar | 🛰️ | `/agents/radar` | AI 뉴스 피드 집계 |
@@ -43,7 +43,7 @@ Dr. Woon Tak Yuh(척추 신경외과)의 개인 AI 대시보드. 7개 multi-agen
 ### 안전한 병렬 조합 (충돌 없음)
 - Vault, Sensei, Radar — 완전 독립, 어떤 조합이든 안전
 - Clinicus, Scholar — 각각 독립 DB, 안전
-- Jarvis + Podium — ⚠️ Schedule DB 공유, 동시 작업 비권장
+- Dakota + Podium — ⚠️ Schedule DB 공유, 동시 작업 비권장
 
 ### Git 전략
 - 브랜치: `feat/{agent}-{description}`
@@ -66,8 +66,8 @@ Dr. Woon Tak Yuh(척추 신경외과)의 개인 AI 대시보드. 7개 multi-agen
 ## Agent Dependencies
 
 ```
-Jarvis ←→ Podium : NOTION_SCHEDULE_DB_ID 공유
-                   Jarvis: lib/notion/schedule.ts
+Dakota ←→ Podium : NOTION_SCHEDULE_DB_ID 공유
+                   Dakota: lib/notion/schedule.ts
                    Podium: lib/notion/podium.ts (getScheduleDbId())
 ```
 다른 에이전트들은 서로 독립적 (공유 자원 없음).
@@ -126,8 +126,8 @@ export async function POST(req: NextRequest) {
 NOTION_TOKEN                — Notion API
 NOTION_PATIENT_DB_ID        — Clinicus
 NOTION_JOURNAL_DB_ID        — Scholar
-NOTION_SCHEDULE_DB_ID       — Jarvis + Podium (공유)
-NOTION_TODO_DB_ID           — Jarvis
+NOTION_SCHEDULE_DB_ID       — Dakota + Podium (공유)
+NOTION_TODO_DB_ID           — Dakota
 NOTION_SENSEI_DB_ID         — Sensei
 ANTHROPIC_API_KEY           — Claude AI
 GROQ_API_KEY                — Groq (파싱/요약)

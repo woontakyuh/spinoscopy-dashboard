@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 const AGENTS = [
   { icon: "🩺", name: "Clinicus", desc: "임상 보조 · 환자 데이터", active: true, href: "/agents/clinicus", accent: "border-red-500/30" },
   { icon: "🔬", name: "Scholar", desc: "논문 탐색 · 연구 분석", active: true, href: "/agents/scholar", accent: "border-blue-500/30" },
-  { icon: "📋", name: "Jarvis", desc: "학회 · 컨퍼런스 일정", active: true, href: "/agents/jarvis", accent: "border-green-500/30" },
+  { icon: "📋", name: "Dakota", desc: "학회 · 컨퍼런스 일정", active: true, href: "/agents/dakota", accent: "border-green-500/30" },
   { icon: "💰", name: "Vault", desc: "재무 · 정산 관리", active: true, href: "/agents/vault", accent: "border-amber-500/30" },
   { icon: "🥋", name: "Sensei", desc: "수련 · 수기 교육", active: true, href: "/agents/sensei", accent: "border-orange-500/30" },
 ] as const

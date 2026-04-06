@@ -32,13 +32,13 @@ function todayInSeoul(): string {
 }
 
 async function fetchActiveTodos(): Promise<TodoItem[]> {
-  const res = await fetch("/api/jarvis/todo?status=active")
+  const res = await fetch("/api/dakota/todo?status=active")
   if (!res.ok) throw new Error("할 일 로딩 실패")
   return res.json()
 }
 
 async function patchTodo(payload: { page_id: string; name?: string; status?: string; priority?: string; category?: string }): Promise<void> {
-  const res = await fetch("/api/jarvis/todo", {
+  const res = await fetch("/api/dakota/todo", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -51,7 +51,7 @@ async function patchTodo(payload: { page_id: string; name?: string; status?: str
 }
 
 async function createQuickTodo(params: { name: string; priority: string; category: string; due: string }): Promise<void> {
-  const res = await fetch("/api/jarvis/todo", {
+  const res = await fetch("/api/dakota/todo", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -149,7 +149,7 @@ export function TodayTodo() {
   const deleteMutation = useMutation({
     mutationFn: async (pageId: string) => {
       setCompletedIds((prev) => new Set(prev).add(pageId))
-      const res = await fetch("/api/jarvis/todo", {
+      const res = await fetch("/api/dakota/todo", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ page_id: pageId }),
@@ -158,7 +158,7 @@ export function TodayTodo() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
-      queryClient.invalidateQueries({ queryKey: ["jarvis-todos"] })
+      queryClient.invalidateQueries({ queryKey: ["dakota-todos"] })
     },
   })
 
@@ -188,8 +188,8 @@ export function TodayTodo() {
       // Notion 반영 시간 충분히 확보 후 refetch
       await new Promise((r) => setTimeout(r, 5000))
       await queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
-      await queryClient.invalidateQueries({ queryKey: ["jarvis-todos"] })
-      await queryClient.invalidateQueries({ queryKey: ["jarvis-todo-history"] })
+      await queryClient.invalidateQueries({ queryKey: ["dakota-todos"] })
+      await queryClient.invalidateQueries({ queryKey: ["dakota-todo-history"] })
     },
     onError: (_err, pageId, context) => {
       if (context?.previous) {
@@ -255,9 +255,9 @@ export function TodayTodo() {
       setCustomDate(undefined)
       setQuickAddError(null)
       await queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
-      await queryClient.invalidateQueries({ queryKey: ["jarvis-todos"] })
+      await queryClient.invalidateQueries({ queryKey: ["dakota-todos"] })
       await queryClient.refetchQueries({ queryKey: ["dashboard-todo-active"] })
-      await queryClient.refetchQueries({ queryKey: ["jarvis-todos"] })
+      await queryClient.refetchQueries({ queryKey: ["dakota-todos"] })
     },
     onError: (mutationError) => {
       const message = mutationError instanceof Error ? mutationError.message : "할 일 생성 중 오류가 발생했습니다."

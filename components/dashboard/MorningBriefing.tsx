@@ -44,7 +44,7 @@ interface ParsedScheduleData {
 
 async function createQuickSchedule(text: string): Promise<void> {
   // 1) NLP 파싱 — 자연어에서 이름, 장소, 날짜 추출
-  const parseRes = await fetch("/api/jarvis/parse", {
+  const parseRes = await fetch("/api/dakota/parse", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ type: "schedule", text }),
@@ -61,7 +61,7 @@ async function createQuickSchedule(text: string): Promise<void> {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
 
   // 2) GCal 전용으로 일정 생성 (파싱된 날짜 사용, 없으면 오늘)
-  const res = await fetch("/api/jarvis/schedule", {
+  const res = await fetch("/api/dakota/schedule", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

@@ -56,9 +56,9 @@ export function PresentationList() {
   const qs = params.toString()
 
   const { data, isLoading, error, refetch } = useQuery<PresentationsResponse>({
-    queryKey: ["jarvis", "presentations", time, attendance],
+    queryKey: ["dakota", "presentations", time, attendance],
     queryFn: async () => {
-      const res = await fetch(`/api/jarvis/presentations${qs ? `?${qs}` : ""}`)
+      const res = await fetch(`/api/dakota/presentations${qs ? `?${qs}` : ""}`)
       if (!res.ok) throw new Error("일정 조회 실패")
       return res.json()
     },

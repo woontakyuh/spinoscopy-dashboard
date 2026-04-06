@@ -61,7 +61,7 @@ function calcDuration(createdAt: string, completedAt: string | null): string {
 }
 
 async function fetchActiveTodos(): Promise<TodoItem[]> {
-  const res = await fetch("/api/jarvis/todo?status=active")
+  const res = await fetch("/api/dakota/todo?status=active")
   if (!res.ok) throw new Error("할 일 로딩 실패")
   return res.json()
 }
@@ -69,13 +69,13 @@ async function fetchActiveTodos(): Promise<TodoItem[]> {
 async function fetchDoneTodos(fromDate?: string): Promise<TodoItem[]> {
   const params = new URLSearchParams({ status: "Done" })
   if (fromDate) params.set("from_date", fromDate)
-  const res = await fetch(`/api/jarvis/todo?${params}`)
+  const res = await fetch(`/api/dakota/todo?${params}`)
   if (!res.ok) throw new Error("히스토리 로딩 실패")
   return res.json()
 }
 
 async function patchTodo(payload: { page_id: string; name?: string; status?: string; priority?: string; category?: string }): Promise<void> {
-  const res = await fetch("/api/jarvis/todo", {
+  const res = await fetch("/api/dakota/todo", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -103,14 +103,14 @@ export function TodoHistory() {
 
   // 할 일 (active)
   const { data: activeTodos, isLoading: activeLoading } = useQuery({
-    queryKey: ["jarvis-todos"],
+    queryKey: ["dakota-todos"],
     queryFn: fetchActiveTodos,
     refetchInterval: 60000,
   })
 
   // 한 일 (done)
   const { data: doneTodos, isLoading: doneLoading } = useQuery({
-    queryKey: ["jarvis-todo-history", period],
+    queryKey: ["dakota-todo-history", period],
     queryFn: () => fetchDoneTodos(fromDate),
   })
 
@@ -126,8 +126,8 @@ export function TodoHistory() {
         next.delete(pageId)
         return next
       })
-      await queryClient.invalidateQueries({ queryKey: ["jarvis-todos"] })
-      await queryClient.invalidateQueries({ queryKey: ["jarvis-todo-history"] })
+      await queryClient.invalidateQueries({ queryKey: ["dakota-todos"] })
+      await queryClient.invalidateQueries({ queryKey: ["dakota-todo-history"] })
       await queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
     },
     onError: (_err, pageId) => {
@@ -143,18 +143,18 @@ export function TodoHistory() {
     mutationFn: ({ pageId, priority }: { pageId: string; priority: string }) =>
       patchTodo({ page_id: pageId, priority }),
     onMutate: async ({ pageId, priority }) => {
-      await queryClient.cancelQueries({ queryKey: ["jarvis-todos"] })
-      const previous = queryClient.getQueryData<TodoItem[]>(["jarvis-todos"])
-      queryClient.setQueryData<TodoItem[]>(["jarvis-todos"], (old) =>
+      await queryClient.cancelQueries({ queryKey: ["dakota-todos"] })
+      const previous = queryClient.getQueryData<TodoItem[]>(["dakota-todos"])
+      queryClient.setQueryData<TodoItem[]>(["dakota-todos"], (old) =>
         (old ?? []).map((t) => (t.page_id === pageId ? { ...t, priority } : t))
       )
       return { previous }
     },
     onError: (_err, _vars, context) => {
-      if (context?.previous) queryClient.setQueryData(["jarvis-todos"], context.previous)
+      if (context?.previous) queryClient.setQueryData(["dakota-todos"], context.previous)
     },
     onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["jarvis-todos"] })
+      await queryClient.invalidateQueries({ queryKey: ["dakota-todos"] })
       await queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
     },
   })
@@ -163,18 +163,18 @@ export function TodoHistory() {
     mutationFn: ({ pageId, category }: { pageId: string; category: string }) =>
       patchTodo({ page_id: pageId, category }),
     onMutate: async ({ pageId, category }) => {
-      await queryClient.cancelQueries({ queryKey: ["jarvis-todos"] })
-      const previous = queryClient.getQueryData<TodoItem[]>(["jarvis-todos"])
-      queryClient.setQueryData<TodoItem[]>(["jarvis-todos"], (old) =>
+      await queryClient.cancelQueries({ queryKey: ["dakota-todos"] })
+      const previous = queryClient.getQueryData<TodoItem[]>(["dakota-todos"])
+      queryClient.setQueryData<TodoItem[]>(["dakota-todos"], (old) =>
         (old ?? []).map((t) => (t.page_id === pageId ? { ...t, category } : t))
       )
       return { previous }
     },
     onError: (_err, _vars, context) => {
-      if (context?.previous) queryClient.setQueryData(["jarvis-todos"], context.previous)
+      if (context?.previous) queryClient.setQueryData(["dakota-todos"], context.previous)
     },
     onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["jarvis-todos"] })
+      await queryClient.invalidateQueries({ queryKey: ["dakota-todos"] })
       await queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
     },
   })
@@ -189,7 +189,7 @@ export function TodoHistory() {
       patchTodo({ page_id: pageId, name }),
     onSuccess: () => {
       setEditingId(null)
-      queryClient.invalidateQueries({ queryKey: ["jarvis-todos"] })
+      queryClient.invalidateQueries({ queryKey: ["dakota-todos"] })
       queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
     },
   })

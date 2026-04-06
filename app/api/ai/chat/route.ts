@@ -15,7 +15,7 @@ Always respond in Korean unless asked otherwise.`,
 You coordinate between specialized agents:
 - Clinicus: 임상 질문, 환자 데이터, PROM 점수
 - Scholar: 저널 논문, 연구 분석, 문헌 검색
-- Jarvis: 학회, 컨퍼런스, 발표 일정
+- Dakota: 일정 & 할일 관리
 - Vault: 재무, 정산
 - Sensei: 수련, 수기 교육
 

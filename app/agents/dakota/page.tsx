@@ -1,14 +1,14 @@
 "use client"
 
 import { TopBar } from "@/components/layout/TopBar"
-import { PresentationList } from "@/components/jarvis/PresentationList"
-import { TodoHistory } from "@/components/jarvis/TodoHistory"
+import { PresentationList } from "@/components/dakota/PresentationList"
+import { TodoHistory } from "@/components/dakota/TodoHistory"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
-export default function JarvisPage() {
+export default function DakotaPage() {
   return (
     <div className="flex flex-col min-h-screen">
-      <TopBar title="📋 Jarvis" />
+      <TopBar title="📋 Dakota" />
       <div className="p-3 md:p-6 max-w-6xl w-full">
         <Tabs defaultValue="history">
           <TabsList className="mb-4">
