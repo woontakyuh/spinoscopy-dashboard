@@ -35,7 +35,7 @@ export default function ScholarPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <TopBar title="Brian" icon="/brian.png" />
+      <TopBar title="" />
       <div className="p-3 md:p-6 max-w-5xl w-full">
         <AgentGreeter image="/brian.png" name="Brian" message={message} loading={isLoading} />
         <Tabs value={activeTab} onValueChange={setActiveTab}>

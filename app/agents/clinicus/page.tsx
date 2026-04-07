@@ -38,7 +38,7 @@ export default function ClinicusPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <TopBar title="Op DB" icon="/opdb.png" />
+      <TopBar title="" />
       <div className="p-3 md:p-6 max-w-7xl w-full">
         <AgentGreeter image="/opdb.png" name="Op DB" message={message} loading={isLoading} />
         <Tabs defaultValue="analytics">

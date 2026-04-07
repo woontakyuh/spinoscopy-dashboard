@@ -46,16 +46,28 @@ export default function DakotaPage() {
 
   let message: string
   if (todos.length === 0) {
-    message = "오늘 할 일이 비어있어요. 여유 있는 하루 보내세요."
+    message = "선생님, 오늘은 할 일 목록이 깨끗해요. 좀 쉬셔도 될 것 같아요 ☕"
   } else if (!urgent) {
-    message = `할 일 ${todos.length}건 있는데 마감일이 없어요. 정리해드릴까요?`
+    message = `할 일이 ${todos.length}건 있는데 마감일이 안 잡혀 있어요. 같이 정리해볼까요?`
   } else {
-    message = `가장 급한 건 “${urgent.name}” — ${relativeDueLabel(urgent.due as string, today)}.`
+    const due = urgent.due as string
+    const d = new Date(due.slice(0, 10) + "T00:00:00+09:00")
+    const t = new Date(today + "T00:00:00+09:00")
+    const diff = Math.round((d.getTime() - t.getTime()) / (1000 * 60 * 60 * 24))
+    if (diff < 0) {
+      message = `선생님, “${urgent.name}” 마감이 ${Math.abs(diff)}일 지났어요. 이거부터 처리하시는 게 좋을 것 같아요 🙏`
+    } else if (diff === 0) {
+      message = `오늘 안에 “${urgent.name}” 끝내셔야 해요! 다른 일은 잠깐 미뤄두시죠.`
+    } else if (diff === 1) {
+      message = `내일까지 “${urgent.name}” 처리해야 해요. 오늘 시작하면 여유 있게 끝나실 거예요.`
+    } else {
+      message = `다음 마감은 “${urgent.name}” — ${diff}일 남았어요. 천천히 준비하시면 돼요.`
+    }
   }
 
   return (
     <div className="flex flex-col min-h-screen">
-      <TopBar title="Dakota" icon="/dakota.png" />
+      <TopBar title="" />
       <div className="p-3 md:p-6 max-w-6xl w-full">
         <AgentGreeter image="/dakota.png" name="Dakota" message={message} loading={isLoading} />
         <Tabs defaultValue="history">
