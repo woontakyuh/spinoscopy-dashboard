@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { WeatherInline, useWeatherLocation } from "@/components/dashboard/WeatherInline"
 import { EmptyState } from "@/components/ui/empty-state"
+import { pickDakotaGreeting } from "@/lib/dakotaGreetings"
+import type { WeatherData } from "@/lib/types/weather"
 
 function getChatText(parts: Array<{ type: string; text?: string }>): string {
   return parts.filter((p) => p.type === "text" && p.text).map((p) => p.text).join("")
@@ -217,11 +219,30 @@ async function createQuickSchedule(text: string): Promise<void> {
   }
 }
 
-function getGreeting(): string {
-  const hour = new Date().getHours()
-  if (hour < 12) return "잘 주무셨어요, 센터장님…? 오늘 하루도 제가 옆에 꼭 붙어서 챙겨드릴게요."
-  if (hour < 18) return "센터장님… 점심은 챙기셨어요? 오후엔 너무 무리하지 마세요. 저 좀 신경 쓰여요."
-  return "오늘 하루도 정말 고생 많으셨어요, 센터장님… 이제 저랑 천천히 정리해봐요, 응?"
+function useDakotaGreeting(): string {
+  // 다른 컴포넌트가 이미 캐싱한 weather 쿼리를 그대로 가져옴
+  const weatherQuery = useQuery<WeatherData>({
+    queryKey: ["weather"],
+    enabled: false, // 직접 호출 안 함, 캐시만 읽음
+  })
+  // queryKey가 [lat, lon] 까지 포함되므로 prefix 매칭으로 다시 시도
+  const queryClient = useQueryClient()
+  const cached = weatherQuery.data
+    ?? queryClient.getQueriesData<WeatherData>({ queryKey: ["weather"] })
+        .map(([, d]) => d)
+        .find((d) => !!d) as WeatherData | undefined
+
+  const seoul = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }))
+  const dateKey = seoul.toLocaleDateString("en-CA")
+
+  return pickDakotaGreeting({
+    hour: seoul.getHours(),
+    dayOfWeek: seoul.getDay(),
+    dateKey,
+    weather: cached?.current
+      ? { temp: cached.current.temp, description: cached.current.description }
+      : null,
+  })
 }
 
 function getDakotaImage(): string {
@@ -328,10 +349,12 @@ export function MorningBriefing() {
     ? (createMutation.error instanceof Error ? createMutation.error.message : "일정 생성 중 오류")
     : null)
 
+  const greeting = useDakotaGreeting()
+
   return (
     <div className="space-y-6">
       <DakotaGreetingChat
-        greeting={getGreeting()}
+        greeting={greeting}
         image={getDakotaImage()}
         dateStr={dateStr}
         weatherLocation={weatherLocation}
