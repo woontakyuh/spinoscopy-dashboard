@@ -135,100 +135,188 @@ function DakotaGreetingChat({
     try { localStorage.removeItem("dakota-chat-v1") } catch {}
   }
 
-return (
-    <div className="pt-2 md:pt-4 flex items-start gap-3 md:gap-4">
-      {/* Dakota 캐릭터 (시간대별) */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={image}
-        alt="Dakota"
-        className="w-28 md:w-40 h-auto object-contain shrink-0 select-none"
-        draggable={false}
-      />
+  const [focused, setFocused] = useState(false)
 
-      <div className="relative flex-1 min-w-0 mt-2 md:mt-3 space-y-2">
-        {/* 인사 말풍선 (Dakota의 첫 메시지) */}
-        <div className="relative bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 md:px-5 md:py-4 shadow-lg">
-          <span
-            aria-hidden
-            className="absolute -left-2 top-3 w-3 h-3 rotate-45 bg-card border-l border-t border-border"
-          />
-          <h2 className="text-xl md:text-2xl font-semibold text-foreground tracking-tight">
-            {greeting}
-          </h2>
-          <div className="mt-1">
-            <WeatherInline />
+  // focus 모드 진입 시 body scroll lock
+  useEffect(() => {
+    if (!focused) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => { document.body.style.overflow = prev }
+  }, [focused])
+
+  // ESC로 focus 모드 해제
+  useEffect(() => {
+    if (!focused) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setFocused(false) }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [focused])
+
+  const messageList = (
+    <>
+      {messages.map((m) => {
+        const text = getChatText(m.parts)
+        if (!text) return null
+        return (
+          <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div
+              className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed shadow-sm ${
+                m.role === "user"
+                  ? "bg-blue-600 text-white rounded-br-sm"
+                  : "bg-card border border-border text-foreground rounded-tl-sm"
+              }`}
+            >
+              <p className="whitespace-pre-wrap">{text}</p>
+            </div>
           </div>
-          <p className="text-muted-foreground text-xs md:text-sm mt-1">
-            {dateStr}{weatherLocation && <span className="ml-2 text-muted-foreground/70">· {weatherLocation}</span>}
-          </p>
+        )
+      })}
+      {isStreaming && messages[messages.length - 1]?.role === "user" && (
+        <div className="flex justify-start">
+          <div className="bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-2.5">
+            <div className="flex gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "0ms" }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "150ms" }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "300ms" }} />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+
+  const inputForm = (
+    <>
+      {error && (
+        <div className="text-xs text-red-400 px-1">
+          오류: {error.message || "응답을 가져오지 못했습니다."}
+        </div>
+      )}
+      <form onSubmit={handleSubmit} className="flex gap-2">
+        <input
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          placeholder="Dakota에게 말 걸어보세요…"
+          className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-600"
+        />
+        <button
+          type="submit"
+          disabled={isStreaming || !inputValue.trim()}
+          className="px-3.5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          보내기
+        </button>
+      </form>
+      {messages.length > 0 && (
+        <button
+          type="button"
+          onClick={clearConversation}
+          className="text-[10px] text-muted-foreground/70 hover:text-muted-foreground underline-offset-2 hover:underline self-start"
+        >
+          대화 초기화
+        </button>
+      )}
+    </>
+  )
+
+  // ─── Focused overlay ──────────────────────────────────────
+  if (focused) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm animate-fade-in-up">
+        <div className="h-full max-w-5xl mx-auto flex flex-col md:flex-row p-3 md:p-6 gap-4 md:gap-6">
+          {/* Dakota 캐릭터 — 크게, 클릭해서 나가기 */}
+          <div className="shrink-0 flex md:block justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={image}
+              alt="Dakota"
+              onClick={() => setFocused(false)}
+              className="w-40 md:w-64 h-auto object-contain select-none cursor-pointer hover:opacity-90 transition-opacity"
+              draggable={false}
+              title="클릭해서 원래 크기로"
+            />
+          </div>
+
+          {/* 대화 영역 */}
+          <div className="flex-1 min-w-0 flex flex-col gap-3 overflow-hidden">
+            <div className="relative bg-card border border-border rounded-2xl rounded-tl-sm px-5 py-4 shadow-lg shrink-0">
+              <span aria-hidden className="absolute -left-2 top-3 w-3 h-3 rotate-45 bg-card border-l border-t border-border" />
+              <h2 className="text-base md:text-lg font-semibold text-foreground tracking-tight">
+                {greeting}
+              </h2>
+              <div className="mt-1"><WeatherInline /></div>
+              <p className="text-muted-foreground text-xs md:text-sm mt-1">
+                {dateStr}{weatherLocation && <span className="ml-2 text-muted-foreground/70">· {weatherLocation}</span>}
+              </p>
+            </div>
+
+            <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
+              {messages.length === 0 ? (
+                <p className="text-muted-foreground/70 text-sm text-center py-8">
+                  Dakota에게 말 걸어보세요…
+                </p>
+              ) : messageList}
+            </div>
+
+            <div className="shrink-0 flex flex-col gap-2">
+              {inputForm}
+            </div>
+          </div>
         </div>
 
-        {/* 후속 대화 메시지들 */}
-        {messages.length > 0 && (
-          <div ref={scrollRef} className="max-h-[280px] overflow-y-auto space-y-2 pr-1">
-            {messages.map((m) => {
-              const text = getChatText(m.parts)
-              if (!text) return null
-              return (
-                <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`max-w-[88%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${
-                      m.role === "user"
-                        ? "bg-blue-600 text-white rounded-br-sm"
-                        : "bg-card border border-border text-foreground rounded-tl-sm"
-                    }`}
-                  >
-                    <p className="whitespace-pre-wrap">{text}</p>
-                  </div>
-                </div>
-              )
-            })}
-            {isStreaming && messages[messages.length - 1]?.role === "user" && (
-              <div className="flex justify-start">
-                <div className="bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-2.5">
-                  <div className="flex gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "300ms" }} />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        {/* 상단 우측 닫기 버튼 */}
+        <button
+          type="button"
+          onClick={() => setFocused(false)}
+          className="fixed top-3 right-3 md:top-5 md:right-5 w-9 h-9 rounded-full bg-muted/80 hover:bg-muted text-foreground flex items-center justify-center text-lg"
+          aria-label="닫기"
+        >
+          ✕
+        </button>
+      </div>
+    )
+  }
 
-        {error && (
-          <div className="text-xs text-red-400 px-1">
-            오류: {error.message || "응답을 가져오지 못했습니다."}
-          </div>
-        )}
+  // ─── Normal inline mode ────────────────────────────────────
+  return (
+    <div className="pt-2 md:pt-4 space-y-3">
+      {/* 상단: 캐릭터 + 인사 말풍선 */}
+      <div className="flex items-start gap-3 md:gap-4">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={image}
+          alt="Dakota"
+          onClick={() => setFocused(true)}
+          className="w-24 md:w-36 h-auto object-contain shrink-0 select-none cursor-pointer hover:opacity-90 transition-opacity"
+          draggable={false}
+          title="클릭해서 대화 집중 모드"
+        />
 
-        {/* 입력창 */}
-        <form onSubmit={handleSubmit} className="flex gap-2 pt-1">
-          <input
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Dakota에게 말 걸어보세요…"
-            className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-600"
-          />
-          <button
-            type="submit"
-            disabled={isStreaming || !inputValue.trim()}
-            className="px-3.5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            보내기
-          </button>
-        </form>
-        {messages.length > 0 && (
-          <button
-            type="button"
-            onClick={clearConversation}
-            className="text-[10px] text-muted-foreground/70 hover:text-muted-foreground underline-offset-2 hover:underline"
-          >
-            대화 초기화
-          </button>
-        )}
+        <div className="relative flex-1 min-w-0 mt-2">
+          <div className="relative bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 md:px-5 md:py-3 shadow-lg">
+            <span aria-hidden className="absolute -left-2 top-3 w-3 h-3 rotate-45 bg-card border-l border-t border-border" />
+            <h2 className="text-base md:text-lg font-semibold text-foreground tracking-tight">
+              {greeting}
+            </h2>
+            <div className="mt-1"><WeatherInline /></div>
+            <p className="text-muted-foreground text-xs md:text-sm mt-1">
+              {dateStr}{weatherLocation && <span className="ml-2 text-muted-foreground/70">· {weatherLocation}</span>}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 전체 폭 대화 영역 (iPhone 메시지 앱 스타일) */}
+      {messages.length > 0 && (
+        <div ref={scrollRef} className="max-h-[320px] overflow-y-auto space-y-2 px-1">
+          {messageList}
+        </div>
+      )}
+
+      {/* 입력창 */}
+      <div className="flex flex-col gap-2">
+        {inputForm}
       </div>
     </div>
   )
