@@ -46,7 +46,7 @@ export default function ScholarPage() {
       <div className="p-3 md:p-6 max-w-5xl w-full">
         <AgentGreeter image="/brian.png" name="Brian" message={message} loading={isLoading} />
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full bg-muted border border-border mb-4 md:mb-6 grid grid-cols-3 md:grid-cols-5 h-auto gap-1 p-1">
+          <TabsList className="bg-muted border border-border mb-4 md:mb-6 gap-1 p-1 [&]:!grid [&]:!w-full [&]:!h-auto grid-cols-3 md:grid-cols-5">
             <TabsTrigger value="my-papers" className="min-h-9 data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-muted-foreground text-xs md:text-sm">
               My Papers
             </TabsTrigger>
