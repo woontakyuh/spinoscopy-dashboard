@@ -23,18 +23,18 @@ export default function VaultPage() {
 
   let message: string
   if (prices.length === 0) {
-    message = "시장 시세 가져오고 있습니다. 잠시만요."
+    message = "여선생, 시장 시세 가져오고 있어요. 잠시만요."
   } else if (!top) {
-    message = `${prices.length}개 자산 지켜보고 있습니다. 오늘은 큰 움직임 없네요 — 좋은 신호일 수 있죠.`
+    message = `${prices.length}개 자산 지켜보고 있는데, 오늘은 큰 움직임 없어요. 좋은 신호일 수 있죠, 여선생.`
   } else {
     const ch = top.change24h ?? 0
     const sign = ch >= 0 ? "+" : ""
     if (ch <= -5) {
-      message = `${top.symbol}이 오늘 ${sign}${ch.toFixed(2)}% 빠졌네요. 기본기 좋은 회사라면, 이런 날이 기회일 수도 있습니다.`
+      message = `여선생, ${top.symbol}이 오늘 ${sign}${ch.toFixed(2)}% 빠졌어요. 기본기 좋은 회사라면 이런 날이 오히려 기회일 수 있습니다.`
     } else if (ch >= 5) {
-      message = `${top.symbol}이 ${sign}${ch.toFixed(2)}% 올랐네요. 들뜨지 마시고, 왜 올랐는지 한번 짚어보시죠.`
+      message = `여선생, ${top.symbol}이 ${sign}${ch.toFixed(2)}% 올랐네요. 들뜨지 마시고 왜 올랐는지 한번 짚어보시죠.`
     } else {
-      message = `오늘 가장 큰 움직임은 ${top.symbol} ${sign}${ch.toFixed(2)}%. 단기 노이즈인지 추세인지 차분히 보시죠.`
+      message = `여선생, 오늘 가장 큰 움직임은 ${top.symbol} ${sign}${ch.toFixed(2)}%. 단기 노이즈인지 추세인지 차분히 보시죠.`
     }
   }
 

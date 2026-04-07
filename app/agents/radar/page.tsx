@@ -29,15 +29,15 @@ export default function RadarPage() {
   const top5 = items.filter((i) => i.importanceScore === 5).length
   let message: string
   if (items.length === 0) {
-    message = "피드 가져오는 중입니다. 곧 fresh한 거 보여드릴게요."
+    message = "운탁씨, 피드 가져오고 있어요. 곧 fresh한 거 보여드릴게요."
   } else if (top5 >= 3) {
-    message = `오늘 핫합니다 — 중요도 5짜리만 ${top5}건이에요. 이건 꼭 보셔야 해요.`
+    message = `운탁씨, 오늘 진짜 핫해요 — 중요도 5짜리만 ${top5}건. 이건 꼭 보셔야 해요.`
   } else if (todayItems.length === 0) {
-    message = `오늘은 새로 들어온 게 없네요. 중요도 4+ ${high}건은 아직 안 보신 것들이니 한번 훑어보시죠.`
+    message = `운탁씨, 오늘은 새로 들어온 게 없네요. 그래도 중요도 4+ ${high}건이 아직 미확인이에요. 한번 훑어보시죠.`
   } else if (high >= 5) {
-    message = `오늘 ${todayItems.length}건 들어왔고, 그 중 중요도 4+ ${high}건. 양 좀 되네요. 핵심부터 가시죠.`
+    message = `운탁씨, 오늘 ${todayItems.length}건 들어왔는데 그중 중요도 4+가 ${high}건. 양 좀 되네요 — 핵심부터 가시죠.`
   } else {
-    message = `오늘 ${todayItems.length}건. 그중 ${high}건이 주목할 만해요 — 5분만 투자해보시죠.`
+    message = `운탁씨, 오늘 ${todayItems.length}건이고 ${high}건이 주목할 만해요. 5분만 투자해보시죠.`
   }
 
   return (

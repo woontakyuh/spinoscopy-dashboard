@@ -44,7 +44,7 @@ export default function SenseiPage() {
   } else if (stats.streaks.current === 0) {
     message = `잠깐 쉬셨네요. 올해 누적 ${stats.sessions2026}회. 오늘 매트 위에 다시 올라가시죠 — 가볍게라도.`
   } else {
-    message = `이번 주 ${stats.streaks.current}일 매트. 올해 ${stats.sessions2026}회. 꾸준함이 답입니다, 선생님.`
+    message = `이번 주 ${stats.streaks.current}일 매트. 올해 ${stats.sessions2026}회. 꾸준함이 답입니다, Tak.`
   }
 
   return (

@@ -46,7 +46,7 @@ export default function DakotaPage() {
 
   let message: string
   if (todos.length === 0) {
-    message = "선생님, 오늘은 할 일 목록이 깨끗해요. 좀 쉬셔도 될 것 같아요 ☕"
+    message = "센터장님, 오늘은 할 일 목록이 깨끗해요. 좀 쉬셔도 될 것 같아요 ☕"
   } else if (!urgent) {
     message = `할 일이 ${todos.length}건 있는데 마감일이 안 잡혀 있어요. 같이 정리해볼까요?`
   } else {
@@ -55,7 +55,7 @@ export default function DakotaPage() {
     const t = new Date(today + "T00:00:00+09:00")
     const diff = Math.round((d.getTime() - t.getTime()) / (1000 * 60 * 60 * 24))
     if (diff < 0) {
-      message = `선생님, “${urgent.name}” 마감이 ${Math.abs(diff)}일 지났어요. 이거부터 처리하시는 게 좋을 것 같아요 🙏`
+      message = `센터장님, “${urgent.name}” 마감이 ${Math.abs(diff)}일 지났어요. 이거부터 처리하시는 게 좋을 것 같아요 🙏`
     } else if (diff === 0) {
       message = `오늘 안에 “${urgent.name}” 끝내셔야 해요! 다른 일은 잠깐 미뤄두시죠.`
     } else if (diff === 1) {
