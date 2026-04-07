@@ -1,7 +1,25 @@
 import { anthropic } from "@ai-sdk/anthropic"
-import { streamText, convertToModelMessages } from "ai"
+import { streamText } from "ai"
 import { getAllTodos } from "@/lib/notion/todo"
 import { getUpcomingSchedules } from "@/lib/notion/schedule"
+
+interface UIPart { type: string; text?: string }
+interface UIMessage { role: "user" | "assistant" | "system"; parts?: UIPart[]; content?: string }
+
+function toModelMessages(input: UIMessage[]): { role: "user" | "assistant" | "system"; content: string }[] {
+  return input
+    .map((m) => {
+      if (typeof m.content === "string" && m.content.length > 0) {
+        return { role: m.role, content: m.content }
+      }
+      const text = (m.parts ?? [])
+        .filter((p) => p.type === "text" && typeof p.text === "string")
+        .map((p) => p.text!)
+        .join("")
+      return { role: m.role, content: text }
+    })
+    .filter((m) => m.content.length > 0)
+}
 
 const STATIC_PROMPTS: Record<string, string> = {
   clinicus: `You are Clinicus, a clinical assistant for Dr. Woon Tak Yuh, a spine neurosurgeon in Seoul, Korea.
@@ -105,7 +123,17 @@ export async function POST(req: Request) {
   }
 
   try {
-    const modelMessages = await convertToModelMessages(messages)
+    const modelMessages = toModelMessages((messages ?? []) as UIMessage[])
+    console.log("[ai/chat] incoming messages:", JSON.stringify(messages))
+    console.log("[ai/chat] converted:", JSON.stringify(modelMessages))
+
+    if (modelMessages.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "메시지가 비어있습니다." }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      )
+    }
+
     const result = streamText({
       model: anthropic("claude-sonnet-4-5"),
       system: systemPrompt,
