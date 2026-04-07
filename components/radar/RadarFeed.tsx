@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FeedCard } from "./FeedCard"
-import type { FeedItem, FeedResponse, FeedTier } from "@/lib/types/radar"
+import type { FeedItem, FeedResponse, FeedSource, FeedTier } from "@/lib/types/radar"
 
 const TABS: Array<{ value: FeedTier; label: string }> = [
   { value: "ai-company", label: "News" },
@@ -20,6 +20,7 @@ export function RadarFeed() {
   const [tab, setTab] = useState<FeedTier>("ai-company")
   const [sortMode, setSortMode] = useState<SortMode>("date")
   const [visibleCount, setVisibleCount] = useState(20)
+  const [selectedSources, setSelectedSources] = useState<Set<FeedSource>>(new Set())
 
   const feedQuery = useQuery({
     queryKey: ["radar-feed"],
@@ -33,8 +34,19 @@ export function RadarFeed() {
 
   const items: FeedItem[] = feedQuery.data?.items ?? []
 
-  const filtered = items
-    .filter((item) => item.tier === tab)
+  // 현재 탭의 아이템에서 소스 목록 + 카운트 추출
+  const tabItems = items.filter((item) => item.tier === tab)
+  const sourceOptions = Array.from(
+    tabItems.reduce((map, item) => {
+      const entry = map.get(item.source)
+      if (entry) entry.count += 1
+      else map.set(item.source, { id: item.source, label: item.sourceLabel, count: 1 })
+      return map
+    }, new Map<FeedSource, { id: FeedSource; label: string; count: number }>()).values()
+  ).sort((a, b) => b.count - a.count)
+
+  const filtered = tabItems
+    .filter((item) => selectedSources.size === 0 || selectedSources.has(item.source))
     .sort((a, b) => {
       if (sortMode === "date") {
         if (a.date !== b.date) return b.date.localeCompare(a.date)
@@ -44,9 +56,20 @@ export function RadarFeed() {
       return b.date.localeCompare(a.date)
     })
 
-  // 탭 변경 시 visibleCount 리셋
+  // 탭 변경 시 visibleCount + 소스 선택 리셋
   function handleTabChange(value: FeedTier) {
     setTab(value)
+    setVisibleCount(20)
+    setSelectedSources(new Set())
+  }
+
+  function toggleSource(source: FeedSource) {
+    setSelectedSources((prev) => {
+      const next = new Set(prev)
+      if (next.has(source)) next.delete(source)
+      else next.add(source)
+      return next
+    })
     setVisibleCount(20)
   }
 
@@ -113,6 +136,41 @@ export function RadarFeed() {
           </span>
         )}
       </div>
+
+      {/* 소스 필터 칩 (탭 내) */}
+      {sourceOptions.length > 1 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] text-zinc-500 mr-1">소스</span>
+          <button
+            type="button"
+            onClick={() => { setSelectedSources(new Set()); setVisibleCount(20) }}
+            className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+              selectedSources.size === 0
+                ? "border-cyan-500/60 text-cyan-300 bg-cyan-500/10"
+                : "border-zinc-700 text-zinc-400 hover:text-zinc-200"
+            }`}
+          >
+            전체 <span className="text-zinc-500">{tabItems.length}</span>
+          </button>
+          {sourceOptions.map((s) => {
+            const active = selectedSources.has(s.id)
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => toggleSource(s.id)}
+                className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                  active
+                    ? "border-cyan-500/60 text-cyan-300 bg-cyan-500/10"
+                    : "border-zinc-700 text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                {s.label} <span className="text-zinc-500">{s.count}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {feedQuery.isLoading ? (
         <div className="space-y-3">
