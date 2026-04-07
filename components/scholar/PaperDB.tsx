@@ -48,7 +48,7 @@ function journalBadgeClass(name: string): string {
   for (const [key, cls] of Object.entries(JOURNAL_COLORS)) {
     if (name.includes(key)) return cls
   }
-  return "bg-zinc-500/20 text-zinc-400 border-zinc-500/30"
+  return "bg-zinc-500/20 text-muted-foreground border-zinc-500/30"
 }
 
 function interestDot(interest: InterestLevel): string {
@@ -60,7 +60,7 @@ function interestDot(interest: InterestLevel): string {
 function interestStyle(interest: string) {
   if (interest.includes("필독")) return "bg-red-500/20 text-red-400 border-red-500/40 hover:bg-red-500/30"
   if (interest.includes("관심")) return "bg-yellow-500/20 text-yellow-400 border-yellow-500/40 hover:bg-yellow-500/30"
-  return "bg-zinc-500/20 text-zinc-400 border-zinc-500/40 hover:bg-zinc-500/30"
+  return "bg-zinc-500/20 text-muted-foreground border-zinc-500/40 hover:bg-zinc-500/30"
 }
 
 // ── Filter State ────────────────────────────────────────────
@@ -365,7 +365,7 @@ export function PaperDB() {
   return (
     <div className="space-y-3">
       {/* ── Filter Bar ── */}
-      <div className="space-y-2 p-2 rounded-lg bg-zinc-900 border border-zinc-800">
+      <div className="space-y-2 p-2 rounded-lg bg-card border border-border">
         {/* Row 1: Journal, Interest, Read status, Search */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Journal toggles */}
@@ -380,7 +380,7 @@ export function PaperDB() {
                   className={`px-2 py-1 rounded text-[11px] font-medium transition-colors border ${
                     active
                       ? "bg-cyan-600/30 text-cyan-300 border-cyan-500/50"
-                      : "bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-zinc-300"
+                      : "bg-muted text-muted-foreground border-border hover:text-foreground/90"
                   }`}
                 >
                   {j}
@@ -389,7 +389,7 @@ export function PaperDB() {
             })}
           </div>
 
-          <div className="w-px h-5 bg-zinc-700" />
+          <div className="w-px h-5 bg-muted" />
 
           {/* Interest filter */}
           <div className="flex items-center gap-1">
@@ -402,8 +402,8 @@ export function PaperDB() {
                   onClick={() => toggleInterest(opt.value)}
                   className={`w-7 h-7 rounded flex items-center justify-center text-sm transition-colors border ${
                     active
-                      ? "bg-zinc-700 border-zinc-500"
-                      : "bg-zinc-800 border-zinc-700/50 opacity-50 hover:opacity-100"
+                      ? "bg-muted border-zinc-500"
+                      : "bg-muted border-border/50 opacity-50 hover:opacity-100"
                   }`}
                 >
                   {opt.icon}
@@ -412,10 +412,10 @@ export function PaperDB() {
             })}
           </div>
 
-          <div className="w-px h-5 bg-zinc-700" />
+          <div className="w-px h-5 bg-muted" />
 
           {/* Read status */}
-          <div className="flex items-center rounded-md border border-zinc-700 overflow-hidden">
+          <div className="flex items-center rounded-md border border-border overflow-hidden">
             {(
               [
                 { key: "all", label: "전체" },
@@ -429,8 +429,8 @@ export function PaperDB() {
                 onClick={() => setReadStatus(opt.key)}
                 className={`px-2.5 py-1 text-[11px] font-medium transition-colors ${
                   filters.readStatus === opt.key
-                    ? "bg-zinc-600 text-white"
-                    : "bg-zinc-800 text-zinc-500 hover:text-zinc-300"
+                    ? "bg-zinc-600 text-foreground"
+                    : "bg-muted text-muted-foreground hover:text-foreground/90"
                 }`}
               >
                 {opt.label}
@@ -438,23 +438,23 @@ export function PaperDB() {
             ))}
           </div>
 
-          <div className="w-px h-5 bg-zinc-700" />
+          <div className="w-px h-5 bg-muted" />
 
           {/* Search */}
           <Input
             placeholder="검색..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="w-40 bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600 h-7 text-xs"
+            className="w-40 bg-muted border-border text-foreground placeholder:text-muted-foreground/70 h-7 text-xs"
           />
         </div>
 
         {/* Row 2: Topics */}
         <div className="flex flex-wrap items-center gap-1">
-          <span className="text-zinc-600 text-[10px] font-medium mr-1 shrink-0">Topic</span>
+          <span className="text-muted-foreground/70 text-[10px] font-medium mr-1 shrink-0">Topic</span>
           {TOPIC_NAMES.map((topic) => {
             const active = filters.topics.includes(topic)
-            const colors = TOPIC_COLORS[topic] ?? "bg-zinc-500/20 text-zinc-400 border-zinc-500/40"
+            const colors = TOPIC_COLORS[topic] ?? "bg-zinc-500/20 text-muted-foreground border-zinc-500/40"
             return (
               <button
                 key={topic}
@@ -463,7 +463,7 @@ export function PaperDB() {
                 className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all border ${
                   active
                     ? colors
-                    : "bg-zinc-800/60 text-zinc-500 border-zinc-700/50 hover:text-zinc-300 hover:border-zinc-600"
+                    : "bg-muted/60 text-muted-foreground border-border/50 hover:text-foreground/90 hover:border-border"
                 }`}
               >
                 {topic}
@@ -474,7 +474,7 @@ export function PaperDB() {
 
         {/* Row 3: Categories + Year + Countries */}
         <div className="flex flex-wrap items-center gap-1">
-          <span className="text-zinc-600 text-[10px] font-medium mr-1 shrink-0">Category</span>
+          <span className="text-muted-foreground/70 text-[10px] font-medium mr-1 shrink-0">Category</span>
           {topCategories.length > 0 ? (
             topCategories.map(({ name, count }) => {
               const active = filters.categories.includes(name)
@@ -486,12 +486,12 @@ export function PaperDB() {
                   className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-all border ${
                     active
                       ? "bg-indigo-500/25 text-indigo-300 border-indigo-500/50"
-                      : "bg-zinc-800/60 text-zinc-500 border-zinc-700/50 hover:text-zinc-300 hover:border-zinc-600"
+                      : "bg-muted/60 text-muted-foreground border-border/50 hover:text-foreground/90 hover:border-border"
                   }`}
                   title={`${name} (${count})`}
                 >
                   {name.length > 20 ? name.slice(0, 18) + "..." : name}
-                  <span className="ml-0.5 text-zinc-600">{count}</span>
+                  <span className="ml-0.5 text-muted-foreground/70">{count}</span>
                 </button>
               )
             })
@@ -499,10 +499,10 @@ export function PaperDB() {
             <span className="text-zinc-700 text-[10px]">로딩 중...</span>
           )}
 
-          <div className="w-px h-4 bg-zinc-700 mx-1" />
+          <div className="w-px h-4 bg-muted mx-1" />
 
           {/* Year range */}
-          <span className="text-zinc-600 text-[10px] font-medium shrink-0">Year</span>
+          <span className="text-muted-foreground/70 text-[10px] font-medium shrink-0">Year</span>
           <input
             type="number"
             placeholder="from"
@@ -513,9 +513,9 @@ export function PaperDB() {
                 yearFrom: e.target.value ? parseInt(e.target.value, 10) : null,
               }))
             }
-            className="w-16 h-6 px-1.5 rounded text-[11px] bg-zinc-800 border border-zinc-700 text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500"
+            className="w-16 h-6 px-1.5 rounded text-[11px] bg-muted border border-border text-foreground/90 placeholder:text-muted-foreground/70 focus:outline-none focus:border-zinc-500"
           />
-          <span className="text-zinc-600 text-[10px]">~</span>
+          <span className="text-muted-foreground/70 text-[10px]">~</span>
           <input
             type="number"
             placeholder="to"
@@ -526,14 +526,14 @@ export function PaperDB() {
                 yearTo: e.target.value ? parseInt(e.target.value, 10) : null,
               }))
             }
-            className="w-16 h-6 px-1.5 rounded text-[11px] bg-zinc-800 border border-zinc-700 text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500"
+            className="w-16 h-6 px-1.5 rounded text-[11px] bg-muted border border-border text-foreground/90 placeholder:text-muted-foreground/70 focus:outline-none focus:border-zinc-500"
           />
         </div>
 
         {/* Row 3b: Countries */}
         {topCountries.length > 0 && (
           <div className="flex flex-wrap items-center gap-1">
-            <span className="text-zinc-600 text-[10px] font-medium mr-1 shrink-0">Country</span>
+            <span className="text-muted-foreground/70 text-[10px] font-medium mr-1 shrink-0">Country</span>
             {topCountries.map(({ name, count }) => {
               const active = filters.countries.includes(name)
               return (
@@ -544,11 +544,11 @@ export function PaperDB() {
                   className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-all border ${
                     active
                       ? "bg-violet-500/25 text-violet-300 border-violet-500/50"
-                      : "bg-zinc-800/60 text-zinc-500 border-zinc-700/50 hover:text-zinc-300 hover:border-zinc-600"
+                      : "bg-muted/60 text-muted-foreground border-border/50 hover:text-foreground/90 hover:border-border"
                   }`}
                 >
                   {getCountryFlag(name)} {name}
-                  <span className="ml-0.5 text-zinc-600">{count}</span>
+                  <span className="ml-0.5 text-muted-foreground/70">{count}</span>
                 </button>
               )
             })}
@@ -557,18 +557,18 @@ export function PaperDB() {
 
         {/* Row 4: Active filter summary */}
         {hasActiveFilters(filters) && (
-          <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-zinc-800">
-            <span className="text-zinc-600 text-[10px] shrink-0">필터:</span>
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border">
+            <span className="text-muted-foreground/70 text-[10px] shrink-0">필터:</span>
             {activeFilterTags.map((tag, i) => (
               <span
                 key={`${tag.key}-${tag.value ?? tag.label}-${i}`}
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-300 text-[10px]"
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted border border-border text-foreground/90 text-[10px]"
               >
                 {tag.label}
                 <button
                   type="button"
                   onClick={() => removeFilter(tag.key, tag.value)}
-                  className="text-zinc-500 hover:text-zinc-200 transition-colors"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   x
                 </button>
@@ -580,7 +580,7 @@ export function PaperDB() {
                 setFilters(INITIAL_FILTERS)
                 setSearchInput("")
               }}
-              className="text-zinc-500 text-[10px] hover:text-zinc-300 transition-colors ml-auto"
+              className="text-muted-foreground text-[10px] hover:text-foreground/90 transition-colors ml-auto"
             >
               초기화
             </button>
@@ -592,7 +592,7 @@ export function PaperDB() {
       {isLoading ? (
         <div className="space-y-1">
           {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-10 w-full bg-zinc-800" />
+            <Skeleton key={i} className="h-10 w-full bg-muted" />
           ))}
         </div>
       ) : error ? (
@@ -600,11 +600,11 @@ export function PaperDB() {
           로딩 실패: {(error as Error).message}
         </p>
       ) : displayArticles.length === 0 ? (
-        <p className="text-zinc-500 text-sm text-center py-12">논문이 없습니다.</p>
+        <p className="text-muted-foreground text-sm text-center py-12">논문이 없습니다.</p>
       ) : (
-        <div className="border border-zinc-700 rounded-lg overflow-hidden">
+        <div className="border border-border rounded-lg overflow-hidden">
           {/* Header */}
-          <div className="grid grid-cols-[80px_28px_1fr_90px_100px_40px] gap-2 px-3 py-2 bg-zinc-800/80 border-b border-zinc-700 text-zinc-500 text-[11px] font-medium uppercase tracking-wider">
+          <div className="grid grid-cols-[80px_28px_1fr_90px_100px_40px] gap-2 px-3 py-2 bg-muted/80 border-b border-border text-muted-foreground text-[11px] font-medium uppercase tracking-wider">
             <span>날짜</span>
             <span />
             <span>제목</span>
@@ -628,14 +628,14 @@ export function PaperDB() {
                     setExpandedId(expandedId === article.page_id ? null : article.page_id)
                   }
                 }}
-                className={`grid grid-cols-[80px_28px_1fr_90px_100px_40px] gap-2 px-3 py-2 items-center border-b border-zinc-800 cursor-pointer transition-colors ${
+                className={`grid grid-cols-[80px_28px_1fr_90px_100px_40px] gap-2 px-3 py-2 items-center border-b border-border cursor-pointer transition-colors ${
                   expandedId === article.page_id
-                    ? "bg-zinc-800/70"
-                    : "card-hover hover:bg-zinc-800/40"
+                    ? "bg-muted/70"
+                    : "card-hover hover:bg-muted/40"
                 }`}
               >
                 {/* Date */}
-                <span className={`num text-[11px] ${article.read ? "text-zinc-500" : "text-zinc-300"}`}>
+                <span className={`num text-[11px] ${article.read ? "text-muted-foreground" : "text-foreground/90"}`}>
                   {article.pub_date?.slice(5) ?? "—"}
                 </span>
 
@@ -647,7 +647,7 @@ export function PaperDB() {
                 {/* Title */}
                 <span
                   className={`text-xs leading-snug truncate ${
-                    article.read ? "text-zinc-500" : "text-white"
+                    article.read ? "text-muted-foreground" : "text-foreground"
                   }`}
                   title={article.title}
                 >
@@ -665,7 +665,7 @@ export function PaperDB() {
                 </span>
 
                 {/* Pub type */}
-                <span className={`text-[10px] truncate ${article.read ? "text-zinc-600" : "text-zinc-500"}`}>
+                <span className={`text-[10px] truncate ${article.read ? "text-muted-foreground/70" : "text-muted-foreground"}`}>
                   {article.pub_type || "—"}
                 </span>
 
@@ -677,7 +677,7 @@ export function PaperDB() {
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="text-zinc-500 hover:text-cyan-400 transition-colors"
+                      className="text-muted-foreground hover:text-cyan-400 transition-colors"
                       title="DOI"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -705,7 +705,7 @@ export function PaperDB() {
       {/* Footer */}
       {!isLoading && !error && displayArticles.length > 0 && (
         <div className="flex items-center justify-between px-1">
-          <span className="text-zinc-600 text-xs num">
+          <span className="text-muted-foreground/70 text-xs num">
             {displayArticles.length}편 표시{hasMore ? " · 더 있음" : ""}
           </span>
           {hasMore && (
@@ -713,7 +713,7 @@ export function PaperDB() {
               type="button"
               onClick={handleLoadMore}
               disabled={isLoadingMore}
-              className="px-4 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 hover:text-white transition-colors disabled:opacity-50"
+              className="px-4 py-1.5 rounded-lg text-xs font-medium bg-muted text-foreground/90 border border-border hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50"
             >
               {isLoadingMore ? "로딩 중..." : "더보기"}
             </button>
@@ -823,17 +823,17 @@ function InlineDetail({
   }
 
   return (
-    <div className="bg-zinc-900/80 border-b border-zinc-700 px-4 py-4 animate-fade-in-up">
+    <div className="bg-card/80 border-b border-border px-4 py-4 animate-fade-in-up">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-3">
         <div className="flex-1 min-w-0">
-          <h3 className="text-white text-sm font-semibold leading-snug mb-1">{article.title}</h3>
-          <p className="text-zinc-400 text-xs">{article.authors}</p>
+          <h3 className="text-foreground text-sm font-semibold leading-snug mb-1">{article.title}</h3>
+          <p className="text-muted-foreground text-xs">{article.authors}</p>
         </div>
         <button
           type="button"
           onClick={onCollapse}
-          className="shrink-0 text-zinc-500 hover:text-white transition-colors p-1"
+          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors p-1"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -846,16 +846,16 @@ function InlineDetail({
         <Badge variant="outline" className={`text-[10px] ${journalBadgeClass(article.journal_name)}`}>
           {article.journal_name}
         </Badge>
-        {article.pub_date && <span className="text-zinc-500 num">{article.pub_date}</span>}
-        {article.volume && <span className="text-zinc-600">Vol.{article.volume}</span>}
-        {article.issue && <span className="text-zinc-600">No.{article.issue}</span>}
+        {article.pub_date && <span className="text-muted-foreground num">{article.pub_date}</span>}
+        {article.volume && <span className="text-muted-foreground/70">Vol.{article.volume}</span>}
+        {article.issue && <span className="text-muted-foreground/70">No.{article.issue}</span>}
         {article.pub_type && (
-          <Badge variant="outline" className="text-[10px] border-zinc-700 text-zinc-500">
+          <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
             {article.pub_type}
           </Badge>
         )}
         {country && (
-          <span className="text-zinc-400 text-xs">
+          <span className="text-muted-foreground text-xs">
             {getCountryFlag(country)} {country}
           </span>
         )}
@@ -876,7 +876,7 @@ function InlineDetail({
           className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
             currentRead
               ? "bg-green-500/20 text-green-400 border-green-500/40"
-              : "bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-zinc-700"
+              : "bg-muted text-muted-foreground border-border hover:bg-muted"
           }`}
         >
           {currentRead ? "✓ 읽음" : "읽지 않음"}
@@ -887,7 +887,7 @@ function InlineDetail({
             href={article.doi_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 transition-colors"
+            className="px-2.5 py-1 rounded-md text-xs font-medium bg-muted text-foreground/90 border border-border hover:bg-muted transition-colors"
           >
             DOI ↗
           </a>
@@ -896,26 +896,26 @@ function InlineDetail({
           href={article.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 transition-colors"
+          className="px-2.5 py-1 rounded-md text-xs font-medium bg-muted text-foreground/90 border border-border hover:bg-muted transition-colors"
         >
           Notion ↗
         </a>
       </div>
 
-      <Separator className="bg-zinc-800 mb-3" />
+      <Separator className="bg-muted mb-3" />
 
       {/* Abstract */}
       {article.abstract ? (
         <div className="space-y-2 mb-3">
-          <p className="text-zinc-500 text-[10px] font-medium uppercase tracking-wider">Abstract</p>
-          <p className="text-zinc-400 text-xs leading-relaxed">{article.abstract}</p>
+          <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">Abstract</p>
+          <p className="text-muted-foreground text-xs leading-relaxed">{article.abstract}</p>
 
           <div className="flex gap-2">
             <button
               type="button"
               onClick={handleTranslate}
               disabled={translating}
-              className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 transition-colors disabled:opacity-50"
+              className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-muted text-foreground/90 border border-border hover:bg-muted transition-colors disabled:opacity-50"
             >
               {translating ? "번역 중..." : translation ? "번역 완료" : "한글 번역"}
             </button>
@@ -923,7 +923,7 @@ function InlineDetail({
               type="button"
               onClick={handleSummarize}
               disabled={summarizing}
-              className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 transition-colors disabled:opacity-50"
+              className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-muted text-foreground/90 border border-border hover:bg-muted transition-colors disabled:opacity-50"
             >
               {summarizing ? "요약 중..." : summary ? "요약 완료" : "한줄 요약"}
             </button>
@@ -931,27 +931,27 @@ function InlineDetail({
 
           {translation && (
             <div>
-              <p className="text-zinc-500 text-[10px] font-medium uppercase tracking-wider mb-1">한글 번역</p>
-              <p className="text-zinc-300 text-xs leading-relaxed">{translation}</p>
+              <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider mb-1">한글 번역</p>
+              <p className="text-foreground/90 text-xs leading-relaxed">{translation}</p>
             </div>
           )}
 
           {summary && (
             <div>
-              <p className="text-zinc-500 text-[10px] font-medium uppercase tracking-wider mb-1">한줄 요약</p>
-              <p className="text-zinc-300 text-xs leading-relaxed">{summary}</p>
+              <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider mb-1">한줄 요약</p>
+              <p className="text-foreground/90 text-xs leading-relaxed">{summary}</p>
             </div>
           )}
         </div>
       ) : (
-        <p className="text-zinc-600 text-xs mb-3 italic">Abstract 없음</p>
+        <p className="text-muted-foreground/70 text-xs mb-3 italic">Abstract 없음</p>
       )}
 
       {/* Keywords & Categories */}
       {(article.keywords.length > 0 || article.categories.length > 0) && (
         <div className="flex flex-wrap gap-1.5">
           {article.keywords.map((kw) => (
-            <Badge key={kw} variant="outline" className="text-[9px] border-zinc-700 text-zinc-500">
+            <Badge key={kw} variant="outline" className="text-[9px] border-border text-muted-foreground">
               {kw}
             </Badge>
           ))}

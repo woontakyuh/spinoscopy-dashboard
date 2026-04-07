@@ -139,8 +139,8 @@ export function Editorial() {
     <div className="animate-fade-in-up space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <h2 className="text-lg font-semibold text-white">Editorial Review</h2>
-        <Badge variant="secondary" className="bg-zinc-800 text-zinc-300 border border-zinc-700">
+        <h2 className="text-lg font-semibold text-foreground">Editorial Review</h2>
+        <Badge variant="secondary" className="bg-muted text-foreground/90 border border-border">
           Neurospine
         </Badge>
       </div>
@@ -174,13 +174,13 @@ export function Editorial() {
       </div>
 
       {/* View Toggle */}
-      <div className="flex gap-1 bg-zinc-800 border border-zinc-700 rounded-lg p-1 w-fit">
+      <div className="flex gap-1 bg-muted border border-border rounded-lg p-1 w-fit">
         <button
           onClick={() => setView("queue")}
           className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
             view === "queue"
               ? "bg-indigo-600 text-white"
-              : "text-zinc-400 hover:text-zinc-200"
+              : "text-muted-foreground hover:text-foreground"
           }`}
         >
           Review Queue
@@ -190,7 +190,7 @@ export function Editorial() {
           className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
             view === "history"
               ? "bg-indigo-600 text-white"
-              : "text-zinc-400 hover:text-zinc-200"
+              : "text-muted-foreground hover:text-foreground"
           }`}
         >
           History
@@ -224,10 +224,10 @@ function MetricCard({
   accent: string
 }) {
   return (
-    <div className="card-hover rounded-xl border border-zinc-700/50 bg-zinc-900/60 p-3.5">
+    <div className="card-hover rounded-xl border border-border/50 bg-card/60 p-3.5">
       <div className="flex items-center gap-2 mb-2">
         {icon}
-        <span className="text-xs text-zinc-400">{label}</span>
+        <span className="text-xs text-muted-foreground">{label}</span>
       </div>
       <span className={`num text-2xl font-bold ${accent}`}>{value}</span>
     </div>
@@ -248,31 +248,31 @@ function QueueView({ items }: { items: QueueItem[] }) {
         return (
           <div
             key={item.id}
-            className="card-hover rounded-xl border border-zinc-700/50 bg-zinc-900/60 p-4 transition-all duration-200 hover:border-zinc-600/60"
+            className="card-hover rounded-xl border border-border/50 bg-card/60 p-4 transition-all duration-200 hover:border-border/60"
           >
             <div className="flex items-start justify-between gap-3">
               {/* Left */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                  <span className="num text-sm font-semibold text-zinc-100">{item.id}</span>
+                  <span className="num text-sm font-semibold text-foreground">{item.id}</span>
                   <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-medium ${STATUS_COLORS[item.status]}`}>
                     {item.status}
                   </Badge>
-                  <span className="num text-[10px] font-medium text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">
+                  <span className="num text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                     R{item.round}
                   </span>
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-medium bg-zinc-500/10 text-zinc-400 border-zinc-500/30">
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-medium bg-zinc-500/10 text-muted-foreground border-zinc-500/30">
                     {item.type}
                   </Badge>
                 </div>
-                <p className="text-sm text-zinc-300 line-clamp-1 mb-2">
+                <p className="text-sm text-foreground/90 line-clamp-1 mb-2">
                   {item.title}
                 </p>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {item.tags.map((tag) => (
                     <span
                       key={tag}
-                      className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${TAG_COLORS[tag] || "bg-zinc-500/15 text-zinc-400"}`}
+                      className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${TAG_COLORS[tag] || "bg-zinc-500/15 text-muted-foreground"}`}
                     >
                       {tag}
                     </span>
@@ -282,13 +282,13 @@ function QueueView({ items }: { items: QueueItem[] }) {
 
               {/* Right - Due date */}
               <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                <span className={`num text-xs font-medium ${isUrgent ? "text-red-400" : "text-zinc-400"}`}>
+                <span className={`num text-xs font-medium ${isUrgent ? "text-red-400" : "text-muted-foreground"}`}>
                   {formatDisplayDate(item.dueDate)}
                 </span>
                 <span className={`num text-[11px] font-semibold px-2 py-0.5 rounded-full ${
                   isUrgent
                     ? "bg-red-500/15 text-red-300"
-                    : "bg-zinc-800 text-zinc-400"
+                    : "bg-muted text-muted-foreground"
                 }`}>
                   {daysRemaining < 0 ? `${Math.abs(daysRemaining)}d overdue` : `${daysRemaining}d left`}
                 </span>
@@ -305,9 +305,9 @@ function QueueView({ items }: { items: QueueItem[] }) {
 
 function HistoryView({ items }: { items: HistoryItem[] }) {
   return (
-    <div className="rounded-xl border border-zinc-700/50 bg-zinc-900/60 overflow-hidden">
+    <div className="rounded-xl border border-border/50 bg-card/60 overflow-hidden">
       {/* Table Header */}
-      <div className="grid grid-cols-[100px_1fr_60px_120px_90px] gap-2 px-4 py-2.5 bg-zinc-800/80 border-b border-zinc-700/50 text-xs text-zinc-400 font-medium">
+      <div className="grid grid-cols-[100px_1fr_60px_120px_90px] gap-2 px-4 py-2.5 bg-muted/80 border-b border-border/50 text-xs text-muted-foreground font-medium">
         <span>ID</span>
         <span>Title</span>
         <span>Round</span>
@@ -318,17 +318,17 @@ function HistoryView({ items }: { items: HistoryItem[] }) {
       {items.map((item) => (
         <div
           key={item.id}
-          className="grid grid-cols-[100px_1fr_60px_120px_90px] gap-2 px-4 py-3 border-b border-zinc-800/60 last:border-0 hover:bg-zinc-800/30 transition-colors items-center"
+          className="grid grid-cols-[100px_1fr_60px_120px_90px] gap-2 px-4 py-3 border-b border-border/60 last:border-0 hover:bg-muted/30 transition-colors items-center"
         >
-          <span className="num text-sm font-medium text-zinc-200">{item.id}</span>
-          <span className="text-sm text-zinc-300 truncate" title={item.title}>
+          <span className="num text-sm font-medium text-foreground">{item.id}</span>
+          <span className="text-sm text-foreground/90 truncate" title={item.title}>
             {item.title}
           </span>
-          <span className="num text-sm text-zinc-400">R{item.round}</span>
+          <span className="num text-sm text-muted-foreground">R{item.round}</span>
           <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-medium w-fit ${DECISION_COLORS[item.decision]}`}>
             {item.decision}
           </Badge>
-          <span className="num text-sm text-zinc-400 text-right">{item.turnaround}d</span>
+          <span className="num text-sm text-muted-foreground text-right">{item.turnaround}d</span>
         </div>
       ))}
     </div>
@@ -353,8 +353,8 @@ function WorkflowVisualization({ queueItems }: { queueItems: QueueItem[] }) {
   }, [queueItems])
 
   return (
-    <div className="rounded-xl border border-zinc-700/50 bg-zinc-900/60 p-4">
-      <h3 className="text-sm font-semibold text-zinc-300 mb-4">Review Workflow</h3>
+    <div className="rounded-xl border border-border/50 bg-card/60 p-4">
+      <h3 className="text-sm font-semibold text-foreground/90 mb-4">Review Workflow</h3>
       <div className="flex items-center justify-between gap-1 overflow-x-auto">
         {WORKFLOW_STAGES.map((stage, i) => {
           const count = stageCounts[stage] || 0
@@ -365,10 +365,10 @@ function WorkflowVisualization({ queueItems }: { queueItems: QueueItem[] }) {
               <div className={`flex flex-col items-center gap-1.5 px-3 py-2 rounded-lg border transition-colors ${
                 isActive
                   ? "border-indigo-500/40 bg-indigo-950/30"
-                  : "border-zinc-700/30 bg-zinc-800/40"
+                  : "border-border/30 bg-muted/40"
               }`}>
                 <span className={`text-[11px] font-medium whitespace-nowrap ${
-                  isActive ? "text-indigo-300" : "text-zinc-500"
+                  isActive ? "text-indigo-300" : "text-muted-foreground"
                 }`}>
                   {stage}
                 </span>
@@ -382,7 +382,7 @@ function WorkflowVisualization({ queueItems }: { queueItems: QueueItem[] }) {
                 )}
               </div>
               {i < WORKFLOW_STAGES.length - 1 && (
-                <ArrowRight className="size-3.5 text-zinc-600 flex-shrink-0" />
+                <ArrowRight className="size-3.5 text-muted-foreground/70 flex-shrink-0" />
               )}
             </div>
           )

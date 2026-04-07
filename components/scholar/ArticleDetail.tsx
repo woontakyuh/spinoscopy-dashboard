@@ -16,7 +16,7 @@ const INTEREST_CYCLE: InterestLevel[] = ["🔴 필독", "🟡 관심", "⚪ 참�
 function interestStyle(interest: string) {
   if (interest.includes("필독")) return "bg-red-500/20 text-red-400 border-red-500/40 hover:bg-red-500/30"
   if (interest.includes("관심")) return "bg-yellow-500/20 text-yellow-400 border-yellow-500/40 hover:bg-yellow-500/30"
-  return "bg-zinc-500/20 text-zinc-400 border-zinc-500/40 hover:bg-zinc-500/30"
+  return "bg-zinc-500/20 text-muted-foreground border-zinc-500/40 hover:bg-zinc-500/30"
 }
 
 export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
@@ -132,33 +132,33 @@ export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
       <button
         type="button"
         onClick={onBack}
-        className="text-zinc-400 text-sm hover:text-white transition-colors"
+        className="text-muted-foreground text-sm hover:text-foreground transition-colors"
       >
         ← 목록
       </button>
 
       <div>
-        <h2 className="text-white text-lg font-semibold leading-snug">{article.title}</h2>
-        <p className="text-zinc-400 text-sm mt-1">{article.authors}</p>
+        <h2 className="text-foreground text-lg font-semibold leading-snug">{article.title}</h2>
+        <p className="text-muted-foreground text-sm mt-1">{article.authors}</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         {article.journal_name && (
-          <Badge variant="outline" className="text-xs border-zinc-600 text-zinc-300">
+          <Badge variant="outline" className="text-xs border-border text-foreground/90">
             {article.journal_name}
           </Badge>
         )}
         {article.volume && (
-          <span className="text-zinc-500 text-xs">Vol.{article.volume}</span>
+          <span className="text-muted-foreground text-xs">Vol.{article.volume}</span>
         )}
         {article.issue && (
-          <span className="text-zinc-500 text-xs">No.{article.issue}</span>
+          <span className="text-muted-foreground text-xs">No.{article.issue}</span>
         )}
         {article.pub_date && (
-          <span className="text-zinc-500 text-xs">{article.pub_date}</span>
+          <span className="text-muted-foreground text-xs">{article.pub_date}</span>
         )}
         {article.pub_type && (
-          <Badge variant="outline" className="text-[10px] border-zinc-700 text-zinc-500">
+          <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
             {article.pub_type}
           </Badge>
         )}
@@ -179,27 +179,27 @@ export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
           className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
             currentRead
               ? "bg-green-500/20 text-green-400 border-green-500/40"
-              : "bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-zinc-700"
+              : "bg-muted text-muted-foreground border-border hover:bg-muted"
           }`}
         >
           {currentRead ? "✓ 읽음" : "읽지 않음"}
         </button>
       </div>
 
-      <Separator className="bg-zinc-700" />
+      <Separator className="bg-muted" />
 
       {article.summary && (
         <div>
-          <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider mb-1.5">한글 요약</p>
-          <p className="text-zinc-300 text-sm leading-relaxed">{article.summary}</p>
+          <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider mb-1.5">한글 요약</p>
+          <p className="text-foreground/90 text-sm leading-relaxed">{article.summary}</p>
         </div>
       )}
 
       {article.abstract && (
         <div className="space-y-3">
           <div>
-            <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider mb-1.5">Abstract</p>
-            <p className="text-zinc-400 text-sm leading-relaxed">{article.abstract}</p>
+            <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider mb-1.5">Abstract</p>
+            <p className="text-muted-foreground text-sm leading-relaxed">{article.abstract}</p>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -207,7 +207,7 @@ export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
               type="button"
               onClick={handleTranslate}
               disabled={translating}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted text-foreground/90 border border-border hover:bg-muted transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {translating ? "번역 중..." : koreanTranslation ? "번역 완료" : "한글 번역"}
             </button>
@@ -216,7 +216,7 @@ export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
               type="button"
               onClick={handleSummarize}
               disabled={summarizing}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted text-foreground/90 border border-border hover:bg-muted transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {summarizing ? "요약 중..." : oneLiner ? "요약 완료" : "한줄 요약"}
             </button>
@@ -224,26 +224,26 @@ export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
 
           {koreanTranslation && (
             <div>
-              <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider mb-1.5">한글 번역</p>
-              <p className="text-zinc-300 text-sm leading-relaxed">{koreanTranslation}</p>
+              <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider mb-1.5">한글 번역</p>
+              <p className="text-foreground/90 text-sm leading-relaxed">{koreanTranslation}</p>
             </div>
           )}
 
           {oneLiner && (
             <div>
-              <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider mb-1.5">한줄 요약</p>
-              <p className="text-zinc-300 text-sm leading-relaxed">{oneLiner}</p>
+              <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider mb-1.5">한줄 요약</p>
+              <p className="text-foreground/90 text-sm leading-relaxed">{oneLiner}</p>
             </div>
           )}
         </div>
       )}
 
-      <Separator className="bg-zinc-700" />
+      <Separator className="bg-muted" />
 
       {article.keywords.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {article.keywords.map((kw) => (
-            <Badge key={kw} variant="outline" className="text-[10px] border-zinc-700 text-zinc-500">
+            <Badge key={kw} variant="outline" className="text-[10px] border-border text-muted-foreground">
               {kw}
             </Badge>
           ))}
@@ -266,7 +266,7 @@ export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
             href={article.doi_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 transition-colors"
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted text-foreground/90 border border-border hover:bg-muted transition-colors"
           >
             DOI ↗
           </a>
@@ -275,7 +275,7 @@ export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
           href={article.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 transition-colors"
+          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted text-foreground/90 border border-border hover:bg-muted transition-colors"
         >
           Notion에서 열기 ↗
         </a>

@@ -59,11 +59,11 @@ const LANES: LaneConfig[] = [
     id: "idea",
     label: "Idea / Lit Review",
     statuses: ["Idea", "Lit Review", "WNS"],
-    color: "text-zinc-300",
-    bg: "bg-zinc-800/50",
-    border: "border-zinc-700/50",
+    color: "text-foreground/90",
+    bg: "bg-muted/50",
+    border: "border-border/50",
     dot: "bg-zinc-400",
-    headerBg: "bg-zinc-800",
+    headerBg: "bg-muted",
   },
   {
     id: "drafting",
@@ -99,11 +99,11 @@ const LANES: LaneConfig[] = [
     id: "hold",
     label: "Hold / Rejected",
     statuses: ["Hold", "Rejected"],
-    color: "text-zinc-400",
-    bg: "bg-zinc-900/50",
-    border: "border-zinc-700/30",
+    color: "text-muted-foreground",
+    bg: "bg-card/50",
+    border: "border-border/30",
     dot: "bg-zinc-500",
-    headerBg: "bg-zinc-800/60",
+    headerBg: "bg-muted/60",
   },
 ]
 
@@ -192,8 +192,8 @@ export function ResearchPipeline() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold text-white">연구 파이프라인</h2>
-          <Badge variant="secondary" className="bg-zinc-800 text-zinc-300 border border-zinc-700">
+          <h2 className="text-lg font-semibold text-foreground">연구 파이프라인</h2>
+          <Badge variant="secondary" className="bg-muted text-foreground/90 border border-border">
             {totalCount}건
           </Badge>
         </div>
@@ -234,11 +234,11 @@ export function ResearchPipeline() {
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-zinc-500 font-medium bg-zinc-900/60 px-1.5 py-0.5 rounded-full">
+                    <span className="text-xs text-muted-foreground font-medium bg-card/60 px-1.5 py-0.5 rounded-full">
                       {items.length}
                     </span>
                     <ChevronDown
-                      className={`size-4 text-zinc-500 md:hidden transition-transform ${
+                      className={`size-4 text-muted-foreground md:hidden transition-transform ${
                         isExpanded ? "rotate-180" : ""
                       }`}
                     />
@@ -252,7 +252,7 @@ export function ResearchPipeline() {
                   } max-h-[60vh] overflow-y-auto scrollbar-hide`}
                 >
                   {items.length === 0 ? (
-                    <div className="text-xs text-zinc-600 text-center py-4">
+                    <div className="text-xs text-muted-foreground/70 text-center py-4">
                       항목 없음
                     </div>
                   ) : (
@@ -328,13 +328,13 @@ function ProjectCard({
       className={`card-hover text-left w-full rounded-lg border p-2.5 transition-all duration-200 ${
         isSelected
           ? "border-indigo-500/60 bg-indigo-950/30 ring-1 ring-indigo-500/30"
-          : "border-zinc-700/40 bg-zinc-900/60 hover:border-zinc-600/60 hover:bg-zinc-800/60"
+          : "border-border/40 bg-card/60 hover:border-border/60 hover:bg-muted/60"
       }`}
     >
       {/* Sub-status badge (for merged lanes like Drafting/Editing) */}
       {showSubStatus && (
         <div className="mb-1.5">
-          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-zinc-400 bg-zinc-800/80 px-1.5 py-0.5 rounded">
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground bg-muted/80 px-1.5 py-0.5 rounded">
             <span className={`size-1.5 rounded-full ${statusInfo.dot}`} />
             {statusInfo.label}
           </span>
@@ -342,7 +342,7 @@ function ProjectCard({
       )}
 
       {/* Title */}
-      <p className="text-sm font-medium text-zinc-100 line-clamp-2 leading-snug mb-2">
+      <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug mb-2">
         {project.title}
       </p>
 
@@ -356,7 +356,7 @@ function ProjectCard({
       {/* Author info */}
       <div className="flex items-center gap-1 mb-1.5">
         {project.first_author.length > 0 && (
-          <span className="text-[11px] text-zinc-400 truncate max-w-[120px]">
+          <span className="text-[11px] text-muted-foreground truncate max-w-[120px]">
             <Users className="size-3 inline mr-0.5 -mt-px" />
             1st: {project.first_author[0]}
             {project.first_author.length > 1 && ` +${project.first_author.length - 1}`}
@@ -365,7 +365,7 @@ function ProjectCard({
       </div>
       {project.corresponding.length > 0 && (
         <div className="mb-1.5">
-          <span className="text-[10px] text-zinc-500 truncate block">
+          <span className="text-[10px] text-muted-foreground truncate block">
             Corr: {project.corresponding[0]}
             {project.corresponding.length > 1 && ` +${project.corresponding.length - 1}`}
           </span>
@@ -383,7 +383,7 @@ function ProjectCard({
       {/* Footer: date */}
       <div className="flex items-center justify-end">
         {project.start_date && (
-          <span className="num text-[10px] text-zinc-500 whitespace-nowrap flex items-center gap-0.5">
+          <span className="num text-[10px] text-muted-foreground whitespace-nowrap flex items-center gap-0.5">
             <Calendar className="size-2.5" />
             {formatDate(project.start_date)}
           </span>
@@ -455,26 +455,26 @@ function DetailPanel({
   }
 
   return (
-    <div className="animate-fade-in-up rounded-xl border border-zinc-700/60 bg-zinc-900/80 backdrop-blur-sm p-4 md:p-5">
+    <div className="animate-fade-in-up rounded-xl border border-border/60 bg-card/80 backdrop-blur-sm p-4 md:p-5">
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-2">
           <FileText className="size-4 text-indigo-400" />
-          <span className="text-sm font-semibold text-zinc-200">프로젝트 상세</span>
+          <span className="text-sm font-semibold text-foreground">프로젝트 상세</span>
         </div>
         <div className="flex items-center gap-2">
           <a
             href={project.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-zinc-400 hover:text-indigo-400 transition-colors flex items-center gap-1"
+            className="text-xs text-muted-foreground hover:text-indigo-400 transition-colors flex items-center gap-1"
           >
             <ExternalLink className="size-3" />
             Notion
           </a>
           <button
             onClick={onClose}
-            className="text-zinc-500 hover:text-zinc-300 transition-colors"
+            className="text-muted-foreground hover:text-foreground/90 transition-colors"
           >
             <X className="size-4" />
           </button>
@@ -485,24 +485,24 @@ function DetailPanel({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
         {/* Title - full width */}
         <div className="md:col-span-2">
-          <label className="text-xs text-zinc-400 mb-1 block">제목</label>
+          <label className="text-xs text-muted-foreground mb-1 block">제목</label>
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="bg-zinc-800/80 border-zinc-700 text-white text-sm"
+            className="bg-muted/80 border-border text-foreground text-sm"
           />
         </div>
 
         {/* Status */}
         <div>
-          <label className="text-xs text-zinc-400 mb-1 block">상태</label>
+          <label className="text-xs text-muted-foreground mb-1 block">상태</label>
           <Select value={status} onValueChange={(v) => handleStatusChange(v as ResearchStatus)}>
-            <SelectTrigger className="w-full bg-zinc-800/80 border-zinc-700 text-white text-sm">
+            <SelectTrigger className="w-full bg-muted/80 border-border text-foreground text-sm">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-zinc-800 border-zinc-700">
+            <SelectContent className="bg-muted border-border">
               {RESEARCH_STATUSES.map((s) => (
-                <SelectItem key={s} value={s} className="text-zinc-200">
+                <SelectItem key={s} value={s} className="text-foreground">
                   <span className="flex items-center gap-2">
                     <span className={`size-2 rounded-full ${STATUS_DOT[s].dot}`} />
                     {STATUS_LABELS[s]}
@@ -521,14 +521,14 @@ function DetailPanel({
 
         {/* Target Journal */}
         <div>
-          <label className="text-xs text-zinc-400 mb-1 block">Target Journal</label>
+          <label className="text-xs text-muted-foreground mb-1 block">Target Journal</label>
           <div className="flex flex-wrap gap-1.5 mb-1.5">
             {KNOWN_JOURNALS.map((j) => (
               <button key={j} type="button" onClick={() => setTargetJournal(j)}
                 className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors border ${
                   targetJournal === j
                     ? "bg-indigo-600/30 text-indigo-300 border-indigo-500/50"
-                    : "bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-zinc-300"
+                    : "bg-muted text-muted-foreground border-border hover:text-foreground/90"
                 }`}
               >{j}</button>
             ))}
@@ -537,57 +537,57 @@ function DetailPanel({
             value={targetJournal}
             onChange={(e) => setTargetJournal(e.target.value)}
             placeholder="또는 저널명 직접 입력"
-            className="bg-zinc-800/80 border-zinc-700 text-white text-sm"
+            className="bg-muted/80 border-border text-foreground text-sm"
           />
         </div>
 
         {/* 1st Author */}
         <div>
-          <label className="text-xs text-zinc-400 mb-1 block">1st Author (쉼표 구분)</label>
+          <label className="text-xs text-muted-foreground mb-1 block">1st Author (쉼표 구분)</label>
           <Input
             value={firstAuthor}
             onChange={(e) => setFirstAuthor(e.target.value)}
             placeholder="예: 김준회, 여운탁"
-            className="bg-zinc-800/80 border-zinc-700 text-white text-sm"
+            className="bg-muted/80 border-border text-foreground text-sm"
           />
         </div>
 
         {/* Corresponding */}
         <div>
-          <label className="text-xs text-zinc-400 mb-1 block">Corresponding (쉼표 구분)</label>
+          <label className="text-xs text-muted-foreground mb-1 block">Corresponding (쉼표 구분)</label>
           <Input
             value={corresponding}
             onChange={(e) => setCorresponding(e.target.value)}
             placeholder="예: 여운탁"
-            className="bg-zinc-800/80 border-zinc-700 text-white text-sm"
+            className="bg-muted/80 border-border text-foreground text-sm"
           />
         </div>
 
         {/* Start Date */}
         <div>
-          <label className="text-xs text-zinc-400 mb-1 block">시작일</label>
+          <label className="text-xs text-muted-foreground mb-1 block">시작일</label>
           <Input
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className="num bg-zinc-800/80 border-zinc-700 text-white text-sm"
+            className="num bg-muted/80 border-border text-foreground text-sm"
           />
         </div>
 
         {/* Publish Date */}
         <div>
-          <label className="text-xs text-zinc-400 mb-1 block">출판일</label>
+          <label className="text-xs text-muted-foreground mb-1 block">출판일</label>
           <Input
             type="date"
             value={publishDate}
             onChange={(e) => setPublishDate(e.target.value)}
-            className="num bg-zinc-800/80 border-zinc-700 text-white text-sm"
+            className="num bg-muted/80 border-border text-foreground text-sm"
           />
         </div>
 
         {/* Inline Memo */}
         <div className="md:col-span-2">
-          <label className="text-xs text-zinc-400 mb-1 flex items-center gap-1">
+          <label className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
             <StickyNote className="size-3" />
             메모 (로컬 전용)
           </label>
@@ -596,7 +596,7 @@ function DetailPanel({
             onChange={(e) => setMemo(e.target.value)}
             placeholder="빠른 메모를 입력하세요..."
             rows={2}
-            className="w-full rounded-md bg-zinc-800/80 border border-zinc-700 text-white text-sm px-3 py-2 resize-none placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 focus:border-indigo-500/50"
+            className="w-full rounded-md bg-muted/80 border border-border text-foreground text-sm px-3 py-2 resize-none placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 focus:border-indigo-500/50"
           />
         </div>
       </div>
@@ -670,9 +670,9 @@ function CreateDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset() }}>
-      <DialogContent className="bg-zinc-900 border-zinc-700 text-white sm:max-w-lg">
+      <DialogContent className="bg-card border-border text-foreground sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-white flex items-center gap-2">
+          <DialogTitle className="text-foreground flex items-center gap-2">
             <BookOpen className="size-4 text-indigo-400" />
             새 연구 프로젝트
           </DialogTitle>
@@ -681,12 +681,12 @@ function CreateDialog({
         <div className="space-y-3">
           {/* Title */}
           <div>
-            <label className="text-xs text-zinc-400 mb-1 block">제목 *</label>
+            <label className="text-xs text-muted-foreground mb-1 block">제목 *</label>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="연구/논문 제목"
-              className="bg-zinc-800 border-zinc-700 text-white"
+              className="bg-muted border-border text-foreground"
               autoFocus
             />
           </div>
@@ -694,14 +694,14 @@ function CreateDialog({
           <div className="grid grid-cols-2 gap-3">
             {/* Status */}
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">상태</label>
+              <label className="text-xs text-muted-foreground mb-1 block">상태</label>
               <Select value={status} onValueChange={(v) => setStatus(v as ResearchStatus)}>
-                <SelectTrigger className="w-full bg-zinc-800 border-zinc-700 text-white text-sm">
+                <SelectTrigger className="w-full bg-muted border-border text-foreground text-sm">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700">
+                <SelectContent className="bg-muted border-border">
                   {RESEARCH_STATUSES.map((s) => (
-                    <SelectItem key={s} value={s} className="text-zinc-200">
+                    <SelectItem key={s} value={s} className="text-foreground">
                       <span className="flex items-center gap-2">
                         <span className={`size-2 rounded-full ${STATUS_DOT[s].dot}`} />
                         {STATUS_LABELS[s]}
@@ -714,15 +714,15 @@ function CreateDialog({
 
             {/* Target Journal */}
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">Target Journal</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Target Journal</label>
               <Select value={targetJournal || "__none"} onValueChange={(v) => setTargetJournal(v === "__none" ? "" : v)}>
-                <SelectTrigger className="w-full bg-zinc-800 border-zinc-700 text-white text-sm">
+                <SelectTrigger className="w-full bg-muted border-border text-foreground text-sm">
                   <SelectValue placeholder="선택" />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="__none" className="text-zinc-500">미정</SelectItem>
+                <SelectContent className="bg-muted border-border">
+                  <SelectItem value="__none" className="text-muted-foreground">미정</SelectItem>
                   {KNOWN_JOURNALS.map((j) => (
-                    <SelectItem key={j} value={j} className="text-zinc-200">
+                    <SelectItem key={j} value={j} className="text-foreground">
                       {j}
                     </SelectItem>
                   ))}
@@ -734,21 +734,21 @@ function CreateDialog({
           {/* Authors */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">1st Author</label>
+              <label className="text-xs text-muted-foreground mb-1 block">1st Author</label>
               <Input
                 value={firstAuthor}
                 onChange={(e) => setFirstAuthor(e.target.value)}
                 placeholder="쉼표 구분"
-                className="bg-zinc-800 border-zinc-700 text-white text-sm"
+                className="bg-muted border-border text-foreground text-sm"
               />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">Corresponding</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Corresponding</label>
               <Input
                 value={corresponding}
                 onChange={(e) => setCorresponding(e.target.value)}
                 placeholder="쉼표 구분"
-                className="bg-zinc-800 border-zinc-700 text-white text-sm"
+                className="bg-muted border-border text-foreground text-sm"
               />
             </div>
           </div>
@@ -756,21 +756,21 @@ function CreateDialog({
           {/* Dates */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">시작일</label>
+              <label className="text-xs text-muted-foreground mb-1 block">시작일</label>
               <Input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="num bg-zinc-800 border-zinc-700 text-white text-sm"
+                className="num bg-muted border-border text-foreground text-sm"
               />
             </div>
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">출판일</label>
+              <label className="text-xs text-muted-foreground mb-1 block">출판일</label>
               <Input
                 type="date"
                 value={publishDate}
                 onChange={(e) => setPublishDate(e.target.value)}
-                className="num bg-zinc-800 border-zinc-700 text-white text-sm"
+                className="num bg-muted border-border text-foreground text-sm"
               />
             </div>
           </div>
@@ -781,7 +781,7 @@ function CreateDialog({
             variant="outline"
             size="sm"
             onClick={() => onOpenChange(false)}
-            className="border-zinc-700 text-zinc-300"
+            className="border-border text-foreground/90"
           >
             취소
           </Button>
@@ -816,7 +816,7 @@ const JOURNAL_COLORS: Record<string, string> = {
 }
 
 function JournalBadge({ journal }: { journal: string }) {
-  let classes = "bg-zinc-500/15 text-zinc-400 border-zinc-500/30"
+  let classes = "bg-zinc-500/15 text-muted-foreground border-zinc-500/30"
   for (const [key, cls] of Object.entries(JOURNAL_COLORS)) {
     if (journal.includes(key)) {
       classes = cls
@@ -875,16 +875,16 @@ function PipelineSkeleton() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <Skeleton className="h-7 w-36 bg-zinc-800" />
-        <Skeleton className="h-8 w-20 bg-zinc-800" />
+        <Skeleton className="h-7 w-36 bg-muted" />
+        <Skeleton className="h-8 w-20 bg-muted" />
       </div>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
-            <Skeleton className="h-5 w-20 mb-3 bg-zinc-800" />
+          <div key={i} className="rounded-xl border border-border bg-card/50 p-3">
+            <Skeleton className="h-5 w-20 mb-3 bg-muted" />
             <div className="space-y-2">
-              <Skeleton className="h-16 w-full bg-zinc-800 rounded-lg" />
-              <Skeleton className="h-16 w-full bg-zinc-800 rounded-lg" />
+              <Skeleton className="h-16 w-full bg-muted rounded-lg" />
+              <Skeleton className="h-16 w-full bg-muted rounded-lg" />
             </div>
           </div>
         ))}

@@ -21,20 +21,20 @@ export default function ScholarPage() {
       <TopBar title="Brian" icon="/brian.png" />
       <div className="p-3 md:p-6 max-w-5xl w-full">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="bg-zinc-800 border border-zinc-700 mb-4 md:mb-6 flex-wrap h-auto gap-0.5 p-1">
-            <TabsTrigger value="my-papers" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-zinc-400">
+          <TabsList className="bg-muted border border-border mb-4 md:mb-6 flex-wrap h-auto gap-0.5 p-1">
+            <TabsTrigger value="my-papers" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-muted-foreground">
               My Papers
             </TabsTrigger>
-            <TabsTrigger value="research" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-zinc-400">
+            <TabsTrigger value="research" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-muted-foreground">
               My Research
             </TabsTrigger>
-            <TabsTrigger value="dashboard" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-zinc-400">
+            <TabsTrigger value="dashboard" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-muted-foreground">
               UpToDate
             </TabsTrigger>
-            <TabsTrigger value="browse" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-zinc-400">
+            <TabsTrigger value="browse" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-muted-foreground">
               Journal DB
             </TabsTrigger>
-            <TabsTrigger value="editorial" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-zinc-400">
+            <TabsTrigger value="editorial" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-muted-foreground">
               Editorial
             </TabsTrigger>
           </TabsList>

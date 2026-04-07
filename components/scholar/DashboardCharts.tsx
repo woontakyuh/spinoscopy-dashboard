@@ -166,10 +166,10 @@ export function DashboardCharts({ onViewArticles }: { onViewArticles?: (id?: str
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-4 gap-3">
-          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-[72px] bg-zinc-800/60 rounded-xl" />)}
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-[72px] bg-muted/60 rounded-xl" />)}
         </div>
         <div className="grid grid-cols-2 gap-3">
-          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-64 bg-zinc-800/60 rounded-xl" />)}
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-64 bg-muted/60 rounded-xl" />)}
         </div>
       </div>
     )
@@ -196,20 +196,20 @@ export function DashboardCharts({ onViewArticles }: { onViewArticles?: (id?: str
             <button
               key={key}
               onClick={() => toggleFilter(key, val)}
-              className="inline-flex items-center gap-1.5 pl-2.5 pr-2 py-1 rounded-full bg-zinc-800 text-zinc-300 text-xs border border-zinc-600/50 hover:border-zinc-500 hover:bg-zinc-700/80 transition-all duration-150 group"
+              className="inline-flex items-center gap-1.5 pl-2.5 pr-2 py-1 rounded-full bg-muted text-foreground/90 text-xs border border-border/50 hover:border-zinc-500 hover:bg-muted/80 transition-all duration-150 group"
             >
-              <span className="text-zinc-500 text-[10px]">{FILTER_LABELS[key]}</span>
+              <span className="text-muted-foreground text-[10px]">{FILTER_LABELS[key]}</span>
               <span className="font-medium">{key === "country" ? `${getCountryFlag(val)} ${val}` : val}</span>
-              <span className="text-zinc-500 group-hover:text-zinc-300 ml-0.5 transition-colors">✕</span>
+              <span className="text-muted-foreground group-hover:text-foreground/90 ml-0.5 transition-colors">✕</span>
             </button>
           ))}
           <button
             onClick={clearFilters}
-            className="text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors underline underline-offset-2 decoration-zinc-700 hover:decoration-zinc-500"
+            className="text-[11px] text-muted-foreground hover:text-foreground/90 transition-colors underline underline-offset-2 decoration-zinc-700 hover:decoration-zinc-500"
           >
             전체 해제
           </button>
-          <span className="text-[11px] text-zinc-500 ml-auto num">{filtered.length}편 매칭</span>
+          <span className="text-[11px] text-muted-foreground ml-auto num">{filtered.length}편 매칭</span>
         </div>
       )}
 
@@ -251,10 +251,10 @@ export function DashboardCharts({ onViewArticles }: { onViewArticles?: (id?: str
 
       {/* ═══════ Filtered Article List ═══════ */}
       {activeFilterCount > 0 && (
-        <div className="rounded-xl border border-zinc-700/80 bg-zinc-900 overflow-hidden animate-fade-in-up" style={{ animationDelay: "180ms" }}>
-          <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-              매칭 논문 <span className="num text-zinc-500 ml-1">{filtered.length}편</span>
+        <div className="rounded-xl border border-border/80 bg-card overflow-hidden animate-fade-in-up" style={{ animationDelay: "180ms" }}>
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              매칭 논문 <span className="num text-muted-foreground ml-1">{filtered.length}편</span>
             </h3>
           </div>
 
@@ -268,7 +268,7 @@ export function DashboardCharts({ onViewArticles }: { onViewArticles?: (id?: str
           ) : (
             <div>
               {/* 테이블 헤더 */}
-              <div className="flex items-center gap-3 px-4 py-2 border-b border-zinc-700/50 text-[10px] text-zinc-600 uppercase tracking-wider font-medium">
+              <div className="flex items-center gap-3 px-4 py-2 border-b border-border/50 text-[10px] text-muted-foreground/70 uppercase tracking-wider font-medium">
                 <span className="w-[70px] shrink-0">저널</span>
                 <span className="w-20 shrink-0">날짜</span>
                 <span className="w-[72px] shrink-0">유형</span>
@@ -283,14 +283,14 @@ export function DashboardCharts({ onViewArticles }: { onViewArticles?: (id?: str
                   <button
                     key={a.id}
                     onClick={() => openArticle(a.id)}
-                    className={`w-full text-left flex items-center gap-3 px-4 py-2 border-b border-zinc-800/30 last:border-0 hover:bg-zinc-800/50 transition-colors ${
+                    className={`w-full text-left flex items-center gap-3 px-4 py-2 border-b border-border/30 last:border-0 hover:bg-muted/50 transition-colors ${
                       selectedArticleId === a.id ? "bg-indigo-600/10" : ""
                     }`}
                   >
                     <span className="text-[10px] text-cyan-400/70 w-[70px] shrink-0 truncate font-medium">{a.journal}</span>
-                    <span className="text-[11px] text-zinc-600 w-20 shrink-0 num">{a.pub_date ?? "—"}</span>
-                    <span className="text-[10px] text-zinc-600 w-[72px] shrink-0 truncate">{a.pub_type}</span>
-                    <span className={`text-sm flex-1 truncate ${a.read ? "text-zinc-500" : "text-zinc-200"}`}>
+                    <span className="text-[11px] text-muted-foreground/70 w-20 shrink-0 num">{a.pub_date ?? "—"}</span>
+                    <span className="text-[10px] text-muted-foreground/70 w-[72px] shrink-0 truncate">{a.pub_type}</span>
+                    <span className={`text-sm flex-1 truncate ${a.read ? "text-muted-foreground" : "text-foreground"}`}>
                       {a.interest === "🔴 필독" ? "🔴 " : a.interest === "🟡 관심" ? "🟡 " : ""}{a.title}
                     </span>
                     <span className="w-6 shrink-0 text-center text-[11px]">{a.country ? getCountryFlag(a.country) : ""}</span>
@@ -301,9 +301,9 @@ export function DashboardCharts({ onViewArticles }: { onViewArticles?: (id?: str
                   </button>
                 ))}
               {filtered.length > visibleCount && (
-                <div className="flex justify-center py-3 border-t border-zinc-800">
+                <div className="flex justify-center py-3 border-t border-border">
                   <button onClick={() => setVisibleCount(prev => prev + 30)}
-                    className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+                    className="text-xs text-muted-foreground hover:text-foreground/90 transition-colors">
                     더보기 ({filtered.length - visibleCount}편 남음)
                   </button>
                 </div>
@@ -339,12 +339,12 @@ function StatCard({
     cyan: "text-cyan-400",
     red: "text-red-400",
   }
-  const valueColor = accent ? accentClasses[accent] : "text-zinc-100"
+  const valueColor = accent ? accentClasses[accent] : "text-foreground"
 
   return (
-    <div className="card-hover rounded-xl border border-zinc-700/80 bg-zinc-900 px-4 py-3 cursor-default">
+    <div className="card-hover rounded-xl border border-border/80 bg-card px-4 py-3 cursor-default">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[11px] text-zinc-500 font-medium tracking-wide">{label}</span>
+        <span className="text-[11px] text-muted-foreground font-medium tracking-wide">{label}</span>
         <span className="text-sm">{icon}</span>
       </div>
       <p className={`text-2xl font-semibold num leading-none ${valueColor}`}>{value}</p>
@@ -372,9 +372,9 @@ function BarChart({
   const c = colorMap[color]
   if (entries.length === 0) {
     return (
-      <div className="rounded-xl border border-zinc-700/80 bg-zinc-900 p-4">
+      <div className="rounded-xl border border-border/80 bg-card p-4">
         <ChartHeader title={title} color={color} />
-        <p className="text-zinc-600 text-xs text-center py-6">데이터 없음</p>
+        <p className="text-muted-foreground/70 text-xs text-center py-6">데이터 없음</p>
       </div>
     )
   }
@@ -383,7 +383,7 @@ function BarChart({
   const hasActive = activeKey !== undefined
 
   return (
-    <div className="rounded-xl border border-zinc-700/80 bg-zinc-900 p-4">
+    <div className="rounded-xl border border-border/80 bg-card p-4">
       <ChartHeader title={title} color={color} count={entries.reduce((s, [, n]) => s + n, 0)} />
       <div className="space-y-[5px] mt-3">
         {entries.map(([key, count]) => {
@@ -399,18 +399,18 @@ function BarChart({
                 w-full flex items-center gap-2 py-[5px] px-2.5 rounded-lg text-left
                 transition-all duration-150 cursor-pointer group
                 ${isActive
-                  ? `bg-zinc-700/50 ring-1 ${c.ring}`
-                  : "hover:bg-zinc-800/80"
+                  ? `bg-muted/70 ring-1 ${c.ring}`
+                  : "hover:bg-muted/80"
                 }
                 ${isDimmed ? "opacity-50" : "opacity-100"}
               `}
             >
               <span className={`text-xs w-[120px] shrink-0 truncate transition-colors ${
-                isActive ? "text-zinc-100 font-medium" : "text-zinc-400 group-hover:text-zinc-300"
+                isActive ? "text-foreground font-medium" : "text-muted-foreground group-hover:text-foreground/90"
               }`}>
                 {renderLabel ? renderLabel(key) : key}
               </span>
-              <div className="flex-1 h-[7px] bg-zinc-800 rounded-full overflow-hidden">
+              <div className="flex-1 h-[7px] bg-muted rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-300 ${
                     isActive ? c.barActive : isDimmed ? c.barDim : c.bar
@@ -419,7 +419,7 @@ function BarChart({
                 />
               </div>
               <span className={`text-[11px] w-7 text-right num transition-colors ${
-                isActive ? "text-zinc-200 font-medium" : "text-zinc-500"
+                isActive ? "text-foreground font-medium" : "text-muted-foreground"
               }`}>
                 {count}
               </span>
@@ -439,10 +439,10 @@ function ChartHeader({ title, color, count }: { title: string; color: ColorKey; 
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
         <div className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
-        <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">{title}</h3>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</h3>
       </div>
       {count !== undefined && (
-        <span className="text-[10px] text-zinc-600 num">{count}</span>
+        <span className="text-[10px] text-muted-foreground/70 num">{count}</span>
       )}
     </div>
   )
@@ -477,15 +477,15 @@ function MustReadSection({
             className="w-full text-left flex items-start gap-3 py-2.5 px-3 rounded-lg hover:bg-red-500/[0.07] transition-colors group"
           >
             <div className="min-w-0 flex-1">
-              <p className="text-sm text-zinc-300 leading-snug line-clamp-1 group-hover:text-zinc-100 transition-colors">
+              <p className="text-sm text-foreground/90 leading-snug line-clamp-1 group-hover:text-foreground transition-colors">
                 {a.title}
               </p>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-[11px] text-zinc-500">{a.journal}</span>
-                {a.pub_date && <span className="text-[11px] text-zinc-600">{a.pub_date}</span>}
-                {a.country && <span className="text-[11px] text-zinc-500">{getCountryFlag(a.country)}</span>}
+                <span className="text-[11px] text-muted-foreground">{a.journal}</span>
+                {a.pub_date && <span className="text-[11px] text-muted-foreground/70">{a.pub_date}</span>}
+                {a.country && <span className="text-[11px] text-muted-foreground">{getCountryFlag(a.country)}</span>}
                 {a.topics.length > 0 && (
-                  <span className="text-[10px] text-zinc-600 truncate">{a.topics.slice(0, 2).join(", ")}</span>
+                  <span className="text-[10px] text-muted-foreground/70 truncate">{a.topics.slice(0, 2).join(", ")}</span>
                 )}
               </div>
             </div>
