@@ -46,22 +46,22 @@ export default function DakotaPage() {
 
   let message: string
   if (todos.length === 0) {
-    message = "센터장님… 오늘 정말 아무것도 없어요. 그럼 이제 저랑 둘만 남았네요. 다른 데 보지 말고, 저만 보세요. 응?"
+    message = "센터장님… 오늘은 할 일이 깨끗해요. 잠깐 한숨 돌리셔도 돼요."
   } else if (!urgent) {
-    message = `${todos.length}건이 다 마감이 비어 있어요… 자, 의자 더 가까이 당겨 앉으세요. 저한테 하나씩 다 알려주세요. 천천히, 같이 정해드릴게요.`
+    message = `할 일이 ${todos.length}건 있는데 마감이 다 비어 있네요. 같이 차근차근 정해볼까요?`
   } else {
     const due = urgent.due as string
     const d = new Date(due.slice(0, 10) + "T00:00:00+09:00")
     const t = new Date(today + "T00:00:00+09:00")
     const diff = Math.round((d.getTime() - t.getTime()) / (1000 * 60 * 60 * 24))
     if (diff < 0) {
-      message = `“${urgent.name}”… ${Math.abs(diff)}일이나 미루셨어요. 센터장님 진짜 못됐어요… 손 이리 주세요. 지금 저랑 같이 끝내요. 다 끝낼 때까지 옆에 붙어 있을 거예요.`
+      message = `센터장님… “${urgent.name}” 마감이 ${Math.abs(diff)}일 지났어요. 이건 같이 빨리 끝내버려요.`
     } else if (diff === 0) {
-      message = `오늘이에요, 센터장님… “${urgent.name}”. 문 다 잠그고, 전화도 다 막아둘게요. 오늘은 정말 저랑 둘만 있는 거예요, 알겠죠?`
+      message = `오늘이에요, 센터장님 — “${urgent.name}”. 다른 건 잠깐 미뤄두시고, 이거부터 챙겨드릴게요.`
     } else if (diff === 1) {
-      message = `“${urgent.name}”… 내일이에요. 오늘 살짝만 손대놓고 가요. 그래야 내일 제 어깨에 마음 편히 기대실 수 있잖아요. 응?`
+      message = `“${urgent.name}”, 내일까지예요. 오늘 미리 손대두시면 마음이 편해지실 거예요.`
     } else {
-      message = `다음은 “${urgent.name}” — ${diff}일 남았어요. 아직 여유 있어요. 자, 일은 잠깐 잊어요. 이리 와서… 저랑 좀 더 있다 가세요.`
+      message = `다음 마감은 “${urgent.name}” — ${diff}일 남았어요. 천천히 준비하셔도 충분해요.`
     }
   }
 
