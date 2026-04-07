@@ -6,6 +6,7 @@ import { TodaySurgery } from "@/components/dashboard/TodaySurgery"
 import { TodayTodo } from "@/components/dashboard/TodayTodo"
 import { MorningBriefing } from "@/components/dashboard/MorningBriefing"
 import { MonthCalendar } from "@/components/dashboard/MonthCalendar"
+import { DakotaChat } from "@/components/dashboard/DakotaChat"
 
 export default function DashboardPage() {
   return (
@@ -29,6 +30,10 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
           <TodaySurgery />
           <TodayTodo />
+        </div>
+
+        <div className="animate-fade-in-up" style={{ animationDelay: "0.3s" }}>
+          <DakotaChat />
         </div>
 
       </div>
