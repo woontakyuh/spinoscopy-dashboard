@@ -255,7 +255,7 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
       ref={containerRef}
       className="overflow-auto rounded-lg"
       onClick={(e) => { if (e.target === e.currentTarget || (e.target as HTMLElement).tagName === "svg") onStepClick(-1) }}
-      style={{ border: "1px solid rgba(255,255,255,0.06)", position: "relative", minHeight: Math.max(canvasH, 500) }}
+      style={{ border: "1px solid var(--border)", position: "relative", minHeight: Math.max(canvasH, 500) }}
     >
       <div style={{ width: canvasW, height: canvasH, position: "relative" }}>
         {/* SVG: lines (z-0) */}
@@ -266,7 +266,7 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
             if (!from || !to) return null
             const isHighlighted = connectedIds?.has(edge.fromIdx) && connectedIds?.has(edge.toIdx)
             const dimmed = connectedIds && !isHighlighted
-            const color = isHighlighted ? posColor(strategy.flow[edge.toIdx]?.positionId || "") : "rgba(255,255,255,0.08)"
+            const color = isHighlighted ? posColor(strategy.flow[edge.toIdx]?.positionId || "") : "var(--border)"
 
             if (!edge.isBranch) {
               // Straight sequential line
@@ -275,7 +275,7 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
                   key={`e-${String(i)}`}
                   x1={from.x} y1={from.y + NODE_H / 2}
                   x2={to.x} y2={to.y - NODE_H / 2}
-                  stroke={dimmed ? "rgba(255,255,255,0.03)" : isHighlighted ? color : "rgba(255,255,255,0.08)"}
+                  stroke={dimmed ? "var(--border)" : isHighlighted ? color : "var(--border)"}
                   strokeWidth={isHighlighted ? 2.5 : 1.2}
                   strokeOpacity={dimmed ? 0.3 : isHighlighted ? 0.5 : 0.15}
                 />
@@ -293,7 +293,7 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
                 key={`e-${String(i)}`}
                 d={`M${exitX},${exitY} C${midX},${exitY} ${midX},${enterY} ${enterX},${enterY}`}
                 fill="none"
-                stroke={dimmed ? "rgba(255,255,255,0.03)" : isHighlighted ? color : "rgba(255,255,255,0.06)"}
+                stroke={dimmed ? "var(--border)" : isHighlighted ? color : "var(--border)"}
                 strokeWidth={isHighlighted ? 2.5 : 1.2}
                 strokeDasharray={edge.isBranch ? "6,3" : undefined}
                 strokeOpacity={dimmed ? 0.3 : isHighlighted ? 0.5 : 0.1}
@@ -404,7 +404,7 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
               <span className="text-[9px] px-1.5 py-0.5 rounded whitespace-nowrap" style={{
                 color: "var(--muted-foreground)",
                 background: "var(--card)",
-                border: "1px solid rgba(255,255,255,0.06)",
+                border: "1px solid var(--border)",
               }}>
                 {edge.condition}
               </span>

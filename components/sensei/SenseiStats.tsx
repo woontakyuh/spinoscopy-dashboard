@@ -11,19 +11,19 @@ import type { Position, LessonVideo, BjjStats, BjjAttributes, BjjStatsSet } from
 // ─── Design Tokens ───────────────────────────────────────────
 
 const CARD = {
-  background: "rgba(255,255,255,0.03)",
-  border: "1px solid rgba(255,255,255,0.06)",
+  background: "var(--muted)",
+  border: "1px solid var(--border)",
   borderRadius: 12,
   padding: 20,
 } as const
 
 const TEXT = {
-  primary: "#ffffff",
-  secondary: "rgba(255,255,255,0.5)",
-  tertiary: "rgba(255,255,255,0.25)",
+  primary: "var(--foreground)",
+  secondary: "var(--muted-foreground)",
+  tertiary: "var(--muted-foreground)",
 } as const
 
-const BORDER_DEFAULT = "rgba(255,255,255,0.06)"
+const BORDER_DEFAULT = "var(--border)"
 
 const LAYER_COLORS: Record<string, string> = {
   standing: "#06b6d4",

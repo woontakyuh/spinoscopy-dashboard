@@ -133,11 +133,11 @@ export function SenseiCompetition() {
 
         {/* Summary stats */}
         <div className="grid grid-cols-3 gap-3 mb-5">
-          <div className="rounded-xl bg-foreground/5 border border-border p-3 text-center">
+          <div className="rounded-xl bg-muted border border-border p-3 text-center">
             <div className="text-[24px] font-semibold text-foreground">{stats.total}</div>
             <div className="text-[11px] text-muted-foreground">총 참가</div>
           </div>
-          <div className="rounded-xl bg-foreground/5 border border-border p-3 text-center">
+          <div className="rounded-xl bg-muted border border-border p-3 text-center">
             <div className="text-[24px] font-semibold text-foreground">
               {stats.wins}
               <span className="text-muted-foreground/70 mx-0.5">/</span>
@@ -145,7 +145,7 @@ export function SenseiCompetition() {
             </div>
             <div className="text-[11px] text-muted-foreground">전적 (승/패)</div>
           </div>
-          <div className="rounded-xl bg-foreground/5 border border-border p-3 text-center">
+          <div className="rounded-xl bg-muted border border-border p-3 text-center">
             <div className="text-[24px] font-semibold text-foreground">
               {stats.completed}
             </div>
@@ -155,28 +155,28 @@ export function SenseiCompetition() {
 
         {/* Add form */}
         {showForm && (
-          <div className="rounded-xl bg-foreground/5 border border-border p-5 mb-5 space-y-3">
+          <div className="rounded-xl bg-muted border border-border p-5 mb-5 space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <input
-                className="w-full rounded-xl bg-foreground/5 border border-border px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-border"
+                className="w-full rounded-xl bg-muted border border-border px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-border"
                 placeholder="대회 이름 *"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
               <input
                 type="date"
-                className="w-full rounded-xl bg-foreground/5 border border-border px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-1 focus:ring-border"
+                className="w-full rounded-xl bg-muted border border-border px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-1 focus:ring-border"
                 value={form.date}
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
               />
               <input
-                className="w-full rounded-xl bg-foreground/5 border border-border px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-border"
+                className="w-full rounded-xl bg-muted border border-border px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-border"
                 placeholder="장소"
                 value={form.location}
                 onChange={(e) => setForm({ ...form, location: e.target.value })}
               />
               <input
-                className="w-full rounded-xl bg-foreground/5 border border-border px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-border"
+                className="w-full rounded-xl bg-muted border border-border px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-border"
                 placeholder="주최 (IBJJF, AJP, etc.)"
                 value={form.organization}
                 onChange={(e) =>
@@ -184,7 +184,7 @@ export function SenseiCompetition() {
                 }
               />
               <select
-                className="w-full rounded-xl bg-foreground/5 border border-border px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-1 focus:ring-border"
+                className="w-full rounded-xl bg-muted border border-border px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-1 focus:ring-border"
                 value={form.ruleSet}
                 onChange={(e) =>
                   setForm({
@@ -198,13 +198,13 @@ export function SenseiCompetition() {
                 <option value="both">Both</option>
               </select>
               <input
-                className="w-full rounded-xl bg-foreground/5 border border-border px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-border"
+                className="w-full rounded-xl bg-muted border border-border px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-border"
                 placeholder="디비전 (Adult Blue 등)"
                 value={form.division}
                 onChange={(e) => setForm({ ...form, division: e.target.value })}
               />
               <select
-                className="w-full rounded-xl bg-foreground/5 border border-border px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-1 focus:ring-border"
+                className="w-full rounded-xl bg-muted border border-border px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-1 focus:ring-border"
                 value={form.status}
                 onChange={(e) =>
                   setForm({
@@ -268,7 +268,7 @@ function CompCard({
   const ddayStr = dDay(comp.date)
 
   return (
-    <div className="rounded-xl bg-foreground/5 border border-border p-5">
+    <div className="rounded-xl bg-muted border border-border p-5">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
@@ -369,8 +369,8 @@ function EventCard({ event }: { event: FollowedEvent }) {
     <div
       className={`rounded-xl border p-5 ${
         hasCoach
-          ? "bg-foreground/5 border-[rgba(245,158,11,0.2)]"
-          : "bg-foreground/5 border-border"
+          ? "bg-muted border-[rgba(245,158,11,0.2)]"
+          : "bg-muted border-border"
       }`}
     >
       <div className="flex items-start justify-between gap-2">
