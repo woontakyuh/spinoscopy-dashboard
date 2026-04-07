@@ -230,22 +230,22 @@ export function MonthCalendar() {
   }
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+    <div className="rounded-xl border border-border bg-card/50 p-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCurrentMonth(prevMonth(currentMonth))}
-            className="p-1.5 rounded-md hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </button>
-          <h3 className="text-base font-semibold text-zinc-100 min-w-[100px] text-center">
+          <h3 className="text-base font-semibold text-foreground min-w-[100px] text-center">
             {getMonthLabel(currentMonth)}
           </h3>
           <button
             onClick={() => setCurrentMonth(nextMonth(currentMonth))}
-            className="p-1.5 rounded-md hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </button>
@@ -254,7 +254,7 @@ export function MonthCalendar() {
           variant="outline"
           size="sm"
           onClick={goToToday}
-          className="text-xs border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+          className="text-xs border-border text-foreground/90 hover:bg-muted"
         >
           오늘
         </Button>
@@ -267,7 +267,7 @@ export function MonthCalendar() {
           <div
             key={day}
             className={`text-center text-xs font-medium py-2 ${
-              i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-zinc-500"
+              i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-muted-foreground"
             }`}
           >
             {day}
@@ -300,8 +300,8 @@ export function MonthCalendar() {
               onClick={() => setSelectedDate(dateStr)}
               className={`py-2 flex flex-col items-center justify-center rounded-lg text-sm transition-colors relative
                 ${isSelected
-                  ? "bg-zinc-700 ring-1 ring-cyan-500"
-                  : "hover:bg-zinc-800/60"
+                  ? "bg-muted ring-1 ring-cyan-500"
+                  : "hover:bg-muted/60"
                 }
                 ${isToday && !isSelected ? "ring-1 ring-zinc-600" : ""}
               `}
@@ -309,8 +309,8 @@ export function MonthCalendar() {
               <span
                 className={`
                   ${isToday ? "font-bold text-cyan-400" : ""}
-                  ${dayOfWeek === 0 ? "text-red-400" : dayOfWeek === 6 ? "text-blue-400" : "text-zinc-300"}
-                  ${isSelected ? "text-white" : ""}
+                  ${dayOfWeek === 0 ? "text-red-400" : dayOfWeek === 6 ? "text-blue-400" : "text-foreground/90"}
+                  ${isSelected ? "text-foreground" : ""}
                 `}
               >
                 {day}
@@ -328,14 +328,14 @@ export function MonthCalendar() {
       </div>
 
       {/* Selected date detail */}
-      <div className="mt-4 pt-4 border-t border-zinc-800">
-        <h4 className="text-sm font-medium text-zinc-300 mb-3">
+      <div className="mt-4 pt-4 border-t border-border">
+        <h4 className="text-sm font-medium text-foreground/90 mb-3">
           {formatSelectedDate(selectedDate)}
         </h4>
 
         {isLoading ? (
           <div className="space-y-2">
-            <Skeleton className="h-12 w-full bg-zinc-800" />
+            <Skeleton className="h-12 w-full bg-muted" />
           </div>
         ) : selectedEvents.length === 0 ? (
           <EmptyState icon="📅" message="일정이 없습니다." />
@@ -344,13 +344,13 @@ export function MonthCalendar() {
             {selectedEvents.map((event) => (
               <div
                 key={event.id}
-                className="rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-2.5 flex items-start justify-between gap-2"
+                className="rounded-lg border border-border bg-muted/50 px-3 py-2.5 flex items-start justify-between gap-2"
               >
                 <div className="flex items-start gap-2 min-w-0">
                   <div className={`w-0.5 h-full min-h-[32px] rounded-full ${sourceColor(event.source)} shrink-0 mt-0.5`} />
                   <div className="min-w-0">
-                    <p className="text-zinc-100 text-sm font-medium truncate">{event.title}</p>
-                    <div className="mt-0.5 flex items-center gap-2 text-xs text-zinc-400">
+                    <p className="text-foreground text-sm font-medium truncate">{event.title}</p>
+                    <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
                       <span>{formatTime(event.start, event.end)}</span>
                       {event.location && <span className="truncate">· {event.location}</span>}
                     </div>
@@ -370,7 +370,7 @@ export function MonthCalendar() {
             value={quickName}
             onChange={(e) => setQuickName(e.target.value)}
             placeholder="자연어로 일정 추가 (예: 봉산짬뽕에서 점심 식사)"
-            className="bg-zinc-800 border-zinc-700 text-zinc-100 text-sm"
+            className="bg-muted border-border text-foreground text-sm"
             disabled={createMutation.isPending}
           />
           <Button

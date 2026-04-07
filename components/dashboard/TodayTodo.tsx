@@ -72,7 +72,7 @@ async function createQuickTodo(params: { name: string; priority: string; categor
 function priorityBadgeClass(priority: string): string {
   if (priority === "High") return "border-red-400/50 text-red-300"
   if (priority === "Medium") return "border-yellow-400/50 text-yellow-300"
-  return "border-zinc-600 text-zinc-300"
+  return "border-border text-foreground/90"
 }
 
 function categoryBadgeClass(category: string): string {
@@ -82,7 +82,7 @@ function categoryBadgeClass(category: string): string {
     case "연구": return "border-blue-400/50 text-blue-300"
     case "임상": return "border-orange-400/50 text-orange-300"
     case "AI": return "border-cyan-400/50 text-cyan-300"
-    default: return "border-zinc-600 text-zinc-400"
+    default: return "border-border text-muted-foreground"
   }
 }
 
@@ -117,9 +117,9 @@ function formatDueRelative(dueStr: string, today: string): { label: string; colo
   if (diffDays === 0) return { label: "Today", color: "text-blue-400" }
   if (diffDays === 1) return { label: "D-1", color: "text-amber-400" }
   if (diffDays === 2) return { label: "D-2", color: "text-amber-400" }
-  if (diffDays === 3) return { label: "3day", color: "text-zinc-400" }
-  if (diffDays <= 7) return { label: "1wk", color: "text-zinc-500" }
-  return { label: `${diffDays}d`, color: "text-zinc-600" }
+  if (diffDays === 3) return { label: "3day", color: "text-muted-foreground" }
+  if (diffDays <= 7) return { label: "1wk", color: "text-muted-foreground" }
+  return { label: `${diffDays}d`, color: "text-muted-foreground/70" }
 }
 
 
@@ -293,15 +293,15 @@ export function TodayTodo() {
   const quickAddErrorMessage = quickAddError ?? mutationErrorMessage
 
   return (
-    <div className="border border-zinc-700 rounded-xl bg-zinc-900 p-4">
+    <div className="border border-border rounded-xl bg-card p-4">
       <div className="mb-3">
-        <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">오늘 할일</h3>
+        <h3 className="text-sm font-semibold text-foreground/90 uppercase tracking-wider">오늘 할일</h3>
       </div>
 
       {isLoading ? (
         <div className="space-y-2">
-          <Skeleton className="h-11 w-full bg-zinc-800" />
-          <Skeleton className="h-11 w-full bg-zinc-800" />
+          <Skeleton className="h-11 w-full bg-muted" />
+          <Skeleton className="h-11 w-full bg-muted" />
         </div>
       ) : error ? (
         <p className="text-red-400 text-sm">할 일을 불러오지 못했습니다.</p>
@@ -313,7 +313,7 @@ export function TodayTodo() {
             return (
               <label
                 key={todo.page_id}
-                className="flex items-start gap-3 rounded-lg border px-3 py-2 transition-all duration-500 border-zinc-700 bg-zinc-800"
+                className="flex items-start gap-3 rounded-lg border px-3 py-2 transition-all duration-500 border-border bg-muted"
               >
                 <input
                   type="checkbox"
@@ -325,7 +325,7 @@ export function TodayTodo() {
                   {editingId === todo.page_id ? (
                     <input
                       autoFocus
-                      className="text-sm w-full bg-zinc-700 border border-zinc-600 rounded px-1.5 py-0.5 text-zinc-100 outline-none focus:border-blue-500"
+                      className="text-sm w-full bg-muted border border-border rounded px-1.5 py-0.5 text-foreground outline-none focus:border-blue-500"
                       value={editingName}
                       onChange={(e) => setEditingName(e.target.value)}
                       onKeyDown={(e) => {
@@ -350,7 +350,7 @@ export function TodayTodo() {
                     />
                   ) : (
                     <p
-                      className="text-sm truncate text-zinc-100 cursor-text hover:text-white"
+                      className="text-sm truncate text-foreground cursor-text hover:text-foreground"
                       onClick={() => { setEditingId(todo.page_id); setEditingName(todo.name) }}
                     >
                       {todo.name}
@@ -366,7 +366,7 @@ export function TodayTodo() {
                               </Badge>
                             </button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent className="bg-zinc-800 border-zinc-700">
+                          <DropdownMenuContent className="bg-muted border-border">
                             {PRIORITIES.map((p) => (
                               <DropdownMenuItem
                                 key={p}
@@ -374,7 +374,7 @@ export function TodayTodo() {
                                   e.stopPropagation()
                                   priorityMutation.mutate({ pageId: todo.page_id, priority: p })
                                 }}
-                                className="text-zinc-100 focus:bg-zinc-700"
+                                className="text-foreground focus:bg-muted"
                               >
                                 <Badge variant="outline" className={priorityBadgeClass(p)}>{p}</Badge>
                               </DropdownMenuItem>
@@ -389,7 +389,7 @@ export function TodayTodo() {
                               </Badge>
                             </button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent className="bg-zinc-800 border-zinc-700">
+                          <DropdownMenuContent className="bg-muted border-border">
                             {CATEGORIES.map((c) => (
                               <DropdownMenuItem
                                 key={c}
@@ -397,7 +397,7 @@ export function TodayTodo() {
                                   e.stopPropagation()
                                   categoryMutation.mutate({ pageId: todo.page_id, category: c })
                                 }}
-                                className="text-zinc-100 focus:bg-zinc-700"
+                                className="text-foreground focus:bg-muted"
                               >
                                 <Badge variant="outline" className={categoryBadgeClass(c)}>{c}</Badge>
                               </DropdownMenuItem>
@@ -414,7 +414,7 @@ export function TodayTodo() {
                 <button
                   type="button"
                   onClick={(e) => { e.preventDefault(); deleteMutation.mutate(todo.page_id) }}
-                  className="shrink-0 mt-0.5 p-1 rounded hover:bg-red-900/30 text-zinc-600 hover:text-red-400 transition-colors"
+                  className="shrink-0 mt-0.5 p-1 rounded hover:bg-red-900/30 text-muted-foreground/70 hover:text-red-400 transition-colors"
                   title="삭제"
                 >
                   <span className="text-xs">✕</span>
@@ -431,7 +431,7 @@ export function TodayTodo() {
             value={quickName}
             onChange={(event) => setQuickName(event.target.value)}
             placeholder="새 할일 빠르게 추가"
-            className="bg-zinc-800 border-zinc-700 text-zinc-100"
+            className="bg-muted border-border text-foreground"
             disabled={createMutation.isPending}
           />
           <Button
@@ -453,7 +453,7 @@ export function TodayTodo() {
                 className={`px-2 py-0.5 text-xs rounded border ${
                   quickPriority === p
                     ? priorityBadgeClass(p) + " border-current"
-                    : "border-zinc-700 text-zinc-500"
+                    : "border-border text-muted-foreground"
                 }`}
               >
                 {p}
@@ -462,16 +462,16 @@ export function TodayTodo() {
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button type="button" className="px-2 py-0.5 text-xs rounded border border-zinc-700 text-zinc-400 hover:text-zinc-200">
+              <button type="button" className="px-2 py-0.5 text-xs rounded border border-border text-muted-foreground hover:text-foreground">
                 {quickCategory}
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="bg-zinc-800 border-zinc-700">
+            <DropdownMenuContent className="bg-muted border-border">
               {CATEGORIES.map((c) => (
                 <DropdownMenuItem
                   key={c}
                   onClick={() => setQuickCategory(c)}
-                  className="text-zinc-100 focus:bg-zinc-700"
+                  className="text-foreground focus:bg-muted"
                 >
                   {c}
                 </DropdownMenuItem>
@@ -487,7 +487,7 @@ export function TodayTodo() {
                 className={`px-2 py-0.5 text-xs rounded border ${
                   quickDue === d
                     ? "border-blue-400/50 text-blue-300"
-                    : "border-zinc-700 text-zinc-500"
+                    : "border-border text-muted-foreground"
                 }`}
               >
                 {DUE_LABELS[d]}
@@ -500,7 +500,7 @@ export function TodayTodo() {
                   className={`px-2 py-0.5 text-xs rounded border ${
                     quickDue === "custom"
                       ? "border-blue-400/50 text-blue-300"
-                      : "border-zinc-700 text-zinc-500"
+                      : "border-border text-muted-foreground"
                   }`}
                 >
                   {quickDue === "custom" && customDate
@@ -508,7 +508,7 @@ export function TodayTodo() {
                     : "커스텀"}
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-700" align="end">
+              <PopoverContent className="w-auto p-0 bg-card border-border" align="end">
                 <Calendar
                   mode="single"
                   selected={customDate}

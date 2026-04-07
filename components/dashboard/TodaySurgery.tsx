@@ -28,16 +28,16 @@ export function TodaySurgery() {
 
   if (isLoading) {
     return (
-      <div className="border border-zinc-700 rounded-xl bg-zinc-900 p-4">
-        <h3 className="text-sm font-semibold text-zinc-300 mb-3">🏥 오늘 수술</h3>
-        <Skeleton className="h-12 w-full bg-zinc-800" />
+      <div className="border border-border rounded-xl bg-card p-4">
+        <h3 className="text-sm font-semibold text-foreground/90 mb-3">🏥 오늘 수술</h3>
+        <Skeleton className="h-12 w-full bg-muted" />
       </div>
     )
   }
 
   return (
-    <div className="border border-zinc-700 rounded-xl bg-zinc-900 p-4">
-      <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider mb-3">
+    <div className="border border-border rounded-xl bg-card p-4">
+      <h3 className="text-sm font-semibold text-foreground/90 uppercase tracking-wider mb-3">
         🏥 오늘 수술 ({surgeries?.length ?? 0})
       </h3>
 
@@ -53,15 +53,15 @@ export function TodaySurgery() {
               href={surgery.url}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-3 bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 hover:border-zinc-600 card-hover"
+              className="flex items-center gap-3 bg-muted border border-border rounded-lg px-4 py-3 hover:border-border card-hover"
             >
               <div className="w-10 h-10 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center text-lg shrink-0">
                 🔪
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-white text-sm font-medium truncate">{surgery.name}</p>
-                <p className="text-zinc-400 text-xs truncate mt-0.5">{surgery.op_name || "수술명 미기재"}</p>
-                {surgery.hospital && <p className="text-zinc-500 text-xs mt-0.5">📍 {surgery.hospital}</p>}
+                <p className="text-foreground text-sm font-medium truncate">{surgery.name}</p>
+                <p className="text-muted-foreground text-xs truncate mt-0.5">{surgery.op_name || "수술명 미기재"}</p>
+                {surgery.hospital && <p className="text-muted-foreground text-xs mt-0.5">📍 {surgery.hospital}</p>}
               </div>
             </a>
           ))}

@@ -206,20 +206,20 @@ export function MorningBriefing() {
 
         {/* 말풍선 — 캐릭터 상단(머리/입) 옆에 위치 */}
         <div className="relative flex-1 min-w-0 mt-2 md:mt-3">
-          <div className="relative bg-zinc-900 border border-zinc-700 rounded-2xl rounded-tl-sm px-4 py-3 md:px-5 md:py-4 shadow-lg">
+          <div className="relative bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 md:px-5 md:py-4 shadow-lg">
             {/* 말풍선 꼬리 — 상단 좌측 */}
             <span
               aria-hidden
-              className="absolute -left-2 top-3 w-3 h-3 rotate-45 bg-zinc-900 border-l border-t border-zinc-700"
+              className="absolute -left-2 top-3 w-3 h-3 rotate-45 bg-card border-l border-t border-border"
             />
-            <h2 className="text-xl md:text-2xl font-semibold text-white tracking-tight">
+            <h2 className="text-xl md:text-2xl font-semibold text-foreground tracking-tight">
               {getGreeting()}, Tak.
             </h2>
             <div className="mt-1">
               <WeatherInline />
             </div>
-            <p className="text-zinc-500 text-xs md:text-sm mt-1">
-              {dateStr}{weatherLocation && <span className="ml-2 text-zinc-600">· {weatherLocation}</span>}
+            <p className="text-muted-foreground text-xs md:text-sm mt-1">
+              {dateStr}{weatherLocation && <span className="ml-2 text-muted-foreground/70">· {weatherLocation}</span>}
             </p>
           </div>
         </div>
@@ -228,14 +228,14 @@ export function MorningBriefing() {
       {/* 오늘 일정 */}
       <div>
         <div className="mb-3">
-          <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">
+          <h3 className="text-sm font-semibold text-foreground/90 uppercase tracking-wider">
             오늘 일정
           </h3>
         </div>
         {isLoading ? (
           <div className="space-y-2">
-            <Skeleton className="h-16 w-full bg-zinc-800" />
-            <Skeleton className="h-16 w-full bg-zinc-800" />
+            <Skeleton className="h-16 w-full bg-muted" />
+            <Skeleton className="h-16 w-full bg-muted" />
           </div>
         ) : error ? (
           <p className="text-red-400 text-sm">일정을 불러오지 못했습니다.</p>
@@ -246,16 +246,16 @@ export function MorningBriefing() {
             {(schedules ?? []).map((item) => (
               <div
                 key={item.id}
-                className="rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 flex items-start justify-between gap-3"
+                className="rounded-lg border border-border bg-card px-4 py-3 flex items-start justify-between gap-3"
               >
                 <div className="min-w-0">
-                  <p className="text-zinc-100 text-sm font-medium truncate">{item.title}</p>
-                  <div className="mt-1 flex items-center gap-2 text-xs text-zinc-400">
+                  <p className="text-foreground text-sm font-medium truncate">{item.title}</p>
+                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                     <span>{formatTimeRange(item.start, item.end)}</span>
                     {item.location && <span className="truncate">- {item.location}</span>}
                   </div>
                 </div>
-                <Badge variant="outline" className="border-zinc-600 text-zinc-300">
+                <Badge variant="outline" className="border-border text-foreground/90">
                   {sourceLabel(item.source)}
                 </Badge>
               </div>
@@ -267,13 +267,13 @@ export function MorningBriefing() {
       {/* 다가오는 일정 */}
       {upcomingItem && (
         <div>
-          <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider mb-3">
+          <h3 className="text-sm font-semibold text-foreground/90 uppercase tracking-wider mb-3">
             다가오는 일정
           </h3>
-          <div className="rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 flex items-start justify-between gap-3">
+          <div className="rounded-lg border border-border bg-card px-4 py-3 flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-zinc-100 text-sm font-medium truncate">{upcomingItem.title}</p>
-              <div className="mt-1 flex items-center gap-2 text-xs text-zinc-400">
+              <p className="text-foreground text-sm font-medium truncate">{upcomingItem.title}</p>
+              <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                 <span>{formatUpcomingDate(upcomingItem.start)}</span>
                 {upcomingItem.start.includes("T") && (
                   <span>{formatTimeRange(upcomingItem.start, upcomingItem.end)}</span>
@@ -281,7 +281,7 @@ export function MorningBriefing() {
                 {upcomingItem.location && <span className="truncate">- {upcomingItem.location}</span>}
               </div>
             </div>
-            <Badge variant="outline" className="border-zinc-600 text-zinc-300">
+            <Badge variant="outline" className="border-border text-foreground/90">
               {sourceLabel(upcomingItem.source)}
             </Badge>
           </div>
@@ -294,7 +294,7 @@ export function MorningBriefing() {
           value={quickName}
           onChange={(e) => setQuickName(e.target.value)}
           placeholder="자연어로 일정 추가 (예: 오늘 봉산짬뽕에서 점심 식사)"
-          className="bg-zinc-800 border-zinc-700 text-zinc-100"
+          className="bg-muted border-border text-foreground"
           disabled={createMutation.isPending}
         />
         <Button

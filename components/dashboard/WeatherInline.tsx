@@ -9,7 +9,7 @@ import dynamic from "next/dynamic"
 
 const WeatherMap = dynamic(() => import("./WeatherMap").then(m => ({ default: m.WeatherMap })), {
   ssr: false,
-  loading: () => <div className="h-[280px] flex items-center justify-center text-zinc-500 text-sm">Loading map...</div>,
+  loading: () => <div className="h-[280px] flex items-center justify-center text-muted-foreground text-sm">Loading map...</div>,
 })
 
 async function fetchWeather(lat: number, lon: number): Promise<WeatherData> {
@@ -57,7 +57,7 @@ export function WeatherInline() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button className="inline-flex items-center gap-1 text-left text-zinc-400 hover:text-zinc-300 transition-colors cursor-pointer text-sm">
+        <button className="inline-flex items-center gap-1 text-left text-muted-foreground hover:text-foreground/90 transition-colors cursor-pointer text-sm">
           <span>It&apos;s {current.temp}°C and {current.description}, feels like {current.feels_like}°. High {current.temp_max}°, Low {current.temp_min}°.</span>
           <img
             src={`https://openweathermap.org/img/wn/${current.icon}@2x.png`}
@@ -67,7 +67,7 @@ export function WeatherInline() {
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[520px] bg-zinc-900 border-zinc-700 p-0 max-h-[80vh] overflow-y-auto scrollbar-hide"
+        className="w-[520px] bg-card border-border p-0 max-h-[80vh] overflow-y-auto scrollbar-hide"
         align="start"
         sideOffset={8}
       >
