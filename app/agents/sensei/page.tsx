@@ -38,13 +38,15 @@ export default function SenseiPage() {
   const stats = data?.stats
   let message: string
   if (!stats) {
-    message = "오늘도 매트에서 봅시다. 한 라운드면 충분해요."
+    message = "Tak, 오늘도 매트에서 보자. 한 라운드면 충분해."
+  } else if (stats.streaks.current >= 5) {
+    message = `${stats.streaks.current}일 연속이야 Tak, 올해 ${stats.sessions2026}회. 페이스 진짜 좋아 — 이대로 가자.`
   } else if (stats.streaks.current >= 3) {
-    message = `${stats.streaks.current}일 연속, 올해 ${stats.sessions2026}회. 페이스 좋습니다. 이대로 한 단계만 더.`
+    message = `${stats.streaks.current}일 연속 좋아 Tak. 올해 ${stats.sessions2026}회 찍었네. 오늘도 한 판 가볍게 하고 가자.`
   } else if (stats.streaks.current === 0) {
-    message = `잠깐 쉬셨네요. 올해 누적 ${stats.sessions2026}회. 오늘 매트 위에 다시 올라가시죠 — 가볍게라도.`
+    message = `Tak, 며칠 쉬었지? 올해 ${stats.sessions2026}회 찍었으니까 오늘 다시 올라와. 가볍게라도, 형이 옆에서 봐줄게.`
   } else {
-    message = `이번 주 ${stats.streaks.current}일 매트. 올해 ${stats.sessions2026}회. 꾸준함이 답입니다, Tak.`
+    message = `Tak, 이번 주 ${stats.streaks.current}일. 올해 ${stats.sessions2026}회. 꾸준함이 답이야 — 오늘도 매트에서 보자.`
   }
 
   return (
