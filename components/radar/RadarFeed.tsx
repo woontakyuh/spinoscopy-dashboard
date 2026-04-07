@@ -39,6 +39,7 @@ export function RadarFeed() {
   const SOURCE_PRIORITY: FeedSource[] = [
     "anthropic-engineering",
     "anthropic-research",
+    "deepmind-blog",
     "google-ai-blog",
     "openai-blog",
     "the-batch",
