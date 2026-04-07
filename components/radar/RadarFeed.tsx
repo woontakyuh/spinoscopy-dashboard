@@ -1,54 +1,24 @@
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
+import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FeedCard } from "./FeedCard"
-import type { FeedCategory, FeedItem, FeedResponse, FeedSource, FeedTier } from "@/lib/types/radar"
+import type { FeedItem, FeedResponse, FeedTier } from "@/lib/types/radar"
 
-const TIER_OPTIONS: Array<{ value: FeedTier; label: string }> = [
-  { value: "ai-company", label: "AI Company" },
-  { value: "thought-leader", label: "Thought Leader" },
-  { value: "newsletter", label: "Newsletter" },
+const TABS: Array<{ value: FeedTier; label: string }> = [
+  { value: "ai-company", label: "News" },
+  { value: "thought-leader", label: "AI Leaders" },
+  { value: "newsletter", label: "Papers" },
 ]
 
-const CATEGORY_FILTERS: Array<{ value: FeedCategory | "all"; label: string }> = [
-  { value: "all", label: "전체" },
-  { value: "model-release", label: "Model" },
-  { value: "tool", label: "Tool" },
-  { value: "research", label: "Research" },
-  { value: "policy", label: "Policy" },
-  { value: "medical-ai", label: "Medical" },
-  { value: "opinion", label: "Opinion" },
-]
-
-function useMultiSelect<T extends string>() {
-  const [selected, setSelected] = useState<Set<T>>(new Set())
-
-  const toggle = useCallback((value: T) => {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(value)) {
-        next.delete(value)
-      } else {
-        next.add(value)
-      }
-      return next
-    })
-  }, [])
-
-  const clear = useCallback(() => setSelected(new Set()), [])
-
-  return { selected, toggle, clear, hasAny: selected.size > 0 }
-}
+type SortMode = "date" | "importance"
 
 export function RadarFeed() {
-  const tiers = useMultiSelect<FeedTier>()
-  const sources = useMultiSelect<FeedSource>()
-  const [categoryFilter, setCategoryFilter] = useState<FeedCategory | "all">("all")
-  const [highOnly, setHighOnly] = useState(false)
+  const [tab, setTab] = useState<FeedTier>("ai-company")
+  const [sortMode, setSortMode] = useState<SortMode>("date")
   const [visibleCount, setVisibleCount] = useState(20)
 
   const feedQuery = useQuery({
@@ -63,130 +33,74 @@ export function RadarFeed() {
 
   const items: FeedItem[] = feedQuery.data?.items ?? []
 
-  // 실제 존재하는 소스만 동적으로 필터 생성
-  const sourceOptions = useMemo(() => {
-    const seen = new Map<FeedSource, string>()
-    for (const item of items) {
-      if (!seen.has(item.source)) {
-        seen.set(item.source, item.sourceLabel)
+  const filtered = items
+    .filter((item) => item.tier === tab)
+    .sort((a, b) => {
+      if (sortMode === "date") {
+        if (a.date !== b.date) return b.date.localeCompare(a.date)
+        return b.importanceScore - a.importanceScore
       }
-    }
-    return Array.from(seen.entries()).map(([value, label]) => ({ value, label }))
-  }, [items])
+      if (a.importanceScore !== b.importanceScore) return b.importanceScore - a.importanceScore
+      return b.date.localeCompare(a.date)
+    })
 
-  const filtered = items.filter((item) => {
-    if (tiers.hasAny && !tiers.selected.has(item.tier)) return false
-    if (sources.hasAny && !sources.selected.has(item.source)) return false
-    if (categoryFilter !== "all" && !item.categories.includes(categoryFilter)) return false
-    if (highOnly && item.importanceScore < 4) return false
-    return true
-  })
+  // 탭 변경 시 visibleCount 리셋
+  function handleTabChange(value: FeedTier) {
+    setTab(value)
+    setVisibleCount(20)
+  }
 
   return (
     <div className="space-y-3">
-      {/* Row 1: 티어 필터 (복수선택) */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-[10px] text-zinc-500 mr-1">티어</span>
+      {/* 탭 */}
+      <div className="flex items-center gap-1 border-b border-zinc-800">
+        {TABS.map((t) => {
+          const active = tab === t.value
+          const count = items.filter((i) => i.tier === t.value).length
+          return (
+            <button
+              key={t.value}
+              type="button"
+              onClick={() => handleTabChange(t.value)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                active
+                  ? "border-cyan-500 text-white"
+                  : "border-transparent text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {t.label}
+              <span className="ml-1.5 text-xs text-zinc-500">{count}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* 정렬 + 시간 */}
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-zinc-500 mr-1">정렬</span>
         <Button
-          variant={!tiers.hasAny ? "default" : "outline"}
+          variant={sortMode === "date" ? "default" : "outline"}
           size="sm"
           className={`text-xs h-7 ${
-            !tiers.hasAny
+            sortMode === "date"
               ? "bg-cyan-600 hover:bg-cyan-500 text-white"
               : "border-zinc-700 text-zinc-400 hover:text-white"
           }`}
-          onClick={tiers.clear}
+          onClick={() => setSortMode("date")}
         >
-          전체
+          최신순
         </Button>
-        {TIER_OPTIONS.map((f) => {
-          const active = tiers.selected.has(f.value)
-          return (
-            <Button
-              key={f.value}
-              variant={active ? "default" : "outline"}
-              size="sm"
-              className={`text-xs h-7 ${
-                active
-                  ? "bg-cyan-600 hover:bg-cyan-500 text-white"
-                  : "border-zinc-700 text-zinc-400 hover:text-white"
-              }`}
-              onClick={() => tiers.toggle(f.value)}
-            >
-              {f.label}
-            </Button>
-          )
-        })}
-        {tiers.hasAny && (
-          <span className="text-[10px] text-zinc-500">({tiers.selected.size}개 선택)</span>
-        )}
-      </div>
-
-      {/* Row 2: 소스별 필터 (복수선택, 동적) */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-[10px] text-zinc-500 mr-1">소스</span>
         <Button
-          variant={!sources.hasAny ? "default" : "outline"}
+          variant={sortMode === "importance" ? "default" : "outline"}
           size="sm"
           className={`text-xs h-7 ${
-            !sources.hasAny
-              ? "bg-zinc-600 hover:bg-zinc-500 text-white"
+            sortMode === "importance"
+              ? "bg-amber-600 hover:bg-amber-500 text-white"
               : "border-zinc-700 text-zinc-400 hover:text-white"
           }`}
-          onClick={sources.clear}
+          onClick={() => setSortMode("importance")}
         >
-          전체
-        </Button>
-        {sourceOptions.map((s) => {
-          const active = sources.selected.has(s.value)
-          return (
-            <Button
-              key={s.value}
-              variant={active ? "default" : "outline"}
-              size="sm"
-              className={`text-xs h-7 ${
-                active
-                  ? "bg-zinc-600 hover:bg-zinc-500 text-white"
-                  : "border-zinc-700 text-zinc-400 hover:text-white"
-              }`}
-              onClick={() => sources.toggle(s.value)}
-            >
-              {s.label}
-            </Button>
-          )
-        })}
-        {sources.hasAny && (
-          <span className="text-[10px] text-zinc-500">({sources.selected.size}개 선택)</span>
-        )}
-      </div>
-
-      {/* Row 3: 카테고리 + 중요도 필터 */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-[10px] text-zinc-500 mr-1">분류</span>
-        {CATEGORY_FILTERS.map((f) => (
-          <Button
-            key={f.value}
-            variant={categoryFilter === f.value ? "default" : "outline"}
-            size="sm"
-            className={`text-xs h-7 ${
-              categoryFilter === f.value
-                ? "bg-zinc-100 text-zinc-900 hover:bg-zinc-200"
-                : "border-zinc-700 text-zinc-400 hover:text-white"
-            }`}
-            onClick={() => setCategoryFilter(f.value)}
-          >
-            {f.label}
-          </Button>
-        ))}
-        <Button
-          variant={highOnly ? "default" : "outline"}
-          size="sm"
-          className={`text-xs h-7 ${
-            highOnly ? "bg-amber-600 hover:bg-amber-500 text-white" : "border-zinc-700 text-zinc-400 hover:text-white"
-          }`}
-          onClick={() => setHighOnly((prev) => !prev)}
-        >
-          ★4+
+          중요도순
         </Button>
         <span className="text-xs text-zinc-500 ml-1">{filtered.length}개</span>
         <div className="flex-1" />
