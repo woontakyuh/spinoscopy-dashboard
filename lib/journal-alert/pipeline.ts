@@ -487,7 +487,7 @@ async function sendEmailAlert(
 }
 
 export async function runJournalAlertPipeline(days: number): Promise<JournalAlertRunResult> {
-  const databaseId = process.env.NOTION_JOURNAL_DB_ID
+  const databaseId = process.env.NOTION_JOURNAL_DB_ID?.trim()
   if (!databaseId) throw new Error("NOTION_JOURNAL_DB_ID missing")
 
   const existing = await loadExistingKeys(databaseId)
