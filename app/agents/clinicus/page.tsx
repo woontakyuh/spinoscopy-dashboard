@@ -27,20 +27,20 @@ function PromTabContent({ patient }: { patient: PatientSearchResult }) {
 
   return (
     <>
-      <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900">
-        <p className="text-zinc-300 text-sm font-medium mb-3">{patient.name} — 환산 점수</p>
+      <div className="border border-border rounded-xl p-4 bg-card">
+        <p className="text-foreground/90 text-sm font-medium mb-3">{patient.name} — 환산 점수</p>
         <PromDisplay patient={patient} />
       </div>
 
       {promRecord && (
-        <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900">
-          <p className="text-zinc-300 text-sm font-medium mb-3">추이 그래프</p>
+        <div className="border border-border rounded-xl p-4 bg-card">
+          <p className="text-foreground/90 text-sm font-medium mb-3">추이 그래프</p>
           <PromChart promRecord={promRecord} />
         </div>
       )}
 
-      <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900">
-        <p className="text-zinc-300 text-sm font-medium mb-3">점수 입력</p>
+      <div className="border border-border rounded-xl p-4 bg-card">
+        <p className="text-foreground/90 text-sm font-medium mb-3">점수 입력</p>
         <PromForm patient={patient} />
       </div>
     </>
@@ -56,20 +56,20 @@ export default function ClinicusPage() {
       <TopBar title="Op DB" icon="/opdb.png" />
       <div className="p-3 md:p-6 max-w-7xl w-full">
         <Tabs defaultValue="analytics">
-          <TabsList className="w-full bg-zinc-800 border border-zinc-700 mb-4 md:mb-6 grid grid-cols-2 md:grid-cols-5 h-auto gap-1 p-1">
-            <TabsTrigger value="analytics" className="min-h-9 data-[state=active]:bg-violet-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
+          <TabsList className="w-full bg-muted border border-border mb-4 md:mb-6 grid grid-cols-2 md:grid-cols-5 h-auto gap-1 p-1">
+            <TabsTrigger value="analytics" className="min-h-9 data-[state=active]:bg-violet-600 data-[state=active]:text-white text-muted-foreground text-xs md:text-sm">
               📊 통계
             </TabsTrigger>
-            <TabsTrigger value="search" className="min-h-9 data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
+            <TabsTrigger value="search" className="min-h-9 data-[state=active]:bg-blue-600 data-[state=active]:text-white text-muted-foreground text-xs md:text-sm">
               환자 조회
             </TabsTrigger>
-            <TabsTrigger value="newcase" className="min-h-9 data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
+            <TabsTrigger value="newcase" className="min-h-9 data-[state=active]:bg-blue-600 data-[state=active]:text-white text-muted-foreground text-xs md:text-sm">
               새 케이스
             </TabsTrigger>
-            <TabsTrigger value="prom" className="min-h-9 data-[state=active]:bg-blue-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
+            <TabsTrigger value="prom" className="min-h-9 data-[state=active]:bg-blue-600 data-[state=active]:text-white text-muted-foreground text-xs md:text-sm">
               PROM 입력
             </TabsTrigger>
-            <TabsTrigger value="memo" className="min-h-9 data-[state=active]:bg-amber-600 data-[state=active]:text-white text-zinc-400 text-xs md:text-sm">
+            <TabsTrigger value="memo" className="min-h-9 data-[state=active]:bg-amber-600 data-[state=active]:text-white text-muted-foreground text-xs md:text-sm">
               💡 메모
             </TabsTrigger>
           </TabsList>
@@ -80,7 +80,7 @@ export default function ClinicusPage() {
 
           <TabsContent value="search" className="space-y-4">
             <div>
-              <p className="text-zinc-300 text-sm font-medium mb-2">환자 검색</p>
+              <p className="text-foreground/90 text-sm font-medium mb-2">환자 검색</p>
               <PatientSearch
                 onSelect={(p) => setSearchPatient(p)}
                 selectedId={searchPatient?.page_id}
@@ -88,7 +88,7 @@ export default function ClinicusPage() {
             </div>
             {searchPatient ? (
               <div className="space-y-4">
-                <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900">
+                <div className="border border-border rounded-xl p-4 bg-card">
                   <PatientDetail
                     patient={searchPatient}
                     onOpenNotion={() => window.open(searchPatient.url, "_blank")}
@@ -97,21 +97,21 @@ export default function ClinicusPage() {
                 <PatientProfileView pageId={searchPatient.page_id} />
               </div>
             ) : (
-              <p className="text-zinc-500 text-sm text-center py-8">
+              <p className="text-muted-foreground text-sm text-center py-8">
                 환자를 검색하여 선택하면 PROM 요약과 그래프가 표시됩니다.
               </p>
             )}
           </TabsContent>
 
           <TabsContent value="newcase">
-            <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900">
+            <div className="border border-border rounded-xl p-4 bg-card">
               <NewCaseForm />
             </div>
           </TabsContent>
 
           <TabsContent value="prom" className="space-y-4">
             <div>
-              <p className="text-zinc-300 text-sm font-medium mb-2">환자 검색</p>
+              <p className="text-foreground/90 text-sm font-medium mb-2">환자 검색</p>
               <PatientSearch
                 onSelect={(p) => setSelectedPatient(p)}
                 selectedId={selectedPatient?.page_id}
@@ -120,7 +120,7 @@ export default function ClinicusPage() {
             {selectedPatient ? (
               <PromTabContent patient={selectedPatient} />
             ) : (
-              <p className="text-zinc-500 text-sm text-center py-8">
+              <p className="text-muted-foreground text-sm text-center py-8">
                 환자를 검색하여 선택하면 PROM 입력 양식이 나타납니다.
               </p>
             )}

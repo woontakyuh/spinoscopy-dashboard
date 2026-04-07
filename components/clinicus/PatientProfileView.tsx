@@ -12,7 +12,7 @@ interface Props {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
-      <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">{title}</h4>
+      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</h4>
       {children}
     </div>
   )
@@ -21,10 +21,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Field({ label, value, unit, color }: { label: string; value: string | number | null | undefined; unit?: string; color?: string }) {
   if (value === null || value === undefined || value === "") return null
   return (
-    <div className="flex items-baseline justify-between py-1 border-b border-zinc-800/50 last:border-0">
-      <span className="text-xs text-zinc-500">{label}</span>
-      <span className={`text-sm num font-medium ${color ?? "text-zinc-200"}`}>
-        {value}{unit && <span className="text-xs text-zinc-500 ml-0.5">{unit}</span>}
+    <div className="flex items-baseline justify-between py-1 border-b border-border/50 last:border-0">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className={`text-sm num font-medium ${color ?? "text-foreground"}`}>
+        {value}{unit && <span className="text-xs text-muted-foreground ml-0.5">{unit}</span>}
       </span>
     </div>
   )
@@ -64,9 +64,9 @@ export function PatientProfileView({ pageId }: Props) {
   if (isLoading) {
     return (
       <div className="space-y-3">
-        <Skeleton className="h-6 w-48 bg-zinc-800" />
+        <Skeleton className="h-6 w-48 bg-muted" />
         <div className="grid grid-cols-2 gap-3">
-          {[1,2,3,4].map(i => <Skeleton key={i} className="h-24 bg-zinc-800" />)}
+          {[1,2,3,4].map(i => <Skeleton key={i} className="h-24 bg-muted" />)}
         </div>
       </div>
     )
@@ -89,14 +89,14 @@ export function PatientProfileView({ pageId }: Props) {
       {profile.ai_insight && (
         <div className="rounded-lg bg-indigo-950/30 border border-indigo-500/20 px-4 py-3">
           <p className="text-[10px] text-indigo-400 uppercase tracking-wider font-semibold mb-1.5">AI Insight</p>
-          <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-line">{profile.ai_insight}</p>
+          <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-line">{profile.ai_insight}</p>
         </div>
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
 
         {/* Clinical Info */}
-        <div className="rounded-lg bg-zinc-800/30 border border-zinc-700/50 px-3 py-2.5">
+        <div className="rounded-lg bg-muted/30 border border-border/50 px-3 py-2.5">
           <Section title="진단/분류">
             {profile.preop_dx && <Field label="Preop Dx" value={profile.preop_dx} />}
             {profile.level && <Field label="Level" value={profile.level} />}
@@ -110,7 +110,7 @@ export function PatientProfileView({ pageId }: Props) {
 
         {/* Body Metrics + BTM */}
         {(hasBody || hasBTM) && (
-          <div className="rounded-lg bg-zinc-800/30 border border-zinc-700/50 px-3 py-2.5">
+          <div className="rounded-lg bg-muted/30 border border-border/50 px-3 py-2.5">
             {hasBody && (
               <Section title="신체/골밀도">
                 <Field label="키" value={profile.height} unit="cm" />
@@ -127,8 +127,8 @@ export function PatientProfileView({ pageId }: Props) {
                 <Field label="HbA1c" value={profile.hba1c} unit="%" color={profile.hba1c && profile.hba1c > 7 ? "text-red-400" : undefined} />
                 {hasBTMfu && (
                   <>
-                    <div className="border-t border-zinc-700/30 mt-1.5 pt-1.5">
-                      <p className="text-[9px] text-zinc-600 mb-1">F/U</p>
+                    <div className="border-t border-border/30 mt-1.5 pt-1.5">
+                      <p className="text-[9px] text-muted-foreground/70 mb-1">F/U</p>
                     </div>
                     <Field label="VitD f/u" value={profile.vitd_fu} unit="ng/mL" />
                     <Field label="CTx f/u" value={profile.ctx_fu} />
@@ -142,7 +142,7 @@ export function PatientProfileView({ pageId }: Props) {
         )}
 
         {/* Surgical / Spine / Comorbidities */}
-        <div className="rounded-lg bg-zinc-800/30 border border-zinc-700/50 px-3 py-2.5 space-y-3">
+        <div className="rounded-lg bg-muted/30 border border-border/50 px-3 py-2.5 space-y-3">
           {hasSurgical && (
             <Section title="수술 정보">
               <Field label="Op time" value={profile.op_time} unit="min" />
@@ -165,7 +165,7 @@ export function PatientProfileView({ pageId }: Props) {
           )}
           {profile.pmhx && (
             <Section title="PMHx">
-              <p className="text-xs text-zinc-400 leading-relaxed">{profile.pmhx}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">{profile.pmhx}</p>
             </Section>
           )}
         </div>
@@ -177,14 +177,14 @@ export function PatientProfileView({ pageId }: Props) {
           {profile.cx && (
             <div className="rounded-lg bg-red-950/20 border border-red-500/15 px-3 py-2.5">
               <Section title="합병증 (Cx)">
-                <p className="text-xs text-zinc-400 leading-relaxed whitespace-pre-line">{profile.cx}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">{profile.cx}</p>
               </Section>
             </div>
           )}
           {profile.note && (
-            <div className="rounded-lg bg-zinc-800/30 border border-zinc-700/50 px-3 py-2.5">
+            <div className="rounded-lg bg-muted/30 border border-border/50 px-3 py-2.5">
               <Section title="Note">
-                <p className="text-xs text-zinc-400 leading-relaxed whitespace-pre-line">{profile.note}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">{profile.note}</p>
               </Section>
             </div>
           )}
@@ -193,7 +193,7 @@ export function PatientProfileView({ pageId }: Props) {
 
       {/* Cost */}
       {hasCost && (
-        <div className="rounded-lg bg-zinc-800/30 border border-zinc-700/50 px-3 py-2.5">
+        <div className="rounded-lg bg-muted/30 border border-border/50 px-3 py-2.5">
           <Section title="비용 (만원)">
             <div className="flex gap-4">
               <Field label="총 비용" value={profile.cost_total} />

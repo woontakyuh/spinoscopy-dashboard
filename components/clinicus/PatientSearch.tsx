@@ -39,30 +39,30 @@ export function PatientSearch({ onSelect, selectedId }: PatientSearchProps) {
         placeholder="환자명으로 검색..."
         value={query}
         onChange={e => handleChange(e.target.value)}
-        className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+        className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
       />
 
       {isLoading && (
         <div className="space-y-1">
-          <Skeleton className="h-10 w-full bg-zinc-800" />
-          <Skeleton className="h-10 w-full bg-zinc-800" />
+          <Skeleton className="h-10 w-full bg-muted" />
+          <Skeleton className="h-10 w-full bg-muted" />
         </div>
       )}
 
       {!isLoading && patients && patients.length > 0 && (
-        <div className="border border-zinc-700 rounded-lg overflow-hidden">
+        <div className="border border-border rounded-lg overflow-hidden">
           {patients.map(patient => (
             <button
               type="button"
               key={patient.page_id}
               onClick={() => onSelect(patient)}
-              className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-zinc-700 transition-colors border-b border-zinc-700 last:border-0 ${
-                selectedId === patient.page_id ? "bg-blue-600/20 border-blue-500/30" : "bg-zinc-800"
+              className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted transition-colors border-b border-border last:border-0 ${
+                selectedId === patient.page_id ? "bg-blue-600/20 border-blue-500/30" : "bg-muted"
               }`}
             >
               <div>
-                <p className="text-white font-medium text-sm">{patient.name}</p>
-                <p className="text-zinc-400 text-xs">
+                <p className="text-foreground font-medium text-sm">{patient.name}</p>
+                <p className="text-muted-foreground text-xs">
                   {patient.pt_no && `#${patient.pt_no} · `}
                   {patient.age && `${patient.age}세 · `}
                   {patient.sex}
@@ -71,12 +71,12 @@ export function PatientSearch({ onSelect, selectedId }: PatientSearchProps) {
               </div>
               <div className="text-right">
                 {patient.op_date && (
-                  <p className="text-zinc-400 text-xs">
+                  <p className="text-muted-foreground text-xs">
                     수술: {new Date(patient.op_date).toLocaleDateString("ko-KR", { month: "short", day: "numeric", year: "numeric" })}
                   </p>
                 )}
                 {patient.op_name && (
-                  <p className="text-zinc-500 text-xs truncate max-w-32">{patient.op_name}</p>
+                  <p className="text-muted-foreground text-xs truncate max-w-32">{patient.op_name}</p>
                 )}
               </div>
             </button>
@@ -85,7 +85,7 @@ export function PatientSearch({ onSelect, selectedId }: PatientSearchProps) {
       )}
 
       {!isLoading && debouncedQuery.length >= 1 && (!patients || patients.length === 0) && (
-        <p className="text-zinc-500 text-sm text-center py-3">검색 결과가 없습니다.</p>
+        <p className="text-muted-foreground text-sm text-center py-3">검색 결과가 없습니다.</p>
       )}
     </div>
   )

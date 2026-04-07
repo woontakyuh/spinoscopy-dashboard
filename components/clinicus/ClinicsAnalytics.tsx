@@ -142,10 +142,10 @@ function ChartHeader({ title, color, count }: { title: string; color: ColorKey; 
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
         <div className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
-        <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">{title}</h3>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</h3>
       </div>
       {count !== undefined && (
-        <span className="text-[10px] text-zinc-600 num">{count}</span>
+        <span className="text-[10px] text-muted-foreground/70 num">{count}</span>
       )}
     </div>
   )
@@ -163,9 +163,9 @@ function DimensionBarChart({
   const c = colorMap[color]
   if (entries.length === 0) {
     return (
-      <div className="rounded-xl border border-zinc-700/80 bg-zinc-900 p-4">
+      <div className="rounded-xl border border-border/80 bg-card p-4">
         <ChartHeader title={title} color={color} />
-        <p className="text-zinc-600 text-xs text-center py-6">데이터 없음</p>
+        <p className="text-muted-foreground/70 text-xs text-center py-6">데이터 없음</p>
       </div>
     )
   }
@@ -174,7 +174,7 @@ function DimensionBarChart({
   const hasActive = activeKeys !== undefined && activeKeys.size > 0
 
   return (
-    <div className="rounded-xl border border-zinc-700/80 bg-zinc-900 p-4">
+    <div className="rounded-xl border border-border/80 bg-card p-4">
       <ChartHeader title={title} color={color} count={entries.reduce((s, [, n]) => s + n, 0)} />
       <div className="space-y-[5px] mt-3">
         {entries.map(([key, count]) => {
@@ -189,7 +189,7 @@ function DimensionBarChart({
               className={`
                 w-full flex items-center gap-2 py-[5px] px-2.5 rounded-lg text-left
                 transition-all duration-150 cursor-pointer group
-                ${isActive ? `bg-zinc-700/50 ring-1 ${c.ring}` : "hover:bg-zinc-800/80"}
+                ${isActive ? `bg-muted/70 ring-1 ${c.ring}` : "hover:bg-muted/80"}
                 ${isDimmed ? "opacity-50" : "opacity-100"}
               `}
             >
@@ -198,11 +198,11 @@ function DimensionBarChart({
                 {isActive ? "✓" : "·"}
               </span>
               <span className={`text-xs w-[110px] shrink-0 truncate transition-colors ${
-                isActive ? "text-zinc-100 font-medium" : "text-zinc-400 group-hover:text-zinc-300"
+                isActive ? "text-foreground font-medium" : "text-muted-foreground group-hover:text-foreground/90"
               }`}>
                 {key}
               </span>
-              <div className="flex-1 h-[7px] bg-zinc-800 rounded-full overflow-hidden">
+              <div className="flex-1 h-[7px] bg-muted rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-300 ${
                     isActive ? c.barActive : isDimmed ? c.barDim : c.bar
@@ -211,7 +211,7 @@ function DimensionBarChart({
                 />
               </div>
               <span className={`text-[11px] w-7 text-right num transition-colors ${
-                isActive ? "text-zinc-200 font-medium" : "text-zinc-500"
+                isActive ? "text-foreground font-medium" : "text-muted-foreground"
               }`}>
                 {count}
               </span>
@@ -237,9 +237,9 @@ function DimensionCategoryChart({
   const c = colorMap[color]
   if (options.length === 0) {
     return (
-      <div className="rounded-xl border border-zinc-700/80 bg-zinc-900 p-4">
+      <div className="rounded-xl border border-border/80 bg-card p-4">
         <ChartHeader title={title} color={color} />
-        <p className="text-zinc-600 text-xs text-center py-6">데이터 없음</p>
+        <p className="text-muted-foreground/70 text-xs text-center py-6">데이터 없음</p>
       </div>
     )
   }
@@ -247,7 +247,7 @@ function DimensionCategoryChart({
   const hasActive = activeKeys !== undefined && activeKeys.size > 0
 
   return (
-    <div className="rounded-xl border border-zinc-700/80 bg-zinc-900 p-4">
+    <div className="rounded-xl border border-border/80 bg-card p-4">
       <ChartHeader title={title} color={color} />
       <div className="flex flex-wrap gap-1.5 mt-3">
         {options.map(opt => {
@@ -261,8 +261,8 @@ function DimensionCategoryChart({
                 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs
                 transition-all duration-150 cursor-pointer border
                 ${isActive
-                  ? `bg-zinc-700/50 ring-1 ${c.ring} border-zinc-600 text-zinc-100 font-medium`
-                  : `border-zinc-700/50 text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-300`}
+                  ? `bg-muted/70 ring-1 ${c.ring} border-border text-foreground font-medium`
+                  : `border-border/50 text-muted-foreground hover:bg-muted/80 hover:text-foreground/90`}
                 ${isDimmed ? "opacity-50" : "opacity-100"}
               `}
             >
@@ -359,56 +359,56 @@ function DemographicsSummary({ patients, groupBy, groupByLabel }: {
   }, [patients, groupBy])
 
   return (
-    <div className="rounded-xl border border-zinc-700/80 bg-zinc-900 p-4 animate-fade-in-up" style={{ animationDelay: "60ms" }}>
+    <div className="rounded-xl border border-border/80 bg-card p-4 animate-fade-in-up" style={{ animationDelay: "60ms" }}>
       <div className="flex items-center gap-2 mb-4">
         <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
-        <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">코호트 인구통계</h3>
-        <span className="text-[10px] text-zinc-600 num ml-auto">{patients.length}명</span>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">코호트 인구통계</h3>
+        <span className="text-[10px] text-muted-foreground/70 num ml-auto">{patients.length}명</span>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {/* Total */}
-        <div className="bg-zinc-800/50 rounded-lg px-3 py-2.5">
-          <p className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1">전체 환자</p>
-          <p className="text-2xl font-semibold text-zinc-100 num leading-none">{patients.length}</p>
+        <div className="bg-muted/50 rounded-lg px-3 py-2.5">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">전체 환자</p>
+          <p className="text-2xl font-semibold text-foreground num leading-none">{patients.length}</p>
         </div>
 
         {/* Age */}
-        <div className="bg-zinc-800/50 rounded-lg px-3 py-2.5">
-          <p className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1">평균 연령</p>
-          <p className="text-2xl font-semibold text-zinc-100 num leading-none">
+        <div className="bg-muted/50 rounded-lg px-3 py-2.5">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">평균 연령</p>
+          <p className="text-2xl font-semibold text-foreground num leading-none">
             {stats.avgAge !== null ? stats.avgAge : "—"}
           </p>
           {stats.minAge !== null && stats.maxAge !== null && (
-            <p className="text-[10px] text-zinc-600 mt-1 num">{stats.minAge}~{stats.maxAge}세</p>
+            <p className="text-[10px] text-muted-foreground/70 mt-1 num">{stats.minAge}~{stats.maxAge}세</p>
           )}
         </div>
 
         {/* Sex ratio */}
-        <div className="bg-zinc-800/50 rounded-lg px-3 py-2.5">
-          <p className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1">성비 (M:F)</p>
+        <div className="bg-muted/50 rounded-lg px-3 py-2.5">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">성비 (M:F)</p>
           <div className="flex items-baseline gap-1.5">
             <span className="text-lg font-semibold text-blue-400 num">{stats.maleCount}</span>
-            <span className="text-zinc-600 text-xs">:</span>
+            <span className="text-muted-foreground/70 text-xs">:</span>
             <span className="text-lg font-semibold text-pink-400 num">{stats.femaleCount}</span>
           </div>
           {stats.totalSex > 0 && (
-            <p className="text-[10px] text-zinc-600 mt-0.5 num">
+            <p className="text-[10px] text-muted-foreground/70 mt-0.5 num">
               M {Math.round((stats.maleCount / stats.totalSex) * 100)}% / F {Math.round((stats.femaleCount / stats.totalSex) * 100)}%
             </p>
           )}
         </div>
 
         {/* Op Date Range */}
-        <div className="bg-zinc-800/50 rounded-lg px-3 py-2.5">
-          <p className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1">수술 기간</p>
+        <div className="bg-muted/50 rounded-lg px-3 py-2.5">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">수술 기간</p>
           {stats.earliestDate ? (
             <>
-              <p className="text-sm font-medium text-zinc-200 num">{stats.earliestDate}</p>
-              <p className="text-[10px] text-zinc-600 num">~ {stats.latestDate}</p>
+              <p className="text-sm font-medium text-foreground num">{stats.earliestDate}</p>
+              <p className="text-[10px] text-muted-foreground/70 num">~ {stats.latestDate}</p>
             </>
           ) : (
-            <p className="text-zinc-600 text-sm">—</p>
+            <p className="text-muted-foreground/70 text-sm">—</p>
           )}
         </div>
       </div>
@@ -416,14 +416,14 @@ function DemographicsSummary({ patients, groupBy, groupByLabel }: {
       {/* Subgroup breakdown */}
       {stats.subgroups.length > 0 && (
         <div className="mt-3">
-          <p className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">
             {groupByLabel ?? "비교 그룹"} 별 인구통계
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {stats.subgroups.map((sg, i) => (
-              <div key={sg.name} className="bg-zinc-800/50 rounded-lg px-2.5 py-2 border-l-2" style={{ borderLeftColor: SUBGROUP_COLORS[i % SUBGROUP_COLORS.length] }}>
-                <p className="text-xs text-zinc-200 font-medium truncate">{sg.name}</p>
-                <p className="text-[10px] text-zinc-500 num mt-0.5">
+              <div key={sg.name} className="bg-muted/50 rounded-lg px-2.5 py-2 border-l-2" style={{ borderLeftColor: SUBGROUP_COLORS[i % SUBGROUP_COLORS.length] }}>
+                <p className="text-xs text-foreground font-medium truncate">{sg.name}</p>
+                <p className="text-[10px] text-muted-foreground num mt-0.5">
                   {sg.count}명 · 평균 {sg.avgAge ?? "—"}세 · M {sg.maleRatio ?? "—"}%
                 </p>
               </div>
@@ -435,13 +435,13 @@ function DemographicsSummary({ patients, groupBy, groupByLabel }: {
       {/* Level & Op distributions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
         {stats.topLevels.length > 0 && (
-          <div className="bg-zinc-800/50 rounded-lg px-3 py-2.5">
-            <p className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Level 분포 (상위)</p>
+          <div className="bg-muted/50 rounded-lg px-3 py-2.5">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">Level 분포 (상위)</p>
             <div className="flex flex-wrap gap-1.5">
               {stats.topLevels.map(([lvl, cnt]) => (
-                <span key={lvl} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-zinc-700/50 text-xs">
-                  <span className="text-zinc-300 font-medium">{lvl}</span>
-                  <span className="text-zinc-500 num">{cnt}</span>
+                <span key={lvl} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-muted/70 text-xs">
+                  <span className="text-foreground/90 font-medium">{lvl}</span>
+                  <span className="text-muted-foreground num">{cnt}</span>
                 </span>
               ))}
             </div>
@@ -449,13 +449,13 @@ function DemographicsSummary({ patients, groupBy, groupByLabel }: {
         )}
 
         {stats.topOps.length > 0 && (
-          <div className="bg-zinc-800/50 rounded-lg px-3 py-2.5">
-            <p className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">수술명 분포 (상위)</p>
+          <div className="bg-muted/50 rounded-lg px-3 py-2.5">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">수술명 분포 (상위)</p>
             <div className="flex flex-wrap gap-1.5">
               {stats.topOps.map(([op, cnt]) => (
-                <span key={op} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-zinc-700/50 text-xs">
-                  <span className="text-zinc-300 font-medium truncate max-w-[140px]">{op}</span>
-                  <span className="text-zinc-500 num">{cnt}</span>
+                <span key={op} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-muted/70 text-xs">
+                  <span className="text-foreground/90 font-medium truncate max-w-[140px]">{op}</span>
+                  <span className="text-muted-foreground num">{cnt}</span>
                 </span>
               ))}
             </div>
@@ -593,17 +593,17 @@ function PromTrendCharts({ patients, groupBy }: { patients: PatientRow[]; groupB
     <div className="animate-fade-in-up" style={{ animationDelay: "120ms" }}>
       <div className="flex items-center gap-2 mb-3">
         <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-        <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           PROM 평균 추이 {groupBy ? "(그룹 비교)" : ""}
         </h3>
-        <span className="text-[10px] text-zinc-600 num ml-auto">{patients.length}명 평균</span>
+        <span className="text-[10px] text-muted-foreground/70 num ml-auto">{patients.length}명 평균</span>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {charts.map(chart => (
-          <div key={chart.key} className="rounded-xl border border-zinc-700/80 bg-zinc-900 p-4">
-            <p className="text-zinc-400 text-xs font-medium uppercase tracking-wide mb-3">
+          <div key={chart.key} className="rounded-xl border border-border/80 bg-card p-4">
+            <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide mb-3">
               {chart.title}
-              {chart.isGrouped && <span className="text-zinc-600 ml-1">(주 지표: {chart.lines[0].label})</span>}
+              {chart.isGrouped && <span className="text-muted-foreground/70 ml-1">(주 지표: {chart.lines[0].label})</span>}
             </p>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={chart.chartData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
@@ -702,50 +702,50 @@ function PatientListRow({ patient, isExpanded, onToggle }: {
   }
 
   return (
-    <div className="border-b border-zinc-800/50 last:border-0">
+    <div className="border-b border-border/50 last:border-0">
       <button
         onClick={handleToggle}
-        className={`w-full text-left flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-800/50 transition-colors ${
-          isExpanded ? "bg-zinc-800/30" : ""
+        className={`w-full text-left flex items-center gap-3 px-4 py-2.5 hover:bg-muted/50 transition-colors ${
+          isExpanded ? "bg-muted/30" : ""
         }`}
       >
-        <span className="text-[11px] text-zinc-500 w-[76px] shrink-0 num">{patient.op_date ?? "—"}</span>
-        <span className="text-sm text-zinc-200 w-[64px] shrink-0 truncate font-medium">{patient.name || "—"}</span>
-        <span className="text-xs text-zinc-500 w-[30px] shrink-0 num">{patient.age || "—"}</span>
+        <span className="text-[11px] text-muted-foreground w-[76px] shrink-0 num">{patient.op_date ?? "—"}</span>
+        <span className="text-sm text-foreground w-[64px] shrink-0 truncate font-medium">{patient.name || "—"}</span>
+        <span className="text-xs text-muted-foreground w-[30px] shrink-0 num">{patient.age || "—"}</span>
         <span className={`text-xs w-[18px] shrink-0 font-medium ${
-          patient.sex === "M" ? "text-blue-400" : patient.sex === "F" ? "text-pink-400" : "text-zinc-600"
+          patient.sex === "M" ? "text-blue-400" : patient.sex === "F" ? "text-pink-400" : "text-muted-foreground/70"
         }`}>
           {patient.sex || "—"}
         </span>
-        <span className="text-xs text-zinc-400 flex-1 truncate">{patient.op_name || "—"}</span>
-        <span className="text-[11px] text-zinc-600 w-[80px] shrink-0 truncate">{patient.class_b.join(", ") || "—"}</span>
-        <span className="text-[11px] text-zinc-600 w-[50px] shrink-0 truncate">{patient.level || "—"}</span>
-        <span className="text-[11px] text-zinc-600 w-[50px] shrink-0 truncate">{patient.hospital.join(", ") || "—"}</span>
-        <span className={`text-zinc-500 text-xs transition-transform shrink-0 ${isExpanded ? "rotate-180" : ""}`}>
+        <span className="text-xs text-muted-foreground flex-1 truncate">{patient.op_name || "—"}</span>
+        <span className="text-[11px] text-muted-foreground/70 w-[80px] shrink-0 truncate">{patient.class_b.join(", ") || "—"}</span>
+        <span className="text-[11px] text-muted-foreground/70 w-[50px] shrink-0 truncate">{patient.level || "—"}</span>
+        <span className="text-[11px] text-muted-foreground/70 w-[50px] shrink-0 truncate">{patient.hospital.join(", ") || "—"}</span>
+        <span className={`text-muted-foreground text-xs transition-transform shrink-0 ${isExpanded ? "rotate-180" : ""}`}>
           ▼
         </span>
       </button>
       {isExpanded && (
-        <div className="px-4 pb-4 pt-2 bg-zinc-900/50 space-y-3">
+        <div className="px-4 pb-4 pt-2 bg-card/50 space-y-3">
           {loading && (
             <div className="space-y-2">
-              {[1, 2, 3].map(i => <Skeleton key={i} className="h-8 w-full bg-zinc-800" />)}
+              {[1, 2, 3].map(i => <Skeleton key={i} className="h-8 w-full bg-muted" />)}
             </div>
           )}
           {promRecord && (
             <>
-              <div className="border border-zinc-700/60 rounded-lg p-3 bg-zinc-900">
+              <div className="border border-border/60 rounded-lg p-3 bg-card">
                 <PromDisplay patient={fakePatientResult} />
               </div>
-              <div className="border border-zinc-700/60 rounded-lg p-3 bg-zinc-900">
-                <p className="text-zinc-400 text-xs font-medium mb-2">추이 그래프</p>
+              <div className="border border-border/60 rounded-lg p-3 bg-card">
+                <p className="text-muted-foreground text-xs font-medium mb-2">추이 그래프</p>
                 <PromChart promRecord={promRecord} />
               </div>
               <PatientProfileView pageId={patient.page_id} />
             </>
           )}
           {!loading && !promRecord && (
-            <p className="text-zinc-600 text-sm text-center py-3">PROM 데이터를 불러올 수 없습니다.</p>
+            <p className="text-muted-foreground/70 text-sm text-center py-3">PROM 데이터를 불러올 수 없습니다.</p>
           )}
         </div>
       )}
@@ -763,17 +763,17 @@ function PatientList({ patients }: { patients: PatientRow[] }) {
   )
 
   return (
-    <div className="rounded-xl border border-zinc-700/80 bg-zinc-900 overflow-hidden animate-fade-in-up" style={{ animationDelay: "180ms" }}>
-      <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+    <div className="rounded-xl border border-border/80 bg-card overflow-hidden animate-fade-in-up" style={{ animationDelay: "180ms" }}>
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
-          <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">환자 목록</h3>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">환자 목록</h3>
         </div>
-        <span className="text-[10px] text-zinc-600 num">{patients.length}명</span>
+        <span className="text-[10px] text-muted-foreground/70 num">{patients.length}명</span>
       </div>
 
       {/* Table header */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-zinc-700/50 text-[10px] text-zinc-600 uppercase tracking-wider font-medium">
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-border/50 text-[10px] text-muted-foreground/70 uppercase tracking-wider font-medium">
         <span className="w-[76px] shrink-0">수술일</span>
         <span className="w-[64px] shrink-0">이름</span>
         <span className="w-[30px] shrink-0">나이</span>
@@ -795,10 +795,10 @@ function PatientList({ patients }: { patients: PatientRow[] }) {
       ))}
 
       {patients.length > visibleCount && (
-        <div className="flex justify-center py-3 border-t border-zinc-800">
+        <div className="flex justify-center py-3 border-t border-border">
           <button
             onClick={() => setVisibleCount(prev => prev + 30)}
-            className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+            className="text-xs text-muted-foreground hover:text-foreground/90 transition-colors"
           >
             더보기 ({patients.length - visibleCount}명 남음)
           </button>
@@ -806,7 +806,7 @@ function PatientList({ patients }: { patients: PatientRow[] }) {
       )}
 
       {patients.length === 0 && (
-        <p className="text-zinc-600 text-sm text-center py-8">해당 조건에 환자가 없습니다.</p>
+        <p className="text-muted-foreground/70 text-sm text-center py-8">해당 조건에 환자가 없습니다.</p>
       )}
     </div>
   )
@@ -827,18 +827,18 @@ function GroupBySelector({
   const available = DIMENSIONS
 
   return (
-    <div className="flex items-center gap-2 flex-wrap px-3 py-2.5 rounded-xl bg-zinc-900/80 border border-zinc-700/60 animate-fade-in-up">
-      <span className="text-[11px] text-zinc-500 uppercase tracking-wider font-semibold shrink-0">비교 기준</span>
+    <div className="flex items-center gap-2 flex-wrap px-3 py-2.5 rounded-xl bg-card/80 border border-border/60 animate-fade-in-up">
+      <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold shrink-0">비교 기준</span>
       {available.length === 0 ? (
-        <span className="text-xs text-zinc-600">모든 차원이 필터로 사용 중</span>
+        <span className="text-xs text-muted-foreground/70">모든 차원이 필터로 사용 중</span>
       ) : (
         <>
           <button
             onClick={() => onChange(null)}
             className={`px-2.5 py-1 rounded-lg text-xs transition-all duration-150 border ${
               value === null
-                ? "bg-zinc-700/50 border-zinc-500 text-zinc-200 font-medium"
-                : "border-zinc-700/50 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/80"
+                ? "bg-muted/70 border-zinc-500 text-foreground font-medium"
+                : "border-border/50 text-muted-foreground hover:text-foreground/90 hover:bg-muted/80"
             }`}
           >
             없음
@@ -852,8 +852,8 @@ function GroupBySelector({
                 onClick={() => onChange(isActive ? null : dim.key)}
                 className={`px-2.5 py-1 rounded-lg text-xs transition-all duration-150 border ${
                   isActive
-                    ? `bg-zinc-700/50 ring-1 ${c.ring} border-zinc-500 text-zinc-200 font-medium`
-                    : "border-zinc-700/50 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/80"
+                    ? `bg-muted/70 ring-1 ${c.ring} border-zinc-500 text-foreground font-medium`
+                    : "border-border/50 text-muted-foreground hover:text-foreground/90 hover:bg-muted/80"
                 }`}
               >
                 {dim.label}
@@ -977,10 +977,10 @@ export function ClinicsAnalytics() {
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-3 gap-3">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-[72px] bg-zinc-800/60 rounded-xl" />)}
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-[72px] bg-muted/60 rounded-xl" />)}
         </div>
         <div className="grid grid-cols-2 gap-3">
-          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 bg-zinc-800/60 rounded-xl" />)}
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 bg-muted/60 rounded-xl" />)}
         </div>
       </div>
     )
@@ -1001,22 +1001,22 @@ export function ClinicsAnalytics() {
 
       {/* ═══════ Stat Cards ═══════ */}
       <div className="grid grid-cols-3 gap-3 animate-fade-in-up">
-        <div className="card-hover rounded-xl border border-zinc-700/80 bg-zinc-900 px-4 py-3">
-          <p className="text-[11px] text-zinc-500 font-medium tracking-wide mb-1">전체 DB</p>
-          <p className="text-2xl font-semibold text-zinc-100 num leading-none">
+        <div className="card-hover rounded-xl border border-border/80 bg-card px-4 py-3">
+          <p className="text-[11px] text-muted-foreground font-medium tracking-wide mb-1">전체 DB</p>
+          <p className="text-2xl font-semibold text-foreground num leading-none">
             {schema ? Object.values(schema).reduce((max, opts) => Math.max(max, opts.length), 0) > 0 ? "—" : "0" : "—"}
           </p>
-          <p className="text-[10px] text-zinc-600 mt-0.5">필터 적용 시 조회</p>
+          <p className="text-[10px] text-muted-foreground/70 mt-0.5">필터 적용 시 조회</p>
         </div>
-        <div className="card-hover rounded-xl border border-zinc-700/80 bg-zinc-900 px-4 py-3">
-          <p className="text-[11px] text-zinc-500 font-medium tracking-wide mb-1">필터 매칭</p>
-          <p className={`text-2xl font-semibold num leading-none ${filtersActive ? "text-violet-400" : "text-zinc-600"}`}>
+        <div className="card-hover rounded-xl border border-border/80 bg-card px-4 py-3">
+          <p className="text-[11px] text-muted-foreground font-medium tracking-wide mb-1">필터 매칭</p>
+          <p className={`text-2xl font-semibold num leading-none ${filtersActive ? "text-violet-400" : "text-muted-foreground/70"}`}>
             {filtersActive ? (patientsQuery.isLoading ? "..." : filtered.length) : "—"}
           </p>
         </div>
-        <div className="card-hover rounded-xl border border-zinc-700/80 bg-zinc-900 px-4 py-3">
-          <p className="text-[11px] text-zinc-500 font-medium tracking-wide mb-1">활성 필터</p>
-          <p className={`text-2xl font-semibold num leading-none ${filterCount > 0 ? "text-indigo-400" : "text-zinc-600"}`}>
+        <div className="card-hover rounded-xl border border-border/80 bg-card px-4 py-3">
+          <p className="text-[11px] text-muted-foreground font-medium tracking-wide mb-1">활성 필터</p>
+          <p className={`text-2xl font-semibold num leading-none ${filterCount > 0 ? "text-indigo-400" : "text-muted-foreground/70"}`}>
             {filterCount}
           </p>
         </div>
@@ -1033,21 +1033,21 @@ export function ClinicsAnalytics() {
               <button
                 key={`${key}-${val}`}
                 onClick={() => toggleFilter(key, val)}
-                className="inline-flex items-center gap-1.5 pl-2.5 pr-2 py-1 rounded-full bg-zinc-800 text-zinc-300 text-xs border border-zinc-600/50 hover:border-zinc-500 hover:bg-zinc-700/80 transition-all duration-150 group"
+                className="inline-flex items-center gap-1.5 pl-2.5 pr-2 py-1 rounded-full bg-muted text-foreground/90 text-xs border border-border/50 hover:border-zinc-500 hover:bg-muted/80 transition-all duration-150 group"
               >
-                <span className="text-zinc-500 text-[10px]">{dimLabel}</span>
+                <span className="text-muted-foreground text-[10px]">{dimLabel}</span>
                 <span className="font-medium">{val}</span>
-                <span className="text-zinc-500 group-hover:text-zinc-300 ml-0.5 transition-colors">x</span>
+                <span className="text-muted-foreground group-hover:text-foreground/90 ml-0.5 transition-colors">x</span>
               </button>
             ))
           })}
           <button
             onClick={clearFilters}
-            className="text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors underline underline-offset-2 decoration-zinc-700 hover:decoration-zinc-500"
+            className="text-[11px] text-muted-foreground hover:text-foreground/90 transition-colors underline underline-offset-2 decoration-zinc-700 hover:decoration-zinc-500"
           >
             전체 해제
           </button>
-          <span className="text-[11px] text-zinc-500 ml-auto num">
+          <span className="text-[11px] text-muted-foreground ml-auto num">
             {filtersActive ? (patientsQuery.isLoading ? "조회 중..." : `${filtered.length}명 매칭`) : ""}
           </span>
         </div>
@@ -1114,9 +1114,9 @@ export function ClinicsAnalytics() {
 
       {/* ═══════ Prompt to select filters ═══════ */}
       {!filtersActive && (
-        <div className="rounded-xl border border-dashed border-zinc-700/60 bg-zinc-900/50 py-12 text-center animate-fade-in-up">
-          <p className="text-zinc-500 text-sm">필터를 선택하면 데이터가 로딩됩니다</p>
-          <p className="text-zinc-600 text-xs mt-1">위 카테고리에서 하나 이상 선택해 주세요</p>
+        <div className="rounded-xl border border-dashed border-border/60 bg-card/50 py-12 text-center animate-fade-in-up">
+          <p className="text-muted-foreground text-sm">필터를 선택하면 데이터가 로딩됩니다</p>
+          <p className="text-muted-foreground/70 text-xs mt-1">위 카테고리에서 하나 이상 선택해 주세요</p>
         </div>
       )}
 
@@ -1124,12 +1124,12 @@ export function ClinicsAnalytics() {
       {filtersActive && patientsQuery.isLoading && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20 bg-zinc-800/60 rounded-xl" />)}
+            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20 bg-muted/60 rounded-xl" />)}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {[1, 2].map(i => <Skeleton key={i} className="h-56 bg-zinc-800/60 rounded-xl" />)}
+            {[1, 2].map(i => <Skeleton key={i} className="h-56 bg-muted/60 rounded-xl" />)}
           </div>
-          <Skeleton className="h-48 bg-zinc-800/60 rounded-xl" />
+          <Skeleton className="h-48 bg-muted/60 rounded-xl" />
         </div>
       )}
 

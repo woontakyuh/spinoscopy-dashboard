@@ -82,32 +82,32 @@ export function NewCaseForm() {
     <form onSubmit={handleSubmit(values => mutation.mutate(values))} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
-          <Label className="text-zinc-300 text-sm">환자명 *</Label>
-          <Input {...register("name")} className="bg-zinc-800 border-zinc-700 text-white mt-1" placeholder="홍길동" />
+          <Label className="text-foreground/90 text-sm">환자명 *</Label>
+          <Input {...register("name")} className="bg-muted border-border text-foreground mt-1" placeholder="홍길동" />
           {errors.name && <p className="text-red-400 text-xs mt-1">{errors.name.message}</p>}
         </div>
 
         <div>
-          <Label className="text-zinc-300 text-sm">차트번호</Label>
-          <Input {...register("pt_no")} className="bg-zinc-800 border-zinc-700 text-white mt-1" placeholder="12345678" />
+          <Label className="text-foreground/90 text-sm">차트번호</Label>
+          <Input {...register("pt_no")} className="bg-muted border-border text-foreground mt-1" placeholder="12345678" />
         </div>
 
         <div>
-          <Label className="text-zinc-300 text-sm">나이</Label>
-          <Input {...register("age")} className="bg-zinc-800 border-zinc-700 text-white mt-1" placeholder="65" />
+          <Label className="text-foreground/90 text-sm">나이</Label>
+          <Input {...register("age")} className="bg-muted border-border text-foreground mt-1" placeholder="65" />
         </div>
 
         <div>
-          <Label className="text-zinc-300 text-sm">성별</Label>
-          <select {...register("sex")} className="mt-1 w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 text-sm">
+          <Label className="text-foreground/90 text-sm">성별</Label>
+          <select {...register("sex")} className="mt-1 w-full bg-muted border border-border text-foreground rounded-md px-3 py-2 text-sm">
             <option value="M">남</option>
             <option value="F">여</option>
           </select>
         </div>
 
         <div>
-          <Label className="text-zinc-300 text-sm">병원</Label>
-          <select {...register("hospital")} className="mt-1 w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 text-sm">
+          <Label className="text-foreground/90 text-sm">병원</Label>
+          <select {...register("hospital")} className="mt-1 w-full bg-muted border border-border text-foreground rounded-md px-3 py-2 text-sm">
             <option value="Davos">Davos</option>
             <option value="DTSH">DTSH</option>
             <option value="SNUH">SNUH</option>
@@ -116,30 +116,30 @@ export function NewCaseForm() {
         </div>
 
         <div>
-          <Label className="text-zinc-300 text-sm">수술일 *</Label>
-          <Input {...register("op_date")} type="date" className="bg-zinc-800 border-zinc-700 text-white mt-1" />
+          <Label className="text-foreground/90 text-sm">수술일 *</Label>
+          <Input {...register("op_date")} type="date" className="bg-muted border-border text-foreground mt-1" />
           {errors.op_date && <p className="text-red-400 text-xs mt-1">{errors.op_date.message}</p>}
         </div>
 
         <div>
-          <Label className="text-zinc-300 text-sm">수술명 *</Label>
-          <Input {...register("op_name")} className="bg-zinc-800 border-zinc-700 text-white mt-1" placeholder="UBE L4-5 ULBD" />
+          <Label className="text-foreground/90 text-sm">수술명 *</Label>
+          <Input {...register("op_name")} className="bg-muted border-border text-foreground mt-1" placeholder="UBE L4-5 ULBD" />
           {errors.op_name && <p className="text-red-400 text-xs mt-1">{errors.op_name.message}</p>}
         </div>
 
         <div>
-          <Label className="text-zinc-300 text-sm">Level</Label>
-          <Input {...register("level")} className="bg-zinc-800 border-zinc-700 text-white mt-1" placeholder="L4-5" />
+          <Label className="text-foreground/90 text-sm">Level</Label>
+          <Input {...register("level")} className="bg-muted border-border text-foreground mt-1" placeholder="L4-5" />
         </div>
 
         <div>
-          <Label className="text-zinc-300 text-sm">수술 전 진단</Label>
-          <Input {...register("preop_dx")} className="bg-zinc-800 border-zinc-700 text-white mt-1" placeholder="HIVD L4-5" />
+          <Label className="text-foreground/90 text-sm">수술 전 진단</Label>
+          <Input {...register("preop_dx")} className="bg-muted border-border text-foreground mt-1" placeholder="HIVD L4-5" />
         </div>
       </div>
 
-      <div className="border-t border-zinc-700 pt-4">
-        <p className="text-zinc-300 text-sm font-medium mb-3">수술 전 PROM (선택)</p>
+      <div className="border-t border-border pt-4">
+        <p className="text-foreground/90 text-sm font-medium mb-3">수술 전 PROM (선택)</p>
         <div className="grid grid-cols-3 gap-2">
           {[
             { key: "vas", label: "VAS (0-10)" },
@@ -149,10 +149,10 @@ export function NewCaseForm() {
             { key: "eq5d", label: "EQ5D" },
           ].map(field => (
             <div key={field.key}>
-              <Label className="text-zinc-400 text-xs">{field.label}</Label>
+              <Label className="text-muted-foreground text-xs">{field.label}</Label>
               <Input
                 {...register(field.key as "vas" | "odi" | "joa" | "ndi" | "eq5d")}
-                className="bg-zinc-800 border-zinc-700 text-white mt-1 h-8 text-sm"
+                className="bg-muted border-border text-foreground mt-1 h-8 text-sm"
               />
             </div>
           ))}

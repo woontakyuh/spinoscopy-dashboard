@@ -105,15 +105,15 @@ export function PromForm({ patient }: PromFormProps) {
   return (
     <div className="space-y-4">
       <div>
-        <p className="text-white font-medium">{patient.name}</p>
-        <p className="text-zinc-400 text-sm">
+        <p className="text-foreground font-medium">{patient.name}</p>
+        <p className="text-muted-foreground text-sm">
           {patient.op_name && `${patient.op_name} · `}
           {patient.op_date && new Date(patient.op_date).toLocaleDateString("ko-KR")}
         </p>
       </div>
 
       <div>
-        <Label className="text-zinc-300 text-sm mb-2 block">시점 선택</Label>
+        <Label className="text-foreground/90 text-sm mb-2 block">시점 선택</Label>
         <div className="flex gap-2 flex-wrap">
           {TIMEPOINTS.map(tp => (
             <button
@@ -123,7 +123,7 @@ export function PromForm({ patient }: PromFormProps) {
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 timepoint === tp.value
                   ? "bg-blue-600 text-white"
-                  : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                  : "bg-muted text-muted-foreground hover:bg-muted"
               }`}
             >
               {tp.label}
@@ -135,7 +135,7 @@ export function PromForm({ patient }: PromFormProps) {
       {promLoading ? (
         <div className="space-y-3">
           {[1, 2, 3, 4, 5].map(i => (
-            <Skeleton key={i} className="h-10 w-full bg-zinc-800" />
+            <Skeleton key={i} className="h-10 w-full bg-muted" />
           ))}
         </div>
       ) : (
@@ -149,15 +149,15 @@ export function PromForm({ patient }: PromFormProps) {
               { key: "eq5d", label: "EQ5D", placeholder: "예) 23441/60", hint: getHint("EQ5D") },
             ].map(field => (
               <div key={field.key} className="flex items-center gap-3">
-                <Label className="w-14 text-zinc-300 text-sm shrink-0">{field.label}</Label>
+                <Label className="w-14 text-foreground/90 text-sm shrink-0">{field.label}</Label>
                 <div className="flex-1 relative">
                   <Input
                     {...register(field.key as keyof PromFormValues)}
                     placeholder={field.placeholder}
-                    className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600"
+                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground/70"
                   />
                   {field.hint && (
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 text-xs">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
                       현재: {field.hint}
                     </span>
                   )}

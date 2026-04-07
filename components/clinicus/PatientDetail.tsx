@@ -25,15 +25,15 @@ export function PatientDetail({ patient, onOpenNotion }: Props) {
     <div className="space-y-4">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-white font-semibold text-base">{patient.name}</p>
-          <p className="text-zinc-400 text-sm mt-0.5">
+          <p className="text-foreground font-semibold text-base">{patient.name}</p>
+          <p className="text-muted-foreground text-sm mt-0.5">
             {patient.pt_no && `#${patient.pt_no} · `}
             {patient.age && `${patient.age}세 · `}
             {patient.sex}
             {patient.hospital.length > 0 && ` · ${patient.hospital.join(", ")}`}
           </p>
           {patient.op_name && (
-            <p className="text-zinc-500 text-xs mt-1">
+            <p className="text-muted-foreground text-xs mt-1">
               {patient.op_name}
               {patient.op_date && ` · ${new Date(patient.op_date).toLocaleDateString("ko-KR")}`}
             </p>
@@ -43,7 +43,7 @@ export function PatientDetail({ patient, onOpenNotion }: Props) {
           <button
             type="button"
             onClick={onOpenNotion}
-            className="text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-700 hover:border-zinc-500 rounded-lg px-3 py-1.5 transition-colors shrink-0"
+            className="text-xs text-muted-foreground hover:text-foreground/90 border border-border hover:border-zinc-500 rounded-lg px-3 py-1.5 transition-colors shrink-0"
           >
             Notion ↗
           </button>
@@ -52,16 +52,16 @@ export function PatientDetail({ patient, onOpenNotion }: Props) {
 
       {isLoading ? (
         <div className="space-y-2">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full bg-zinc-800" />)}
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full bg-muted" />)}
         </div>
       ) : promRecord ? (
         <div className="space-y-5">
           <div>
-            <p className="text-zinc-400 text-xs font-medium uppercase tracking-wide mb-3">환산 점수</p>
+            <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide mb-3">환산 점수</p>
             <PromDisplay patient={patient} />
           </div>
           <div>
-            <p className="text-zinc-400 text-xs font-medium uppercase tracking-wide mb-3">추이 그래프</p>
+            <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide mb-3">추이 그래프</p>
             <PromChart promRecord={promRecord} />
           </div>
         </div>

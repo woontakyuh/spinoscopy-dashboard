@@ -24,10 +24,10 @@ interface Props {
 // Small badge showing a score value
 function ScoreBadge({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="flex flex-col items-center bg-zinc-800 rounded-lg px-3 py-2 min-w-[72px]">
-      <span className="text-zinc-400 text-[10px] uppercase tracking-wide">{label}</span>
-      <span className="text-white font-semibold text-sm mt-0.5 num">{value}</span>
-      {sub && <span className="text-zinc-500 text-[10px] mt-0.5">{sub}</span>}
+    <div className="flex flex-col items-center bg-muted rounded-lg px-3 py-2 min-w-[72px]">
+      <span className="text-muted-foreground text-[10px] uppercase tracking-wide">{label}</span>
+      <span className="text-foreground font-semibold text-sm mt-0.5 num">{value}</span>
+      {sub && <span className="text-muted-foreground text-[10px] mt-0.5">{sub}</span>}
     </div>
   )
 }
@@ -38,7 +38,7 @@ function TimepointRow({ tp, region }: { tp: ParsedTimepoint; region: "cervical" 
   if (!hasAny) {
     return (
       <div className="flex items-center gap-3 py-2">
-        <span className="text-zinc-500 text-xs w-16 shrink-0 text-right">
+        <span className="text-muted-foreground text-xs w-16 shrink-0 text-right">
           {TIMEPOINTS.find(t => t.value === tp.timepoint)?.label}
         </span>
         <span className="text-zinc-700 text-xs italic">데이터 없음</span>
@@ -51,7 +51,7 @@ function TimepointRow({ tp, region }: { tp: ParsedTimepoint; region: "cervical" 
 
   return (
     <div className="flex items-start gap-3 py-2">
-      <span className="text-zinc-400 text-xs w-16 shrink-0 text-right pt-2.5">
+      <span className="text-muted-foreground text-xs w-16 shrink-0 text-right pt-2.5">
         {TIMEPOINTS.find(t => t.value === tp.timepoint)?.label}
       </span>
       <div className="flex flex-wrap gap-1.5">
@@ -94,7 +94,7 @@ export function PromDisplay({ patient }: Props) {
   if (isLoading) {
     return (
       <div className="space-y-2">
-        {[1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full bg-zinc-800" />)}
+        {[1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full bg-muted" />)}
       </div>
     )
   }
@@ -107,7 +107,7 @@ export function PromDisplay({ patient }: Props) {
 
   if (!hasData) {
     return (
-      <p className="text-zinc-600 text-sm italic text-center py-4">
+      <p className="text-muted-foreground/70 text-sm italic text-center py-4">
         기록된 PROM 데이터가 없습니다.
       </p>
     )
@@ -119,9 +119,9 @@ export function PromDisplay({ patient }: Props) {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-zinc-400 text-xs">환산 점수 (Korean EQ-5D-5L, Kim et al. 2016)</p>
+        <p className="text-muted-foreground text-xs">환산 점수 (Korean EQ-5D-5L, Kim et al. 2016)</p>
         {regionLabel && (
-          <span className="text-xs bg-zinc-700 text-zinc-300 px-2 py-0.5 rounded-full">
+          <span className="text-xs bg-muted text-foreground/90 px-2 py-0.5 rounded-full">
             {regionLabel}
           </span>
         )}

@@ -54,8 +54,8 @@ interface ChartCardProps {
 
 function ChartCard({ title, children }: ChartCardProps) {
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-      <p className="text-zinc-400 text-xs font-medium uppercase tracking-wide mb-3">{title}</p>
+    <div className="bg-card border border-border rounded-xl p-4">
+      <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide mb-3">{title}</p>
       {children}
     </div>
   )
@@ -113,7 +113,7 @@ export function PromChart({ promRecord }: Props) {
 
   if (!hasVAS && !hasDisab && !hasJOA && !hasEQ5D) {
     return (
-      <p className="text-zinc-600 text-sm italic text-center py-6">
+      <p className="text-muted-foreground/70 text-sm italic text-center py-6">
         그래프를 그릴 데이터가 없습니다.
       </p>
     )

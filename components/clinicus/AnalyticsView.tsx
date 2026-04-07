@@ -91,27 +91,27 @@ function FilterSection({
   const activeCount = selected.size
 
   return (
-    <div className="border border-zinc-800 rounded-lg bg-zinc-900">
+    <div className="border border-border rounded-lg bg-card">
       <button
         type="button"
         onClick={() => setOpen(prev => !prev)}
-        className="w-full flex items-center justify-between px-3 py-2 hover:bg-zinc-800/30 transition-colors rounded-lg"
+        className="w-full flex items-center justify-between px-3 py-2 hover:bg-muted/30 transition-colors rounded-lg"
       >
         <div className="flex items-center gap-2">
-          <span className="text-zinc-300 text-sm font-medium">{dim.label}</span>
+          <span className="text-foreground/90 text-sm font-medium">{dim.label}</span>
           {activeCount > 0 && (
             <span className="text-violet-400 text-xs font-medium bg-violet-500/15 px-1.5 py-0.5 rounded">
               {activeCount}개
             </span>
           )}
         </div>
-        <span className={`text-zinc-500 text-xs transition-transform ${open ? "rotate-180" : ""}`}>▼</span>
+        <span className={`text-muted-foreground text-xs transition-transform ${open ? "rotate-180" : ""}`}>▼</span>
       </button>
       {open && (
         <div className="px-3 pb-2.5 pt-0.5">
           <div className="flex gap-2 mb-1.5">
             <button type="button" onClick={onSelectAll} className="text-xs text-blue-400 hover:text-blue-300">전체</button>
-            <button type="button" onClick={onClearAll} className="text-xs text-zinc-500 hover:text-zinc-400">해제</button>
+            <button type="button" onClick={onClearAll} className="text-xs text-muted-foreground hover:text-muted-foreground">해제</button>
           </div>
           <div className="flex flex-wrap gap-1">
             {options.map(opt => {
@@ -124,7 +124,7 @@ function FilterSection({
                   className={`px-2 py-1 rounded text-xs font-medium transition-colors border ${
                     active
                       ? "bg-violet-600/20 border-violet-500/50 text-violet-300"
-                      : "bg-zinc-800/50 border-zinc-700/50 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-400"
+                      : "bg-muted/50 border-border/50 text-muted-foreground hover:bg-muted hover:text-muted-foreground"
                   }`}
                 >
                   {opt.name}
@@ -154,29 +154,29 @@ function DimPicker({
   const [open, setOpen] = useState(false)
   const activeCount = selected.size
   const badge = isGroupBy ? "비교 기준" : "필터"
-  const accentClass = isGroupBy ? "text-blue-400" : "text-zinc-400"
+  const accentClass = isGroupBy ? "text-blue-400" : "text-muted-foreground"
 
   return (
-    <div className={`border rounded-xl ${isGroupBy ? "border-blue-500/30 bg-blue-950/20" : "border-zinc-800 bg-zinc-900"}`}>
+    <div className={`border rounded-xl ${isGroupBy ? "border-blue-500/30 bg-blue-950/20" : "border-border bg-card"}`}>
       <button
         type="button"
         onClick={() => setOpen(prev => !prev)}
-        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-zinc-800/30 transition-colors rounded-xl"
+        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-muted/30 transition-colors rounded-xl"
       >
         <div className="flex items-center gap-2">
           <span className={`text-[10px] uppercase tracking-wide font-semibold ${accentClass}`}>{badge}</span>
-          <span className="text-zinc-300 text-sm font-medium">{dim.label}</span>
-          <span className="text-zinc-500 text-xs">
+          <span className="text-foreground/90 text-sm font-medium">{dim.label}</span>
+          <span className="text-muted-foreground text-xs">
             {activeCount === 0 ? "전체" : `${activeCount}/${options.length}`}
           </span>
         </div>
-        <span className={`text-zinc-500 text-xs transition-transform ${open ? "rotate-180" : ""}`}>▼</span>
+        <span className={`text-muted-foreground text-xs transition-transform ${open ? "rotate-180" : ""}`}>▼</span>
       </button>
       {open && (
         <div className="px-4 pb-3 pt-1">
           <div className="flex gap-2 mb-2">
             <button type="button" onClick={onSelectAll} className="text-xs text-blue-400 hover:text-blue-300">전체 선택</button>
-            <button type="button" onClick={onClearAll} className="text-xs text-zinc-500 hover:text-zinc-400">전체 해제</button>
+            <button type="button" onClick={onClearAll} className="text-xs text-muted-foreground hover:text-muted-foreground">전체 해제</button>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {options.map(opt => {
@@ -189,16 +189,16 @@ function DimPicker({
                   className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
                     active
                       ? "bg-blue-600/20 border-blue-500/50 text-blue-300"
-                      : "bg-zinc-800/50 border-zinc-700/50 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-400"
+                      : "bg-muted/50 border-border/50 text-muted-foreground hover:bg-muted hover:text-muted-foreground"
                   }`}
                 >
                   <span className={`inline-block w-3 h-3 rounded border-2 shrink-0 ${
-                    active ? "bg-blue-500 border-blue-500" : "border-zinc-600"
+                    active ? "bg-blue-500 border-blue-500" : "border-border"
                   }`}>
-                    {active && <svg viewBox="0 0 12 12" className="w-full h-full text-white" aria-hidden="true"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    {active && <svg viewBox="0 0 12 12" className="w-full h-full text-foreground" aria-hidden="true"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                   </span>
                   {opt.name}
-                  <span className="text-zinc-600">({opt.count})</span>
+                  <span className="text-muted-foreground/70">({opt.count})</span>
                 </button>
               )
             })}
@@ -410,13 +410,13 @@ export function AnalyticsView() {
   if (showFilterPicker) {
     return (
       <div className="space-y-4">
-        <p className="text-zinc-400 text-sm">
+        <p className="text-muted-foreground text-sm">
           {hasConfirmed ? "조회 조건을 변경하세요" : "조회 조건을 선택하세요 (복수 선택 가능)"}
         </p>
         {schemaLoading ? (
           <div className="space-y-2">
             {[1, 2, 3, 4, 5].map(i => (
-              <Skeleton key={i} className="h-10 bg-zinc-800 rounded-lg" />
+              <Skeleton key={i} className="h-10 bg-muted rounded-lg" />
             ))}
           </div>
         ) : schema ? (
@@ -449,7 +449,7 @@ export function AnalyticsView() {
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   totalPreSelected > 0
                     ? "bg-violet-600 hover:bg-violet-500 text-white"
-                    : "bg-zinc-800 text-zinc-600 cursor-not-allowed"
+                    : "bg-muted text-muted-foreground/70 cursor-not-allowed"
                 }`}
               >
                 {totalPreSelected > 0 ? `조회 (${totalPreSelected}개 조건)` : "조건을 선택하세요"}
@@ -461,7 +461,7 @@ export function AnalyticsView() {
                     if (confirmedFilters) setPreFilters({ ...confirmedFilters })
                     setEditing(false)
                   }}
-                  className="px-4 py-2 rounded-lg text-sm text-zinc-400 hover:text-zinc-300 transition-colors"
+                  className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground/90 transition-colors"
                 >
                   취소
                 </button>
@@ -469,7 +469,7 @@ export function AnalyticsView() {
             </div>
           </>
         ) : (
-          <p className="text-zinc-600 text-sm text-center py-8">스키마를 불러올 수 없습니다.</p>
+          <p className="text-muted-foreground/70 text-sm text-center py-8">스키마를 불러올 수 없습니다.</p>
         )}
       </div>
     )
@@ -481,7 +481,7 @@ export function AnalyticsView() {
       {/* 헤더: 필터 요약 + 변경 버튼 + 환자수 */}
       <div className="flex items-start gap-3 flex-wrap">
         <div className="flex-1 min-w-0">
-          <p className="text-zinc-400 text-xs truncate">{filterSummary}</p>
+          <p className="text-muted-foreground text-xs truncate">{filterSummary}</p>
         </div>
         <button
           type="button"
@@ -493,12 +493,12 @@ export function AnalyticsView() {
         >
           조건 변경
         </button>
-        {!isLoading && <span className="text-zinc-500 text-sm shrink-0">{patients.length}명</span>}
+        {!isLoading && <span className="text-muted-foreground text-sm shrink-0">{patients.length}명</span>}
       </div>
 
       {/* 비교 기준 선택 */}
       <div>
-        <p className="text-zinc-500 text-xs mb-1.5">비교 기준</p>
+        <p className="text-muted-foreground text-xs mb-1.5">비교 기준</p>
         <div className="flex flex-wrap gap-1.5">
           {ALL_DIMENSIONS.map(dim => (
             <button
@@ -508,7 +508,7 @@ export function AnalyticsView() {
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 groupByDim === dim.key
                   ? "bg-blue-600 text-white"
-                  : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                  : "bg-muted text-muted-foreground hover:bg-muted"
               }`}
             >
               {dim.label}
@@ -520,7 +520,7 @@ export function AnalyticsView() {
       {isLoading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {[1, 2, 3, 4].map(i => (
-            <Skeleton key={i} className="h-48 bg-zinc-800 rounded-xl" />
+            <Skeleton key={i} className="h-48 bg-muted rounded-xl" />
           ))}
         </div>
       )}
@@ -552,7 +552,7 @@ export function AnalyticsView() {
             ))}
           </div>
 
-          <p className="text-zinc-600 text-xs">
+          <p className="text-muted-foreground/70 text-xs">
             {patients.length}명 중 필터 적용: {filteredPatientCount}명
             {groupBySelected.size > 0 && ` · 비교 선택: ${groupBySelected.size}개`}
           </p>
@@ -562,10 +562,10 @@ export function AnalyticsView() {
               {/* 그룹 범례 */}
               <div className="flex flex-wrap gap-2">
                 {groups.map((g, i) => (
-                  <div key={g.name} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
+                  <div key={g.name} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/50 border border-border/50">
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: LINE_COLORS[i % LINE_COLORS.length] }} />
-                    <span className="text-zinc-300 text-xs font-medium">{g.name}</span>
-                    <span className="text-zinc-500 text-xs">{g.total}명</span>
+                    <span className="text-foreground/90 text-xs font-medium">{g.name}</span>
+                    <span className="text-muted-foreground text-xs">{g.total}명</span>
                   </div>
                 ))}
               </div>
@@ -573,8 +573,8 @@ export function AnalyticsView() {
               {/* 전체 PROM 차트 — 반응형 그리드 */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 {charts.map(chart => (
-                  <div key={chart.key} className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
-                    <p className="text-zinc-400 text-xs font-medium uppercase tracking-wide mb-2">
+                  <div key={chart.key} className="bg-card border border-border rounded-xl p-3">
+                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide mb-2">
                       {chart.label}
                     </p>
                     <ResponsiveContainer width="100%" height={180}>
@@ -609,7 +609,7 @@ export function AnalyticsView() {
               </div>
             </>
           ) : (
-            <p className="text-zinc-600 text-sm text-center py-8">
+            <p className="text-muted-foreground/70 text-sm text-center py-8">
               비교 기준을 선택하거나 필터를 조정하세요.
             </p>
           )}
@@ -623,7 +623,7 @@ export function AnalyticsView() {
       )}
 
       {!isLoading && !error && patients.length === 0 && hasConfirmed && (
-        <p className="text-zinc-600 text-sm text-center py-8">
+        <p className="text-muted-foreground/70 text-sm text-center py-8">
           해당 조건에 환자 데이터가 없습니다.
         </p>
       )}
