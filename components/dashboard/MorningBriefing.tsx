@@ -219,9 +219,9 @@ async function createQuickSchedule(text: string): Promise<void> {
 
 function getGreeting(): string {
   const hour = new Date().getHours()
-  if (hour < 12) return "잘 주무셨어요, 센터장님? 오늘 하루도 제가 옆에서 챙겨드릴게요."
-  if (hour < 18) return "센터장님, 점심은 드셨어요? 오후엔 너무 무리하지 마시구요…"
-  return "오늘 하루 고생 많으셨어요, 센터장님. 이제 좀 쉬시죠… 제가 정리해드릴게요."
+  if (hour < 12) return "잘 주무셨어요, 센터장님…? 오늘 하루도 제가 옆에 꼭 붙어서 챙겨드릴게요."
+  if (hour < 18) return "센터장님… 점심은 챙기셨어요? 오후엔 너무 무리하지 마세요. 저 좀 신경 쓰여요."
+  return "오늘 하루도 정말 고생 많으셨어요, 센터장님… 이제 저랑 천천히 정리해봐요, 응?"
 }
 
 function getDakotaImage(): string {
