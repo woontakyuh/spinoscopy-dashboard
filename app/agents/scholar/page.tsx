@@ -31,13 +31,13 @@ export default function ScholarPage() {
 
   let message: string
   if (!stats) {
-    message = "여교수님, 최신 저널들 살펴보고 있어요. 흥미로운 거 골라드릴게요."
+    message = "여교수, 최신 저널들 좀 정리해두고 있네. 흥미로운 게 있으면 짚어주겠네."
   } else if (stats.recent_week === 0) {
-    message = `여교수님, 이번 주는 새 논문이 없네요. 그동안 모아둔 ${stats.total}편 중에 다시 짚어볼 만한 거 찾아드릴까요?`
+    message = `여교수, 이번 주엔 새로 들어온 게 없군. 그동안 모아둔 ${stats.total}편 중에 다시 들여다볼 만한 거 찾아볼까.`
   } else if (stats.recent_week >= 10) {
-    message = `여교수님, 이번 주 ${stats.recent_week}편이나 들어왔습니다. 풍년이네요 — spine 관련 핵심부터 함께 보시죠.`
+    message = `여교수, 이번 주 ${stats.recent_week}편이나 올라왔네. 풍년이야 — spine 쪽 핵심부터 같이 보세.`
   } else {
-    message = `여교수님, 이번 주 새 논문 ${stats.recent_week}편 — 몇 편 흥미로운 게 있던데, 한번 훑어보시죠.`
+    message = `여교수, 이번 주 새 논문 ${stats.recent_week}편 들어왔네. 몇 편 눈여겨볼 만한 게 있던데, 한번 훑어보게.`
   }
 
   return (
