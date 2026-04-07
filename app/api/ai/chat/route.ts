@@ -105,7 +105,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const modelMessages = convertToModelMessages(messages)
+    const modelMessages = await convertToModelMessages(messages)
     const result = streamText({
       model: anthropic("claude-sonnet-4-5"),
       system: systemPrompt,
