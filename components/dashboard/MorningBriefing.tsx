@@ -1,13 +1,167 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect, type FormEvent } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useChat } from "@ai-sdk/react"
+import { TextStreamChatTransport } from "ai"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { WeatherInline, useWeatherLocation } from "@/components/dashboard/WeatherInline"
 import { EmptyState } from "@/components/ui/empty-state"
+
+function getChatText(parts: Array<{ type: string; text?: string }>): string {
+  return parts.filter((p) => p.type === "text" && p.text).map((p) => p.text).join("")
+}
+
+const QUICK_PROMPTS = [
+  "오늘 가장 급한 일 알려줘",
+  "이번 주 일정 정리해줘",
+  "내일 미리 준비할 거 있어?",
+]
+
+function DakotaGreetingChat({
+  greeting,
+  image,
+  dateStr,
+  weatherLocation,
+}: {
+  greeting: string
+  image: string
+  dateStr: string
+  weatherLocation: string | null
+}) {
+  const [inputValue, setInputValue] = useState("")
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  const { messages, sendMessage, status } = useChat({
+    transport: new TextStreamChatTransport({
+      api: "/api/ai/chat",
+      body: { agentId: "dakota" },
+    }),
+  })
+
+  const isStreaming = status === "streaming" || status === "submitted"
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [messages, status])
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    const text = inputValue.trim()
+    if (!text || isStreaming) return
+    setInputValue("")
+    sendMessage({ text })
+  }
+
+  function quickSend(text: string) {
+    if (isStreaming) return
+    sendMessage({ text })
+  }
+
+  return (
+    <div className="pt-2 md:pt-4 flex items-start gap-3 md:gap-4">
+      {/* Dakota 캐릭터 (시간대별) */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={image}
+        alt="Dakota"
+        className="w-28 md:w-40 h-auto object-contain shrink-0 select-none"
+        draggable={false}
+      />
+
+      <div className="relative flex-1 min-w-0 mt-2 md:mt-3 space-y-2">
+        {/* 인사 말풍선 (Dakota의 첫 메시지) */}
+        <div className="relative bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 md:px-5 md:py-4 shadow-lg">
+          <span
+            aria-hidden
+            className="absolute -left-2 top-3 w-3 h-3 rotate-45 bg-card border-l border-t border-border"
+          />
+          <h2 className="text-xl md:text-2xl font-semibold text-foreground tracking-tight">
+            {greeting}, Tak.
+          </h2>
+          <div className="mt-1">
+            <WeatherInline />
+          </div>
+          <p className="text-muted-foreground text-xs md:text-sm mt-1">
+            {dateStr}{weatherLocation && <span className="ml-2 text-muted-foreground/70">· {weatherLocation}</span>}
+          </p>
+        </div>
+
+        {/* 후속 대화 메시지들 */}
+        {messages.length > 0 && (
+          <div ref={scrollRef} className="max-h-[280px] overflow-y-auto space-y-2 pr-1">
+            {messages.map((m) => {
+              const text = getChatText(m.parts)
+              if (!text) return null
+              return (
+                <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div
+                    className={`max-w-[88%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${
+                      m.role === "user"
+                        ? "bg-blue-600 text-white rounded-br-sm"
+                        : "bg-card border border-border text-foreground rounded-tl-sm"
+                    }`}
+                  >
+                    <p className="whitespace-pre-wrap">{text}</p>
+                  </div>
+                </div>
+              )
+            })}
+            {isStreaming && messages[messages.length - 1]?.role === "user" && (
+              <div className="flex justify-start">
+                <div className="bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-2.5">
+                  <div className="flex gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 빠른 프롬프트 (대화 시작 전만) */}
+        {messages.length === 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {QUICK_PROMPTS.map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => quickSend(q)}
+                className="text-[11px] px-2.5 py-1 rounded-full border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* 입력창 */}
+        <form onSubmit={handleSubmit} className="flex gap-2 pt-1">
+          <input
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder="Dakota에게 말 걸어보세요…"
+            className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-600"
+          />
+          <button
+            type="submit"
+            disabled={isStreaming || !inputValue.trim()}
+            className="px-3.5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            보내기
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
 
 interface DashboardScheduleItem {
   id: string
@@ -194,36 +348,12 @@ export function MorningBriefing() {
 
   return (
     <div className="space-y-6">
-      <div className="pt-2 md:pt-4 flex items-start gap-3 md:gap-4">
-        {/* Dakota 캐릭터 (시간대별) */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={getDakotaImage()}
-          alt="Dakota"
-          className="w-28 md:w-40 h-auto object-contain shrink-0 select-none"
-          draggable={false}
-        />
-
-        {/* 말풍선 — 캐릭터 상단(머리/입) 옆에 위치 */}
-        <div className="relative flex-1 min-w-0 mt-2 md:mt-3">
-          <div className="relative bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 md:px-5 md:py-4 shadow-lg">
-            {/* 말풍선 꼬리 — 상단 좌측 */}
-            <span
-              aria-hidden
-              className="absolute -left-2 top-3 w-3 h-3 rotate-45 bg-card border-l border-t border-border"
-            />
-            <h2 className="text-xl md:text-2xl font-semibold text-foreground tracking-tight">
-              {getGreeting()}, Tak.
-            </h2>
-            <div className="mt-1">
-              <WeatherInline />
-            </div>
-            <p className="text-muted-foreground text-xs md:text-sm mt-1">
-              {dateStr}{weatherLocation && <span className="ml-2 text-muted-foreground/70">· {weatherLocation}</span>}
-            </p>
-          </div>
-        </div>
-      </div>
+      <DakotaGreetingChat
+        greeting={getGreeting()}
+        image={getDakotaImage()}
+        dateStr={dateStr}
+        weatherLocation={weatherLocation}
+      />
 
       {/* 오늘 일정 */}
       <div>
