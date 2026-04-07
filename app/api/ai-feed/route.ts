@@ -102,7 +102,7 @@ function toFeedItem(params: {
 }): FeedItem {
   const config = getSourceConfig(params.sourceId)
   const sourceLabel = config?.label ?? params.sourceId
-  const tier = config?.tier ?? "tier1-daily"
+  const tier = config?.tier ?? "newsletter"
   const cadence = config?.cadence ?? "24h"
   const categories = inferCategories(params.title, params.sourceId, tier)
   const importanceScore = scoreImportance(params.title, categories, tier, params.sourceId)

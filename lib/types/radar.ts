@@ -1,4 +1,4 @@
-export type FeedTier = "tier1-daily" | "tier2-weekly" | "tier3-research" | "medical-ai" | "social" | "thought-leader"
+export type FeedTier = "ai-company" | "thought-leader" | "newsletter"
 
 export type FeedCadence = "6h" | "24h" | "weekly" | "twice-weekly"
 

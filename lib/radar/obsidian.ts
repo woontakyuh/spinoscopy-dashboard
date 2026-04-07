@@ -25,12 +25,9 @@ function sanitizeFilename(title: string): string {
 /** Map tier to readable Korean tag-friendly label */
 function tierTag(tier: FeedTier): string {
   const map: Record<FeedTier, string> = {
-    "tier1-daily": "radar/tier1-daily",
-    "tier2-weekly": "radar/tier2-weekly",
-    "tier3-research": "radar/tier3-research",
-    "medical-ai": "radar/medical-ai",
-    social: "radar/social",
+    "ai-company": "radar/ai-company",
     "thought-leader": "radar/thought-leader",
+    "newsletter": "radar/newsletter",
   }
   return map[tier]
 }

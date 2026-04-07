@@ -9,11 +9,9 @@ import { FeedCard } from "./FeedCard"
 import type { FeedCategory, FeedItem, FeedResponse, FeedSource, FeedTier } from "@/lib/types/radar"
 
 const TIER_OPTIONS: Array<{ value: FeedTier; label: string }> = [
-  { value: "tier1-daily", label: "Daily" },
-  { value: "tier2-weekly", label: "Weekly" },
-  { value: "tier3-research", label: "Research" },
-  { value: "medical-ai", label: "Medical AI" },
+  { value: "ai-company", label: "AI Company" },
   { value: "thought-leader", label: "Thought Leader" },
+  { value: "newsletter", label: "Newsletter" },
 ]
 
 const CATEGORY_FILTERS: Array<{ value: FeedCategory | "all"; label: string }> = [

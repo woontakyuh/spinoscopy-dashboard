@@ -71,8 +71,8 @@ export function inferCategories(title: string, source: FeedSource, tier: FeedTie
   const text = title.toLowerCase()
   const categories: FeedCategory[] = []
 
-  if (tier === "tier3-research" || includesAny(text, RESEARCH_KEYWORDS)) categories.push("research")
-  if (tier === "medical-ai" || includesAny(text, MEDICAL_KEYWORDS)) categories.push("medical-ai")
+  if (includesAny(text, RESEARCH_KEYWORDS)) categories.push("research")
+  if (includesAny(text, MEDICAL_KEYWORDS)) categories.push("medical-ai")
   if (includesAny(text, POLICY_KEYWORDS)) categories.push("policy")
   if (includesAny(text, MODEL_RELEASE_KEYWORDS)) categories.push("model-release")
   if (includesAny(text, TOOL_KEYWORDS)) categories.push("tool")
@@ -100,7 +100,7 @@ export function scoreImportance(title: string, categories: FeedCategory[], tier:
   const text = title.toLowerCase()
   let score = 2
 
-  if (tier === "tier3-research" || tier === "medical-ai") score += 1
+  if (tier === "ai-company") score += 1
   if (tier === "thought-leader") score += 1
   if (categories.includes("model-release")) score += 1
   if (categories.includes("policy")) score += 1

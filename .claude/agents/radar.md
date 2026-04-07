@@ -24,45 +24,40 @@
 
 ## 타입 요약
 ```typescript
-type FeedTier = "tier1-daily" | "tier2-weekly" | "tier3-research" | "medical-ai" | "social" | "thought-leader"
+type FeedTier = "ai-company" | "thought-leader" | "newsletter"
 type FeedCategory = "model-release" | "tool" | "research" | "policy" | "medical-ai" | "opinion"
 type FeedSource = "tldr-ai" | "the-rundown-ai" | "the-batch" | "import-ai" | "latent-space" | "raschka" | "arxiv" | "hf-daily-papers" | "nature-digital-medicine" | "radiology-ai" | "msr-health" | "x-akhaliq" | "moduletter" | "openai-blog" | "deepmind-blog" | "google-ai-blog" | "karpathy-blog" | "dwarkesh-podcast" | "anthropic-engineering" | "anthropic-research" | "karpathy-youtube" | "lex-fridman-ai"
 interface FeedItem { id, title, url, source, sourceLabel, tier, cadence, author, date, points, commentUrl, summary, categories[], importanceScore(1-5), notes }
 interface RadarSourceConfig { id, label, tier, cadence, intervalHours, mode("rss"|"api"|"html"|"manual"|"youtube"|"rss+filter"|"atom"), endpoint, active }
 ```
 
-## 소스 구성 (22개)
+## 소스 구성 (22개, 3개 티어)
 
-### Tier 1 — Daily (고빈도)
-- TLDR AI (6h, RSS)
-- The Rundown AI (24h, RSS)
+### AI Company (주요 트래킹) — AI 기업 공식 채널
+- OpenAI Blog (RSS)
+- Anthropic Engineering / Research (HTML scrape)
+- Google DeepMind (RSS)
+- Google AI Blog (RSS)
+- The Batch / Andrew Ng (HTML scrape)
+- 모두레터 (HTML scrape)
 
-### Tier 2 — Weekly (큐레이션)
-- The Batch / Andrew Ng (168h, HTML scrape)
-- Import AI (168h, RSS)
-- Latent Space (168h, RSS)
-- Sebastian Raschka (168h, RSS)
-- 모두레터 (168h, HTML scrape)
-- OpenAI Blog (168h, RSS)
-- Google DeepMind (168h, RSS)
-- Google AI Blog (168h, RSS)
-- Anthropic Engineering (168h, HTML scrape)
-- Anthropic Research (168h, HTML scrape)
+### Thought Leader (주요 트래킹) — 오피니언 리더 / 팟캐스트
+- Andrej Karpathy Blog (Atom RSS)
+- Karpathy YouTube (현재 비활성)
+- Dwarkesh Podcast (RSS)
+- Lex Fridman AI (RSS + AI 키워드 필터)
+- Latent Space (RSS)
+- Sebastian Raschka (RSS)
+- Import AI (RSS)
 
-### Tier 3 — Research (학술)
-- arXiv CS.AI+CS.LG (24h, RSS)
-- Hugging Face Daily Papers (6h, API)
-
-### Medical AI
-- Nature Digital Medicine (168h, RSS)
-- Radiology AI (168h, RSS)
-- Microsoft Research Health (168h, RSS, filtered)
-
-### Thought Leader (오피니언 리더)
-- Andrej Karpathy Blog (168h, Atom RSS)
-- Karpathy YouTube (168h, YouTube Atom RSS)
-- Dwarkesh Podcast (168h, RSS)
-- Lex Fridman AI (168h, RSS + AI 키워드 필터)
+### Newsletter (지엽적 트래킹) — 뉴스레터 / 학술 / 의료
+- TLDR AI (RSS)
+- The Rundown AI (RSS)
+- arXiv CS.AI+CS.LG (RSS)
+- Hugging Face Daily Papers (API)
+- Nature Digital Medicine (RSS)
+- Radiology AI (RSS)
+- Microsoft Research Health (RSS, filtered)
 
 ## 외부 연동
 - **RSS/HTML**: 각 소스의 엔드포인트 (공개 URL)

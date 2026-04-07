@@ -11,11 +11,9 @@ interface FeedCardProps {
 }
 
 const TIER_STYLES: Record<string, { border: string; text: string }> = {
-  "tier1-daily": { border: "border-cyan-500/40", text: "text-cyan-300" },
-  "tier2-weekly": { border: "border-blue-500/40", text: "text-blue-300" },
-  "tier3-research": { border: "border-violet-500/40", text: "text-violet-300" },
-  "medical-ai": { border: "border-emerald-500/40", text: "text-emerald-300" },
-  social: { border: "border-amber-500/40", text: "text-amber-300" },
+  "ai-company": { border: "border-cyan-500/40", text: "text-cyan-300" },
+  "thought-leader": { border: "border-violet-500/40", text: "text-violet-300" },
+  "newsletter": { border: "border-zinc-500/40", text: "text-zinc-300" },
 }
 
 const STAR_COLORS: Record<number, string> = {
@@ -42,7 +40,7 @@ export function FeedCard({ item }: FeedCardProps) {
   const [notes, setNotes] = useState<string | null>(item.notes)
   const [loading, setLoading] = useState(false)
 
-  const style = TIER_STYLES[item.tier] ?? TIER_STYLES["tier1-daily"]
+  const style = TIER_STYLES[item.tier] ?? TIER_STYLES["newsletter"]
 
   async function handleSummarize() {
     setLoading(true)

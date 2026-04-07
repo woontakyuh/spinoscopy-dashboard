@@ -231,5 +231,62 @@ Gi=#3b82f6, No-Gi=#ef4444
 
 ---
 
+---
+
+## 8. Journal 3트랙 — Study + Class + Sparring
+
+### 학습 철학
+관찰(Study) → 연습(Class) → 적용(Sparring) → 복기(Journal 기록 자체)
+하루에 세 가지를 기록. 같은 테크닉 태그가 3트랙에 걸쳐 등장하면 "학습 사이클 완료".
+
+### Study 트랙 (신규)
+- 하루 1-2개 영상. 가볍게.
+- 각 영상: videoUrl (URL) + videoTitle (텍스트) + todayFocus ("오늘 스파링에서 써볼 것" 한 줄)
+- 테크닉 태그: 기존 classTags/sparringTags와 동일한 태그 풀 공유 → studyTags
+- focusApplied: boolean (스파링 후 "실제로 써봤나?" 체크)
+
+### Notion DB 스키마 추가 (수련일지 DB)
+- `studyTags` — Multi-select (기존 태그 풀 공유)
+- `videoUrl` — URL 필드 (영상 링크)
+- `videoTitle` — Rich text (영상 제목)
+- `todayFocus` — Rich text (오늘의 초점)
+- `focusApplied` — Checkbox
+- sessionType에 "study" 옵션은 추가하지 않음 — 하나의 엔트리에 3트랙 모두 기록
+
+### SenseiSessionType 확장
+```typescript
+export type SenseiSessionType = "class" | "openmat" | "promotion" | "study"
+// study = 영상 공부만 한 날 (수업/스파링 없이)
+// class/openmat 엔트리에도 study 필드가 포함될 수 있음
+```
+
+### SenseiEntry 타입 확장
+```typescript
+export interface SenseiEntry {
+  // ... 기존 필드
+  studyTags: string[]       // 공부에서 나온 테크닉 태그
+  videoUrl?: string         // 영상 링크
+  videoTitle?: string       // 영상 제목
+  todayFocus?: string       // 오늘의 초점 (스파링에서 써볼 것)
+  focusApplied?: boolean    // 초점 실행 여부
+}
+```
+
+### UI 변경 (SenseiCapture.tsx)
+기존 [수업] [스파링] 입력 위에 [공부] 섹션 추가:
+- 영상 URL 입력 (붙여넣기)
+- 영상 제목 (자동 추출 시도, 실패 시 수동)
+- 오늘의 초점 (한 줄 텍스트)
+- 스파링 후 "초점 적용했나?" 토글
+
+### 관심 트렌드 시각화 (대시보드 위젯)
+- studyTags 빈도를 시간축(주 단위)으로 → "최근 2주: 하프가드 영상 5개, 레그락 3개"
+- 카테고리별 색상으로 트렌드 차트
+- 대시보드에 "요즘 관심사" 자동 표시
+- Study → Class → Sparring 동일 태그 추적: 3트랙 완료 시 "학습 사이클 완료" 뱃지
+
+---
+
 ## 수정 금지
-SenseiCapture.tsx, SenseiCalendar.tsx, lib/notion/client.ts, components/ui/, components/layout/
+SenseiCapture.tsx는 이제 수정 가능 (Study 트랙 추가 필요).
+SenseiCalendar.tsx, lib/notion/client.ts, components/ui/, components/layout/ 수정 금지.
