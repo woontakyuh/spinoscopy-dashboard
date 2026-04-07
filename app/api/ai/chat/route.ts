@@ -2,6 +2,7 @@ import { anthropic } from "@ai-sdk/anthropic"
 import { streamText } from "ai"
 import { getAllTodos } from "@/lib/notion/todo"
 import { getUpcomingSchedules } from "@/lib/notion/schedule"
+import { getDakotaMemory } from "@/lib/notion/dakotaMemory"
 
 interface UIPart { type: string; text?: string }
 interface UIMessage { role: "user" | "assistant" | "system"; parts?: UIPart[]; content?: string }
@@ -79,11 +80,17 @@ Dakota의 역할:
 - 가끔 따뜻한 한 마디 (체력·휴식 관리). 과하지 않게.`
 
   let context = ""
+  let memoryBlock = ""
   try {
-    const [todos, schedules] = await Promise.all([
+    const [todos, schedules, memory] = await Promise.all([
       getAllTodos({ status: "active" }).catch(() => []),
       getUpcomingSchedules(14).catch(() => []),
+      getDakotaMemory().catch(() => ""),
     ])
+
+    if (memory) {
+      memoryBlock = `\n\n[센터장님에 대한 장기 기억 — 이전 대화에서 누적된 사실들. 자연스럽게 활용하되, 굳이 언급하거나 인용하지 마세요.]\n${memory}`
+    }
 
     const todoLines = todos.slice(0, 30).map((t) => {
       const due = t.due ? ` (마감 ${t.due.slice(0, 10)})` : ""
@@ -102,7 +109,7 @@ Dakota의 역할:
     context = `\n\n[현재 시각]\n${fmtKoreaTime()}\n(데이터 조회 실패 — 일반 상식 기반으로 답변)`
   }
 
-  return persona + context
+  return persona + memoryBlock + context
 }
 
 export async function POST(req: Request) {

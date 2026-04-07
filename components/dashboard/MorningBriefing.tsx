@@ -31,7 +31,7 @@ function DakotaGreetingChat({
   const [inputValue, setInputValue] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  const { messages, sendMessage, status, error } = useChat({
+  const { messages, sendMessage, status, error, setMessages } = useChat({
     transport: new TextStreamChatTransport({
       api: "/api/ai/chat",
       body: { agentId: "dakota" },
@@ -42,6 +42,58 @@ function DakotaGreetingChat({
   })
 
   const isStreaming = status === "streaming" || status === "submitted"
+  const hydratedRef = useRef(false)
+  const lastSyncedCountRef = useRef(0)
+
+  // 1) localStorage 복원 (1회)
+  useEffect(() => {
+    if (hydratedRef.current) return
+    hydratedRef.current = true
+    try {
+      const raw = localStorage.getItem("dakota-chat-v1")
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed)
+          lastSyncedCountRef.current = parsed.length
+        }
+      }
+    } catch {}
+  }, [setMessages])
+
+  // 2) localStorage 저장
+  useEffect(() => {
+    if (!hydratedRef.current) return
+    try {
+      // 최근 50개만 저장
+      const trimmed = messages.slice(-50)
+      localStorage.setItem("dakota-chat-v1", JSON.stringify(trimmed))
+    } catch {}
+  }, [messages])
+
+  // 3) 응답 끝났을 때 long-term memory sync (assistant 응답이 새로 추가됐을 때만)
+  useEffect(() => {
+    if (isStreaming) return
+    if (messages.length === 0) return
+    if (messages.length <= lastSyncedCountRef.current) return
+    const last = messages[messages.length - 1]
+    if (last.role !== "assistant") return
+
+    // 새로 추가된 메시지들만 전송
+    const fresh = messages.slice(lastSyncedCountRef.current).map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: getChatText(m.parts),
+    })).filter((m) => m.content.length > 0)
+
+    if (fresh.length === 0) return
+    lastSyncedCountRef.current = messages.length
+
+    fetch("/api/dakota/memory", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ exchanges: fresh }),
+    }).catch((e) => console.warn("[DakotaChat] memory sync failed:", e))
+  }, [messages, isStreaming])
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -55,6 +107,12 @@ function DakotaGreetingChat({
     if (!text || isStreaming) return
     setInputValue("")
     sendMessage({ text })
+  }
+
+  function clearConversation() {
+    setMessages([])
+    lastSyncedCountRef.current = 0
+    try { localStorage.removeItem("dakota-chat-v1") } catch {}
   }
 
 return (
@@ -142,6 +200,15 @@ return (
             보내기
           </button>
         </form>
+        {messages.length > 0 && (
+          <button
+            type="button"
+            onClick={clearConversation}
+            className="text-[10px] text-muted-foreground/70 hover:text-muted-foreground underline-offset-2 hover:underline"
+          >
+            대화 초기화
+          </button>
+        )}
       </div>
     </div>
   )
