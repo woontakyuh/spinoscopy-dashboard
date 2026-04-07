@@ -28,10 +28,10 @@ export function AssetCard({ asset }: AssetCardProps) {
   const isUp = asset.change24h !== null && asset.change24h >= 0
 
   return (
-    <div className="border border-zinc-700 rounded-lg p-3 bg-zinc-800/50 space-y-1">
+    <div className="border border-border rounded-lg p-3 bg-muted/50 space-y-1">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-white text-sm font-medium">{asset.label}</span>
+          <span className="text-foreground text-sm font-medium">{asset.label}</span>
           <Badge variant="outline" className={`text-[10px] ${style.border} ${style.text}`}>
             {asset.symbol}
           </Badge>
@@ -48,7 +48,7 @@ export function AssetCard({ asset }: AssetCardProps) {
       )}
 
       <div className="flex items-end justify-between">
-        <span className="text-white text-lg font-semibold">
+        <span className="text-foreground text-lg font-semibold">
           {formatPrice(asset.price, asset.currency)}
         </span>
         {asset.change24h !== null && (

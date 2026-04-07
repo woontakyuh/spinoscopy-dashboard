@@ -162,12 +162,12 @@ export function AssetDailyChart({
   }, [bars, height])
 
   return (
-    <div className="border border-zinc-700 rounded-xl bg-zinc-900 overflow-hidden">
+    <div className="border border-border rounded-xl bg-card overflow-hidden">
       <div className="flex items-center justify-between p-3 pb-0 gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-white text-sm font-semibold truncate">{title}</span>
+          <span className="text-foreground text-sm font-semibold truncate">{title}</span>
           {latestPrice !== null && (
-            <span className="text-white text-base font-bold shrink-0">
+            <span className="text-foreground text-base font-bold shrink-0">
               {formatPrice(latestPrice, currency)}
             </span>
           )}
@@ -177,7 +177,7 @@ export function AssetDailyChart({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-0.5 bg-zinc-800/50 rounded-lg p-0.5 border border-zinc-800 shrink-0">
+        <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg p-0.5 border border-border shrink-0">
           {PERIODS.map((p) => (
             <button
               key={p.value}
@@ -185,8 +185,8 @@ export function AssetDailyChart({
               onClick={() => setPeriod(p.value)}
               className={`px-2 py-0.5 text-[11px] rounded-md transition-colors ${
                 period === p.value
-                  ? "bg-zinc-700 text-zinc-100"
-                  : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/60"
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:text-foreground/90 hover:bg-muted/60"
               }`}
             >
               {p.label}
@@ -197,7 +197,7 @@ export function AssetDailyChart({
 
       {isLoading ? (
         <div className="p-3">
-          <Skeleton className="w-full bg-zinc-800 rounded-lg" style={{ height }} />
+          <Skeleton className="w-full bg-muted rounded-lg" style={{ height }} />
         </div>
       ) : isError ? (
         <div className="flex items-center justify-center" style={{ height }}>
@@ -205,7 +205,7 @@ export function AssetDailyChart({
         </div>
       ) : bars.length === 0 ? (
         <div className="flex items-center justify-center" style={{ height }}>
-          <p className="text-zinc-500 text-sm">데이터 없음</p>
+          <p className="text-muted-foreground text-sm">데이터 없음</p>
         </div>
       ) : (
         <div ref={containerRef} className="w-full px-1 pb-1" />

@@ -65,12 +65,12 @@ export function VaultDashboard() {
           const isFng = ind.key === "fng"
           const fngColor = isFng
             ? ind.value <= 25 ? "text-red-400" : ind.value <= 45 ? "text-orange-400" : ind.value <= 55 ? "text-yellow-400" : ind.value <= 75 ? "text-green-400" : "text-emerald-400"
-            : "text-white"
+            : "text-foreground"
 
           return (
-            <div key={ind.key} className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 flex flex-col items-center text-center">
-              <span className="text-zinc-400 text-[10px] mb-1 whitespace-nowrap">{ind.label}</span>
-              <span className={`text-sm font-semibold ${isFng ? fngColor : "text-white"}`}>
+            <div key={ind.key} className="bg-muted border border-border rounded-lg px-3 py-2 flex flex-col items-center text-center">
+              <span className="text-muted-foreground text-[10px] mb-1 whitespace-nowrap">{ind.label}</span>
+              <span className={`text-sm font-semibold ${isFng ? fngColor : "text-foreground"}`}>
                 {ind.key === "btc-dom"
                   ? `${ind.value.toFixed(1)}%`
                   : isFng
@@ -90,8 +90,8 @@ export function VaultDashboard() {
         }
 
         return (
-          <div className="border border-zinc-700 rounded-xl p-3 bg-zinc-900 space-y-3">
-            <p className="text-zinc-400 text-xs font-medium">시장 지표</p>
+          <div className="border border-border rounded-xl p-3 bg-card space-y-3">
+            <p className="text-muted-foreground text-xs font-medium">시장 지표</p>
             <div className="grid grid-cols-3 gap-2">
               {row1.map(renderIndicator)}
             </div>
@@ -114,9 +114,9 @@ export function VaultDashboard() {
       {/* TSLA, GOOGL, AAPL - AssetCard 3개 나란히 */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <p className="text-zinc-300 text-sm font-medium">주식</p>
+          <p className="text-foreground/90 text-sm font-medium">주식</p>
           {pricesQuery.data?.fetchedAt && (
-            <span className="text-zinc-500 text-xs">
+            <span className="text-muted-foreground text-xs">
               {new Date(pricesQuery.data.fetchedAt).toLocaleTimeString("ko-KR", {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -128,19 +128,19 @@ export function VaultDashboard() {
         {pricesQuery.isLoading ? (
           <div className="grid grid-cols-3 gap-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={`price-skeleton-${String(i)}`} className="border border-zinc-700 rounded-lg p-3 bg-zinc-800/50 space-y-2">
-                <Skeleton className="h-4 w-2/3 bg-zinc-700" />
-                <Skeleton className="h-6 w-1/2 bg-zinc-700" />
+              <div key={`price-skeleton-${String(i)}`} className="border border-border rounded-lg p-3 bg-muted/50 space-y-2">
+                <Skeleton className="h-4 w-2/3 bg-muted" />
+                <Skeleton className="h-6 w-1/2 bg-muted" />
               </div>
             ))}
           </div>
         ) : pricesQuery.isError ? (
-          <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900">
+          <div className="border border-border rounded-xl p-4 bg-card">
             <p className="text-red-400 text-sm">시세 조회 실패</p>
             <Button
               variant="outline"
               size="sm"
-              className="mt-2 text-xs border-zinc-700 text-zinc-300"
+              className="mt-2 text-xs border-border text-foreground/90"
               onClick={() => pricesQuery.refetch()}
             >
               재시도
@@ -157,7 +157,7 @@ export function VaultDashboard() {
 
       {/* 뉴스 */}
       <div className="space-y-3">
-        <p className="text-zinc-300 text-sm font-medium">관련 뉴스</p>
+        <p className="text-foreground/90 text-sm font-medium">관련 뉴스</p>
 
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -166,7 +166,7 @@ export function VaultDashboard() {
             className={`text-xs h-7 ${
               newsFilter === "all"
                 ? "bg-cyan-600 hover:bg-cyan-500 text-white"
-                : "border-zinc-700 text-zinc-400 hover:text-white"
+                : "border-border text-muted-foreground hover:text-foreground"
             }`}
             onClick={() => setNewsFilter("all")}
           >
@@ -180,7 +180,7 @@ export function VaultDashboard() {
               className={`text-xs h-7 ${
                 newsFilter === a.symbol
                   ? "bg-cyan-600 hover:bg-cyan-500 text-white"
-                  : "border-zinc-700 text-zinc-400 hover:text-white"
+                  : "border-border text-muted-foreground hover:text-foreground"
               }`}
               onClick={() => setNewsFilter(a.symbol)}
             >
@@ -192,48 +192,48 @@ export function VaultDashboard() {
         {newsQuery.isLoading ? (
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={`news-skeleton-${String(i)}`} className="border border-zinc-700 rounded-lg p-3 bg-zinc-800/50 space-y-2">
-                <Skeleton className="h-4 w-3/4 bg-zinc-700" />
-                <Skeleton className="h-3 w-1/3 bg-zinc-700" />
+              <div key={`news-skeleton-${String(i)}`} className="border border-border rounded-lg p-3 bg-muted/50 space-y-2">
+                <Skeleton className="h-4 w-3/4 bg-muted" />
+                <Skeleton className="h-3 w-1/3 bg-muted" />
               </div>
             ))}
           </div>
         ) : newsQuery.isError ? (
-          <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900">
+          <div className="border border-border rounded-xl p-4 bg-card">
             <p className="text-red-400 text-sm">뉴스 조회 실패</p>
             <Button
               variant="outline"
               size="sm"
-              className="mt-2 text-xs border-zinc-700 text-zinc-300"
+              className="mt-2 text-xs border-border text-foreground/90"
               onClick={() => newsQuery.refetch()}
             >
               재시도
             </Button>
           </div>
         ) : filteredNews.length === 0 ? (
-          <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900">
-            <p className="text-zinc-500 text-sm">뉴스가 없습니다.</p>
+          <div className="border border-border rounded-xl p-4 bg-card">
+            <p className="text-muted-foreground text-sm">뉴스가 없습니다.</p>
           </div>
         ) : (
           <div className="space-y-2">
             {filteredNews.map((item) => {
               const asset = TRACKED_ASSETS.find((a) => a.symbol === item.asset)
               return (
-                <div key={item.id} className="border border-zinc-700 rounded-lg p-3 bg-zinc-800/50 space-y-1">
+                <div key={item.id} className="border border-border rounded-lg p-3 bg-muted/50 space-y-1">
                   <div className="flex flex-wrap items-start gap-2">
                     <a
                       href={item.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-white text-sm hover:text-blue-300 transition-colors flex-1 min-w-0"
+                      className="text-foreground text-sm hover:text-blue-300 transition-colors flex-1 min-w-0"
                     >
                       {item.title}
                     </a>
-                    <Badge variant="outline" className="text-[10px] shrink-0 border-zinc-600 text-zinc-300">
+                    <Badge variant="outline" className="text-[10px] shrink-0 border-border text-foreground/90">
                       {asset?.label ?? item.asset}
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-zinc-400">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     {item.date && <span>{item.date}</span>}
                     <span>· {item.source}</span>
                   </div>
