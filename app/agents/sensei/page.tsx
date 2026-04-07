@@ -36,9 +36,16 @@ export default function SenseiPage() {
   })
 
   const stats = data?.stats
-  const message = !stats
-    ? "오늘도 한 라운드 어떠세요?"
-    : `이번 주 ${stats.streaks.current}일 연속 매트, 올해 누적 ${stats.sessions2026}회. 좋아요. 한 단계 더 가봅시다.`
+  let message: string
+  if (!stats) {
+    message = "오늘도 매트에서 봅시다. 한 라운드면 충분해요."
+  } else if (stats.streaks.current >= 3) {
+    message = `${stats.streaks.current}일 연속, 올해 ${stats.sessions2026}회. 페이스 좋습니다. 이대로 한 단계만 더.`
+  } else if (stats.streaks.current === 0) {
+    message = `잠깐 쉬셨네요. 올해 누적 ${stats.sessions2026}회. 오늘 매트 위에 다시 올라가시죠 — 가볍게라도.`
+  } else {
+    message = `이번 주 ${stats.streaks.current}일 매트. 올해 ${stats.sessions2026}회. 꾸준함이 답입니다, 선생님.`
+  }
 
   return (
     <div className="flex flex-col min-h-screen">

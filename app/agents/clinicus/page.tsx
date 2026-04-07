@@ -32,9 +32,16 @@ export default function ClinicusPage() {
   const now = new Date()
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const recent = patients.filter((p) => p.op_date && p.op_date.slice(0, 10) >= weekAgo).length
-  const message = patients.length === 0
-    ? "환자 데이터를 불러오는 중입니다."
-    : `현재 ${patients.length}명의 케이스가 등록돼 있고, 최근 1주일 ${recent}건이 추가됐어요.`
+  let message: string
+  if (patients.length === 0) {
+    message = "환자 데이터 불러오고 있습니다. 잠시만요, 선생님."
+  } else if (recent === 0) {
+    message = `누적 ${patients.length}명. 최근 1주일은 신규 케이스 없었어요. 기존 환자분들 PROM 추이 한번 훑어보시죠.`
+  } else if (recent >= 5) {
+    message = `이번 주 ${recent}건 새로 들어왔어요. 바쁘셨겠어요. 새 케이스 PROM 입력 빠뜨리지 마시구요.`
+  } else {
+    message = `누적 ${patients.length}명, 이번 주 +${recent}건이에요. 새 환자분들 차트 정리부터 도와드릴까요?`
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
