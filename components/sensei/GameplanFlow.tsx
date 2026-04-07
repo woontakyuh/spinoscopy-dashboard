@@ -39,7 +39,7 @@ export function GameplanFlow({ gameplan, playerName }: GameplanFlowProps) {
 
   return (
     <div>
-      <h4 className="text-[12px] text-[rgba(255,255,255,0.5)] mb-3">
+      <h4 className="text-[12px] text-muted-foreground mb-3">
         {playerName}의 시그니처 게임플랜
       </h4>
       <div className="space-y-1">
@@ -71,7 +71,7 @@ export function GameplanFlow({ gameplan, playerName }: GameplanFlowProps) {
                   </span>
                   {step.next.length > 0 && (
                     <div className="flex items-center gap-1">
-                      <span className="text-[11px] text-[rgba(255,255,255,0.25)]">→</span>
+                      <span className="text-[11px] text-muted-foreground/70">→</span>
                       {step.next.map((n) => (
                         <span
                           key={n}
@@ -84,7 +84,7 @@ export function GameplanFlow({ gameplan, playerName }: GameplanFlowProps) {
                     </div>
                   )}
                 </div>
-                <p className="text-[11px] text-[rgba(255,255,255,0.5)] mt-0.5">{step.action}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{step.action}</p>
               </div>
             </div>
           )

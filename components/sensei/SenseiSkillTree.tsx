@@ -92,7 +92,7 @@ export function SenseiSkillTree() {
               background: `${CATEGORY_COLORS[cat]}20`,
               border: `1px solid ${CATEGORY_COLORS[cat]}40`,
             } : {
-              background: "rgba(39,39,42,0.5)",
+              background: "var(--muted)",
             }}
           >
             {cat}

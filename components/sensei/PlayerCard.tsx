@@ -29,8 +29,8 @@ export function PlayerCard({ archetype, isSelected, onClick }: PlayerCardProps) 
       className={`
         w-full text-left rounded-xl p-3 border transition-all
         ${isSelected
-          ? "border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.05)]"
-          : "border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.03)] hover:border-[rgba(255,255,255,0.12)]"
+          ? "border-border bg-foreground/5"
+          : "border-border bg-foreground/5 hover:border-border"
         }
       `}
     >
@@ -41,9 +41,9 @@ export function PlayerCard({ archetype, isSelected, onClick }: PlayerCardProps) 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[13px] font-semibold text-foreground">{archetype.flag} {archetype.name}</span>
-            <span className="text-[12px] font-semibold text-[rgba(255,255,255,0.5)]">{ovr}</span>
+            <span className="text-[12px] font-semibold text-muted-foreground">{ovr}</span>
           </div>
-          <p className="text-[11px] text-[rgba(255,255,255,0.25)]">&ldquo;{archetype.nickname}&rdquo; — {archetype.team}</p>
+          <p className="text-[11px] text-muted-foreground/70">&ldquo;{archetype.nickname}&rdquo; — {archetype.team}</p>
           <div className="flex flex-wrap gap-1 mt-1.5">
             <Badge
               variant="outline"
@@ -52,10 +52,10 @@ export function PlayerCard({ archetype, isSelected, onClick }: PlayerCardProps) 
             >
               {badge.label}
             </Badge>
-            <Badge variant="outline" className="text-[11px] border-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.5)]">
+            <Badge variant="outline" className="text-[11px] border-border text-muted-foreground">
               {archetype.playstyle}
             </Badge>
-            <span className="text-[11px] text-[rgba(255,255,255,0.25)]">{role}</span>
+            <span className="text-[11px] text-muted-foreground/70">{role}</span>
           </div>
         </div>
       </div>

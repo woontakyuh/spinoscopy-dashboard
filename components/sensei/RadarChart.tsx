@@ -69,7 +69,7 @@ export function RadarChart({ attributes, compareAttributes, compareName, maxDoma
         )}
         {compareAttributes && (
           <Legend
-            wrapperStyle={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}
+            wrapperStyle={{ fontSize: 11, color: "var(--muted-foreground)" }}
           />
         )}
       </RechartsRadarChart>

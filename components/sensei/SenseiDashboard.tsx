@@ -114,10 +114,10 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
       <div className="max-w-5xl mx-auto space-y-4">
 
         {/* ══ 메인 카드: 이미지 | 스탯 ══ */}
-        <div className="bg-[#121212] border border-border rounded-2xl overflow-hidden grid grid-cols-1 md:grid-cols-[240px_1fr]">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden grid grid-cols-1 md:grid-cols-[240px_1fr]">
 
           {/* 좌: 이미지 */}
-          <div className="hidden md:flex bg-[#0e0e0e] items-end justify-center">
+          <div className="hidden md:flex bg-muted items-end justify-center">
             {!imgError ? (
               <img src="/images/character_full.png" alt="" className="w-full max-w-[240px] max-h-[520px] object-contain object-bottom" onError={() => setImgError(true)} />
             ) : (
@@ -275,7 +275,7 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
         </div>
 
         {/* ══ Coach ══ */}
-        <div className="bg-[#121212] border border-border rounded-2xl overflow-hidden">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="px-5 py-3">
             <div className="flex items-center gap-3">
               <button type="button" onClick={() => setCoachExpanded(!coachExpanded)} className="text-base shrink-0">🤖</button>

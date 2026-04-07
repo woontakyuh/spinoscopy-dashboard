@@ -101,10 +101,10 @@ export function SenseiCharacterSheet() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <div className="grid grid-cols-1 md:grid-cols-[340px_1fr] gap-0 bg-[#121212] border border-border rounded-2xl overflow-hidden">
+      <div className="grid grid-cols-1 md:grid-cols-[340px_1fr] gap-0 bg-card border border-border rounded-2xl overflow-hidden">
 
         {/* ═══ 좌측: 풀바디 캐릭터 ═══ */}
-        <div className="relative bg-[#0e0e0e] flex flex-col items-center justify-end md:min-h-[700px]">
+        <div className="relative bg-muted flex flex-col items-center justify-end md:min-h-[700px]">
           <img
             src="/images/character_full.png"
             alt="Character"

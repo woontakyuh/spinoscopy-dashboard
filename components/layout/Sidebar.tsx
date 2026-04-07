@@ -22,7 +22,7 @@ export function Sidebar() {
       <div className="p-2 md:p-4 border-b border-border">
         <Link href="/" className="flex items-center gap-2 justify-center md:justify-start hover:opacity-80 transition-opacity">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/tak.png" alt="Tak" className="w-9 h-9 rounded-full object-cover shrink-0" />
+          <img src="/tak.png" alt="Tak" className="w-12 h-12 md:w-14 md:h-14 rounded-full object-cover shrink-0" />
           <div className="hidden md:block">
             <p className="text-foreground font-semibold text-sm">Tak, MD</p>
             <p className="text-muted-foreground text-xs">Dashboard</p>

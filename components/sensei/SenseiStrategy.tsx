@@ -370,7 +370,7 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
                     </a>
                   )}
                 </div>
-                <span className="text-[9px] text-center leading-tight" style={{ color: "rgba(255,255,255,0.45)" }}>
+                <span className="text-[9px] text-center leading-tight" style={{ color: "var(--muted-foreground)" }}>
                   {step.action.replace("★ ", "").slice(0, 30)}{step.action.length > 30 ? "…" : ""}
                 </span>
               </div>
@@ -402,8 +402,8 @@ function FlowChart({ strategy, onStepClick, selectedStep, editMode, onAddFromNod
               }}
             >
               <span className="text-[9px] px-1.5 py-0.5 rounded whitespace-nowrap" style={{
-                color: "rgba(255,255,255,0.4)",
-                background: "rgba(10,10,10,0.8)",
+                color: "var(--muted-foreground)",
+                background: "var(--card)",
                 border: "1px solid rgba(255,255,255,0.06)",
               }}>
                 {edge.condition}
@@ -946,7 +946,7 @@ export function SenseiStrategy() {
   return (
     <div className="max-w-5xl mx-auto space-y-4">
       {/* ═══ 내 경기플로우 탭 ═══ */}
-      <div className="bg-[#121212] border border-border rounded-2xl p-3">
+      <div className="bg-card border border-border rounded-2xl p-3">
         <div className="flex items-center gap-1.5 overflow-x-auto">
           {/* 내 플로우 탭들 */}
           {myStrategies.map((s) => (
@@ -1054,7 +1054,7 @@ export function SenseiStrategy() {
 
       {/* ═══ Strategy Content ═══ */}
       {viewMode !== "skilltree" && selected && (
-        <div className="bg-[#121212] border border-border rounded-2xl p-6">
+        <div className="bg-card border border-border rounded-2xl p-6">
           {/* Header */}
           <div className="flex items-start justify-between mb-4">
             <div>

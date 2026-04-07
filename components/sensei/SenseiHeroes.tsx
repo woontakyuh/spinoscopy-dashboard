@@ -75,8 +75,8 @@ export function SenseiHeroes() {
             onClick={() => { setFilter(f.id); setSelected(null) }}
             className={`px-3 py-1.5 rounded-xl text-[12px] font-medium transition-colors ${
               filter === f.id
-                ? "bg-[rgba(255,255,255,0.05)] text-foreground"
-                : "bg-[rgba(255,255,255,0.03)] text-[rgba(255,255,255,0.25)] hover:text-[rgba(255,255,255,0.5)]"
+                ? "bg-foreground/5 text-foreground"
+                : "bg-foreground/5 text-muted-foreground/70 hover:text-muted-foreground"
             }`}
           >
             {f.label}
@@ -98,42 +98,42 @@ export function SenseiHeroes() {
 
       {/* Selected Player Detail */}
       {selected && (
-        <div className="border border-[rgba(255,255,255,0.06)] rounded-xl p-5 bg-[rgba(255,255,255,0.03)] space-y-4">
+        <div className="border border-border rounded-xl p-5 bg-foreground/5 space-y-4">
           <div className="flex items-start gap-4">
             <AthleteAvatar name={selected.name} imageUrl={selected.imageUrl} size={56} />
             <div className="flex-1">
               <h3 className="text-[16px] font-semibold text-foreground">
                 {selected.flag} {selected.name}
               </h3>
-              <p className="text-[12px] text-[rgba(255,255,255,0.25)]">
+              <p className="text-[12px] text-muted-foreground/70">
                 &ldquo;{selected.nickname}&rdquo; — {selected.team}
               </p>
             </div>
             <div className="text-center shrink-0">
               <div className="text-[24px] font-semibold text-foreground">{calculateOvr(selected.stats).ovr}</div>
-              <p className="text-[11px] text-[rgba(255,255,255,0.25)]">{calculateOvr(selected.stats).role}</p>
+              <p className="text-[11px] text-muted-foreground/70">{calculateOvr(selected.stats).role}</p>
             </div>
           </div>
 
           {/* Bio & Style */}
           <div className="flex flex-wrap gap-1.5">
-            <Badge variant="outline" className="text-[11px] border-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.5)]">
+            <Badge variant="outline" className="text-[11px] border-border text-muted-foreground">
               {selected.playstyle}
             </Badge>
             {selected.styleReferences?.map((ref) => (
-              <Badge key={ref} variant="outline" className="text-[11px] border-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.25)]">
+              <Badge key={ref} variant="outline" className="text-[11px] border-border text-muted-foreground/70">
                 Style: {ref}
               </Badge>
             ))}
           </div>
 
           {selected.bio && (
-            <p className="text-[12px] text-[rgba(255,255,255,0.5)]">{selected.bio}</p>
+            <p className="text-[12px] text-muted-foreground">{selected.bio}</p>
           )}
 
           {/* Radar: Player vs Me */}
           <div>
-            <h4 className="text-[12px] text-[rgba(255,255,255,0.5)] mb-1">
+            <h4 className="text-[12px] text-muted-foreground mb-1">
               {selected.name} vs 나
             </h4>
             <RadarChart
@@ -149,14 +149,14 @@ export function SenseiHeroes() {
             {(Object.keys(ATTR_LABELS) as (keyof typeof ATTR_LABELS)[]).map((key) => (
               <div key={key} className="space-y-0.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-[rgba(255,255,255,0.25)]">{ATTR_LABELS[key]}</span>
+                  <span className="text-[11px] text-muted-foreground/70">{ATTR_LABELS[key]}</span>
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-mono" style={{ color: ATTR_COLORS[key] }}>
                       {selected.stats[key]}
                     </span>
                     {myStats && (
                       <span className={`text-[11px] font-mono ${
-                        myStats.combined.attributes[key] >= selected.stats[key] ? "text-[#22c55e]" : "text-[rgba(255,255,255,0.25)]"
+                        myStats.combined.attributes[key] >= selected.stats[key] ? "text-[#22c55e]" : "text-muted-foreground/70"
                       }`}>
                         ({myStats.combined.attributes[key] >= selected.stats[key] ? "+" : ""}{myStats.combined.attributes[key] - selected.stats[key]})
                       </span>
@@ -170,10 +170,10 @@ export function SenseiHeroes() {
 
           {/* Signature Tags */}
           <div>
-            <h4 className="text-[12px] text-[rgba(255,255,255,0.5)] mb-1.5">시그니처 태그</h4>
+            <h4 className="text-[12px] text-muted-foreground mb-1.5">시그니처 태그</h4>
             <div className="flex flex-wrap gap-1">
               {selected.tags.map((tag) => (
-                <Badge key={tag} variant="outline" className="text-[11px] border-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.5)]">
+                <Badge key={tag} variant="outline" className="text-[11px] border-border text-muted-foreground">
                   {tag}
                 </Badge>
               ))}
@@ -182,15 +182,15 @@ export function SenseiHeroes() {
 
           {/* Gameplan Flow */}
           {selected.gameplan.length > 0 && (
-            <div className="border-t border-[rgba(255,255,255,0.06)] pt-3">
+            <div className="border-t border-border pt-3">
               <GameplanFlow gameplan={selected.gameplan} playerName={selected.name} />
             </div>
           )}
 
           {/* My Position Analysis */}
           {myStats && (
-            <div className="border-t border-[rgba(255,255,255,0.06)] pt-3">
-              <h4 className="text-[12px] text-[rgba(255,255,255,0.5)] mb-2">나의 현재 위치</h4>
+            <div className="border-t border-border pt-3">
+              <h4 className="text-[12px] text-muted-foreground mb-2">나의 현재 위치</h4>
               {(() => {
                 const diffs = (Object.keys(ATTR_LABELS) as (keyof typeof ATTR_LABELS)[]).map((key) => ({
                   key,
@@ -206,13 +206,13 @@ export function SenseiHeroes() {
                 return (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-[12px] text-[rgba(255,255,255,0.25)]">유사도:</span>
+                      <span className="text-[12px] text-muted-foreground/70">유사도:</span>
                       <span className="text-[13px] font-semibold text-[#3b82f6]">{similarity}%</span>
                     </div>
                     {strengths.length > 0 && (
                       <div>
                         <span className="text-[11px] text-[#22c55e]">강점: </span>
-                        <span className="text-[11px] text-[rgba(255,255,255,0.5)]">
+                        <span className="text-[11px] text-muted-foreground">
                           {strengths.slice(0, 3).map((s) => `${s.label} (+${s.diff})`).join(", ")}
                         </span>
                       </div>
@@ -220,7 +220,7 @@ export function SenseiHeroes() {
                     {weaknesses.length > 0 && (
                       <div>
                         <span className="text-[11px] text-[#ef4444]">성장 필요: </span>
-                        <span className="text-[11px] text-[rgba(255,255,255,0.5)]">
+                        <span className="text-[11px] text-muted-foreground">
                           {weaknesses.slice(0, 3).map((w) => `${w.label} (${w.diff})`).join(", ")}
                         </span>
                       </div>
