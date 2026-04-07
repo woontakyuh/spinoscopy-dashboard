@@ -74,7 +74,7 @@ return (
             className="absolute -left-2 top-3 w-3 h-3 rotate-45 bg-card border-l border-t border-border"
           />
           <h2 className="text-xl md:text-2xl font-semibold text-foreground tracking-tight">
-            {greeting}, Tak.
+            {greeting}
           </h2>
           <div className="mt-1">
             <WeatherInline />
@@ -219,9 +219,9 @@ async function createQuickSchedule(text: string): Promise<void> {
 
 function getGreeting(): string {
   const hour = new Date().getHours()
-  if (hour < 12) return "Good morning"
-  if (hour < 18) return "Good afternoon"
-  return "Good evening"
+  if (hour < 12) return "좋은 아침이에요, 센터장님."
+  if (hour < 18) return "안녕하세요 센터장님, 오후도 활기차게 보내시죠."
+  return "오늘 하루도 고생 많으셨어요, 센터장님."
 }
 
 function getDakotaImage(): string {
