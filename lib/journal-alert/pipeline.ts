@@ -197,7 +197,7 @@ async function searchPubmedIds(query: string, days: number): Promise<string[]> {
   const url =
     `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed` +
     `&term=${encodeURIComponent(term)}` +
-    `&datetype=pdat&mindate=${fmt(start)}&maxdate=${fmt(now)}` +
+    `&datetype=edat&mindate=${fmt(start)}&maxdate=${fmt(now)}` +
     `&retmax=500&retmode=json`
 
   const res = await fetch(url, { cache: "no-store", headers: { "User-Agent": "SpinoscopyDashboard/1.0" } })
@@ -213,7 +213,8 @@ async function fetchPubmedArticles(pmids: string[]): Promise<PubmedArticle[]> {
   for (let i = 0; i < pmids.length; i += 50) chunks.push(pmids.slice(i, i + 50))
 
   const all: PubmedArticle[] = []
-  for (const chunk of chunks) {
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i]
     const url =
       "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi" +
       `?db=pubmed&id=${encodeURIComponent(chunk.join(","))}&retmode=xml`
@@ -221,6 +222,7 @@ async function fetchPubmedArticles(pmids: string[]): Promise<PubmedArticle[]> {
     if (!res.ok) throw new Error(`PubMed fetch failed: ${res.status}`)
     const xml = await res.text()
     all.push(...parsePubmedXml(xml))
+    if (i < chunks.length - 1) await new Promise((r) => setTimeout(r, 400))
   }
   return all
 }
@@ -489,13 +491,19 @@ export async function runJournalAlertPipeline(days: number): Promise<JournalAler
   if (!databaseId) throw new Error("NOTION_JOURNAL_DB_ID missing")
 
   const existing = await loadExistingKeys(databaseId)
-  const fetchedByJournal = await Promise.all(
-    JOURNAL_SOURCES.map(async (source) => {
-      const ids = await searchPubmedIds(source.pubmedQuery, days)
-      const articles = await fetchPubmedArticles(ids)
-      return articles.map((article) => ({ ...article, journalName: source.name || article.journalName }))
-    })
-  )
+
+  // PubMed rate limit (3 req/s without API key) 회피 위해 순차 처리 + 딜레이
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+  const fetchedByJournal: PubmedArticle[][] = []
+  for (const source of JOURNAL_SOURCES) {
+    const ids = await searchPubmedIds(source.pubmedQuery, days)
+    await sleep(400)
+    const articles = await fetchPubmedArticles(ids)
+    fetchedByJournal.push(
+      articles.map((article) => ({ ...article, journalName: source.name || article.journalName }))
+    )
+    await sleep(400)
+  }
 
   const fetched = fetchedByJournal.flat()
   const dedupedMap = new Map<string, PubmedArticle>()

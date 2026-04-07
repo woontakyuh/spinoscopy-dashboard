@@ -1,8 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/notion/journal/alert/run?days=7",
-      "schedule": "0 8 * * 1"
+      "path": "/api/notion/journal/alert/run?days=3",
+      "schedule": "0 8 * * *"
     }
   ]
 }
