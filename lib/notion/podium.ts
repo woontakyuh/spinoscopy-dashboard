@@ -59,14 +59,9 @@ function buildFilter(filter?: PresentationFilter) {
   const conditions: Record<string, unknown>[] = []
   const attendance = filter?.attendance ?? "all"
   if (attendance === "발표") {
-    conditions.push({
-      or: ["발표예정", "준비 완료"].map((val) => ({
-        property: "참석",
-        select: { equals: val },
-      })),
-    })
+    conditions.push({ property: "참석", select: { equals: "발표" } })
   } else if (attendance === "참석") {
-    conditions.push({ property: "참석", select: { equals: "참석만" } })
+    conditions.push({ property: "참석", select: { equals: "참석" } })
   } else if (attendance === "불참") {
     conditions.push({ property: "참석", select: { equals: "불참" } })
   } else if (attendance === "미정") {
