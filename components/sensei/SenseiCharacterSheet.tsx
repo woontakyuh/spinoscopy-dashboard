@@ -27,7 +27,7 @@ const BELTS = [
   { id: "blue", color: "bg-blue-600" },
   { id: "purple", color: "bg-purple-600" },
   { id: "brown", color: "bg-amber-800" },
-  { id: "black", color: "bg-zinc-900" },
+  { id: "black", color: "bg-card" },
 ]
 
 function getClipPath(index: number, length: number) {
@@ -65,7 +65,7 @@ export function SenseiCharacterSheet() {
   }, [data])
 
   if (isLoading || !profile) {
-    return <div className="flex justify-center py-20"><span className="text-sm text-zinc-500 animate-pulse">로딩 중...</span></div>
+    return <div className="flex justify-center py-20"><span className="text-sm text-muted-foreground animate-pulse">로딩 중...</span></div>
   }
   if (error || !data) {
     return <div className="text-center py-20"><p className="text-sm text-red-400">스탯을 불러올 수 없습니다</p></div>
@@ -101,7 +101,7 @@ export function SenseiCharacterSheet() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <div className="grid grid-cols-1 md:grid-cols-[340px_1fr] gap-0 bg-[#121212] border border-zinc-800 rounded-2xl overflow-hidden">
+      <div className="grid grid-cols-1 md:grid-cols-[340px_1fr] gap-0 bg-[#121212] border border-border rounded-2xl overflow-hidden">
 
         {/* ═══ 좌측: 풀바디 캐릭터 ═══ */}
         <div className="relative bg-[#0e0e0e] flex flex-col items-center justify-end md:min-h-[700px]">
@@ -119,11 +119,11 @@ export function SenseiCharacterSheet() {
           {/* 프로필 헤더 */}
           <div>
             <div className="flex items-center gap-3 mb-2 flex-wrap">
-              <span className="text-lg font-semibold text-white">Lv.{stats.level}</span>
+              <span className="text-lg font-semibold text-foreground">Lv.{stats.level}</span>
               <span className="px-2 py-0.5 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-xs font-medium uppercase tracking-wider">
                 {stats.belt} {"I".repeat(stats.beltStripes)}
               </span>
-              <span className="px-2 py-0.5 rounded-full border border-zinc-700 bg-zinc-800 text-zinc-400 text-xs">
+              <span className="px-2 py-0.5 rounded-full border border-border bg-muted text-muted-foreground text-xs">
                 {activeStats.ovrRole}
               </span>
               {/* Gi/NoGi 토글 */}
@@ -131,7 +131,7 @@ export function SenseiCharacterSheet() {
                 <button
                   onClick={() => setGiMode("gi")}
                   className={`px-2 py-0.5 rounded text-xs transition-colors ${
-                    giMode === "gi" ? "bg-blue-500/20 text-blue-400 border border-blue-500/30" : "text-zinc-500 border border-transparent"
+                    giMode === "gi" ? "bg-blue-500/20 text-blue-400 border border-blue-500/30" : "text-muted-foreground border border-transparent"
                   }`}
                 >
                   Gi
@@ -139,7 +139,7 @@ export function SenseiCharacterSheet() {
                 <button
                   onClick={() => setGiMode("nogi")}
                   className={`px-2 py-0.5 rounded text-xs transition-colors ${
-                    giMode === "nogi" ? "bg-red-500/20 text-red-400 border border-red-500/30" : "text-zinc-500 border border-transparent"
+                    giMode === "nogi" ? "bg-red-500/20 text-red-400 border border-red-500/30" : "text-muted-foreground border border-transparent"
                   }`}
                 >
                   NoGi
@@ -149,11 +149,11 @@ export function SenseiCharacterSheet() {
 
             {/* XP bar */}
             <div className="max-w-sm">
-              <div className="flex justify-between text-xs text-zinc-500 mb-1">
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
                 <span>Lv.{stats.level} → Lv.{stats.level + 1}</span>
                 <span>{stats.xpCurrent} / {stats.xpToNext} XP</span>
               </div>
-              <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                 <div className="h-full bg-orange-600 rounded-full" style={{ width: `${(stats.xpCurrent / stats.xpToNext) * 100}%` }} />
               </div>
             </div>
@@ -168,8 +168,8 @@ export function SenseiCharacterSheet() {
                 { v: `${Math.round(stats.giRatio * 100)}%`, l: "Gi 비율" },
               ].map(({ v, l }) => (
                 <div key={l}>
-                  <p className="text-sm font-semibold text-zinc-100">{v}</p>
-                  <p className="text-[10px] text-zinc-500">{l}</p>
+                  <p className="text-sm font-semibold text-foreground">{v}</p>
+                  <p className="text-[10px] text-muted-foreground">{l}</p>
                 </div>
               ))}
             </div>
@@ -186,9 +186,9 @@ export function SenseiCharacterSheet() {
                   style={{ clipPath: getClipPath(idx, BELTS.length) }}
                 >
                   {belt.id === stats.belt && (
-                    <div className="absolute right-6 top-0 h-full w-10 bg-zinc-950 flex justify-evenly items-center py-1.5 px-0.5">
+                    <div className="absolute right-6 top-0 h-full w-10 bg-background flex justify-evenly items-center py-1.5 px-0.5">
                       {Array.from({ length: 4 }).map((_, i) => (
-                        <div key={String(i)} className={`w-1 h-full ${i < stats.beltStripes ? "bg-white" : "bg-zinc-800"}`} />
+                        <div key={String(i)} className={`w-1 h-full ${i < stats.beltStripes ? "bg-white" : "bg-muted"}`} />
                       ))}
                     </div>
                   )}
@@ -200,8 +200,8 @@ export function SenseiCharacterSheet() {
           {/* 레이더 차트 */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-zinc-400">능력치 레이더</h3>
-              <span className="text-xs text-zinc-500">OVR <span className="text-base font-semibold text-white">{activeStats.ovr}</span></span>
+              <h3 className="text-sm font-medium text-muted-foreground">능력치 레이더</h3>
+              <span className="text-xs text-muted-foreground">OVR <span className="text-base font-semibold text-foreground">{activeStats.ovr}</span></span>
             </div>
             <div className="h-[250px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -216,23 +216,23 @@ export function SenseiCharacterSheet() {
               </ResponsiveContainer>
             </div>
             {arch && (
-              <p className="text-xs text-zinc-500 text-center">
-                아키타입: {arch.flag} <span className="text-zinc-300">{arch.name}</span> — {arch.playstyle}
+              <p className="text-xs text-muted-foreground text-center">
+                아키타입: {arch.flag} <span className="text-foreground/90">{arch.name}</span> — {arch.playstyle}
               </p>
             )}
           </div>
 
           {/* 6축 능력치 바 */}
           <div>
-            <h3 className="text-sm font-medium text-zinc-400 mb-4">6축 능력치</h3>
+            <h3 className="text-sm font-medium text-muted-foreground mb-4">6축 능력치</h3>
             <div className="space-y-3">
               {STAT_BARS.map((stat) => (
                 <div key={stat.name} className="flex flex-col gap-1">
                   <div className="flex justify-between text-xs">
-                    <span className="text-zinc-400">{stat.name}</span>
-                    <span className="font-semibold text-zinc-200">{attrs[stat.key]}</span>
+                    <span className="text-muted-foreground">{stat.name}</span>
+                    <span className="font-semibold text-foreground">{attrs[stat.key]}</span>
                   </div>
-                  <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                  <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
                     <div
                       className={`h-full ${stat.color} rounded-full transition-all duration-500`}
                       style={{ width: `${attrs[stat.key]}%` }}
@@ -244,8 +244,8 @@ export function SenseiCharacterSheet() {
           </div>
 
           {/* 최근 포커스 */}
-          <div className="pt-4 border-t border-zinc-800">
-            <h3 className="text-sm font-medium text-zinc-400 mb-3">최근 포커스</h3>
+          <div className="pt-4 border-t border-border">
+            <h3 className="text-sm font-medium text-muted-foreground mb-3">최근 포커스</h3>
             <div className="flex flex-wrap gap-2">
               {stats.recentFocus.length > 0 ? stats.recentFocus.map((tag) => (
                 <span
@@ -256,7 +256,7 @@ export function SenseiCharacterSheet() {
                   {tagFrequencies[tag] ? <span className="ml-1 text-orange-700">{tagFrequencies[tag]}</span> : null}
                 </span>
               )) : (
-                <span className="text-xs text-zinc-600">수련 기록이 쌓이면 표시됩니다</span>
+                <span className="text-xs text-muted-foreground/70">수련 기록이 쌓이면 표시됩니다</span>
               )}
             </div>
           </div>

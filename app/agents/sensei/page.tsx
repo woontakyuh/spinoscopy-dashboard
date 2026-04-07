@@ -28,7 +28,7 @@ export default function SenseiPage() {
       <TopBar title="Lo" icon="/lo.png" />
 
       {/* Tab Navigation */}
-      <div className="border-b border-zinc-800 bg-zinc-950 sticky top-0 z-10 overflow-x-auto">
+      <div className="border-b border-border bg-background sticky top-0 z-10 overflow-x-auto">
         <div className="flex gap-0.5 px-3 md:px-6 max-w-5xl min-w-max">
           {TABS.map((tab) => (
             <button
@@ -37,7 +37,7 @@ export default function SenseiPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`
                 px-3 py-2.5 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap
-                ${activeTab === tab.id ? "text-white" : "text-zinc-500 hover:text-zinc-300"}
+                ${activeTab === tab.id ? "text-foreground" : "text-muted-foreground hover:text-foreground/90"}
               `}
             >
               <span className="flex items-center gap-1.5">

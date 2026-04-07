@@ -40,7 +40,7 @@ export function PlayerCard({ archetype, isSelected, onClick }: PlayerCardProps) 
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[13px] font-semibold text-white">{archetype.flag} {archetype.name}</span>
+            <span className="text-[13px] font-semibold text-foreground">{archetype.flag} {archetype.name}</span>
             <span className="text-[12px] font-semibold text-[rgba(255,255,255,0.5)]">{ovr}</span>
           </div>
           <p className="text-[11px] text-[rgba(255,255,255,0.25)]">&ldquo;{archetype.nickname}&rdquo; — {archetype.team}</p>

@@ -121,7 +121,7 @@ export function SenseiCompetition() {
       {/* === 내 대회 === */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[16px] font-semibold text-white">내 대회</h2>
+          <h2 className="text-[16px] font-semibold text-foreground">내 대회</h2>
           <Button
             variant="outline"
             size="sm"
@@ -134,11 +134,11 @@ export function SenseiCompetition() {
         {/* Summary stats */}
         <div className="grid grid-cols-3 gap-3 mb-5">
           <div className="rounded-xl bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.06)] p-3 text-center">
-            <div className="text-[24px] font-semibold text-white">{stats.total}</div>
+            <div className="text-[24px] font-semibold text-foreground">{stats.total}</div>
             <div className="text-[11px] text-[rgba(255,255,255,0.5)]">총 참가</div>
           </div>
           <div className="rounded-xl bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.06)] p-3 text-center">
-            <div className="text-[24px] font-semibold text-white">
+            <div className="text-[24px] font-semibold text-foreground">
               {stats.wins}
               <span className="text-[rgba(255,255,255,0.25)] mx-0.5">/</span>
               {stats.losses}
@@ -146,7 +146,7 @@ export function SenseiCompetition() {
             <div className="text-[11px] text-[rgba(255,255,255,0.5)]">전적 (승/패)</div>
           </div>
           <div className="rounded-xl bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.06)] p-3 text-center">
-            <div className="text-[24px] font-semibold text-white">
+            <div className="text-[24px] font-semibold text-foreground">
               {stats.completed}
             </div>
             <div className="text-[11px] text-[rgba(255,255,255,0.5)]">완료</div>
@@ -158,25 +158,25 @@ export function SenseiCompetition() {
           <div className="rounded-xl bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.06)] p-5 mb-5 space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <input
-                className="w-full rounded-xl bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.06)] px-3 py-2 text-[13px] text-white placeholder:text-[rgba(255,255,255,0.25)] focus:outline-none focus:ring-1 focus:ring-[rgba(255,255,255,0.12)]"
+                className="w-full rounded-xl bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.06)] px-3 py-2 text-[13px] text-foreground placeholder:text-[rgba(255,255,255,0.25)] focus:outline-none focus:ring-1 focus:ring-[rgba(255,255,255,0.12)]"
                 placeholder="대회 이름 *"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
               <input
                 type="date"
-                className="w-full rounded-xl bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.06)] px-3 py-2 text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[rgba(255,255,255,0.12)]"
+                className="w-full rounded-xl bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.06)] px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-1 focus:ring-[rgba(255,255,255,0.12)]"
                 value={form.date}
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
               />
               <input
-                className="w-full rounded-xl bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.06)] px-3 py-2 text-[13px] text-white placeholder:text-[rgba(255,255,255,0.25)] focus:outline-none focus:ring-1 focus:ring-[rgba(255,255,255,0.12)]"
+                className="w-full rounded-xl bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.06)] px-3 py-2 text-[13px] text-foreground placeholder:text-[rgba(255,255,255,0.25)] focus:outline-none focus:ring-1 focus:ring-[rgba(255,255,255,0.12)]"
                 placeholder="장소"
                 value={form.location}
                 onChange={(e) => setForm({ ...form, location: e.target.value })}
               />
               <input
-                className="w-full rounded-xl bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.06)] px-3 py-2 text-[13px] text-white placeholder:text-[rgba(255,255,255,0.25)] focus:outline-none focus:ring-1 focus:ring-[rgba(255,255,255,0.12)]"
+                className="w-full rounded-xl bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.06)] px-3 py-2 text-[13px] text-foreground placeholder:text-[rgba(255,255,255,0.25)] focus:outline-none focus:ring-1 focus:ring-[rgba(255,255,255,0.12)]"
                 placeholder="주최 (IBJJF, AJP, etc.)"
                 value={form.organization}
                 onChange={(e) =>
@@ -184,7 +184,7 @@ export function SenseiCompetition() {
                 }
               />
               <select
-                className="w-full rounded-xl bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.06)] px-3 py-2 text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[rgba(255,255,255,0.12)]"
+                className="w-full rounded-xl bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.06)] px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-1 focus:ring-[rgba(255,255,255,0.12)]"
                 value={form.ruleSet}
                 onChange={(e) =>
                   setForm({
@@ -198,13 +198,13 @@ export function SenseiCompetition() {
                 <option value="both">Both</option>
               </select>
               <input
-                className="w-full rounded-xl bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.06)] px-3 py-2 text-[13px] text-white placeholder:text-[rgba(255,255,255,0.25)] focus:outline-none focus:ring-1 focus:ring-[rgba(255,255,255,0.12)]"
+                className="w-full rounded-xl bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.06)] px-3 py-2 text-[13px] text-foreground placeholder:text-[rgba(255,255,255,0.25)] focus:outline-none focus:ring-1 focus:ring-[rgba(255,255,255,0.12)]"
                 placeholder="디비전 (Adult Blue 등)"
                 value={form.division}
                 onChange={(e) => setForm({ ...form, division: e.target.value })}
               />
               <select
-                className="w-full rounded-xl bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.06)] px-3 py-2 text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[rgba(255,255,255,0.12)]"
+                className="w-full rounded-xl bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.06)] px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-1 focus:ring-[rgba(255,255,255,0.12)]"
                 value={form.status}
                 onChange={(e) =>
                   setForm({
@@ -244,7 +244,7 @@ export function SenseiCompetition() {
 
       {/* === Following (International Events) === */}
       <section>
-        <h2 className="text-[16px] font-semibold text-white mb-4">
+        <h2 className="text-[16px] font-semibold text-foreground mb-4">
           Following — 2026 Major Events
         </h2>
         <div className="space-y-3">
@@ -272,7 +272,7 @@ function CompCard({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-white text-[13px]">
+            <span className="font-semibold text-foreground text-[13px]">
               {comp.name}
             </span>
             <Badge className={`${STATUS_COLORS[comp.status]} border-0 text-[11px] px-1.5 py-0`}>
@@ -376,7 +376,7 @@ function EventCard({ event }: { event: FollowedEvent }) {
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-white text-[13px]">
+            <span className="font-semibold text-foreground text-[13px]">
               {event.name}
             </span>
             <RuleSetBadge ruleSet={event.ruleSet} />

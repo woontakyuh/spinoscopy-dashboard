@@ -128,28 +128,28 @@ export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
   }
 
   return (
-    <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900 space-y-4 relative">
+    <div className="border border-border rounded-xl p-4 bg-card space-y-4 relative">
       <div className="flex items-center justify-between">
         <Button
           variant="outline"
           size="sm"
-          className="text-xs h-7 border-zinc-700 text-zinc-300"
+          className="text-xs h-7 border-border text-foreground/90"
           onClick={prevMonth}
         >
           ◀
         </Button>
         <div className="text-center">
-          <p className="text-white text-sm font-medium">
+          <p className="text-foreground text-sm font-medium">
             {viewYear}년 {viewMonth + 1}월
           </p>
-          <p className="text-zinc-500 text-xs">
+          <p className="text-muted-foreground text-xs">
             이번 달 {totalThisMonth}회 수련
           </p>
         </div>
         <Button
           variant="outline"
           size="sm"
-          className="text-xs h-7 border-zinc-700 text-zinc-300"
+          className="text-xs h-7 border-border text-foreground/90"
           onClick={nextMonth}
         >
           ▶
@@ -160,7 +160,7 @@ export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
         {WEEKDAYS.map((day) => (
           <div
             key={day}
-            className={`text-center text-xs py-1 ${day === "일" ? "text-red-400" : day === "토" ? "text-blue-400" : "text-zinc-500"}`}
+            className={`text-center text-xs py-1 ${day === "일" ? "text-red-400" : day === "토" ? "text-blue-400" : "text-muted-foreground"}`}
           >
             {day}
           </div>
@@ -199,12 +199,12 @@ export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
               }}
               className={`
                 relative rounded-md text-xs flex flex-col items-center justify-start pt-1 min-h-[2.75rem] transition-colors overflow-hidden
-                ${isSelected ? "ring-2 ring-orange-500 bg-zinc-700" : ""}
+                ${isSelected ? "ring-2 ring-orange-500 bg-muted" : ""}
                 ${isToday && !isSelected ? "ring-1 ring-zinc-500" : ""}
                 ${hasPromotion ? "bg-yellow-900/40 hover:bg-yellow-800/50 cursor-pointer font-bold ring-1 ring-yellow-500/50" : ""}
-                ${hasEntry && !hasPromotion ? "bg-zinc-800 hover:bg-zinc-700 cursor-pointer font-medium" : ""}
-                ${!hasEntry ? "text-zinc-600 hover:bg-zinc-800/50" : ""}
-                ${hasEntry ? "text-white" : ""}
+                ${hasEntry && !hasPromotion ? "bg-muted hover:bg-muted cursor-pointer font-medium" : ""}
+                ${!hasEntry ? "text-muted-foreground/70 hover:bg-muted/50" : ""}
+                ${hasEntry ? "text-foreground" : ""}
               `}
             >
               {hasPromotion && (
@@ -217,7 +217,7 @@ export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
                     <span key={tag} className="text-[7px] leading-tight text-orange-300/80">{tag}</span>
                   ))}
                   {dayTags.length > 2 && (
-                    <span className="text-[7px] leading-tight text-zinc-500">+{dayTags.length - 2}</span>
+                    <span className="text-[7px] leading-tight text-muted-foreground">+{dayTags.length - 2}</span>
                   )}
                 </div>
               )}
@@ -237,15 +237,15 @@ export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
       {contextMenu && (
         <div
           ref={menuRef}
-          className="fixed z-50 bg-zinc-800 border border-zinc-600 rounded-lg shadow-xl py-1 min-w-[160px]"
+          className="fixed z-50 bg-muted border border-border rounded-lg shadow-xl py-1 min-w-[160px]"
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
-          <p className="px-3 py-1 text-zinc-400 text-[10px] border-b border-zinc-700">
+          <p className="px-3 py-1 text-muted-foreground text-[10px] border-b border-border">
             {contextMenu.date}
           </p>
           <button
             type="button"
-            className="w-full text-left px-3 py-2 text-sm text-yellow-300 hover:bg-zinc-700 flex items-center gap-2"
+            className="w-full text-left px-3 py-2 text-sm text-yellow-300 hover:bg-muted flex items-center gap-2"
             onClick={() => {
               setShowPromotionForm(contextMenu.date)
               setPromotionNote("")
@@ -259,23 +259,23 @@ export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
 
       {/* 승급식 입력 폼 */}
       {showPromotionForm && (
-        <div className="border border-yellow-500/40 rounded-lg p-4 bg-zinc-800/80 space-y-3">
+        <div className="border border-yellow-500/40 rounded-lg p-4 bg-muted/80 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-yellow-300 text-sm font-medium">🏅 승급식 입력 — {showPromotionForm}</p>
             <button
               type="button"
               onClick={() => setShowPromotionForm(null)}
-              className="text-zinc-400 hover:text-white text-xs"
+              className="text-muted-foreground hover:text-foreground text-xs"
             >
               ✕
             </button>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            <label className="text-zinc-300 text-xs font-medium">벨트</label>
+            <label className="text-foreground/90 text-xs font-medium">벨트</label>
             <select
               value={promotionBelt}
               onChange={(e) => setPromotionBelt(e.target.value)}
-              className="rounded-lg border border-zinc-700 bg-zinc-800 text-white px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-yellow-500 [color-scheme:dark]"
+              className="rounded-lg border border-border bg-muted text-foreground px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-yellow-500 [color-scheme:dark]"
             >
               <option value="white">White</option>
               <option value="blue">Blue</option>
@@ -283,11 +283,11 @@ export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
               <option value="brown">Brown</option>
               <option value="black">Black</option>
             </select>
-            <label className="text-zinc-300 text-xs font-medium">그랄</label>
+            <label className="text-foreground/90 text-xs font-medium">그랄</label>
             <select
               value={promotionStripes}
               onChange={(e) => setPromotionStripes(Number(e.target.value))}
-              className="rounded-lg border border-zinc-700 bg-zinc-800 text-white px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-yellow-500 [color-scheme:dark]"
+              className="rounded-lg border border-border bg-muted text-foreground px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-yellow-500 [color-scheme:dark]"
             >
               {[0, 1, 2, 3, 4].map((n) => (
                 <option key={n} value={n}>{n}</option>
@@ -298,14 +298,14 @@ export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
             value={promotionNote}
             onChange={(e) => setPromotionNote(e.target.value)}
             placeholder="승급 내용 메모 (선택사항)"
-            className="w-full min-h-16 rounded-lg border border-zinc-700 bg-zinc-800 text-white placeholder:text-zinc-500 p-3 text-sm outline-none focus:ring-2 focus:ring-yellow-500"
+            className="w-full min-h-16 rounded-lg border border-border bg-muted text-foreground placeholder:text-muted-foreground p-3 text-sm outline-none focus:ring-2 focus:ring-yellow-500"
           />
           {promotionMutation.isError && (
             <p className="text-red-400 text-xs">오류: {promotionMutation.error.message}</p>
           )}
           <Button
             type="button"
-            className="w-full bg-yellow-600 hover:bg-yellow-500 text-white"
+            className="w-full bg-yellow-600 hover:bg-yellow-500 text-foreground"
             disabled={promotionMutation.isPending}
             onClick={() => {
               const beltTag = `[BELT:${promotionBelt}:${promotionStripes}]`
@@ -319,17 +319,17 @@ export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
       )}
 
       {selectedDate && (
-        <div className="space-y-2 pt-2 border-t border-zinc-700">
-          <p className="text-zinc-400 text-xs">{selectedDate} 수련 기록</p>
+        <div className="space-y-2 pt-2 border-t border-border">
+          <p className="text-muted-foreground text-xs">{selectedDate} 수련 기록</p>
           {selectedEntries.length === 0 ? (
-            <p className="text-zinc-500 text-xs">기록이 없습니다.</p>
+            <p className="text-muted-foreground text-xs">기록이 없습니다.</p>
           ) : (
             selectedEntries.map((entry) => {
               const badge = sessionBadge(entry.sessionType)
               return (
-                <div key={entry.id} className={`border rounded-lg p-3 bg-zinc-800/50 space-y-2 ${entry.sessionType === "promotion" ? "border-yellow-500/40" : "border-zinc-700"}`}>
+                <div key={entry.id} className={`border rounded-lg p-3 bg-muted/50 space-y-2 ${entry.sessionType === "promotion" ? "border-yellow-500/40" : "border-border"}`}>
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-white text-sm font-medium">{entry.title}</p>
+                    <p className="text-foreground text-sm font-medium">{entry.title}</p>
                     <Badge
                       variant="outline"
                       className={`text-[10px] ${badge.border} ${badge.text}`}
@@ -337,7 +337,7 @@ export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
                       {badge.label}
                     </Badge>
                     {entry.instructor && (
-                      <Badge variant="outline" className="text-[10px] border-zinc-600 text-zinc-300">
+                      <Badge variant="outline" className="text-[10px] border-border text-foreground/90">
                         {entry.instructor}
                       </Badge>
                     )}
@@ -356,7 +356,7 @@ export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
                       ))}
                     </div>
                   )}
-                  {entry.note && <p className="text-zinc-300 text-xs whitespace-pre-wrap">{entry.note}</p>}
+                  {entry.note && <p className="text-foreground/90 text-xs whitespace-pre-wrap">{entry.note}</p>}
                 </div>
               )
             })

@@ -29,7 +29,7 @@ const BELT_COLORS: Record<string, string> = {
   blue: "bg-[rgba(59,130,246,0.12)] text-[#3b82f6]",
   purple: "bg-[rgba(168,85,247,0.12)] text-[#a855f7]",
   brown: "bg-[rgba(146,64,14,0.12)] text-[#b45309]",
-  black: "bg-[rgba(39,39,42,0.12)] text-white border border-[rgba(255,255,255,0.06)]",
+  black: "bg-[rgba(39,39,42,0.12)] text-foreground border border-[rgba(255,255,255,0.06)]",
 }
 
 const ATTR_LABELS: Record<string, string> = {
@@ -115,7 +115,7 @@ export function SenseiCoach({ initialQuestion, onQuestionConsumed }: SenseiCoach
       <div className="border-b border-[rgba(255,255,255,0.06)] shrink-0">
         <button
           onClick={() => setStatsOpen(!statsOpen)}
-          className="w-full px-4 py-3 flex items-center gap-2 text-[13px] text-[rgba(255,255,255,0.5)] hover:text-white transition-colors"
+          className="w-full px-4 py-3 flex items-center gap-2 text-[13px] text-[rgba(255,255,255,0.5)] hover:text-foreground transition-colors"
         >
           <span>📊</span>
           <span>내 스탯 요약</span>
@@ -141,7 +141,7 @@ export function SenseiCoach({ initialQuestion, onQuestionConsumed }: SenseiCoach
                   {Object.entries(stats.gi.attributes).map(([key, val]) => (
                     <div key={key} className="flex justify-between">
                       <span className="text-[rgba(255,255,255,0.25)]">{ATTR_LABELS[key]}</span>
-                      <span className="text-white">{val}</span>
+                      <span className="text-foreground">{val}</span>
                     </div>
                   ))}
                 </div>
@@ -153,7 +153,7 @@ export function SenseiCoach({ initialQuestion, onQuestionConsumed }: SenseiCoach
                   {Object.entries(stats.nogi.attributes).map(([key, val]) => (
                     <div key={key} className="flex justify-between">
                       <span className="text-[rgba(255,255,255,0.25)]">{ATTR_LABELS[key]}</span>
-                      <span className="text-white">{val}</span>
+                      <span className="text-foreground">{val}</span>
                     </div>
                   ))}
                 </div>
@@ -173,7 +173,7 @@ export function SenseiCoach({ initialQuestion, onQuestionConsumed }: SenseiCoach
                 <button
                   key={q}
                   onClick={() => sendMessage(q)}
-                  className="px-3 py-1.5 text-[12px] rounded-xl border border-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.5)] hover:border-[rgba(255,255,255,0.12)] hover:text-white transition-colors"
+                  className="px-3 py-1.5 text-[12px] rounded-xl border border-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.5)] hover:border-[rgba(255,255,255,0.12)] hover:text-foreground transition-colors"
                 >
                   {q}
                 </button>
@@ -187,7 +187,7 @@ export function SenseiCoach({ initialQuestion, onQuestionConsumed }: SenseiCoach
             <div
               className={`max-w-[85%] rounded-xl px-4 py-2.5 text-[13px] whitespace-pre-wrap ${
                 msg.role === "user"
-                  ? "bg-[rgba(59,130,246,0.12)] text-white rounded-br-md"
+                  ? "bg-[rgba(59,130,246,0.12)] text-foreground rounded-br-md"
                   : "bg-[rgba(255,255,255,0.03)] text-[rgba(255,255,255,0.8)] rounded-bl-md"
               }`}
             >
@@ -217,12 +217,12 @@ export function SenseiCoach({ initialQuestion, onQuestionConsumed }: SenseiCoach
           onChange={(e) => setInput(e.target.value)}
           placeholder="코치에게 질문..."
           disabled={chatMutation.isPending}
-          className="flex-1 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-xl px-3 py-2 text-[13px] text-white placeholder-[rgba(255,255,255,0.25)] focus:outline-none focus:ring-1 focus:ring-[rgba(255,255,255,0.12)] focus:border-transparent disabled:opacity-50"
+          className="flex-1 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-xl px-3 py-2 text-[13px] text-foreground placeholder-[rgba(255,255,255,0.25)] focus:outline-none focus:ring-1 focus:ring-[rgba(255,255,255,0.12)] focus:border-transparent disabled:opacity-50"
         />
         <Button
           type="submit"
           disabled={!input.trim() || chatMutation.isPending}
-          className="bg-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.08)] text-white px-4 rounded-xl disabled:opacity-50"
+          className="bg-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.08)] text-foreground px-4 rounded-xl disabled:opacity-50"
         >
           전송
         </Button>

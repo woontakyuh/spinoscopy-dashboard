@@ -13,7 +13,7 @@ export function StatBar({ label, value, max = 100, color }: StatBarProps) {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
-        <span className="text-[13px] font-medium text-white/45">{label}</span>
+        <span className="text-[13px] font-medium text-foreground/45">{label}</span>
         <span className="text-[13px] font-semibold tabular-nums" style={{ color }}>
           {value}
         </span>

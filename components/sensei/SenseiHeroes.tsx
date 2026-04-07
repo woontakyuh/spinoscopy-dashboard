@@ -75,7 +75,7 @@ export function SenseiHeroes() {
             onClick={() => { setFilter(f.id); setSelected(null) }}
             className={`px-3 py-1.5 rounded-xl text-[12px] font-medium transition-colors ${
               filter === f.id
-                ? "bg-[rgba(255,255,255,0.05)] text-white"
+                ? "bg-[rgba(255,255,255,0.05)] text-foreground"
                 : "bg-[rgba(255,255,255,0.03)] text-[rgba(255,255,255,0.25)] hover:text-[rgba(255,255,255,0.5)]"
             }`}
           >
@@ -102,7 +102,7 @@ export function SenseiHeroes() {
           <div className="flex items-start gap-4">
             <AthleteAvatar name={selected.name} imageUrl={selected.imageUrl} size={56} />
             <div className="flex-1">
-              <h3 className="text-[16px] font-semibold text-white">
+              <h3 className="text-[16px] font-semibold text-foreground">
                 {selected.flag} {selected.name}
               </h3>
               <p className="text-[12px] text-[rgba(255,255,255,0.25)]">
@@ -110,7 +110,7 @@ export function SenseiHeroes() {
               </p>
             </div>
             <div className="text-center shrink-0">
-              <div className="text-[24px] font-semibold text-white">{calculateOvr(selected.stats).ovr}</div>
+              <div className="text-[24px] font-semibold text-foreground">{calculateOvr(selected.stats).ovr}</div>
               <p className="text-[11px] text-[rgba(255,255,255,0.25)]">{calculateOvr(selected.stats).role}</p>
             </div>
           </div>

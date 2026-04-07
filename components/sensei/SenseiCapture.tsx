@@ -102,30 +102,30 @@ export function SenseiCapture({ selectedDate }: SenseiCaptureProps) {
 
   return (
     <div className="space-y-4">
-      <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900 space-y-4">
+      <div className="border border-border rounded-xl p-4 bg-card space-y-4">
         {/* 날짜 + 지도자 */}
         <div className="flex items-center gap-3 flex-wrap">
-          <label htmlFor="sensei-date" className="text-zinc-300 text-sm font-medium shrink-0">수련일</label>
+          <label htmlFor="sensei-date" className="text-foreground/90 text-sm font-medium shrink-0">수련일</label>
           <input id="sensei-date" type="date" value={date} onChange={(e) => setDate(e.target.value)}
-            className="rounded-lg border border-zinc-700 bg-zinc-800 text-white px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-orange-500 [color-scheme:dark]" />
-          <label htmlFor="sensei-instructor" className="text-zinc-300 text-sm font-medium shrink-0 ml-2">지도자</label>
+            className="rounded-lg border border-border bg-muted text-foreground px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-orange-500 [color-scheme:dark]" />
+          <label htmlFor="sensei-instructor" className="text-foreground/90 text-sm font-medium shrink-0 ml-2">지도자</label>
           <select id="sensei-instructor" value={instructor} onChange={(e) => setInstructor(e.target.value)}
-            className="rounded-lg border border-zinc-700 bg-zinc-800 text-white px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-orange-500 [color-scheme:dark]">
+            className="rounded-lg border border-border bg-muted text-foreground px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-orange-500 [color-scheme:dark]">
             <option value="조준용">조준용</option>
             <option value="김진우">김진우</option>
           </select>
         </div>
 
         {/* ═══ 📖 공부 (아코디언) ═══ */}
-        <div className="border border-zinc-700/50 rounded-lg overflow-hidden">
+        <div className="border border-border/50 rounded-lg overflow-hidden">
           <button
             type="button"
             onClick={() => setStudyOpen(!studyOpen)}
-            className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-zinc-800/50 transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/50 transition-colors"
           >
             <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
-            <span className="text-zinc-300 text-sm font-medium">공부</span>
-            <span className="ml-auto text-zinc-600 text-xs">{studyOpen ? "▼" : "▶"}</span>
+            <span className="text-foreground/90 text-sm font-medium">공부</span>
+            <span className="ml-auto text-muted-foreground/70 text-xs">{studyOpen ? "▼" : "▶"}</span>
           </button>
 
           {studyOpen && (
@@ -135,28 +135,28 @@ export function SenseiCapture({ selectedDate }: SenseiCaptureProps) {
                 value={videoUrl}
                 onChange={(e) => setVideoUrl(e.target.value)}
                 placeholder="🔗 영상 URL (YouTube 등)"
-                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 text-white placeholder:text-zinc-500 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full rounded-lg border border-border bg-muted text-foreground placeholder:text-muted-foreground px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-500"
               />
               <input
                 type="text"
                 value={videoTitle}
                 onChange={(e) => setVideoTitle(e.target.value)}
                 placeholder="📺 영상 제목 (URL 입력 시 자동추출)"
-                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 text-white placeholder:text-zinc-500 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full rounded-lg border border-border bg-muted text-foreground placeholder:text-muted-foreground px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-500"
               />
               <input
                 type="text"
                 value={todayFocus}
                 onChange={(e) => setTodayFocus(e.target.value)}
                 placeholder="🎯 오늘의 초점 (예: 하프가드 스윕 진입 — 스파링에서 써볼 것)"
-                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 text-white placeholder:text-zinc-500 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full rounded-lg border border-border bg-muted text-foreground placeholder:text-muted-foreground px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-500"
               />
-              <label className="flex items-center gap-2 text-sm text-zinc-400 px-1 cursor-pointer">
+              <label className="flex items-center gap-2 text-sm text-muted-foreground px-1 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={focusApplied}
                   onChange={(e) => setFocusApplied(e.target.checked)}
-                  className="rounded border-zinc-600 bg-zinc-800 text-green-500 focus:ring-green-500"
+                  className="rounded border-border bg-muted text-green-500 focus:ring-green-500"
                 />
                 오늘 수업/스파링에서 적용함
               </label>
@@ -164,7 +164,7 @@ export function SenseiCapture({ selectedDate }: SenseiCaptureProps) {
                 value={studyInput}
                 onChange={(e) => setStudyInput(e.target.value)}
                 placeholder="영상에서 배운 내용, 메모 (자연어로 자유롭게)"
-                className="w-full min-h-16 rounded-lg border border-zinc-700 bg-zinc-800 text-white placeholder:text-zinc-500 p-3 text-sm outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full min-h-16 rounded-lg border border-border bg-muted text-foreground placeholder:text-muted-foreground p-3 text-sm outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
           )}
@@ -174,14 +174,14 @@ export function SenseiCapture({ selectedDate }: SenseiCaptureProps) {
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-            <label htmlFor="sensei-class" className="text-zinc-300 text-sm font-medium">수업</label>
+            <label htmlFor="sensei-class" className="text-foreground/90 text-sm font-medium">수업</label>
           </div>
           <textarea
             id="sensei-class"
             value={classInput}
             onChange={(e) => setClassInput(e.target.value)}
             placeholder="오늘 수업 내용 (드릴, 테크닉 등)"
-            className="w-full min-h-24 rounded-lg border border-zinc-700 bg-zinc-800 text-white placeholder:text-zinc-500 p-3 text-sm outline-none focus:ring-2 focus:ring-purple-500"
+            className="w-full min-h-24 rounded-lg border border-border bg-muted text-foreground placeholder:text-muted-foreground p-3 text-sm outline-none focus:ring-2 focus:ring-purple-500"
           />
         </div>
 
@@ -189,14 +189,14 @@ export function SenseiCapture({ selectedDate }: SenseiCaptureProps) {
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-            <label htmlFor="sensei-sparring" className="text-zinc-300 text-sm font-medium">스파링</label>
+            <label htmlFor="sensei-sparring" className="text-foreground/90 text-sm font-medium">스파링</label>
           </div>
           <textarea
             id="sensei-sparring"
             value={sparringInput}
             onChange={(e) => setSparringInput(e.target.value)}
             placeholder="스파링 메모 (상대, 잘된 점, 개선 포인트 등)"
-            className="w-full min-h-24 rounded-lg border border-zinc-700 bg-zinc-800 text-white placeholder:text-zinc-500 p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full min-h-24 rounded-lg border border-border bg-muted text-foreground placeholder:text-muted-foreground p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
@@ -216,14 +216,14 @@ export function SenseiCapture({ selectedDate }: SenseiCaptureProps) {
 
         {/* 저장 결과 */}
         {lastSaved && (
-          <div className="rounded-lg border border-zinc-700 bg-zinc-800/60 p-3 space-y-2">
+          <div className="rounded-lg border border-border bg-muted/60 p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <p className="text-green-400 text-xs">{lastSaved.appended ? "기존 기록에 추가 완료" : "저장 완료"}</p>
               <a href={`https://www.notion.so/${lastSaved.pageId.replace(/-/g, "")}`} target="_blank" rel="noreferrer" className="text-blue-300 text-xs hover:underline">
                 Notion 열기
               </a>
             </div>
-            <p className="text-white text-sm font-medium">{lastSaved.structured.title}</p>
+            <p className="text-foreground text-sm font-medium">{lastSaved.structured.title}</p>
             <div className="flex flex-wrap gap-1">
               <Badge variant="outline" className={`text-[10px] ${
                 lastSaved.structured.sessionType === "study" ? "border-green-500/40 text-green-300"
@@ -235,7 +235,7 @@ export function SenseiCapture({ selectedDate }: SenseiCaptureProps) {
                 : lastSaved.structured.sessionType === "promotion" ? "승급식"
                 : lastSaved.structured.sessionType === "openmat" ? "Open Mat" : "Class"}
               </Badge>
-              <Badge variant="outline" className="text-[10px] border-zinc-600 text-zinc-300">{lastSaved.structured.date}</Badge>
+              <Badge variant="outline" className="text-[10px] border-border text-foreground/90">{lastSaved.structured.date}</Badge>
             </div>
             <div className="flex flex-wrap gap-1">
               {lastSaved.structured.classTags.map((tag) => (
@@ -253,28 +253,28 @@ export function SenseiCapture({ selectedDate }: SenseiCaptureProps) {
       </div>
 
       {/* ═══ 최근 수련 기록 ═══ */}
-      <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900 space-y-3">
-        <p className="text-zinc-300 text-sm font-medium">최근 수련 기록</p>
+      <div className="border border-border rounded-xl p-4 bg-card space-y-3">
+        <p className="text-foreground/90 text-sm font-medium">최근 수련 기록</p>
         {entriesQuery.isLoading ? (
-          <p className="text-zinc-500 text-sm">불러오는 중...</p>
+          <p className="text-muted-foreground text-sm">불러오는 중...</p>
         ) : entriesQuery.isError ? (
           <p className="text-red-400 text-sm">오류: {(entriesQuery.error as Error).message}</p>
         ) : (entriesQuery.data ?? []).length === 0 ? (
-          <p className="text-zinc-500 text-sm">기록이 없습니다.</p>
+          <p className="text-muted-foreground text-sm">기록이 없습니다.</p>
         ) : (
           <div className="space-y-3">
             {(entriesQuery.data ?? []).map((entry) => {
               const isExpanded = expandedId === entry.id
               return (
-                <div key={entry.id} className="border border-zinc-700 rounded-lg bg-zinc-800/50 overflow-hidden">
+                <div key={entry.id} className="border border-border rounded-lg bg-muted/50 overflow-hidden">
                   <button
                     type="button"
                     onClick={() => setExpandedId((prev) => prev === entry.id ? null : entry.id)}
-                    className="w-full text-left p-3 hover:bg-zinc-700/60 transition-colors cursor-pointer"
+                    className="w-full text-left p-3 hover:bg-muted/60 transition-colors cursor-pointer"
                   >
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-zinc-400 text-sm">{isExpanded ? "▼" : "▶"}</span>
-                      <p className="text-white text-sm font-medium">{entry.title}</p>
+                      <span className="text-muted-foreground text-sm">{isExpanded ? "▼" : "▶"}</span>
+                      <p className="text-foreground text-sm font-medium">{entry.title}</p>
                       <Badge variant="outline" className={`text-[10px] ${
                         entry.sessionType === "study" ? "border-green-500/40 text-green-300"
                         : entry.sessionType === "promotion" ? "border-yellow-500/40 text-yellow-300"
@@ -285,16 +285,16 @@ export function SenseiCapture({ selectedDate }: SenseiCaptureProps) {
                         : entry.sessionType === "promotion" ? "승급식"
                         : entry.sessionType === "openmat" ? "Open Mat" : "Class"}
                       </Badge>
-                      {entry.date && <Badge variant="outline" className="text-[10px] border-zinc-600 text-zinc-300">{entry.date}</Badge>}
+                      {entry.date && <Badge variant="outline" className="text-[10px] border-border text-foreground/90">{entry.date}</Badge>}
                       {entry.videoUrl && <span className="text-[10px]" title="영상 공부">🎥</span>}
                     </div>
                   </button>
 
                   {isExpanded && (
-                    <div className="px-3 pb-3 space-y-2 border-t border-zinc-700">
+                    <div className="px-3 pb-3 space-y-2 border-t border-border">
                       <div className="flex flex-wrap gap-1 pt-2">
-                        {entry.gym && <Badge variant="outline" className="text-[10px] border-zinc-600 text-zinc-300">{entry.gym}</Badge>}
-                        {entry.instructor && <Badge variant="outline" className="text-[10px] border-zinc-600 text-zinc-300">{entry.instructor}</Badge>}
+                        {entry.gym && <Badge variant="outline" className="text-[10px] border-border text-foreground/90">{entry.gym}</Badge>}
+                        {entry.instructor && <Badge variant="outline" className="text-[10px] border-border text-foreground/90">{entry.instructor}</Badge>}
                       </div>
 
                       <div className="flex flex-wrap gap-1">
@@ -318,15 +318,15 @@ export function SenseiCapture({ selectedDate }: SenseiCaptureProps) {
 
                       {/* Today Focus */}
                       {entry.todayFocus && (
-                        <p className="text-zinc-400 text-xs">
+                        <p className="text-muted-foreground text-xs">
                           🎯 {entry.todayFocus} {entry.focusApplied ? "✅" : "⬜"}
                         </p>
                       )}
 
-                      {entry.note && <p className="text-zinc-300 text-xs whitespace-pre-wrap">{entry.note}</p>}
+                      {entry.note && <p className="text-foreground/90 text-xs whitespace-pre-wrap">{entry.note}</p>}
 
                       {entry.url && (
-                        <div className="pt-2 border-t border-zinc-700">
+                        <div className="pt-2 border-t border-border">
                           <a href={entry.url} target="_blank" rel="noreferrer" className="text-blue-300 text-xs hover:underline">
                             Notion에서 열기 ↗
                           </a>

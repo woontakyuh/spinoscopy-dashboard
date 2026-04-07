@@ -53,7 +53,7 @@ export function AthleteAvatar({ name, imageUrl, size = 40, className = "" }: Ath
 
   return (
     <div
-      className={`rounded-xl flex items-center justify-center font-semibold text-white shrink-0 ${className}`}
+      className={`rounded-xl flex items-center justify-center font-semibold text-foreground shrink-0 ${className}`}
       style={{
         width: size,
         height: size,

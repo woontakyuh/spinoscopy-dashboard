@@ -21,10 +21,11 @@ export function Sidebar() {
     <aside className="w-14 md:w-60 min-h-screen bg-card border-r border-border flex flex-col shrink-0 transition-[width] duration-200">
       <div className="p-2 md:p-4 border-b border-border">
         <Link href="/" className="flex items-center gap-2 justify-center md:justify-start hover:opacity-80 transition-opacity">
-          <span className="text-2xl">🧠</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/tak.png" alt="Tak" className="w-9 h-9 rounded-full object-cover shrink-0" />
           <div className="hidden md:block">
-            <p className="text-foreground font-semibold text-sm">Dashboard</p>
-            <p className="text-muted-foreground text-xs">Tak, MD</p>
+            <p className="text-foreground font-semibold text-sm">Tak, MD</p>
+            <p className="text-muted-foreground text-xs">Dashboard</p>
           </div>
         </Link>
       </div>

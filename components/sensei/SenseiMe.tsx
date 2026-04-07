@@ -17,8 +17,8 @@ export function SenseiMe() {
           onClick={() => setView("character")}
           className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${
             view === "character"
-              ? "bg-zinc-800 text-white border border-zinc-700"
-              : "text-zinc-500 border border-zinc-800/50 hover:text-zinc-300"
+              ? "bg-muted text-foreground border border-border"
+              : "text-muted-foreground border border-border/50 hover:text-foreground/90"
           }`}
         >
           ⚔️ 캐릭터
@@ -27,8 +27,8 @@ export function SenseiMe() {
           onClick={() => setView("stats")}
           className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${
             view === "stats"
-              ? "bg-zinc-800 text-white border border-zinc-700"
-              : "text-zinc-500 border border-zinc-800/50 hover:text-zinc-300"
+              ? "bg-muted text-foreground border border-border"
+              : "text-muted-foreground border border-border/50 hover:text-foreground/90"
           }`}
         >
           📊 능력치 상세

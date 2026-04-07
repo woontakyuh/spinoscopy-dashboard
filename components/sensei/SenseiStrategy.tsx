@@ -487,27 +487,27 @@ function ContextAddMenu({ x, y, onSelect, onDelete, onAddVideo, onClose, current
         position: "fixed", left: x, top: y, zIndex: 200,
         minWidth: showPicker ? 280 : 160,
       }}
-      className="bg-zinc-900 border border-zinc-700 rounded-lg py-1 text-xs"
+      className="bg-card border border-border rounded-lg py-1 text-xs"
     >
       {!showPicker && !showVideoInput ? (
         <>
           <button
             onClick={() => setShowPicker(true)}
-            className="w-full text-left px-3 py-2 text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
+            className="w-full text-left px-3 py-2 text-foreground/90 hover:bg-muted flex items-center gap-2"
           >
-            <span className="text-zinc-500">+</span>
+            <span className="text-muted-foreground">+</span>
             새 스텝 추가 (여기서 연결)
           </button>
           <button
             onClick={() => setShowVideoInput(true)}
-            className="w-full text-left px-3 py-2 text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
+            className="w-full text-left px-3 py-2 text-foreground/90 hover:bg-muted flex items-center gap-2"
           >
-            <span className="text-zinc-500">📺</span>
+            <span className="text-muted-foreground">📺</span>
             {currentVideoUrl ? "유튜브 링크 수정" : "유튜브 링크 추가"}
           </button>
           <button
             onClick={onDelete}
-            className="w-full text-left px-3 py-2 text-red-400/70 hover:bg-zinc-800 hover:text-red-400 flex items-center gap-2"
+            className="w-full text-left px-3 py-2 text-red-400/70 hover:bg-muted hover:text-red-400 flex items-center gap-2"
           >
             <span className="text-red-500/50">×</span>
             이 스텝 삭제
@@ -515,7 +515,7 @@ function ContextAddMenu({ x, y, onSelect, onDelete, onAddVideo, onClose, current
         </>
       ) : showVideoInput ? (
         <div className="p-2 space-y-2">
-          <p className="text-zinc-500 text-[10px] px-1">유튜브 링크:</p>
+          <p className="text-muted-foreground text-[10px] px-1">유튜브 링크:</p>
           <div className="flex gap-1">
             <input
               type="text"
@@ -523,13 +523,13 @@ function ContextAddMenu({ x, y, onSelect, onDelete, onAddVideo, onClose, current
               onChange={(e) => setVideoUrl(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && videoUrl.trim()) { onAddVideo(videoUrl.trim()) } }}
               placeholder="https://youtu.be/..."
-              className="flex-1 px-2 py-1 rounded text-[10px] bg-zinc-800 border border-zinc-700 text-white placeholder:text-zinc-600 focus:outline-none"
+              className="flex-1 px-2 py-1 rounded text-[10px] bg-muted border border-border text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
               autoFocus
             />
             <button
               onClick={() => { if (videoUrl.trim()) onAddVideo(videoUrl.trim()) }}
               disabled={!videoUrl.trim()}
-              className="px-2 py-1 rounded text-[10px] bg-zinc-700 text-white disabled:opacity-30"
+              className="px-2 py-1 rounded text-[10px] bg-muted text-foreground disabled:opacity-30"
             >
               저장
             </button>
@@ -545,13 +545,13 @@ function ContextAddMenu({ x, y, onSelect, onDelete, onAddVideo, onClose, current
         </div>
       ) : (
         <div className="p-2 space-y-2">
-          <p className="text-zinc-500 text-[10px] px-1">연결할 포지션 선택:</p>
+          <p className="text-muted-foreground text-[10px] px-1">연결할 포지션 선택:</p>
           <div className="flex gap-1 flex-wrap">
             {layers.map((l) => (
               <button
                 key={l}
                 onClick={() => setFilterLayer(filterLayer === l ? null : l)}
-                className={`px-1.5 py-0.5 rounded text-[10px] ${filterLayer === l ? "text-white bg-zinc-700" : "text-zinc-500"}`}
+                className={`px-1.5 py-0.5 rounded text-[10px] ${filterLayer === l ? "text-foreground bg-muted" : "text-muted-foreground"}`}
                 style={filterLayer === l ? { color: LAYER_COLORS[l] } : {}}
               >
                 {layerLabels[l]}
@@ -565,7 +565,7 @@ function ContextAddMenu({ x, y, onSelect, onDelete, onAddVideo, onClose, current
                 <button
                   key={p.id}
                   onClick={() => { setSelectedPos(p.id); setCustomPos("") }}
-                  className={`px-1.5 py-0.5 rounded text-[10px] border ${selectedPos === p.id ? "text-white" : "text-zinc-500 border-zinc-800"}`}
+                  className={`px-1.5 py-0.5 rounded text-[10px] border ${selectedPos === p.id ? "text-foreground" : "text-muted-foreground border-border"}`}
                   style={selectedPos === p.id ? { color: c, borderColor: `${c}50`, background: `${c}15` } : {}}
                 >
                   {p.nameKr}
@@ -575,13 +575,13 @@ function ContextAddMenu({ x, y, onSelect, onDelete, onAddVideo, onClose, current
           </div>
           {/* 커스텀 포지션 직접 입력 */}
           <div className="flex gap-1 items-center">
-            <span className="text-[10px] text-zinc-600">또는 직접 입력:</span>
+            <span className="text-[10px] text-muted-foreground/70">또는 직접 입력:</span>
             <input
               type="text"
               value={customPos}
               onChange={(e) => { setCustomPos(e.target.value); if (e.target.value) setSelectedPos(null) }}
               placeholder="롤언더, 크루시픽스 등"
-              className="flex-1 px-2 py-1 rounded text-[10px] bg-zinc-800 border border-zinc-700 text-white placeholder:text-zinc-600 focus:outline-none"
+              className="flex-1 px-2 py-1 rounded text-[10px] bg-muted border border-border text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
             />
           </div>
           {(selectedPos || customPos.trim()) && (
@@ -592,11 +592,11 @@ function ContextAddMenu({ x, y, onSelect, onDelete, onAddVideo, onClose, current
                 onChange={(e) => setAction(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { handleAdd() } }}
                 placeholder="설명 (선택, 비워도 OK)"
-                className="flex-1 px-2 py-1 rounded text-[10px] bg-zinc-800 border border-zinc-700 text-white placeholder:text-zinc-600 focus:outline-none"
+                className="flex-1 px-2 py-1 rounded text-[10px] bg-muted border border-border text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
               />
               <button
                 onClick={handleAdd}
-                className="px-2 py-1 rounded text-[10px] bg-zinc-700 text-white"
+                className="px-2 py-1 rounded text-[10px] bg-muted text-foreground"
               >
                 추가
               </button>
@@ -664,18 +664,18 @@ function StepBuilder({ onAdd }: { onAdd: (step: StrategyStep) => void }) {
   }
 
   return (
-    <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 space-y-3">
+    <div className="bg-card/50 border border-border rounded-xl p-4 space-y-3">
       <div className="flex items-center gap-2">
-        <span className="text-xs text-zinc-400">스텝 추가:</span>
+        <span className="text-xs text-muted-foreground">스텝 추가:</span>
         <button
           onClick={() => setMode("text")}
-          className={`px-2 py-1 rounded text-xs ${mode === "text" ? "bg-zinc-800 text-white" : "text-zinc-500"}`}
+          className={`px-2 py-1 rounded text-xs ${mode === "text" ? "bg-muted text-foreground" : "text-muted-foreground"}`}
         >
           자연어 입력
         </button>
         <button
           onClick={() => setMode("pick")}
-          className={`px-2 py-1 rounded text-xs ${mode === "pick" ? "bg-zinc-800 text-white" : "text-zinc-500"}`}
+          className={`px-2 py-1 rounded text-xs ${mode === "pick" ? "bg-muted text-foreground" : "text-muted-foreground"}`}
         >
           클릭 선택
         </button>
@@ -689,7 +689,7 @@ function StepBuilder({ onAdd }: { onAdd: (step: StrategyStep) => void }) {
             onChange={(e) => setTextInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleTextSubmit() }}
             placeholder="예: 하프가드에서 언더훅 잡고 코요테 스윕"
-            className="flex-1 px-3 py-2 rounded-lg text-xs text-white bg-zinc-800 border border-zinc-700 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600"
+            className="flex-1 px-3 py-2 rounded-lg text-xs text-foreground bg-muted border border-border placeholder:text-muted-foreground/70 focus:outline-none focus:border-border"
           />
           <Button size="sm" onClick={handleTextSubmit} disabled={!textInput.trim()}>추가</Button>
         </div>
@@ -699,7 +699,7 @@ function StepBuilder({ onAdd }: { onAdd: (step: StrategyStep) => void }) {
           <div className="flex gap-1 flex-wrap">
             <button
               onClick={() => setPickLayer(null)}
-              className={`px-2 py-0.5 rounded text-[10px] ${!pickLayer ? "bg-zinc-800 text-white" : "text-zinc-500"}`}
+              className={`px-2 py-0.5 rounded text-[10px] ${!pickLayer ? "bg-muted text-foreground" : "text-muted-foreground"}`}
             >
               전체
             </button>
@@ -707,7 +707,7 @@ function StepBuilder({ onAdd }: { onAdd: (step: StrategyStep) => void }) {
               <button
                 key={l}
                 onClick={() => setPickLayer(l)}
-                className={`px-2 py-0.5 rounded text-[10px] ${pickLayer === l ? "text-white" : "text-zinc-500"}`}
+                className={`px-2 py-0.5 rounded text-[10px] ${pickLayer === l ? "text-foreground" : "text-muted-foreground"}`}
                 style={pickLayer === l ? { background: `${LAYER_COLORS[l]}20`, color: LAYER_COLORS[l] } : {}}
               >
                 {layerLabels[l]}
@@ -724,7 +724,7 @@ function StepBuilder({ onAdd }: { onAdd: (step: StrategyStep) => void }) {
                   key={p.id}
                   onClick={() => setSelectedPosId(p.id)}
                   className={`px-2 py-1 rounded text-[11px] border transition-colors ${
-                    selectedPosId === p.id ? "text-white" : "text-zinc-500 border-zinc-800"
+                    selectedPosId === p.id ? "text-foreground" : "text-muted-foreground border-border"
                   }`}
                   style={selectedPosId === p.id ? { background: `${c}20`, borderColor: `${c}40`, color: c } : {}}
                 >
@@ -735,20 +735,20 @@ function StepBuilder({ onAdd }: { onAdd: (step: StrategyStep) => void }) {
           </div>
 
           {selectedPosId && (
-            <div className="space-y-2 pt-2 border-t border-zinc-800">
+            <div className="space-y-2 pt-2 border-t border-border">
               <input
                 type="text"
                 value={action}
                 onChange={(e) => setAction(e.target.value)}
                 placeholder="이 포지션에서 할 행동 (예: 언더훅 잡고 스윕)"
-                className="w-full px-3 py-2 rounded-lg text-xs text-white bg-zinc-800 border border-zinc-700 placeholder:text-zinc-600 focus:outline-none"
+                className="w-full px-3 py-2 rounded-lg text-xs text-foreground bg-muted border border-border placeholder:text-muted-foreground/70 focus:outline-none"
               />
               <input
                 type="text"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="메모 (선택)"
-                className="w-full px-3 py-1.5 rounded-lg text-xs text-white bg-zinc-800 border border-zinc-700 placeholder:text-zinc-600 focus:outline-none"
+                className="w-full px-3 py-1.5 rounded-lg text-xs text-foreground bg-muted border border-border placeholder:text-muted-foreground/70 focus:outline-none"
               />
               <Button size="sm" onClick={handlePickSubmit} disabled={!action.trim()}>스텝 추가</Button>
             </div>
@@ -774,12 +774,12 @@ function StepEditor({ step, onChange, onDelete, onMoveUp, onMoveDown, canMoveUp,
   const color = posColor(step.positionId)
 
   return (
-    <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-3 space-y-2">
+    <div className="bg-card/50 border border-border rounded-lg p-3 space-y-2">
       <div className="flex items-center gap-2 justify-between">
         <span className="text-xs font-medium" style={{ color }}>{pos?.nameKr || step.positionId}</span>
         <div className="flex gap-1">
-          <button onClick={onMoveUp} disabled={!canMoveUp} className="text-[10px] text-zinc-600 hover:text-zinc-300 disabled:opacity-30">↑</button>
-          <button onClick={onMoveDown} disabled={!canMoveDown} className="text-[10px] text-zinc-600 hover:text-zinc-300 disabled:opacity-30">↓</button>
+          <button onClick={onMoveUp} disabled={!canMoveUp} className="text-[10px] text-muted-foreground/70 hover:text-foreground/90 disabled:opacity-30">↑</button>
+          <button onClick={onMoveDown} disabled={!canMoveDown} className="text-[10px] text-muted-foreground/70 hover:text-foreground/90 disabled:opacity-30">↓</button>
           <button onClick={onDelete} className="text-[10px] text-red-500/50 hover:text-red-400">삭제</button>
         </div>
       </div>
@@ -787,14 +787,14 @@ function StepEditor({ step, onChange, onDelete, onMoveUp, onMoveDown, canMoveUp,
         type="text"
         value={step.action}
         onChange={(e) => onChange({ ...step, action: e.target.value })}
-        className="w-full px-2 py-1 rounded text-xs text-white bg-zinc-800 border border-zinc-700 focus:outline-none"
+        className="w-full px-2 py-1 rounded text-xs text-foreground bg-muted border border-border focus:outline-none"
       />
       <input
         type="text"
         value={step.notes || ""}
         onChange={(e) => onChange({ ...step, notes: e.target.value || undefined })}
         placeholder="메모 (선택)"
-        className="w-full px-2 py-1 rounded text-[11px] text-zinc-400 bg-zinc-800 border border-zinc-700 placeholder:text-zinc-600 focus:outline-none"
+        className="w-full px-2 py-1 rounded text-[11px] text-muted-foreground bg-muted border border-border placeholder:text-muted-foreground/70 focus:outline-none"
       />
     </div>
   )
@@ -940,13 +940,13 @@ export function SenseiStrategy() {
   }
 
   if (!mounted) {
-    return <div className="text-sm text-zinc-500 p-8 text-center">로딩 중...</div>
+    return <div className="text-sm text-muted-foreground p-8 text-center">로딩 중...</div>
   }
 
   return (
     <div className="max-w-5xl mx-auto space-y-4">
       {/* ═══ 내 경기플로우 탭 ═══ */}
-      <div className="bg-[#121212] border border-zinc-800 rounded-2xl p-3">
+      <div className="bg-[#121212] border border-border rounded-2xl p-3">
         <div className="flex items-center gap-1.5 overflow-x-auto">
           {/* 내 플로우 탭들 */}
           {myStrategies.map((s) => (
@@ -956,8 +956,8 @@ export function SenseiStrategy() {
               onDoubleClick={() => { setViewMode("mine"); setSelectedId(s.id); setEditingTabId(s.id) }}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${
                 viewMode === "mine" && selected?.id === s.id
-                  ? "bg-zinc-800 text-white border border-zinc-700"
-                  : "text-zinc-500 border border-zinc-800/50 hover:text-zinc-300"
+                  ? "bg-muted text-foreground border border-border"
+                  : "text-muted-foreground border border-border/50 hover:text-foreground/90"
               }`}
             >
               {editingTabId === s.id ? (
@@ -967,7 +967,7 @@ export function SenseiStrategy() {
                   onChange={(e) => { persist(myStrategies.map((ms) => ms.id === s.id ? { ...ms, name: e.target.value } : ms)) }}
                   onBlur={() => setEditingTabId(null)}
                   onKeyDown={(e) => { if (e.key === "Enter") setEditingTabId(null) }}
-                  className="bg-transparent border-b border-zinc-600 text-white text-xs w-24 focus:outline-none"
+                  className="bg-transparent border-b border-border text-foreground text-xs w-24 focus:outline-none"
                   autoFocus
                 />
               ) : (
@@ -982,18 +982,18 @@ export function SenseiStrategy() {
           {/* + 새 플로우 */}
           <button
             onClick={() => setShowNewForm(!showNewForm)}
-            className="px-2.5 py-1.5 rounded-lg text-xs text-zinc-600 border border-dashed border-zinc-800 hover:text-zinc-400 hover:border-zinc-600 transition-colors whitespace-nowrap"
+            className="px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground/70 border border-dashed border-border hover:text-muted-foreground hover:border-border transition-colors whitespace-nowrap"
           >
             +
           </button>
 
-          <div className="h-4 w-px bg-zinc-800 mx-1 shrink-0" />
+          <div className="h-4 w-px bg-muted mx-1 shrink-0" />
 
           {/* 선수 전략 / BJJ Heroes */}
           <button
             onClick={() => { setViewMode("pro"); setEditMode(false); setSelectedStep(null) }}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
-              viewMode === "pro" ? "bg-blue-500/15 text-blue-400 border border-blue-500/30" : "text-zinc-500 border border-zinc-800/50"
+              viewMode === "pro" ? "bg-blue-500/15 text-blue-400 border border-blue-500/30" : "text-muted-foreground border border-border/50"
             }`}
           >
             선수 전략
@@ -1001,7 +1001,7 @@ export function SenseiStrategy() {
           <button
             onClick={() => { setViewMode("skilltree"); setEditMode(false); setSelectedStep(null) }}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
-              viewMode === "skilltree" ? "bg-purple-500/15 text-purple-400 border border-purple-500/30" : "text-zinc-500 border border-zinc-800/50"
+              viewMode === "skilltree" ? "bg-purple-500/15 text-purple-400 border border-purple-500/30" : "text-muted-foreground border border-border/50"
             }`}
           >
             Heroes
@@ -1010,13 +1010,13 @@ export function SenseiStrategy() {
 
         {/* 선수 전략 서브 셀렉터 */}
         {viewMode === "pro" && (
-          <div className="flex gap-1.5 flex-wrap mt-2 pt-2 border-t border-zinc-800">
+          <div className="flex gap-1.5 flex-wrap mt-2 pt-2 border-t border-border">
             {proStrategies.map((s) => (
               <button
                 key={s.id}
                 onClick={() => { setSelectedId(s.id); setSelectedStep(null) }}
                 className={`px-2 py-1 rounded-lg text-xs transition-colors ${
-                  selected?.id === s.id ? "bg-zinc-800 text-white border border-zinc-700" : "text-zinc-500 border border-zinc-800/50 hover:text-zinc-300"
+                  selected?.id === s.id ? "bg-muted text-foreground border border-border" : "text-muted-foreground border border-border/50 hover:text-foreground/90"
                 }`}
               >
                 {s.proName || s.name}
@@ -1027,19 +1027,19 @@ export function SenseiStrategy() {
 
         {/* New strategy form */}
         {showNewForm && (
-          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-zinc-800">
+          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
             <input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") createStrategy() }}
               placeholder="전략 이름"
-              className="flex-1 px-3 py-1.5 rounded-lg text-xs text-white bg-zinc-800 border border-zinc-700 placeholder:text-zinc-600 focus:outline-none"
+              className="flex-1 px-3 py-1.5 rounded-lg text-xs text-foreground bg-muted border border-border placeholder:text-muted-foreground/70 focus:outline-none"
             />
             <select
               value={newRuleSet}
               onChange={(e) => setNewRuleSet(e.target.value as "gi" | "nogi")}
-              className="px-2 py-1.5 rounded-lg text-xs bg-zinc-800 border border-zinc-700 text-white"
+              className="px-2 py-1.5 rounded-lg text-xs bg-muted border border-border text-foreground"
             >
               <option value="gi">Gi</option>
               <option value="nogi">NoGi</option>
@@ -1054,7 +1054,7 @@ export function SenseiStrategy() {
 
       {/* ═══ Strategy Content ═══ */}
       {viewMode !== "skilltree" && selected && (
-        <div className="bg-[#121212] border border-zinc-800 rounded-2xl p-6">
+        <div className="bg-[#121212] border border-border rounded-2xl p-6">
           {/* Header */}
           <div className="flex items-start justify-between mb-4">
             <div>
@@ -1067,21 +1067,21 @@ export function SenseiStrategy() {
                       const updated = myStrategies.map((s) => s.id === selected.id ? { ...s, name: e.target.value } : s)
                       persist(updated)
                     }}
-                    className="text-base font-semibold text-white bg-transparent border-b border-zinc-700 focus:border-zinc-500 focus:outline-none pb-0.5"
+                    className="text-base font-semibold text-foreground bg-transparent border-b border-border focus:border-zinc-500 focus:outline-none pb-0.5"
                     style={{ minWidth: 200 }}
                   />
                 ) : (
-                  <h2 className="text-base font-semibold text-white">{selected.name}</h2>
+                  <h2 className="text-base font-semibold text-foreground">{selected.name}</h2>
                 )}
-                <Badge className="text-[10px] border-zinc-700 bg-zinc-800 text-zinc-400">{selected.ruleSet.toUpperCase()}</Badge>
+                <Badge className="text-[10px] border-border bg-muted text-muted-foreground">{selected.ruleSet.toUpperCase()}</Badge>
                 {selected.proName && <Badge className="text-[10px] border-blue-500/30 bg-blue-500/10 text-blue-400">{selected.proName}</Badge>}
               </div>
-              {selected.description && <p className="text-xs text-zinc-500">{selected.description}</p>}
+              {selected.description && <p className="text-xs text-muted-foreground">{selected.description}</p>}
             </div>
             <div className="flex gap-2">
               {/* Import button (pro → mine) */}
               {viewMode === "pro" && (
-                <Button size="sm" variant="outline" className="text-xs border-zinc-700 text-zinc-400" onClick={() => importProStrategy(selected)}>
+                <Button size="sm" variant="outline" className="text-xs border-border text-muted-foreground" onClick={() => importProStrategy(selected)}>
                   내 전략으로 가져오기
                 </Button>
               )}
@@ -1091,7 +1091,7 @@ export function SenseiStrategy() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className={`text-xs ${editMode ? "border-orange-500/30 text-orange-400" : "border-zinc-700 text-zinc-400"}`}
+                    className={`text-xs ${editMode ? "border-orange-500/30 text-orange-400" : "border-border text-muted-foreground"}`}
                     onClick={() => { setEditMode(!editMode); setShowBuilder(!editMode) }}
                   >
                     {editMode ? "편집 완료" : "편집"}
@@ -1169,14 +1169,14 @@ export function SenseiStrategy() {
               }}
             />
           ) : (
-            <div className="text-center py-8 text-xs text-zinc-600">
+            <div className="text-center py-8 text-xs text-muted-foreground/70">
               아직 스텝이 없습니다. 아래에서 추가하세요.
             </div>
           )}
 
           {/* Selected step detail */}
           {selectedStep !== null && selected.flow[selectedStep] && (
-            <div className="mt-3 p-3 rounded-lg bg-zinc-900/60 border border-zinc-800 space-y-2">
+            <div className="mt-3 p-3 rounded-lg bg-card/60 border border-border space-y-2">
               {editMode && selected.type === "mine" ? (
                 <StepEditor
                   step={selected.flow[selectedStep]}
@@ -1194,12 +1194,12 @@ export function SenseiStrategy() {
                       {getPositionById(selected.flow[selectedStep].positionId)?.nameKr}
                     </span>
                     {selected.flow[selectedStep].lessonNumber && (
-                      <span className="text-[10px] text-zinc-600">#{selected.flow[selectedStep].lessonNumber}</span>
+                      <span className="text-[10px] text-muted-foreground/70">#{selected.flow[selectedStep].lessonNumber}</span>
                     )}
                   </div>
-                  <p className="text-xs text-zinc-300">{selected.flow[selectedStep].action}</p>
+                  <p className="text-xs text-foreground/90">{selected.flow[selectedStep].action}</p>
                   {selected.flow[selectedStep].notes && (
-                    <p className="text-[11px] text-zinc-500">{selected.flow[selectedStep].notes}</p>
+                    <p className="text-[11px] text-muted-foreground">{selected.flow[selectedStep].notes}</p>
                   )}
                   {selected.flow[selectedStep].videoUrl && (
                     <a
@@ -1212,15 +1212,15 @@ export function SenseiStrategy() {
                     </a>
                   )}
                   {selected.flow[selectedStep].branches && selected.flow[selectedStep].branches!.length > 0 && (
-                    <div className="pt-2 border-t border-zinc-800 space-y-1">
+                    <div className="pt-2 border-t border-border space-y-1">
                       {selected.flow[selectedStep].branches!.map((b, bi) => {
                         const target = b.nextStepIndex >= 0 && b.nextStepIndex < selected.flow.length
                           ? getPositionById(selected.flow[b.nextStepIndex].positionId)
                           : null
                         return (
                           <div key={String(bi)} className="flex items-center gap-1.5 text-[11px]">
-                            <span className="text-zinc-600">↳</span>
-                            <span className="text-zinc-500 italic">{b.condition}</span>
+                            <span className="text-muted-foreground/70">↳</span>
+                            <span className="text-muted-foreground italic">{b.condition}</span>
                             {target && (
                               <>
                                 <span className="text-zinc-700">→</span>
@@ -1252,9 +1252,9 @@ export function SenseiStrategy() {
 
           {/* Tags */}
           {selected.tags && selected.tags.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-zinc-800 flex flex-wrap gap-1.5">
+            <div className="mt-4 pt-4 border-t border-border flex flex-wrap gap-1.5">
               {selected.tags.map((tag) => (
-                <span key={tag} className="text-[10px] text-zinc-500 px-2 py-0.5 rounded border border-zinc-800 bg-zinc-900">{tag}</span>
+                <span key={tag} className="text-[10px] text-muted-foreground px-2 py-0.5 rounded border border-border bg-card">{tag}</span>
               ))}
             </div>
           )}

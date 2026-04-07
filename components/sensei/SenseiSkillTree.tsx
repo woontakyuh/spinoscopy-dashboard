@@ -44,8 +44,8 @@ export function SenseiSkillTree() {
   if (isLoading) {
     return (
       <div className="space-y-4 animate-pulse">
-        <div className="h-10 bg-zinc-800 rounded-lg" />
-        <div className="h-64 bg-zinc-800 rounded-xl" />
+        <div className="h-10 bg-muted rounded-lg" />
+        <div className="h-64 bg-muted rounded-xl" />
       </div>
     )
   }
@@ -72,8 +72,8 @@ export function SenseiSkillTree() {
           onClick={() => setSelectedCategory("all")}
           className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
             selectedCategory === "all"
-              ? "bg-zinc-700 text-white"
-              : "bg-zinc-800/50 text-zinc-500 hover:text-zinc-300"
+              ? "bg-muted text-foreground"
+              : "bg-muted/50 text-muted-foreground hover:text-foreground/90"
           }`}
         >
           All
@@ -85,8 +85,8 @@ export function SenseiSkillTree() {
             onClick={() => setSelectedCategory(cat)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               selectedCategory === cat
-                ? "text-white"
-                : "text-zinc-500 hover:text-zinc-300"
+                ? "text-foreground"
+                : "text-muted-foreground hover:text-foreground/90"
             }`}
             style={selectedCategory === cat ? {
               background: `${CATEGORY_COLORS[cat]}20`,
@@ -109,16 +109,16 @@ export function SenseiSkillTree() {
         const unlockPct = Math.round((unlockedCount / totalCount) * 100)
 
         return (
-          <div key={categoryName} className="border border-zinc-700 rounded-xl p-4 bg-zinc-900">
+          <div key={categoryName} className="border border-border rounded-xl p-4 bg-card">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-medium" style={{ color }}>
                 {categoryName}
               </h3>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-zinc-500">
+                <span className="text-[10px] text-muted-foreground">
                   {unlockedCount}/{totalCount} 해금
                 </span>
-                <div className="w-16 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full"
                     style={{ width: `${unlockPct}%`, background: color }}
@@ -140,10 +140,10 @@ export function SenseiSkillTree() {
                     className={`
                       relative rounded-lg p-2.5 border transition-all
                       ${isLocked
-                        ? "border-zinc-800 bg-zinc-900/50 opacity-40"
+                        ? "border-border bg-card/50 opacity-40"
                         : isMaxed
                           ? "border-current bg-current/5"
-                          : "border-zinc-700 bg-zinc-800/50"
+                          : "border-border bg-muted/50"
                       }
                     `}
                     style={!isLocked ? { borderColor: `${color}${isMaxed ? "80" : "30"}` } : undefined}
@@ -158,16 +158,16 @@ export function SenseiSkillTree() {
                     )}
                     <div className="flex items-center justify-between gap-1">
                       <span
-                        className={`text-xs font-mono font-bold ${isLocked ? "text-zinc-600" : ""}`}
+                        className={`text-xs font-mono font-bold ${isLocked ? "text-muted-foreground/70" : ""}`}
                         style={!isLocked ? { color } : undefined}
                       >
                         {abbr}
                       </span>
-                      <span className={`text-[9px] ${isLocked ? "text-zinc-700" : "text-zinc-500"}`}>
+                      <span className={`text-[9px] ${isLocked ? "text-zinc-700" : "text-muted-foreground"}`}>
                         {isLocked ? "🔒" : label}
                       </span>
                     </div>
-                    <p className={`text-[9px] mt-0.5 ${isLocked ? "text-zinc-700" : "text-zinc-500"}`}>
+                    <p className={`text-[9px] mt-0.5 ${isLocked ? "text-zinc-700" : "text-muted-foreground"}`}>
                       {fullName}
                     </p>
                     {!isLocked && (
@@ -181,7 +181,7 @@ export function SenseiSkillTree() {
                             }}
                           />
                         ))}
-                        <span className="text-[8px] text-zinc-600 ml-0.5">{count}회</span>
+                        <span className="text-[8px] text-muted-foreground/70 ml-0.5">{count}회</span>
                       </div>
                     )}
                   </div>

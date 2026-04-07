@@ -12,10 +12,10 @@ export function XPBar({ current, total, level }: XPBarProps) {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] text-white/25">
+        <span className="text-[11px] text-foreground/25">
           Lv.{level} → Lv.{level + 1}
         </span>
-        <span className="text-[11px] text-white/25 tabular-nums">
+        <span className="text-[11px] text-foreground/25 tabular-nums">
           {current} / {total} XP
         </span>
       </div>
