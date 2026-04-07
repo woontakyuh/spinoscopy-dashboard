@@ -1,5 +1,5 @@
 import { anthropic } from "@ai-sdk/anthropic"
-import { streamText } from "ai"
+import { streamText, convertToModelMessages } from "ai"
 import { getAllTodos } from "@/lib/notion/todo"
 import { getUpcomingSchedules } from "@/lib/notion/schedule"
 
@@ -105,10 +105,11 @@ export async function POST(req: Request) {
   }
 
   try {
+    const modelMessages = convertToModelMessages(messages)
     const result = streamText({
       model: anthropic("claude-sonnet-4-5"),
       system: systemPrompt,
-      messages,
+      messages: modelMessages,
       onError: ({ error }) => {
         console.error("[ai/chat] streamText error:", error)
       },
