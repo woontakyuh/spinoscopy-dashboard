@@ -88,6 +88,13 @@ function getGreeting(): string {
   return "Good evening"
 }
 
+function getDakotaImage(): string {
+  const hour = new Date().getHours()
+  if (hour < 12) return "/dakota-morning.png"
+  if (hour < 18) return "/dakota-afternoon.png"
+  return "/dakota-evening.png"
+}
+
 function formatTimeRange(start: string, end: string | null): string {
   const hasTime = start.includes("T")
   if (!hasTime) return "종일"
@@ -187,23 +194,23 @@ export function MorningBriefing() {
 
   return (
     <div className="space-y-6">
-      <div className="pt-2 md:pt-4 flex items-end gap-3 md:gap-4">
-        {/* Dakota 캐릭터 */}
+      <div className="pt-2 md:pt-4 flex items-start gap-3 md:gap-4">
+        {/* Dakota 캐릭터 (시간대별) */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/dakota-full.png"
+          src={getDakotaImage()}
           alt="Dakota"
-          className="w-24 md:w-32 h-auto object-contain shrink-0 select-none"
+          className="w-28 md:w-40 h-auto object-contain shrink-0 select-none"
           draggable={false}
         />
 
-        {/* 말풍선 */}
-        <div className="relative flex-1 min-w-0 mb-2">
-          <div className="relative bg-zinc-900 border border-zinc-700 rounded-2xl rounded-bl-sm px-4 py-3 md:px-5 md:py-4 shadow-lg">
-            {/* 말풍선 꼬리 */}
+        {/* 말풍선 — 캐릭터 상단(머리/입) 옆에 위치 */}
+        <div className="relative flex-1 min-w-0 mt-2 md:mt-3">
+          <div className="relative bg-zinc-900 border border-zinc-700 rounded-2xl rounded-tl-sm px-4 py-3 md:px-5 md:py-4 shadow-lg">
+            {/* 말풍선 꼬리 — 상단 좌측 */}
             <span
               aria-hidden
-              className="absolute -left-2 bottom-3 w-3 h-3 rotate-45 bg-zinc-900 border-l border-b border-zinc-700"
+              className="absolute -left-2 top-3 w-3 h-3 rotate-45 bg-zinc-900 border-l border-t border-zinc-700"
             />
             <h2 className="text-xl md:text-2xl font-semibold text-white tracking-tight">
               {getGreeting()}, Tak.

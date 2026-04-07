@@ -4,8 +4,8 @@ import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 
 const AGENTS = [
-  { icon: "📋", image: "/dakota.png", name: "Dakota", desc: "학회 · 컨퍼런스 일정", active: true, href: "/agents/dakota", accent: "border-green-500/30" },
   { icon: "🩺", image: "/opdb.png", name: "Op DB", desc: "임상 보조 · 환자 데이터", active: true, href: "/agents/clinicus", accent: "border-red-500/30" },
+  { icon: "📋", image: "/dakota.png", name: "Dakota", desc: "학회 · 컨퍼런스 일정", active: true, href: "/agents/dakota", accent: "border-green-500/30" },
   { icon: "🔬", image: "/brian.png", name: "Brian", desc: "논문 탐색 · 연구 분석", active: true, href: "/agents/scholar", accent: "border-blue-500/30" },
   { icon: "💰", image: "/warren.png", name: "Warren", desc: "재무 · 정산 관리", active: true, href: "/agents/vault", accent: "border-amber-500/30" },
   { icon: "🥋", image: "/lo.png", name: "Lo", desc: "수련 · 수기 교육", active: true, href: "/agents/sensei", accent: "border-orange-500/30" },
