@@ -24,7 +24,7 @@ export function AgentGrid() {
             }`}
           >
             <div className="flex flex-col items-center text-center gap-2">
-              <div className="w-11 h-11 rounded-full bg-zinc-800 flex items-center justify-center text-xl overflow-hidden">
+              <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center text-3xl overflow-hidden">
                 {"image" in agent && agent.image ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={agent.image} alt={agent.name} className="w-full h-full object-cover" />

@@ -34,7 +34,7 @@ export function TopBar({ title, icon }: TopBarProps) {
       <h1 className="text-white font-semibold text-sm md:text-base truncate flex items-center gap-2">
         {icon && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={icon} alt="" className="w-6 h-6 rounded-full object-cover" />
+          <img src={icon} alt="" className="w-9 h-9 rounded-full object-cover" />
         )}
         {title}
       </h1>
