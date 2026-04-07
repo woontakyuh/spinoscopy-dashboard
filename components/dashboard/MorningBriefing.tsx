@@ -15,12 +15,6 @@ function getChatText(parts: Array<{ type: string; text?: string }>): string {
   return parts.filter((p) => p.type === "text" && p.text).map((p) => p.text).join("")
 }
 
-const QUICK_PROMPTS = [
-  "오늘 가장 급한 일 알려줘",
-  "이번 주 일정 정리해줘",
-  "내일 미리 준비할 거 있어?",
-]
-
 function DakotaGreetingChat({
   greeting,
   image,
@@ -58,12 +52,7 @@ function DakotaGreetingChat({
     sendMessage({ text })
   }
 
-  function quickSend(text: string) {
-    if (isStreaming) return
-    sendMessage({ text })
-  }
-
-  return (
+return (
     <div className="pt-2 md:pt-4 flex items-start gap-3 md:gap-4">
       {/* Dakota 캐릭터 (시간대별) */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -126,23 +115,7 @@ function DakotaGreetingChat({
           </div>
         )}
 
-        {/* 빠른 프롬프트 (대화 시작 전만) */}
-        {messages.length === 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {QUICK_PROMPTS.map((q) => (
-              <button
-                key={q}
-                type="button"
-                onClick={() => quickSend(q)}
-                className="text-[11px] px-2.5 py-1 rounded-full border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-              >
-                {q}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* 입력창 */}
+{/* 입력창 */}
         <form onSubmit={handleSubmit} className="flex gap-2 pt-1">
           <input
             value={inputValue}

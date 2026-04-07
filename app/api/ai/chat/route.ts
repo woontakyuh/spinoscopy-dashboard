@@ -101,7 +101,7 @@ export async function POST(req: Request) {
   let modelId: string
   if (agentId === "dakota") {
     systemPrompt = await buildDakotaPrompt()
-    modelId = "claude-opus-4-5"
+    modelId = "claude-opus-4-6"
   } else {
     systemPrompt = STATIC_PROMPTS[agentId as string] ?? STATIC_PROMPTS.default
     modelId = "claude-sonnet-4-5"
