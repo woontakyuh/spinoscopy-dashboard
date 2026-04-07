@@ -45,10 +45,12 @@ function DakotaGreetingChat({
   const hydratedRef = useRef(false)
   const lastSyncedCountRef = useRef(0)
 
-  // 1) localStorage 복원 (1회)
+  // 1) localStorage 복원 (1회) — 비어 있으면 서버 archive에서 hydration
   useEffect(() => {
     if (hydratedRef.current) return
     hydratedRef.current = true
+
+    let restored = false
     try {
       const raw = localStorage.getItem("dakota-chat-v1")
       if (raw) {
@@ -56,9 +58,27 @@ function DakotaGreetingChat({
         if (Array.isArray(parsed) && parsed.length > 0) {
           setMessages(parsed)
           lastSyncedCountRef.current = parsed.length
+          restored = true
         }
       }
     } catch {}
+
+    if (restored) return
+
+    // 새 기기 — Notion archive에서 최근 30개 message 복원
+    fetch("/api/dakota/memory?log=1&limit=30")
+      .then((r) => r.json())
+      .then((data: { log?: Array<{ role: "user" | "assistant"; content: string }> }) => {
+        if (!data.log || data.log.length === 0) return
+        const restoredMessages = data.log.map((m, i) => ({
+          id: `restored-${i}`,
+          role: m.role,
+          parts: [{ type: "text" as const, text: m.content }],
+        }))
+        setMessages(restoredMessages)
+        lastSyncedCountRef.current = restoredMessages.length
+      })
+      .catch((e) => console.warn("[DakotaChat] hydrate failed:", e))
   }, [setMessages])
 
   // 2) localStorage 저장

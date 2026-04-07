@@ -89,3 +89,89 @@ export async function setDakotaMemory(text: string): Promise<void> {
     }),
   })
 }
+
+// ─── 원문 대화 archive (페이지 children에 paragraph block으로 append) ─────
+const BLOCK_TEXT_MAX = 1900
+
+async function ensureMemoryPageId(): Promise<string> {
+  const row = await findMemoryRow()
+  if (row) return row.pageId
+  const created = await createMemoryRow("")
+  return created.pageId
+}
+
+interface ParagraphBlock {
+  object: "block"
+  type: "paragraph"
+  paragraph: { rich_text: Array<{ type: "text"; text: { content: string } }> }
+}
+
+function makeParagraph(content: string): ParagraphBlock {
+  return {
+    object: "block",
+    type: "paragraph",
+    paragraph: {
+      rich_text: [{ type: "text", text: { content: content.slice(0, BLOCK_TEXT_MAX) } }],
+    },
+  }
+}
+
+export async function appendDakotaLogExchanges(
+  exchanges: Array<{ role: "user" | "assistant"; content: string }>
+): Promise<void> {
+  if (exchanges.length === 0) return
+  const pageId = await ensureMemoryPageId()
+  const ts = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })
+  const blocks = exchanges.map((m) =>
+    makeParagraph(`[${ts}] ${m.role === "user" ? "센터장" : "Dakota"}: ${m.content}`)
+  )
+  await notionRequest(`/blocks/${pageId}/children`, {
+    method: "PATCH",
+    body: JSON.stringify({ children: blocks }),
+  })
+}
+
+interface BlockChildrenResponse {
+  results: Array<{
+    type: string
+    paragraph?: { rich_text: Array<{ plain_text?: string }> }
+  }>
+  has_more: boolean
+  next_cursor: string | null
+}
+
+/** 가장 최근 N개 exchange (user+assistant 합산 N message)를 archive에서 복원 */
+export async function getRecentDakotaLog(
+  limit = 30
+): Promise<Array<{ role: "user" | "assistant"; content: string }>> {
+  const row = await findMemoryRow()
+  if (!row) return []
+
+  let cursor: string | null = null
+  let all: BlockChildrenResponse["results"] = []
+  let safety = 0
+  do {
+    const url = cursor
+      ? `/blocks/${row.pageId}/children?page_size=100&start_cursor=${cursor}`
+      : `/blocks/${row.pageId}/children?page_size=100`
+    const res: BlockChildrenResponse = await notionRequest<BlockChildrenResponse>(url)
+    all = all.concat(res.results)
+    cursor = res.has_more ? res.next_cursor : null
+    safety++
+  } while (cursor && safety < 20)
+
+  const tail = all.slice(-limit)
+  const parsed: Array<{ role: "user" | "assistant"; content: string }> = []
+  for (const b of tail) {
+    if (b.type !== "paragraph") continue
+    const text = (b.paragraph?.rich_text ?? []).map((rt) => rt.plain_text ?? "").join("")
+    const m = text.match(/^\[[^\]]+\]\s*(센터장|Dakota):\s*([\s\S]*)$/)
+    if (!m) continue
+    parsed.push({
+      role: m[1] === "센터장" ? "user" : "assistant",
+      content: m[2],
+    })
+  }
+  return parsed
+}
+

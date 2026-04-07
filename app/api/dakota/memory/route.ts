@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { anthropic } from "@ai-sdk/anthropic"
 import { generateText } from "ai"
-import { getDakotaMemory, setDakotaMemory } from "@/lib/notion/dakotaMemory"
+import {
+  getDakotaMemory,
+  setDakotaMemory,
+  appendDakotaLogExchanges,
+  getRecentDakotaLog,
+} from "@/lib/notion/dakotaMemory"
 
 interface SyncBody {
   exchanges: Array<{ role: "user" | "assistant"; content: string }>
@@ -25,8 +30,17 @@ const SUMMARIZE_PROMPT = `당신은 척추신경외과 전문의 Dr. Woon Tak Yu
 - 불필요한 헤더/리스트 마커 없이 짧은 문장의 줄바꿈 모음으로 작성.
 - 전체 1500자 이하. 넘으면 가장 오래되거나 덜 중요한 것부터 압축.`
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const url = new URL(req.url)
+    const wantLog = url.searchParams.get("log") === "1"
+    const limit = Math.min(Number(url.searchParams.get("limit") ?? "30"), 100)
+
+    if (wantLog) {
+      const log = await getRecentDakotaLog(limit)
+      return NextResponse.json({ log })
+    }
+
     const text = await getDakotaMemory()
     return NextResponse.json({ text })
   } catch (error) {
@@ -46,6 +60,11 @@ export async function POST(req: NextRequest) {
     if (exchanges.length === 0) {
       return NextResponse.json({ skipped: true, reason: "no exchanges" })
     }
+
+    // 1) raw archive로 항상 append (절대 손실 없음)
+    await appendDakotaLogExchanges(exchanges).catch((e) => {
+      console.warn("[dakota/memory] log append failed:", e)
+    })
 
     const existing = await getDakotaMemory()
 
