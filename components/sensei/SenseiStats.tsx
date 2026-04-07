@@ -39,7 +39,7 @@ const TRANSITION_TYPE_COLORS: Record<string, string> = {
   pass: "#f97316",
   escape: "#3b82f6",
   submission: "#ef4444",
-  transition: "rgba(255,255,255,0.25)",
+  transition: "var(--muted-foreground)",
   takedown: "#06b6d4",
   guard_pull: "#a855f7",
   recovery: "#3b82f6",
@@ -454,8 +454,8 @@ function PositionMapView({ positionFreq }: { positionFreq: Record<string, number
               borderRadius: 8,
               fontSize: 12,
               fontWeight: 500,
-              border: filter === f.id ? "1px solid rgba(255,255,255,0.15)" : `1px solid ${BORDER_DEFAULT}`,
-              background: filter === f.id ? "rgba(255,255,255,0.06)" : CARD.background,
+              border: filter === f.id ? "1px solid var(--muted-foreground)" : `1px solid ${BORDER_DEFAULT}`,
+              background: filter === f.id ? "var(--border)" : CARD.background,
               color: filter === f.id ? TEXT.primary : TEXT.secondary,
               cursor: "pointer",
             }}
@@ -467,10 +467,10 @@ function PositionMapView({ positionFreq }: { positionFreq: Record<string, number
 
       {/* SVG Graph */}
       <div style={{ overflowX: "auto", borderRadius: 8, border: `1px solid ${BORDER_DEFAULT}` }}>
-        <svg width={svgW} height={svgH} style={{ display: "block", background: "rgba(255,255,255,0.01)" }}>
+        <svg width={svgW} height={svgH} style={{ display: "block", background: "var(--border)" }}>
           <defs>
             <marker id="arrow" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto">
-              <path d="M0,0 L6,2 L0,4" fill="rgba(255,255,255,0.15)" />
+              <path d="M0,0 L6,2 L0,4" fill="var(--muted-foreground)" />
             </marker>
           </defs>
 
@@ -482,14 +482,14 @@ function PositionMapView({ positionFreq }: { positionFreq: Record<string, number
             const edgeKey = `${t.from}-${t.to}`
             const isHighlighted = connectedEdges?.has(edgeKey)
             const isDimmed = connectedEdges && !isHighlighted
-            const edgeColor = TRANSITION_TYPE_COLORS[t.type] || "rgba(255,255,255,0.12)"
+            const edgeColor = TRANSITION_TYPE_COLORS[t.type] || "var(--muted-foreground)"
 
             return (
               <line
                 key={`e-${String(i)}`}
                 x1={from.x} y1={from.y}
                 x2={to.x} y2={to.y}
-                stroke={isDimmed ? "rgba(255,255,255,0.03)" : isHighlighted ? edgeColor : "rgba(255,255,255,0.08)"}
+                stroke={isDimmed ? "var(--border)" : isHighlighted ? edgeColor : "var(--border)"}
                 strokeWidth={isHighlighted ? 2 : 1}
                 strokeOpacity={isDimmed ? 0.3 : isHighlighted ? 0.8 : 0.4}
                 markerEnd={isHighlighted ? undefined : "url(#arrow)"}
@@ -573,7 +573,7 @@ function PositionMapView({ positionFreq }: { positionFreq: Record<string, number
       {selectedId && (
         <div
           style={{
-            background: "rgba(255,255,255,0.02)",
+            background: "var(--border)",
             border: `1px solid ${BORDER_DEFAULT}`,
             borderRadius: 8,
             padding: 12,
@@ -598,7 +598,7 @@ function PositionMapView({ positionFreq }: { positionFreq: Record<string, number
                       flexWrap: "wrap",
                       padding: "6px 8px",
                       borderRadius: 6,
-                      background: "rgba(255,255,255,0.02)",
+                      background: "var(--border)",
                       border: `1px solid ${BORDER_DEFAULT}`,
                     }}
                   >
@@ -651,11 +651,11 @@ function PositionMapView({ positionFreq }: { positionFreq: Record<string, number
           </div>
         ))}
         <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 8 }}>
-          <div style={{ width: 16, height: 0, border: "1px solid rgba(255,255,255,0.3)" }} />
+          <div style={{ width: 16, height: 0, border: "1px solid var(--muted-foreground)" }} />
           <span style={{ fontSize: 11, color: TEXT.secondary }}>교본</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <div style={{ width: 16, height: 0, border: "1px dashed rgba(255,255,255,0.2)" }} />
+          <div style={{ width: 16, height: 0, border: "1px dashed var(--muted-foreground)" }} />
           <span style={{ fontSize: 11, color: TEXT.secondary }}>심화</span>
         </div>
       </div>
@@ -786,7 +786,7 @@ function GuardDetailView({ positionFreq }: { positionFreq: Record<string, number
                       gap: 8,
                       padding: "6px 8px",
                       borderRadius: 6,
-                      background: "rgba(255,255,255,0.02)",
+                      background: "var(--border)",
                       border: `1px solid ${BORDER_DEFAULT}`,
                     }}
                   >
@@ -917,7 +917,7 @@ function MyJourneyView({ positionFreq }: { positionFreq: Record<string, number> 
                     gap: 8,
                     padding: "6px 8px",
                     borderRadius: 6,
-                    background: "rgba(255,255,255,0.02)",
+                    background: "var(--border)",
                     border: `1px solid ${BORDER_DEFAULT}`,
                   }}
                 >
@@ -1024,8 +1024,8 @@ function LessonMapView({ positionFreq }: { positionFreq: Record<string, number> 
                       gap: 8,
                       padding: "6px 10px",
                       borderRadius: 6,
-                      background: practiced ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.01)",
-                      border: `1px solid ${practiced ? BORDER_DEFAULT : "rgba(255,255,255,0.03)"}`,
+                      background: practiced ? "var(--border)" : "var(--border)",
+                      border: `1px solid ${practiced ? BORDER_DEFAULT : "var(--border)"}`,
                       opacity: practiced ? 1 : 0.5,
                     }}
                   >
@@ -1061,7 +1061,7 @@ function LessonMapView({ positionFreq }: { positionFreq: Record<string, number> 
                         style={{
                           fontSize: 10,
                           color: TEXT.tertiary,
-                          background: "rgba(255,255,255,0.03)",
+                          background: "var(--border)",
                           borderRadius: 4,
                           padding: "1px 6px",
                         }}
@@ -1161,7 +1161,7 @@ export function SenseiStats() {
                 fontSize: 13,
                 fontWeight: 500,
                 border: isActive ? `1px solid rgba(${r},${g},${b},0.3)` : "1px solid transparent",
-                background: isActive ? `rgba(${r},${g},${b},0.12)` : "rgba(255,255,255,0.03)",
+                background: isActive ? `rgba(${r},${g},${b},0.12)` : "var(--border)",
                 color: isActive ? color : TEXT.secondary,
                 cursor: "pointer",
                 transition: "all 150ms ease",

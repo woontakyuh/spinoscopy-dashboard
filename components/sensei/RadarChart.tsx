@@ -37,15 +37,15 @@ export function RadarChart({ attributes, compareAttributes, compareName, maxDoma
   return (
     <ResponsiveContainer width="100%" height={250}>
       <RechartsRadarChart data={data} cx="50%" cy="50%" outerRadius="72%">
-        <PolarGrid stroke="rgba(255,255,255,0.06)" />
+        <PolarGrid stroke="var(--border)" />
         <PolarAngleAxis
           dataKey="subject"
-          tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 11 }}
+          tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
         />
         <PolarRadiusAxis
           angle={90}
           domain={[0, maxDomain]}
-          tick={{ fill: "rgba(255,255,255,0.25)", fontSize: 9 }}
+          tick={{ fill: "var(--muted-foreground)", fontSize: 9 }}
           tickCount={5}
         />
         <Radar
