@@ -45,7 +45,7 @@ export function SenseiCapture({ selectedDate }: SenseiCaptureProps) {
   const [lastSaved, setLastSaved] = useState<CreateSenseiResult | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  const hasInput = classInput.trim() || sparringInput.trim() || studyInput.trim() || videoUrl.trim()
+  const hasInput = classInput.trim() || sparringInput.trim() || studyInput.trim() || videoUrl.trim() || todayFocus.trim()
 
   // YouTube oEmbed auto-title
   useEffect(() => {
@@ -103,6 +103,10 @@ export function SenseiCapture({ selectedDate }: SenseiCaptureProps) {
   return (
     <div className="space-y-4">
       <div className="border border-border rounded-xl p-4 bg-card space-y-4">
+        <div className="rounded-lg border border-orange-500/30 bg-orange-500/5 px-3 py-2 text-xs text-foreground/80">
+          공부 · 수업 · 스파링 중 <strong>하나만 입력해도</strong> 저장됩니다. 같은 날짜에 이미 기록이 있으면 자동으로 같은 노트에 추가돼요.
+        </div>
+
         {/* 날짜 + 지도자 */}
         <div className="flex items-center gap-3 flex-wrap">
           <label htmlFor="sensei-date" className="text-foreground/90 text-sm font-medium shrink-0">수련일</label>
