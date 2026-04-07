@@ -1,7 +1,8 @@
 import { anthropic } from "@ai-sdk/anthropic"
-import { streamText } from "ai"
+import { streamText, stepCountIs, tool } from "ai"
+import { z } from "zod"
 import { getAllTodos } from "@/lib/notion/todo"
-import { getUpcomingSchedules } from "@/lib/notion/schedule"
+import { getUpcomingSchedules, getSchedulesRichInRange } from "@/lib/notion/schedule"
 import { getDakotaMemory } from "@/lib/notion/dakotaMemory"
 
 interface UIPart { type: string; text?: string }
@@ -112,6 +113,66 @@ Dakota의 역할:
   return persona + memoryBlock + context
 }
 
+// ─── Dakota tools — Notion DB 라이브 조회 ──────────────────────
+function buildDakotaTools() {
+  return {
+    searchSchedules: tool({
+      description:
+        "Notion Schedule DB에서 일정을 조회합니다. 모든 컬럼(분류, 학회명, 장소, 준비 상태, 발표 주제, 학회 링크, abstract 마감 등)이 포함된 결과를 반환합니다. 특정 날짜 범위, 키워드로 필터링 가능. 시스템 프롬프트에 이미 있는 14일 요약으로 충분하면 호출하지 마세요. 더 먼 미래/과거나 컬럼 상세 정보가 필요할 때만 호출하세요.",
+      inputSchema: z.object({
+        from: z.string().describe("시작일 YYYY-MM-DD (Asia/Seoul)"),
+        to: z.string().describe("종료일 YYYY-MM-DD (Asia/Seoul)"),
+        query: z.string().optional().describe("이름/장소/분류에서 텍스트 매칭 (대소문자 무시, 부분 일치)"),
+        limit: z.number().int().min(1).max(50).optional().describe("최대 결과 수 (기본 30)"),
+      }),
+      execute: async ({ from, to, query, limit }) => {
+        const items = await getSchedulesRichInRange(from, to, limit ?? 30)
+        if (!query) return { count: items.length, items }
+        const q = query.toLowerCase()
+        const filtered = items.filter((it) => {
+          return Object.values(it).some((v) => {
+            if (typeof v === "string") return v.toLowerCase().includes(q)
+            if (Array.isArray(v)) return v.some((s) => typeof s === "string" && s.toLowerCase().includes(q))
+            return false
+          })
+        })
+        return { count: filtered.length, items: filtered }
+      },
+    }),
+
+    searchTodos: tool({
+      description:
+        "Notion Todo DB에서 할 일을 조회합니다. 시스템 프롬프트의 30개 요약으로 부족할 때, 또는 특정 키워드/상태로 필터링이 필요할 때만 호출하세요.",
+      inputSchema: z.object({
+        status: z.enum(["active", "Done", "all"]).optional().describe("기본 active. Done은 완료된 항목만, all은 전체"),
+        query: z.string().optional().describe("이름에서 부분 매칭"),
+        limit: z.number().int().min(1).max(100).optional().describe("최대 결과 수 (기본 50)"),
+      }),
+      execute: async ({ status, query, limit }) => {
+        const opts: { status?: string; excludeDone?: boolean } = {}
+        if (status === "active" || !status) {
+          opts.excludeDone = true
+        } else if (status === "Done") {
+          opts.status = "Done"
+        }
+        const all = await getAllTodos(opts)
+        const filtered = query
+          ? all.filter((t) => t.name.toLowerCase().includes(query.toLowerCase()))
+          : all
+        const items = filtered.slice(0, limit ?? 50).map((t) => ({
+          name: t.name,
+          due: t.due,
+          status: t.status,
+          priority: t.priority,
+          category: t.category,
+          notes: t.notes,
+        }))
+        return { count: filtered.length, items }
+      },
+    }),
+  }
+}
+
 export async function POST(req: Request) {
   if (!process.env.ANTHROPIC_API_KEY) {
     return new Response(
@@ -139,10 +200,14 @@ export async function POST(req: Request) {
       )
     }
 
+    const dakotaTools = agentId === "dakota" ? buildDakotaTools() : undefined
+
     const result = streamText({
       model: anthropic("claude-sonnet-4-5"),
       system: systemPrompt,
       messages: modelMessages,
+      tools: dakotaTools,
+      stopWhen: dakotaTools ? stepCountIs(5) : undefined,
       onError: ({ error }) => {
         console.error("[ai/chat] streamText error:", error)
       },

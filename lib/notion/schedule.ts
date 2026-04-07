@@ -14,6 +14,11 @@ interface NotionProperty {
   date?: { start: string; end: string | null } | null
   select?: { name: string } | null
   multi_select?: Array<{ name: string }>
+  url?: string | null
+  number?: number | null
+  checkbox?: boolean
+  people?: Array<{ name?: string }>
+  formula?: { type: string; string?: string; number?: number; date?: { start: string } }
 }
 
 interface NotionQueryResponse {
@@ -87,6 +92,70 @@ export async function getUpcomingSchedules(days = 7): Promise<ScheduleItem[]> {
   )
 
   return response.results.map(toScheduleItem)
+}
+
+/** 모든 컬럼 포함한 schedule 한 row를 flat record로 변환 (Dakota tool용) */
+export interface ScheduleRich {
+  page_id: string
+  url: string
+  [key: string]: string | number | boolean | string[] | null
+}
+
+function flattenProperty(prop: NotionProperty): string | number | boolean | string[] | null {
+  if (!prop) return null
+  switch (prop.type) {
+    case "title":
+      return (prop.title ?? []).map((t) => t.plain_text ?? "").join("").trim() || null
+    case "rich_text":
+      return (prop.rich_text ?? []).map((t) => t.plain_text ?? "").join("").trim() || null
+    case "select":
+      return prop.select?.name ?? null
+    case "multi_select":
+      return (prop.multi_select ?? []).map((s) => s.name)
+    case "date":
+      return prop.date?.start ?? null
+    case "url":
+      return prop.url ?? null
+    case "number":
+      return prop.number ?? null
+    case "checkbox":
+      return prop.checkbox ?? null
+    case "people":
+      return (prop.people ?? []).map((p) => p.name ?? "").filter(Boolean)
+    case "formula":
+      return prop.formula?.string ?? prop.formula?.number ?? prop.formula?.date?.start ?? null
+    default:
+      return null
+  }
+}
+
+function toScheduleRich(page: NotionPage): ScheduleRich {
+  const out: ScheduleRich = { page_id: page.id, url: page.url }
+  for (const [key, val] of Object.entries(page.properties)) {
+    out[key] = flattenProperty(val)
+  }
+  return out
+}
+
+export async function getSchedulesRichInRange(startDate: string, endDate: string, limit = 50): Promise<ScheduleRich[]> {
+  const dbId = process.env.NOTION_SCHEDULE_DB_ID
+  const response = await notionRequest<NotionQueryResponse>(
+    `/databases/${dbId}/query`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        filter: {
+          and: [
+            { property: "Date", date: { on_or_after: startDate } },
+            { property: "Date", date: { on_or_before: endDate } },
+          ],
+        },
+        sorts: [{ property: "Date", direction: "ascending" }],
+        page_size: Math.min(limit, 100),
+      }),
+    }
+  )
+  return response.results.map(toScheduleRich)
 }
 
 export async function getSchedulesInRange(startDate: string, endDate: string): Promise<ScheduleItem[]> {
