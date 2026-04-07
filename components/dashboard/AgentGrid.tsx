@@ -13,24 +13,24 @@ const AGENTS = [
 
 export function AgentGrid() {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+    <div className="grid grid-cols-5 gap-2 md:gap-3">
       {AGENTS.map((agent) => {
         const card = (
           <div
-            className={`relative border rounded-xl p-3 bg-card transition-all ${
+            className={`relative border rounded-xl p-1.5 md:p-3 bg-card transition-all ${
               agent.active
                 ? `${agent.accent} hover:scale-[1.03] hover:shadow-lg cursor-pointer`
                 : "border-border opacity-40 cursor-not-allowed"
             }`}
           >
             <div className="flex flex-col items-center text-center gap-2">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-3xl overflow-hidden">
+              <div className="w-10 h-10 md:w-16 md:h-16 rounded-full bg-muted flex items-center justify-center text-3xl overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={agent.image} alt={agent.name} className="w-full h-full object-cover" />
               </div>
               <div>
-                <p className="text-foreground text-xs font-semibold">{agent.name}</p>
-                <p className="text-muted-foreground text-[10px] mt-0.5 leading-tight">{agent.desc}</p>
+                <p className="text-foreground text-[10px] md:text-xs font-semibold">{agent.name}</p>
+                <p className="hidden md:block text-muted-foreground text-[10px] mt-0.5 leading-tight">{agent.desc}</p>
               </div>
               {agent.active && (
                 <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-green-500" />
