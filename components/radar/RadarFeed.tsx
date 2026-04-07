@@ -92,7 +92,7 @@ export function RadarFeed() {
   return (
     <div className="space-y-3">
       {/* 탭 */}
-      <div className="flex items-center gap-1 border-b border-zinc-800">
+      <div className="flex items-center gap-1 border-b border-border">
         {TABS.map((t) => {
           const active = tab === t.value
           const count = items.filter((i) => i.tier === t.value).length
@@ -103,12 +103,12 @@ export function RadarFeed() {
               onClick={() => handleTabChange(t.value)}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 active
-                  ? "border-cyan-500 text-white"
-                  : "border-transparent text-zinc-500 hover:text-zinc-300"
+                  ? "border-cyan-500 text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground/90"
               }`}
             >
               {t.label}
-              <span className="ml-1.5 text-xs text-zinc-500">{count}</span>
+              <span className="ml-1.5 text-xs text-muted-foreground">{count}</span>
             </button>
           )
         })}
@@ -116,14 +116,14 @@ export function RadarFeed() {
 
       {/* 정렬 + 시간 */}
       <div className="flex items-center gap-1.5">
-        <span className="text-[10px] text-zinc-500 mr-1">정렬</span>
+        <span className="text-[10px] text-muted-foreground mr-1">정렬</span>
         <Button
           variant={sortMode === "date" ? "default" : "outline"}
           size="sm"
           className={`text-xs h-7 ${
             sortMode === "date"
               ? "bg-cyan-600 hover:bg-cyan-500 text-white"
-              : "border-zinc-700 text-zinc-400 hover:text-white"
+              : "border-border text-muted-foreground hover:text-foreground"
           }`}
           onClick={() => setSortMode("date")}
         >
@@ -135,16 +135,16 @@ export function RadarFeed() {
           className={`text-xs h-7 ${
             sortMode === "importance"
               ? "bg-amber-600 hover:bg-amber-500 text-white"
-              : "border-zinc-700 text-zinc-400 hover:text-white"
+              : "border-border text-muted-foreground hover:text-foreground"
           }`}
           onClick={() => setSortMode("importance")}
         >
           중요도순
         </Button>
-        <span className="text-xs text-zinc-500 ml-1">{filtered.length}개</span>
+        <span className="text-xs text-muted-foreground ml-1">{filtered.length}개</span>
         <div className="flex-1" />
         {feedQuery.data?.fetchedAt && (
-          <span className="text-zinc-500 text-xs">
+          <span className="text-muted-foreground text-xs">
             {new Date(feedQuery.data.fetchedAt).toLocaleTimeString("ko-KR", {
               hour: "2-digit",
               minute: "2-digit",
@@ -162,7 +162,7 @@ export function RadarFeed() {
             className={`shrink-0 px-1.5 py-0.5 text-[10px] rounded-full border transition-colors ${
               selectedSources.size === 0
                 ? "border-cyan-500/60 text-cyan-300 bg-cyan-500/10"
-                : "border-zinc-700 text-zinc-400 hover:text-zinc-200"
+                : "border-border text-muted-foreground hover:text-foreground"
             }`}
           >
             전체
@@ -177,7 +177,7 @@ export function RadarFeed() {
                 className={`shrink-0 px-1.5 py-0.5 text-[10px] rounded-full border transition-colors ${
                   active
                     ? "border-cyan-500/60 text-cyan-300 bg-cyan-500/10"
-                    : "border-zinc-700 text-zinc-400 hover:text-zinc-200"
+                    : "border-border text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {s.label}
@@ -190,27 +190,27 @@ export function RadarFeed() {
       {feedQuery.isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={`skeleton-${String(i)}`} className="border border-zinc-700 rounded-lg p-3 bg-zinc-800/50 space-y-2">
-              <Skeleton className="h-4 w-3/4 bg-zinc-700" />
-              <Skeleton className="h-3 w-1/3 bg-zinc-700" />
-              <Skeleton className="h-3 w-1/2 bg-zinc-700" />
+            <div key={`skeleton-${String(i)}`} className="border border-border rounded-lg p-3 bg-muted/50 space-y-2">
+              <Skeleton className="h-4 w-3/4 bg-muted" />
+              <Skeleton className="h-3 w-1/3 bg-muted" />
+              <Skeleton className="h-3 w-1/2 bg-muted" />
             </div>
           ))}
         </div>
       ) : feedQuery.isError ? (
-        <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900">
+        <div className="border border-border rounded-xl p-4 bg-card">
           <p className="text-red-400 text-sm">오류: {(feedQuery.error as Error).message}</p>
           <Button
             variant="outline"
             size="sm"
-            className="mt-2 text-xs border-zinc-700 text-zinc-300"
+            className="mt-2 text-xs border-border text-foreground/90"
             onClick={() => feedQuery.refetch()}
           >
             재시도
           </Button>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900">
+        <div className="border border-border rounded-xl p-4 bg-card">
           <EmptyState icon="🛰️" message="피드가 비어있습니다." />
         </div>
       ) : (
@@ -223,7 +223,7 @@ export function RadarFeed() {
               <Button
                 variant="outline"
                 size="sm"
-                className="text-xs border-zinc-700 text-zinc-400 hover:text-white"
+                className="text-xs border-border text-muted-foreground hover:text-foreground"
                 onClick={() => setVisibleCount(prev => prev + 20)}
               >
                 더보기 ({filtered.length - visibleCount}개 남음)

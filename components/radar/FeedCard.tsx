@@ -13,11 +13,11 @@ interface FeedCardProps {
 const TIER_STYLES: Record<string, { border: string; text: string }> = {
   "ai-company": { border: "border-cyan-500/40", text: "text-cyan-300" },
   "thought-leader": { border: "border-violet-500/40", text: "text-violet-300" },
-  "newsletter": { border: "border-zinc-500/40", text: "text-zinc-300" },
+  "newsletter": { border: "border-zinc-500/40", text: "text-foreground/90" },
 }
 
 const STAR_COLORS: Record<number, string> = {
-  1: "text-zinc-500",
+  1: "text-muted-foreground",
   2: "text-sky-400",
   3: "text-blue-400",
   4: "text-amber-400",
@@ -69,13 +69,13 @@ export function FeedCard({ item }: FeedCardProps) {
   }
 
   return (
-    <div className="border border-zinc-700 rounded-lg p-3 bg-zinc-800/50 space-y-2 card-hover">
+    <div className="border border-border rounded-lg p-3 bg-muted/50 space-y-2 card-hover">
       <div className="flex flex-wrap items-start gap-2">
         <a
           href={item.url}
           target="_blank"
           rel="noreferrer"
-          className="text-white text-sm font-medium hover:text-blue-300 transition-colors flex-1 min-w-0"
+          className="text-foreground text-sm font-medium hover:text-blue-300 transition-colors flex-1 min-w-0"
         >
           {item.title}
         </a>
@@ -85,44 +85,44 @@ export function FeedCard({ item }: FeedCardProps) {
         <ImportanceStars score={importanceScore} />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         {item.date && <span>{item.date}</span>}
         {item.author && <span>· {item.author}</span>}
         {item.points != null && <span>· {item.points}pts</span>}
         {item.commentUrl && (
-          <a href={item.commentUrl} target="_blank" rel="noreferrer" className="hover:text-zinc-200">
+          <a href={item.commentUrl} target="_blank" rel="noreferrer" className="hover:text-foreground">
             · 댓글
           </a>
         )}
       </div>
 
       {summary && (
-        <p className="text-zinc-300 text-xs bg-zinc-900/60 rounded-md px-2.5 py-1.5">
+        <p className="text-foreground/90 text-xs bg-card/60 rounded-md px-2.5 py-1.5">
           {summary}
         </p>
       )}
 
       <div className="flex flex-wrap gap-1.5">
         {categories.map((category) => (
-          <Badge key={`${item.id}-${category}`} variant="outline" className="text-[10px] border-zinc-600 text-zinc-300">
+          <Badge key={`${item.id}-${category}`} variant="outline" className="text-[10px] border-border text-foreground/90">
             {category}
           </Badge>
         ))}
-        <Badge variant="outline" className="text-[10px] border-zinc-700 text-zinc-400">
+        <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
           {item.tier}
         </Badge>
-        <Badge variant="outline" className="text-[10px] border-zinc-700 text-zinc-400">
+        <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
           {item.cadence}
         </Badge>
       </div>
 
-      {notes && <p className="text-[11px] text-zinc-400">{notes}</p>}
+      {notes && <p className="text-[11px] text-muted-foreground">{notes}</p>}
 
       <div className="flex gap-2 pt-1">
         <Button
           variant="outline"
           size="sm"
-          className="text-xs h-7 border-zinc-700 text-zinc-300 hover:text-white"
+          className="text-xs h-7 border-border text-foreground/90 hover:text-foreground"
           disabled={loading || !!summary}
           onClick={handleSummarize}
         >
@@ -131,7 +131,7 @@ export function FeedCard({ item }: FeedCardProps) {
         <Button
           variant="outline"
           size="sm"
-          className="text-xs h-7 border-zinc-700 text-zinc-300 hover:text-white"
+          className="text-xs h-7 border-border text-foreground/90 hover:text-foreground"
           onClick={handleSaveObsidian}
         >
           Obsidian 저장
