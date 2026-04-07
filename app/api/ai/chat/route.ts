@@ -4,6 +4,9 @@ import { z } from "zod"
 import { getAllTodos } from "@/lib/notion/todo"
 import { getUpcomingSchedules, getSchedulesRichInRange } from "@/lib/notion/schedule"
 import { getDakotaMemory } from "@/lib/notion/dakotaMemory"
+import { listResearchProjects } from "@/lib/notion/research"
+import { getJournalStats } from "@/lib/notion/journal"
+import { getAllPatientRows } from "@/lib/notion/analytics"
 
 interface UIPart { type: string; text?: string }
 interface UIMessage { role: "user" | "assistant" | "system"; parts?: UIPart[]; content?: string }
@@ -113,8 +116,23 @@ Dakota의 역할:
   return persona + memoryBlock + context
 }
 
-// ─── Dakota tools — Notion DB 라이브 조회 ──────────────────────
-function buildDakotaTools() {
+const ORCHESTRATOR_BLOCK = `
+
+[Orchestrator 역할]
+센터장님은 7개 multi-agent 대시보드를 운영하고 계시고, Dakota는 그중 비서 역할이자 다른 agent들에게 정보를 요청해 답을 종합할 수 있는 orchestrator입니다.
+다른 agent의 데이터가 필요할 때는 아래 도구를 호출해 직접 가져오세요:
+- askBrian: 논문 통계 + 진행 중인 연구 프로젝트 (Scholar)
+- askLo: BJJ 수련 스탯 (Sensei)
+- askOpDB: 환자 케이스 요약 (Clinicus)
+한 응답에서 여러 agent에 동시에 물어봐도 됩니다. 결과를 받으면 센터장님께 비서 톤으로 종합해서 답하세요.`
+
+async function getInternalBaseUrl(req: Request): Promise<string> {
+  const url = new URL(req.url)
+  return `${url.protocol}//${url.host}`
+}
+
+// ─── Dakota tools — Notion DB 라이브 조회 + 다른 agent orchestration ──
+function buildDakotaTools(req: Request) {
   return {
     searchSchedules: tool({
       description:
@@ -170,6 +188,73 @@ function buildDakotaTools() {
         return { count: filtered.length, items }
       },
     }),
+
+    askBrian: tool({
+      description:
+        "Brian(Scholar agent)에게 논문/연구 정보를 물어봅니다. 저널 통계와 현재 진행 중인 연구 프로젝트(상태별 분류)를 반환합니다. 센터장님이 '논문', 'paper', '연구', 'submit', '저널' 등을 언급하면 호출하세요.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        const [stats, projects] = await Promise.all([
+          getJournalStats().catch(() => null),
+          listResearchProjects().catch(() => []),
+        ])
+        const byStatus: Record<string, number> = {}
+        for (const p of projects) {
+          byStatus[p.status] = (byStatus[p.status] ?? 0) + 1
+        }
+        const recentProjects = projects.slice(0, 15).map((p) => ({
+          title: p.title,
+          status: p.status,
+          target_journal: p.target_journal,
+          start_date: p.start_date,
+        }))
+        return {
+          journal: stats,
+          research_total: projects.length,
+          research_by_status: byStatus,
+          recent_projects: recentProjects,
+        }
+      },
+    }),
+
+    askLo: tool({
+      description:
+        "Lo(Sensei agent)에게 BJJ 수련 통계를 물어봅니다. 센터장님이 'BJJ', '주짓수', '훈련', '매트', '연속' 등을 언급하면 호출하세요.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        const baseUrl = await getInternalBaseUrl(req)
+        try {
+          const res = await fetch(`${baseUrl}/api/notion/sensei/stats`, {
+            cache: "no-store",
+          })
+          if (!res.ok) return { error: "조회 실패" }
+          const data = await res.json()
+          return data
+        } catch (e) {
+          return { error: e instanceof Error ? e.message : "unknown" }
+        }
+      },
+    }),
+
+    askOpDB: tool({
+      description:
+        "Op DB(Clinicus agent)에게 환자 케이스 요약을 물어봅니다. 센터장님이 '환자', '수술', '케이스', 'PROM' 등을 언급하면 호출하세요. 누적 환자 수와 최근 1주일 새 케이스 수를 반환합니다.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        try {
+          const data = await getAllPatientRows()
+          const total = data.patients.length
+          const now = new Date()
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+          const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+          const recent_week = data.patients.filter((p) => p.op_date && p.op_date.slice(0, 10) >= weekAgo).length
+          const recent_month = data.patients.filter((p) => p.op_date && p.op_date.slice(0, 10) >= monthAgo).length
+          return { total, recent_week, recent_month }
+        } catch (e) {
+          return { error: e instanceof Error ? e.message : "unknown" }
+        }
+      },
+    }),
   }
 }
 
@@ -185,7 +270,7 @@ export async function POST(req: Request) {
 
   let systemPrompt: string
   if (agentId === "dakota") {
-    systemPrompt = await buildDakotaPrompt()
+    systemPrompt = (await buildDakotaPrompt()) + ORCHESTRATOR_BLOCK
   } else {
     systemPrompt = STATIC_PROMPTS[agentId as string] ?? STATIC_PROMPTS.default
   }
@@ -200,7 +285,7 @@ export async function POST(req: Request) {
       )
     }
 
-    const dakotaTools = agentId === "dakota" ? buildDakotaTools() : undefined
+    const dakotaTools = agentId === "dakota" ? buildDakotaTools(req) : undefined
 
     const result = streamText({
       model: anthropic("claude-sonnet-4-5"),
