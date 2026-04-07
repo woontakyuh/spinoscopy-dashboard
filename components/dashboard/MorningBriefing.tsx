@@ -251,7 +251,7 @@ function DakotaGreetingChat({
               </p>
             </div>
 
-            <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
+            <div ref={scrollRef} className="flex-1 min-h-[720px] overflow-y-auto space-y-2 pr-1">
               {messages.length === 0 ? (
                 <p className="text-muted-foreground/70 text-sm text-center py-8">
                   Dakota에게 말 걸어보세요…
@@ -288,7 +288,7 @@ function DakotaGreetingChat({
           src={image}
           alt="Dakota"
           onClick={() => setFocused(true)}
-          className="w-24 md:w-36 h-auto object-contain shrink-0 select-none cursor-pointer hover:opacity-90 transition-opacity"
+          className="w-24 md:w-32 h-auto object-contain shrink-0 select-none cursor-pointer hover:opacity-90 transition-opacity"
           draggable={false}
           title="클릭해서 대화 집중 모드"
         />
@@ -307,12 +307,14 @@ function DakotaGreetingChat({
         </div>
       </div>
 
-      {/* 전체 폭 대화 영역 (iPhone 메시지 앱 스타일) */}
-      {messages.length > 0 && (
-        <div ref={scrollRef} className="max-h-[320px] overflow-y-auto space-y-2 px-1">
-          {messageList}
-        </div>
-      )}
+      {/* 전체 폭 대화 영역 — 달력 높이에 대략 맞춤 */}
+      <div ref={scrollRef} className="h-[340px] md:h-[380px] overflow-y-auto space-y-2 px-1">
+        {messages.length > 0 ? messageList : (
+          <p className="text-muted-foreground/60 text-xs text-center py-16">
+            Dakota에게 말 걸어보세요…
+          </p>
+        )}
+      </div>
 
       {/* 입력창 */}
       <div className="flex flex-col gap-2">

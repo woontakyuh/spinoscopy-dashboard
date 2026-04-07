@@ -21,7 +21,7 @@ export default function DashboardPage() {
           <AgentGrid />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 items-start animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 items-stretch animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
           <MorningBriefing />
           <MonthCalendar />
         </div>
