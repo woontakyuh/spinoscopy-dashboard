@@ -6,12 +6,12 @@ import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 
 const NAV_ITEMS = [
-  { icon: "🩺", label: "Clinicus", href: "/agents/clinicus", active: true, color: "bg-emerald-600" },
-  { icon: "🔬", label: "Scholar", href: "/agents/scholar", active: true, color: "bg-indigo-600" },
   { icon: "📋", image: "/dakota.png", label: "Dakota", href: "/agents/dakota", active: true, color: "bg-blue-600" },
-  { icon: "💰", label: "Vault", href: "/agents/vault", active: true, color: "bg-amber-600" },
-  { icon: "🥋", label: "Sensei", href: "/agents/sensei", active: true, color: "bg-orange-600" },
-  { icon: "🛰️", label: "AI Radar", href: "/agents/radar", active: true, color: "bg-cyan-600" },
+  { icon: "🩺", image: "/opdb.png", label: "Op DB", href: "/agents/clinicus", active: true, color: "bg-emerald-600" },
+  { icon: "🔬", image: "/brian.png", label: "Brian", href: "/agents/scholar", active: true, color: "bg-indigo-600" },
+  { icon: "💰", image: "/warren.png", label: "Warren", href: "/agents/vault", active: true, color: "bg-amber-600" },
+  { icon: "🥋", image: "/lo.png", label: "Lo", href: "/agents/sensei", active: true, color: "bg-orange-600" },
+  { icon: "🛰️", image: "/andrej.png", label: "Andrej", href: "/agents/radar", active: true, color: "bg-cyan-600" },
 ]
 
 export function Sidebar() {

@@ -53,7 +53,7 @@ export default function ClinicusPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <TopBar title="🩺 Clinicus" />
+      <TopBar title="Op DB" icon="/opdb.png" />
       <div className="p-3 md:p-6 max-w-7xl w-full">
         <Tabs defaultValue="analytics">
           <TabsList className="w-full bg-zinc-800 border border-zinc-700 mb-4 md:mb-6 grid grid-cols-2 md:grid-cols-5 h-auto gap-1 p-1">

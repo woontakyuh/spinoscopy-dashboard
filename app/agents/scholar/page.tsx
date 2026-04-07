@@ -18,7 +18,7 @@ export default function ScholarPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <TopBar title="🔬 Scholar" />
+      <TopBar title="Brian" icon="/brian.png" />
       <div className="p-3 md:p-6 max-w-5xl w-full">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="bg-zinc-800 border border-zinc-700 mb-4 md:mb-6 flex-wrap h-auto gap-0.5 p-1">
