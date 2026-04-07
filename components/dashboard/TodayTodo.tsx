@@ -37,7 +37,7 @@ async function fetchActiveTodos(): Promise<TodoItem[]> {
   return res.json()
 }
 
-async function patchTodo(payload: { page_id: string; name?: string; status?: string; priority?: string; category?: string }): Promise<void> {
+async function patchTodo(payload: { page_id: string; name?: string; status?: string; priority?: string; category?: string; due?: string | null }): Promise<void> {
   const res = await fetch("/api/dakota/todo", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -224,6 +224,25 @@ export function TodayTodo() {
     },
   })
 
+  const dueMutation = useMutation({
+    mutationFn: ({ pageId, due }: { pageId: string; due: string | null }) =>
+      patchTodo({ page_id: pageId, due }),
+    onMutate: async ({ pageId, due }) => {
+      await queryClient.cancelQueries({ queryKey: ["dashboard-todo-active"] })
+      const previous = queryClient.getQueryData<TodoItem[]>(["dashboard-todo-active"])
+      queryClient.setQueryData<TodoItem[]>(["dashboard-todo-active"], (old) =>
+        (old ?? []).map((t) => (t.page_id === pageId ? { ...t, due } : t))
+      )
+      return { previous }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(["dashboard-todo-active"], context.previous)
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
+    },
+  })
+
   const categoryMutation = useMutation({
     mutationFn: ({ pageId, category }: { pageId: string; category: string }) =>
       patchTodo({ page_id: pageId, category }),
@@ -404,10 +423,45 @@ export function TodayTodo() {
                             ))}
                           </DropdownMenuContent>
                         </DropdownMenu>
-                        {todo.due && (() => {
-                          const rel = formatDueRelative(todo.due, today)
-                          return rel ? <span className={`text-xs font-medium num ${rel.color}`}>{rel.label}</span> : null
-                        })()}
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button type="button" onClick={(e) => e.stopPropagation()}>
+                              {todo.due ? (() => {
+                                const rel = formatDueRelative(todo.due, today)
+                                return rel ? (
+                                  <span className={`text-xs font-medium num cursor-pointer hover:underline ${rel.color}`}>{rel.label}</span>
+                                ) : null
+                              })() : (
+                                <span className="text-xs text-muted-foreground/70 hover:text-foreground cursor-pointer">+ 마감</span>
+                              )}
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0 bg-card border-border" align="start" onClick={(e) => e.stopPropagation()}>
+                            <Calendar
+                              mode="single"
+                              selected={todo.due ? new Date(todo.due.slice(0, 10) + "T00:00:00+09:00") : undefined}
+                              onSelect={(date) => {
+                                if (!date) return
+                                const iso = date.toLocaleDateString("en-CA")
+                                dueMutation.mutate({ pageId: todo.page_id, due: iso })
+                              }}
+                            />
+                            {todo.due && (
+                              <div className="border-t border-border p-2">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    dueMutation.mutate({ pageId: todo.page_id, due: null })
+                                  }}
+                                  className="w-full text-xs text-muted-foreground hover:text-red-400 py-1"
+                                >
+                                  마감 제거
+                                </button>
+                              </div>
+                            )}
+                          </PopoverContent>
+                        </Popover>
                       </>
                   </div>
                 </div>

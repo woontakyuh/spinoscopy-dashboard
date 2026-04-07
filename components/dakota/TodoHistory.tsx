@@ -18,6 +18,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
 import { TodoStatsCards } from "./TodoStatsCards"
 import type { TodoItem } from "@/lib/notion/todo"
 
@@ -74,7 +76,7 @@ async function fetchDoneTodos(fromDate?: string): Promise<TodoItem[]> {
   return res.json()
 }
 
-async function patchTodo(payload: { page_id: string; name?: string; status?: string; priority?: string; category?: string }): Promise<void> {
+async function patchTodo(payload: { page_id: string; name?: string; status?: string; priority?: string; category?: string; due?: string | null }): Promise<void> {
   const res = await fetch("/api/dakota/todo", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -156,6 +158,14 @@ export function TodoHistory() {
     onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: ["dakota-todos"] })
       await queryClient.invalidateQueries({ queryKey: ["dashboard-todo-active"] })
+    },
+  })
+
+  const dueMutation = useMutation({
+    mutationFn: ({ pageId, due }: { pageId: string; due: string | null }) =>
+      patchTodo({ page_id: pageId, due }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dakota-todos"] })
     },
   })
 
@@ -306,9 +316,39 @@ export function TodoHistory() {
                           ))}
                         </DropdownMenuContent>
                       </DropdownMenu>
-                      {todo.due && (
-                        <span className="text-xs text-muted-foreground">{todo.due.slice(5)}</span>
-                      )}
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button type="button">
+                            {todo.due ? (
+                              <span className="text-xs text-muted-foreground hover:text-foreground hover:underline cursor-pointer">{todo.due.slice(5)}</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground/70 hover:text-foreground cursor-pointer">+ 마감</span>
+                            )}
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 bg-card border-border" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={todo.due ? new Date(todo.due.slice(0, 10) + "T00:00:00+09:00") : undefined}
+                            onSelect={(date) => {
+                              if (!date) return
+                              const iso = date.toLocaleDateString("en-CA")
+                              dueMutation.mutate({ pageId: todo.page_id, due: iso })
+                            }}
+                          />
+                          {todo.due && (
+                            <div className="border-t border-border p-2">
+                              <button
+                                type="button"
+                                onClick={() => dueMutation.mutate({ pageId: todo.page_id, due: null })}
+                                className="w-full text-xs text-muted-foreground hover:text-red-400 py-1"
+                              >
+                                마감 제거
+                              </button>
+                            </div>
+                          )}
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   )}
                   {isDone && <span className="text-xs text-green-400">완료</span>}
