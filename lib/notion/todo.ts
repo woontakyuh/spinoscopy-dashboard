@@ -154,21 +154,13 @@ function buildQueryFilter(options: TodoQueryOptions): Record<string, unknown> | 
 export async function getTodayTodos(): Promise<TodoItem[]> {
   const dbId = getTodoDbId()
 
-  // 이번주 일요일까지 계산
-  const now = new Date()
-  const dayOfWeek = now.getDay() // 0=일, 6=토
-  const endOfWeek = new Date(now)
-  endOfWeek.setDate(now.getDate() + (7 - dayOfWeek))
-  const weekEnd = endOfWeek.toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
-
+  // 모든 미완료 항목 반환 (마감일 미래/없음 무관). 클라이언트에서 표시 범위 조절.
   const response = await notionRequest<NotionQueryResponse>(`/databases/${dbId}/query`, {
     method: "POST",
     body: JSON.stringify({
       filter: {
-        and: [
-          { property: "Status", select: { does_not_equal: "Done" } },
-          { property: "Due", date: { on_or_before: weekEnd } },
-        ],
+        property: "Status",
+        select: { does_not_equal: "Done" },
       },
       sorts: [
         { property: "Due", direction: "ascending" },
