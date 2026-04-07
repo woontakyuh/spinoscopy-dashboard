@@ -29,11 +29,14 @@ function DakotaGreetingChat({
   const [inputValue, setInputValue] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  const { messages, sendMessage, status } = useChat({
+  const { messages, sendMessage, status, error } = useChat({
     transport: new TextStreamChatTransport({
       api: "/api/ai/chat",
       body: { agentId: "dakota" },
     }),
+    onError: (err) => {
+      console.error("[DakotaChat] error:", err)
+    },
   })
 
   const isStreaming = status === "streaming" || status === "submitted"
@@ -115,7 +118,13 @@ return (
           </div>
         )}
 
-{/* 입력창 */}
+        {error && (
+          <div className="text-xs text-red-400 px-1">
+            오류: {error.message || "응답을 가져오지 못했습니다."}
+          </div>
+        )}
+
+        {/* 입력창 */}
         <form onSubmit={handleSubmit} className="flex gap-2 pt-1">
           <input
             value={inputValue}

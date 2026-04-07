@@ -98,20 +98,28 @@ export async function POST(req: Request) {
   const { messages, agentId } = await req.json()
 
   let systemPrompt: string
-  let modelId: string
   if (agentId === "dakota") {
     systemPrompt = await buildDakotaPrompt()
-    modelId = "claude-opus-4-6"
   } else {
     systemPrompt = STATIC_PROMPTS[agentId as string] ?? STATIC_PROMPTS.default
-    modelId = "claude-sonnet-4-5"
   }
 
-  const result = streamText({
-    model: anthropic(modelId),
-    system: systemPrompt,
-    messages,
-  })
+  try {
+    const result = streamText({
+      model: anthropic("claude-sonnet-4-5"),
+      system: systemPrompt,
+      messages,
+      onError: ({ error }) => {
+        console.error("[ai/chat] streamText error:", error)
+      },
+    })
 
-  return result.toTextStreamResponse()
+    return result.toTextStreamResponse()
+  } catch (error) {
+    console.error("[ai/chat] route error:", error)
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : "unknown" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    )
+  }
 }
