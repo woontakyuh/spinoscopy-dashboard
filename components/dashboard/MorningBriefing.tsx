@@ -187,16 +187,35 @@ export function MorningBriefing() {
 
   return (
     <div className="space-y-6">
-      <div className="pt-2 md:pt-4">
-        <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-          {getGreeting()}, Tak.
-        </h2>
-        <div className="mt-1">
-          <WeatherInline />
+      <div className="pt-2 md:pt-4 flex items-end gap-3 md:gap-4">
+        {/* Dakota 캐릭터 */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/dakota-full.png"
+          alt="Dakota"
+          className="w-24 md:w-32 h-auto object-contain shrink-0 select-none"
+          draggable={false}
+        />
+
+        {/* 말풍선 */}
+        <div className="relative flex-1 min-w-0 mb-2">
+          <div className="relative bg-zinc-900 border border-zinc-700 rounded-2xl rounded-bl-sm px-4 py-3 md:px-5 md:py-4 shadow-lg">
+            {/* 말풍선 꼬리 */}
+            <span
+              aria-hidden
+              className="absolute -left-2 bottom-3 w-3 h-3 rotate-45 bg-zinc-900 border-l border-b border-zinc-700"
+            />
+            <h2 className="text-xl md:text-2xl font-semibold text-white tracking-tight">
+              {getGreeting()}, Tak.
+            </h2>
+            <div className="mt-1">
+              <WeatherInline />
+            </div>
+            <p className="text-zinc-500 text-xs md:text-sm mt-1">
+              {dateStr}{weatherLocation && <span className="ml-2 text-zinc-600">· {weatherLocation}</span>}
+            </p>
+          </div>
         </div>
-        <p className="text-zinc-500 text-sm mt-1">
-          {dateStr}{weatherLocation && <span className="ml-2 text-zinc-600">· {weatherLocation}</span>}
-        </p>
       </div>
 
       {/* 오늘 일정 */}

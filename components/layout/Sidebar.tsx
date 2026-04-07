@@ -23,7 +23,7 @@ export function Sidebar() {
         <Link href="/" className="flex items-center gap-2 justify-center md:justify-start hover:opacity-80 transition-opacity">
           <span className="text-2xl">🧠</span>
           <div className="hidden md:block">
-            <p className="text-white font-semibold text-sm">Spinoscopy</p>
+            <p className="text-white font-semibold text-sm">Dashboard</p>
             <p className="text-zinc-500 text-xs">Tak, MD</p>
           </div>
         </Link>
