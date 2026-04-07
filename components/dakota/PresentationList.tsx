@@ -37,8 +37,8 @@ function FilterButton<T extends string>({
       onClick={() => onChange(value)}
       className={`px-3 py-1 text-xs rounded-md transition-colors ${
         active
-          ? "bg-zinc-700 text-zinc-100"
-          : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/60"
+          ? "bg-muted text-foreground"
+          : "text-muted-foreground hover:text-foreground/90 hover:bg-muted/60"
       }`}
     >
       {label}
@@ -70,12 +70,12 @@ export function PresentationList() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-0.5 bg-zinc-800/50 rounded-lg p-0.5 border border-zinc-800">
+        <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg p-0.5 border border-border">
           {TIME_OPTIONS.map((o) => (
             <FilterButton key={o.value} value={o.value} current={time} label={o.label} onChange={setTime} />
           ))}
         </div>
-        <div className="flex items-center gap-0.5 bg-zinc-800/50 rounded-lg p-0.5 border border-zinc-800">
+        <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg p-0.5 border border-border">
           {ATTENDANCE_OPTIONS.map((o) => (
             <FilterButton key={o.value} value={o.value} current={attendance} label={o.label} onChange={setAttendance} />
           ))}
@@ -85,7 +85,7 @@ export function PresentationList() {
       {isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 w-full bg-zinc-800 rounded-xl" />
+            <Skeleton key={i} className="h-28 w-full bg-muted rounded-xl" />
           ))}
         </div>
       ) : error ? (
@@ -96,21 +96,21 @@ export function PresentationList() {
           <button
             type="button"
             onClick={() => refetch()}
-            className="px-4 py-2 rounded-lg text-sm bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 transition-colors"
+            className="px-4 py-2 rounded-lg text-sm bg-muted text-foreground/90 border border-border hover:bg-muted transition-colors"
           >
             다시 시도
           </button>
         </div>
       ) : presentations.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-zinc-500 text-sm">해당 조건의 일정이 없습니다</p>
+          <p className="text-muted-foreground text-sm">해당 조건의 일정이 없습니다</p>
         </div>
       ) : (
         <div className="space-y-3">
           {presentations.map((p) => (
             <PresentationCard key={p.page_id} presentation={p} />
           ))}
-          <p className="text-zinc-600 text-xs text-right">{presentations.length}건</p>
+          <p className="text-muted-foreground/70 text-xs text-right">{presentations.length}건</p>
         </div>
       )}
     </div>

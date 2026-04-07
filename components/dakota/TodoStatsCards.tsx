@@ -36,32 +36,32 @@ export function TodoStatsCards({ activeTodos, doneTodos }: TodoStatsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* 완료율 */}
-      <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-4">
+      <div className="rounded-xl border border-border bg-card p-4">
         <div className="flex items-baseline justify-between mb-2">
-          <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">완료율</span>
-          <span className="text-sm text-zinc-300 num">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">완료율</span>
+          <span className="text-sm text-foreground/90 num">
             <span className="text-green-400 font-medium">{doneCount}</span>
-            <span className="text-zinc-500"> / {total}건</span>
-            <span className="text-zinc-400 ml-1.5 font-semibold">{pct}%</span>
+            <span className="text-muted-foreground"> / {total}건</span>
+            <span className="text-muted-foreground ml-1.5 font-semibold">{pct}%</span>
           </span>
         </div>
-        <div className="h-2.5 rounded-full bg-zinc-800 overflow-hidden">
+        <div className="h-2.5 rounded-full bg-muted overflow-hidden">
           <div
             className="h-full rounded-full bg-gradient-to-r from-green-500 to-emerald-400 transition-all duration-500"
             style={{ width: `${pct}%` }}
           />
         </div>
-        <div className="flex justify-between mt-2 text-xs text-zinc-500">
+        <div className="flex justify-between mt-2 text-xs text-muted-foreground">
           <span>할 일 {activeCount}건</span>
           <span>한 일 {doneCount}건</span>
         </div>
       </div>
 
       {/* 주간 완료 트렌드 */}
-      <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-4">
+      <div className="rounded-xl border border-border bg-card p-4">
         <div className="flex items-baseline justify-between mb-2">
-          <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">주간 완료</span>
-          <span className="text-sm text-zinc-300">{weekTotal}건</span>
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">주간 완료</span>
+          <span className="text-sm text-foreground/90">{weekTotal}건</span>
         </div>
         <ResponsiveContainer width="100%" height={60}>
           <BarChart data={weeklyData} barCategoryGap="20%">

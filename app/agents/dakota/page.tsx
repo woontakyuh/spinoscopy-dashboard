@@ -19,8 +19,8 @@ export default function DakotaPage() {
             <TodoHistory />
           </TabsContent>
           <TabsContent value="presentations">
-            <div className="border border-zinc-700 rounded-xl p-4 bg-zinc-900 mb-6">
-              <p className="text-zinc-400 text-sm">
+            <div className="border border-border rounded-xl p-4 bg-card mb-6">
+              <p className="text-muted-foreground text-sm">
                 학회·컨퍼런스 일정을 한 눈에 확인하세요.
               </p>
             </div>

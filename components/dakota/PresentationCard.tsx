@@ -18,8 +18,8 @@ function formatDateRange(start: string | null, end: string | null): string {
 const ATTENDANCE_STYLE: Record<string, string> = {
   "발표예정": "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
   "준비 완료": "border-blue-500/30 bg-blue-500/10 text-blue-400",
-  "참석만": "border-zinc-500/30 bg-zinc-500/10 text-zinc-400",
-  "불참": "border-zinc-600/30 bg-zinc-700/30 text-zinc-500",
+  "참석만": "border-zinc-500/30 bg-zinc-500/10 text-muted-foreground",
+  "불참": "border-border/30 bg-muted/30 text-muted-foreground",
 }
 
 export function PresentationCard({ presentation }: PresentationCardProps) {
@@ -34,7 +34,7 @@ export function PresentationCard({ presentation }: PresentationCardProps) {
       href={presentation.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="block border border-zinc-700 rounded-xl p-4 bg-zinc-900 hover:border-zinc-600 transition-colors"
+      className="block border border-border rounded-xl p-4 bg-card hover:border-border transition-colors"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -42,7 +42,7 @@ export function PresentationCard({ presentation }: PresentationCardProps) {
             {presentation.attendance_type && (
               <Badge
                 variant="outline"
-                className={`text-[10px] px-1.5 py-0 h-5 ${ATTENDANCE_STYLE[presentation.attendance_type] ?? "border-zinc-600 text-zinc-400"}`}
+                className={`text-[10px] px-1.5 py-0 h-5 ${ATTENDANCE_STYLE[presentation.attendance_type] ?? "border-border text-muted-foreground"}`}
               >
                 {presentation.attendance_type}
               </Badge>
@@ -59,16 +59,16 @@ export function PresentationCard({ presentation }: PresentationCardProps) {
             {presentation.category && (
               <Badge
                 variant="outline"
-                className="text-[10px] px-1.5 py-0 h-5 border-zinc-600 text-zinc-400"
+                className="text-[10px] px-1.5 py-0 h-5 border-border text-muted-foreground"
               >
                 {presentation.category}
               </Badge>
             )}
           </div>
-          <p className="text-zinc-200 text-sm font-medium leading-snug">
+          <p className="text-foreground text-sm font-medium leading-snug">
             {presentation.topic || presentation.name}
           </p>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span>📅 {formatDateRange(presentation.date_start, presentation.date_end)}</span>
             {presentation.place && <span>📍 {presentation.place}</span>}
           </div>
