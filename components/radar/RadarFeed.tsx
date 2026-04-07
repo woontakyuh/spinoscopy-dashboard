@@ -36,6 +36,14 @@ export function RadarFeed() {
 
   // 현재 탭의 아이템에서 소스 목록 + 카운트 추출
   const tabItems = items.filter((item) => item.tier === tab)
+  const SOURCE_PRIORITY: FeedSource[] = [
+    "anthropic-engineering",
+    "anthropic-research",
+    "google-ai-blog",
+    "openai-blog",
+    "the-batch",
+    "moduletter",
+  ]
   const sourceOptions = Array.from(
     tabItems.reduce((map, item) => {
       const entry = map.get(item.source)
@@ -43,7 +51,14 @@ export function RadarFeed() {
       else map.set(item.source, { id: item.source, label: item.sourceLabel, count: 1 })
       return map
     }, new Map<FeedSource, { id: FeedSource; label: string; count: number }>()).values()
-  ).sort((a, b) => b.count - a.count)
+  ).sort((a, b) => {
+    const ai = SOURCE_PRIORITY.indexOf(a.id)
+    const bi = SOURCE_PRIORITY.indexOf(b.id)
+    if (ai !== -1 || bi !== -1) {
+      return (ai === -1 ? Number.MAX_SAFE_INTEGER : ai) - (bi === -1 ? Number.MAX_SAFE_INTEGER : bi)
+    }
+    return b.count - a.count
+  })
 
   const filtered = tabItems
     .filter((item) => selectedSources.size === 0 || selectedSources.has(item.source))
@@ -137,20 +152,19 @@ export function RadarFeed() {
         )}
       </div>
 
-      {/* 소스 필터 칩 (탭 내) */}
+      {/* 소스 필터 칩 (탭 내) — 한 줄, 가로 스크롤 폴백 */}
       {sourceOptions.length > 1 && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[10px] text-zinc-500 mr-1">소스</span>
+        <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide whitespace-nowrap">
           <button
             type="button"
             onClick={() => { setSelectedSources(new Set()); setVisibleCount(20) }}
-            className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+            className={`shrink-0 px-1.5 py-0.5 text-[10px] rounded-full border transition-colors ${
               selectedSources.size === 0
                 ? "border-cyan-500/60 text-cyan-300 bg-cyan-500/10"
                 : "border-zinc-700 text-zinc-400 hover:text-zinc-200"
             }`}
           >
-            전체 <span className="text-zinc-500">{tabItems.length}</span>
+            전체
           </button>
           {sourceOptions.map((s) => {
             const active = selectedSources.has(s.id)
@@ -159,13 +173,13 @@ export function RadarFeed() {
                 key={s.id}
                 type="button"
                 onClick={() => toggleSource(s.id)}
-                className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                className={`shrink-0 px-1.5 py-0.5 text-[10px] rounded-full border transition-colors ${
                   active
                     ? "border-cyan-500/60 text-cyan-300 bg-cyan-500/10"
                     : "border-zinc-700 text-zinc-400 hover:text-zinc-200"
                 }`}
               >
-                {s.label} <span className="text-zinc-500">{s.count}</span>
+                {s.label}
               </button>
             )
           })}
