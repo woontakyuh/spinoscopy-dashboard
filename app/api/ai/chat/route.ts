@@ -1,5 +1,5 @@
 import { anthropic } from "@ai-sdk/anthropic"
-import { streamText, generateText } from "ai"
+import { streamText } from "ai"
 import { getAllTodos } from "@/lib/notion/todo"
 import { getUpcomingSchedules } from "@/lib/notion/schedule"
 
@@ -123,7 +123,6 @@ export async function POST(req: Request) {
   }
 
   try {
-    const url = new URL(req.url)
     const modelMessages = toModelMessages((messages ?? []) as UIMessage[])
 
     if (modelMessages.length === 0) {
@@ -131,30 +130,6 @@ export async function POST(req: Request) {
         JSON.stringify({ error: "메시지가 비어있습니다." }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       )
-    }
-
-    // ?debug=1 → use generateText so we can return errors as JSON
-    if (url.searchParams.get("debug") === "1") {
-      try {
-        const out = await generateText({
-          model: anthropic("claude-sonnet-4-5"),
-          system: systemPrompt,
-          messages: modelMessages,
-        })
-        return new Response(JSON.stringify({ ok: true, text: out.text }), {
-          headers: { "Content-Type": "application/json" },
-        })
-      } catch (e) {
-        return new Response(
-          JSON.stringify({
-            ok: false,
-            name: e instanceof Error ? e.name : "?",
-            message: e instanceof Error ? e.message : String(e),
-            stack: e instanceof Error ? e.stack?.split("\n").slice(0, 5).join("\n") : undefined,
-          }),
-          { status: 500, headers: { "Content-Type": "application/json" } }
-        )
-      }
     }
 
     const result = streamText({
