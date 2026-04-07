@@ -1,7 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { TopBar } from "@/components/layout/TopBar"
+import { AgentGreeter } from "@/components/layout/AgentGreeter"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PatientSearch } from "@/components/clinicus/PatientSearch"
 import { PatientDetail } from "@/components/clinicus/PatientDetail"
@@ -10,13 +12,35 @@ import { IdeaMemo } from "@/components/clinicus/IdeaMemo"
 import { PatientProfileView } from "@/components/clinicus/PatientProfileView"
 import type { PatientSearchResult } from "@/lib/types/patient"
 
+interface AnalyticsRow { op_date: string | null }
+interface AnalyticsData { patients: AnalyticsRow[] }
+
 export default function ClinicusPage() {
   const [searchPatient, setSearchPatient] = useState<PatientSearchResult | null>(null)
+
+  const { data, isLoading } = useQuery<AnalyticsData>({
+    queryKey: ["clinicus-greeter"],
+    queryFn: async () => {
+      const res = await fetch("/api/notion/analytics")
+      if (!res.ok) throw new Error("환자 데이터 조회 실패")
+      return res.json()
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const patients = data?.patients ?? []
+  const now = new Date()
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const recent = patients.filter((p) => p.op_date && p.op_date.slice(0, 10) >= weekAgo).length
+  const message = patients.length === 0
+    ? "환자 데이터를 불러오는 중입니다."
+    : `현재 ${patients.length}명의 케이스가 등록돼 있고, 최근 1주일 ${recent}건이 추가됐어요.`
 
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="Op DB" icon="/opdb.png" />
       <div className="p-3 md:p-6 max-w-7xl w-full">
+        <AgentGreeter image="/opdb.png" name="Op DB" message={message} loading={isLoading} />
         <Tabs defaultValue="analytics">
           <TabsList className="w-full bg-muted border border-border mb-4 md:mb-6 grid grid-cols-3 h-auto gap-1 p-1">
             <TabsTrigger value="analytics" className="min-h-9 data-[state=active]:bg-violet-600 data-[state=active]:text-white text-muted-foreground text-xs md:text-sm">
