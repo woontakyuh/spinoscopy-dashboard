@@ -7,6 +7,7 @@ import { getDakotaMemory } from "@/lib/notion/dakotaMemory"
 import { listResearchProjects } from "@/lib/notion/research"
 import { getJournalStats } from "@/lib/notion/journal"
 import { getAllPatientRows } from "@/lib/notion/analytics"
+import { listGoogleCalendarEventsForRange } from "@/lib/google/calendar"
 
 interface UIPart { type: string; text?: string }
 interface UIMessage { role: "user" | "assistant" | "system"; parts?: UIPart[]; content?: string }
@@ -86,9 +87,15 @@ Dakota의 역할:
   let context = ""
   let memoryBlock = ""
   try {
-    const [todos, schedules, memory] = await Promise.all([
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
+    const in14 = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }))
+    in14.setDate(in14.getDate() + 14)
+    const in14Str = in14.toLocaleDateString("en-CA")
+
+    const [todos, notionSchedules, gcalEvents, memory] = await Promise.all([
       getAllTodos({ status: "active" }).catch(() => []),
       getUpcomingSchedules(14).catch(() => []),
+      listGoogleCalendarEventsForRange(today, in14Str).catch(() => []),
       getDakotaMemory().catch(() => ""),
     ])
 
@@ -102,13 +109,34 @@ Dakota의 역할:
       return `- ${t.name}${due}${prio}`
     }).join("\n")
 
-    const scheduleLines = schedules.slice(0, 20).map((s) => {
-      const date = s.date_start?.slice(0, 10) ?? "?"
-      const place = s.place ? ` @ ${s.place}` : ""
-      return `- ${date} ${s.name}${place}`
+    // Notion + Google Calendar 일정을 통합 정렬
+    interface MergedEvent { date: string; title: string; place: string; source: "notion" | "gcal" }
+    const merged: MergedEvent[] = []
+    for (const s of notionSchedules) {
+      merged.push({
+        date: s.date_start?.slice(0, 10) ?? "?",
+        title: s.name,
+        place: s.place ?? "",
+        source: "notion",
+      })
+    }
+    for (const e of gcalEvents) {
+      merged.push({
+        date: (e.start ?? "").slice(0, 10) || "?",
+        title: e.title,
+        place: e.location ?? "",
+        source: "gcal",
+      })
+    }
+    merged.sort((a, b) => a.date.localeCompare(b.date))
+
+    const scheduleLines = merged.slice(0, 30).map((m) => {
+      const place = m.place ? ` @ ${m.place}` : ""
+      const tag = m.source === "gcal" ? " [GCal]" : " [Notion]"
+      return `- ${m.date} ${m.title}${place}${tag}`
     }).join("\n")
 
-    context = `\n\n[현재 시각]\n${fmtKoreaTime()}\n\n[활성 할 일 ${todos.length}건]\n${todoLines || "(없음)"}\n\n[다가오는 일정 (14일) ${schedules.length}건]\n${scheduleLines || "(없음)"}`
+    context = `\n\n[현재 시각]\n${fmtKoreaTime()}\n\n[활성 할 일 ${todos.length}건]\n${todoLines || "(없음)"}\n\n[다가오는 일정 14일 (Notion ${notionSchedules.length}건 + GCal ${gcalEvents.length}건)]\n${scheduleLines || "(없음)"}`
   } catch {
     context = `\n\n[현재 시각]\n${fmtKoreaTime()}\n(데이터 조회 실패 — 일반 상식 기반으로 답변)`
   }
@@ -136,7 +164,7 @@ function buildDakotaTools(req: Request) {
   return {
     searchSchedules: tool({
       description:
-        "Notion Schedule DB에서 일정을 조회합니다. 모든 컬럼(분류, 학회명, 장소, 준비 상태, 발표 주제, 학회 링크, abstract 마감 등)이 포함된 결과를 반환합니다. 특정 날짜 범위, 키워드로 필터링 가능. 시스템 프롬프트에 이미 있는 14일 요약으로 충분하면 호출하지 마세요. 더 먼 미래/과거나 컬럼 상세 정보가 필요할 때만 호출하세요.",
+        "Schedule를 조회합니다. Notion Schedule DB(학회·발표·분류·장소·발표 주제 등 모든 컬럼) + Google Calendar(개인 일정·미팅·예약 등) 둘 다 합쳐서 반환합니다. 날짜 범위 필수, 키워드는 옵션. 시스템 프롬프트의 14일 요약으로 부족할 때만 호출하세요.",
       inputSchema: z.object({
         from: z.string().describe("시작일 YYYY-MM-DD (Asia/Seoul)"),
         to: z.string().describe("종료일 YYYY-MM-DD (Asia/Seoul)"),
@@ -144,17 +172,35 @@ function buildDakotaTools(req: Request) {
         limit: z.number().int().min(1).max(50).optional().describe("최대 결과 수 (기본 30)"),
       }),
       execute: async ({ from, to, query, limit }) => {
-        const items = await getSchedulesRichInRange(from, to, limit ?? 30)
-        if (!query) return { count: items.length, items }
-        const q = query.toLowerCase()
-        const filtered = items.filter((it) => {
-          return Object.values(it).some((v) => {
-            if (typeof v === "string") return v.toLowerCase().includes(q)
-            if (Array.isArray(v)) return v.some((s) => typeof s === "string" && s.toLowerCase().includes(q))
-            return false
-          })
-        })
-        return { count: filtered.length, items: filtered }
+        const [notionItems, gcalItems] = await Promise.all([
+          getSchedulesRichInRange(from, to, limit ?? 30).catch(() => []),
+          listGoogleCalendarEventsForRange(from, to).catch(() => []),
+        ])
+        const filterFn = (str: string | undefined) => !query || (str ?? "").toLowerCase().includes(query.toLowerCase())
+        const notionFiltered = query
+          ? notionItems.filter((it) =>
+              Object.values(it).some((v) => {
+                if (typeof v === "string") return filterFn(v)
+                if (Array.isArray(v)) return v.some((s) => typeof s === "string" && filterFn(s))
+                return false
+              })
+            )
+          : notionItems
+        const gcalFiltered = query
+          ? gcalItems.filter((e) => filterFn(e.title) || filterFn(e.location))
+          : gcalItems
+        return {
+          notion_count: notionFiltered.length,
+          gcal_count: gcalFiltered.length,
+          notion: notionFiltered,
+          gcal: gcalFiltered.map((e) => ({
+            title: e.title,
+            start: e.start,
+            end: e.end,
+            location: e.location,
+            url: e.url,
+          })),
+        }
       },
     }),
 
