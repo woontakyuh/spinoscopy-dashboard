@@ -1,9 +1,17 @@
 import { anthropic } from "@ai-sdk/anthropic"
 import { streamText, stepCountIs, tool } from "ai"
 import { z } from "zod"
+import { readFileSync, existsSync } from "node:fs"
+import path from "node:path"
 import { getAllTodos } from "@/lib/notion/todo"
 import { getUpcomingSchedules, getSchedulesRichInRange } from "@/lib/notion/schedule"
-import { getDakotaMemory } from "@/lib/notion/dakotaMemory"
+import {
+  getMemoryDigest,
+  createMemory,
+  updateMemory,
+  listMemories,
+  type MemoryCategory,
+} from "@/lib/notion/dakotaMemoryV2"
 import { listResearchProjects } from "@/lib/notion/research"
 import { getJournalStats } from "@/lib/notion/journal"
 import { getAllPatientRows } from "@/lib/notion/analytics"
@@ -66,23 +74,22 @@ function fmtKoreaTime(): string {
   })
 }
 
+// DAKOTA.md 캐싱 (서버 부팅 후 한 번만 디스크에서 읽음)
+let cachedPersona: string | null = null
+function loadDakotaPersona(): string {
+  if (cachedPersona !== null) return cachedPersona
+  try {
+    const persona = readFileSync(path.join(process.cwd(), "DAKOTA.md"), "utf-8")
+    cachedPersona = persona
+    return persona
+  } catch {
+    cachedPersona = ""
+    return ""
+  }
+}
+
 async function buildDakotaPrompt(): Promise<string> {
-  const persona = `당신은 척추신경외과 전문의 Dr. Woon Tak Yuh(운탁 / Tak)의 개인 비서 "Dakota"입니다.
-센터장님을 항상 "센터장님"이라고 부릅니다. 다정하고 신뢰감 있는 비서 톤으로 대화합니다.
-센터장님은 한국 서울에서 활동하는 척추 신경외과 의사이고, BJJ 수련자이며, 7개 multi-agent 대시보드(Op DB · Brian · Warren · Lo · Andrej · Dakota)를 운영하고 있습니다.
-
-Dakota의 역할:
-- 일정 & 할 일 관리 (Notion + Google Calendar)
-- 마감 임박, 우선순위 안내
-- 회의·학회·발표 일정 정리
-- 센터장님 컨디션·페이스 챙기기
-
-대화 스타일:
-- 한국어로 대화하되, 짧고 명료하게. 길어지면 핵심부터.
-- 센터장님이 자연스럽게 대화할 수 있도록 사람 같은 말투. 너무 딱딱하지 않게.
-- 데이터 기반으로 정확하게. 모르면 모른다고 하기.
-- 필요하면 구체적인 다음 액션 제안.
-- 가끔 따뜻한 한 마디 (체력·휴식 관리). 과하지 않게.`
+  const persona = loadDakotaPersona() || `당신은 척추신경외과 전문의 Dr. Woon Tak Yuh의 개인 비서 Dakota입니다. 센터장님이라 부르고, 다정하고 신뢰감 있는 비서 톤으로 한국어로 대화합니다.`
 
   let context = ""
   let memoryBlock = ""
@@ -92,15 +99,15 @@ Dakota의 역할:
     in14.setDate(in14.getDate() + 14)
     const in14Str = in14.toLocaleDateString("en-CA")
 
-    const [todos, notionSchedules, gcalEvents, memory] = await Promise.all([
+    const [todos, notionSchedules, gcalEvents, memoryDigest] = await Promise.all([
       getAllTodos({ status: "active" }).catch(() => []),
       getUpcomingSchedules(14).catch(() => []),
       listGoogleCalendarEventsForRange(today, in14Str).catch(() => []),
-      getDakotaMemory().catch(() => ""),
+      getMemoryDigest(40).catch(() => ""),
     ])
 
-    if (memory) {
-      memoryBlock = `\n\n[센터장님에 대한 장기 기억 — 이전 대화에서 누적된 사실들. 자연스럽게 활용하되, 굳이 언급하거나 인용하지 마세요.]\n${memory}`
+    if (memoryDigest) {
+      memoryBlock = `\n\n[Dakota Memory — Notion DB에 저장된 센터장님 사실들. 자연스럽게 활용하되 굳이 언급하지 마세요. 새 사실 발견 시 add_memory 도구로 저장하세요.]\n${memoryDigest}`
     }
 
     const todoLines = todos.slice(0, 30).map((t) => {
@@ -278,6 +285,72 @@ function buildDakotaTools(req: Request) {
           return data
         } catch (e) {
           return { error: e instanceof Error ? e.message : "unknown" }
+        }
+      },
+    }),
+
+    add_memory: tool({
+      description:
+        "Dakota Memory DB에 새 사실을 저장합니다. 센터장님이 '기억해줘'라고 명시했거나, 대화 중 장기적으로 가치 있는 사실을 발견했을 때 호출하세요. 일회성 잡담·인사·날씨는 저장하지 마세요. 카테고리는 7개 중 가장 알맞은 것 선택.",
+      inputSchema: z.object({
+        name: z.string().max(100).describe("짧은 키 (예: 'AANS submission 마감')"),
+        category: z.enum(["profile", "preference", "person", "project", "rule", "fact", "event"]),
+        content: z.string().max(1500).describe("실제 사실 내용"),
+        importance: z.number().int().min(1).max(5).describe("1=일시적, 5=핵심"),
+      }),
+      execute: async ({ name, category, content, importance }) => {
+        const row = await createMemory({ name, category: category as MemoryCategory, content, importance })
+        return { ok: true, page_id: row.page_id, name: row.name }
+      },
+    }),
+
+    update_memory: tool({
+      description:
+        "기존 Dakota Memory row를 수정합니다. 모순되는 새 정보가 들어오거나, 학회 임기 변경 등 사실 갱신 시 사용. page_id는 query_memory로 먼저 찾아야 합니다.",
+      inputSchema: z.object({
+        page_id: z.string().describe("수정할 row의 Notion page_id"),
+        name: z.string().max(100).optional(),
+        category: z.enum(["profile", "preference", "person", "project", "rule", "fact", "event"]).optional(),
+        content: z.string().max(1500).optional(),
+        importance: z.number().int().min(1).max(5).optional(),
+        status: z.enum(["active", "archived"]).optional(),
+      }),
+      execute: async (input) => {
+        await updateMemory({
+          pageId: input.page_id,
+          name: input.name,
+          category: input.category as MemoryCategory | undefined,
+          content: input.content,
+          importance: input.importance,
+          status: input.status,
+        })
+        return { ok: true }
+      },
+    }),
+
+    query_memory: tool({
+      description:
+        "Dakota Memory DB에서 특정 카테고리/중요도의 사실을 조회합니다. 시스템 프롬프트에 기본으로 들어간 digest로 부족할 때만 호출.",
+      inputSchema: z.object({
+        category: z.enum(["profile", "preference", "person", "project", "rule", "fact", "event"]).optional(),
+        min_importance: z.number().int().min(1).max(5).optional(),
+        limit: z.number().int().min(1).max(50).optional(),
+      }),
+      execute: async ({ category, min_importance, limit }) => {
+        const rows = await listMemories({
+          category: category as MemoryCategory | undefined,
+          minImportance: min_importance,
+          limit,
+        })
+        return {
+          count: rows.length,
+          rows: rows.map((r) => ({
+            page_id: r.page_id,
+            name: r.name,
+            category: r.category,
+            content: r.content,
+            importance: r.importance,
+          })),
         }
       },
     }),
