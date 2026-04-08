@@ -310,9 +310,13 @@ function DakotaGreetingChat({
         </div>
       </div>
 
-      {/* 우측: 인사 말풍선 + 대화 + 입력창 — 자체 고정 높이, 사진은 자유롭게 길어짐 */}
-      <div className="relative flex-1 min-w-0 flex flex-col gap-3">
-        <div className="relative bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 md:px-5 md:py-3 shadow-lg shrink-0">
+      {/* 우측: 인사 말풍선만 — 채팅하려면 사진 클릭 */}
+      <div className="relative flex-1 min-w-0 mt-2">
+        <div
+          className="relative bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 md:px-5 md:py-3 shadow-lg cursor-pointer hover:bg-card/90 transition-colors"
+          onClick={() => setFocused(true)}
+          title="클릭해서 Dakota와 대화"
+        >
           <span aria-hidden className="absolute -left-2 top-3 w-3 h-3 rotate-45 bg-card border-l border-t border-border" />
           <h2 className="text-base md:text-lg font-semibold text-foreground tracking-tight">
             {greeting}
@@ -321,18 +325,6 @@ function DakotaGreetingChat({
           <p className="text-muted-foreground text-xs md:text-sm mt-1">
             {dateStr}{weatherLocation && <span className="ml-2 text-muted-foreground/70">· {weatherLocation}</span>}
           </p>
-        </div>
-
-        <div ref={scrollRef} className="h-[140px] md:h-[160px] overflow-y-auto space-y-2 px-1">
-          {messages.length > 0 ? messageList : (
-            <p className="text-muted-foreground/60 text-xs text-center py-6">
-              Dakota에게 말 걸어보세요…
-            </p>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2 shrink-0">
-          {inputForm}
         </div>
       </div>
     </div>
