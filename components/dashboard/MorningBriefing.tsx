@@ -171,12 +171,18 @@ function DakotaGreetingChat({
         return (
           <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
-              className={`max-w-[85%] rounded-2xl px-3 py-1.5 text-[13px] leading-relaxed shadow-sm ${
+              className={`relative max-w-[85%] rounded-2xl px-3 py-1.5 text-[13px] leading-relaxed shadow-sm ${
                 m.role === "user"
                   ? "bg-blue-600 text-white rounded-br-sm"
                   : "bg-card border border-border text-foreground rounded-tl-sm"
               }`}
             >
+              {m.role !== "user" && (
+                <span
+                  aria-hidden
+                  className="absolute -left-1.5 top-2 w-2.5 h-2.5 rotate-45 bg-card border-l border-t border-border"
+                />
+              )}
               <p className="whitespace-pre-wrap">{text}</p>
             </div>
           </div>
@@ -276,7 +282,7 @@ function DakotaGreetingChat({
                   className="text-[10px] text-muted-foreground/60 hover:text-muted-foreground self-end"
                   title="채팅창 비우기 (기억은 유지)"
                 >
-                  대화창 비우기
+                  Clear
                 </button>
               )}
             </div>
