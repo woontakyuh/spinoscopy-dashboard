@@ -156,6 +156,23 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
+      name: "search_memory",
+      description:
+        "Search Dakota Memory DB by text (matches name + content, case-insensitive). MUST be called when Tak says '아까/전에/지난번/어제/기억나?/우리 이야기했던' etc. — these signal past conversation recall across channels.",
+      inputSchema: {
+        type: "object",
+        required: ["query"],
+        properties: {
+          query: { type: "string" },
+          category: {
+            type: "string",
+            enum: ["profile", "preference", "person", "project", "rule", "fact", "event"],
+          },
+          limit: { type: "number", minimum: 1, maximum: 50 },
+        },
+      },
+    },
+    {
       name: "update_memory",
       description: "Update an existing memory row by page_id.",
       inputSchema: {
@@ -354,6 +371,30 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
           source: "chat",
         })
         result = { ok: true, page_id: row.page_id, name: row.name }
+        break
+      }
+      case "search_memory": {
+        const all = await listMemories({
+          category: args.category as MemoryCategory | undefined,
+          limit: 200,
+          status: "active",
+        })
+        const q = (args.query as string).toLowerCase()
+        const matches = all.filter(
+          (r) => r.name.toLowerCase().includes(q) || r.content.toLowerCase().includes(q)
+        )
+        const limit = (args.limit as number | undefined) ?? 20
+        result = {
+          count: matches.length,
+          rows: matches.slice(0, limit).map((r) => ({
+            page_id: r.page_id,
+            name: r.name,
+            category: r.category,
+            content: r.content,
+            importance: r.importance,
+            created_time: r.created_time,
+          })),
+        }
         break
       }
       case "update_memory": {

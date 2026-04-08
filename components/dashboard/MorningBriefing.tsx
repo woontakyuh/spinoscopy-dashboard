@@ -51,43 +51,23 @@ function DakotaGreetingChat({
 
   const isStreaming = status === "streaming" || status === "submitted"
   const hydratedRef = useRef(false)
-  const lastSyncedCountRef = useRef(0)
   const [focused, setFocused] = useState(false)
+  const sessionStartRef = useRef<{ time: string; messageCount: number } | null>(null)
 
   // 1) localStorage 복원 (1회) — 비어 있으면 서버 archive에서 hydration
   useEffect(() => {
     if (hydratedRef.current) return
     hydratedRef.current = true
 
-    let restored = false
     try {
       const raw = localStorage.getItem("dakota-chat-v1")
       if (raw) {
         const parsed = JSON.parse(raw)
         if (Array.isArray(parsed) && parsed.length > 0) {
           setMessages(parsed)
-          lastSyncedCountRef.current = parsed.length
-          restored = true
         }
       }
     } catch {}
-
-    if (restored) return
-
-    // 새 기기 — Notion archive에서 최근 30개 message 복원
-    fetch("/api/dakota/memory?log=1&limit=30")
-      .then((r) => r.json())
-      .then((data: { log?: Array<{ role: "user" | "assistant"; content: string }> }) => {
-        if (!data.log || data.log.length === 0) return
-        const restoredMessages = data.log.map((m, i) => ({
-          id: `restored-${i}`,
-          role: m.role,
-          parts: [{ type: "text" as const, text: m.content }],
-        }))
-        setMessages(restoredMessages)
-        lastSyncedCountRef.current = restoredMessages.length
-      })
-      .catch((e) => console.warn("[DakotaChat] hydrate failed:", e))
   }, [setMessages])
 
   // 2) localStorage 저장
@@ -100,29 +80,47 @@ function DakotaGreetingChat({
     } catch {}
   }, [messages])
 
-  // 3) 응답 끝났을 때 long-term memory sync (assistant 응답이 새로 추가됐을 때만)
+  // 3) Focus 모드 진입 시 세션 시작점 기록, 종료 시 세션 묶음 저장
   useEffect(() => {
-    if (isStreaming) return
-    if (messages.length === 0) return
-    if (messages.length <= lastSyncedCountRef.current) return
-    const last = messages[messages.length - 1]
-    if (last.role !== "assistant") return
+    if (focused) {
+      // 진입: 현재 메시지 개수를 시작점으로
+      sessionStartRef.current = {
+        time: new Date().toISOString(),
+        messageCount: messages.length,
+      }
+      return
+    }
 
-    // 새로 추가된 메시지들만 전송
-    const fresh = messages.slice(lastSyncedCountRef.current).map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: getChatText(m.parts),
-    })).filter((m) => m.content.length > 0)
+    // 종료: 세션 동안 메시지가 추가됐다면 저장
+    const start = sessionStartRef.current
+    if (!start) return
+    sessionStartRef.current = null
 
-    if (fresh.length === 0) return
-    lastSyncedCountRef.current = messages.length
+    const sessionMessages = messages.slice(start.messageCount)
+    if (sessionMessages.length === 0) return
 
-    fetch("/api/dakota/memory", {
+    const exchanges = sessionMessages
+      .map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: getChatText(m.parts),
+      }))
+      .filter((m) => m.content.length > 0)
+
+    if (exchanges.length === 0) return
+
+    fetch("/api/dakota/memory/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ exchanges: fresh }),
-    }).catch((e) => console.warn("[DakotaChat] memory sync failed:", e))
-  }, [messages, isStreaming])
+      body: JSON.stringify({
+        startTime: start.time,
+        endTime: new Date().toISOString(),
+        channel: "dashboard",
+        exchanges,
+      }),
+    }).catch((e) => console.warn("[DakotaChat] session save failed:", e))
+    // intentionally not depending on `messages` to avoid re-firing during streaming
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focused])
 
   // 새 메시지 / focused 전환 시 스크롤을 항상 맨 아래로
   useEffect(() => {
@@ -215,7 +213,7 @@ function DakotaGreetingChat({
               handleSubmit(e as unknown as FormEvent)
             }
           }}
-          placeholder="Dakota에게 말 걸어보세요… (Shift+Enter 줄바꿈)"
+          placeholder=""
           rows={1}
           style={{ fontSize: "16px" }}
           className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-600 resize-none max-h-32 leading-snug"

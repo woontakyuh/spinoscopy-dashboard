@@ -509,6 +509,40 @@ function buildDakotaTools(req: Request) {
       },
     }),
 
+    search_memory: tool({
+      description:
+        "Notion Dakota Memory DB에서 텍스트로 검색합니다. 센터장님이 '아까', '전에', '지난번', '어제', '우리 이야기했던', '기억나?' 같은 표현으로 과거를 언급하면 무조건 먼저 호출하세요. 이름·내용 양쪽에서 부분 매칭.",
+      inputSchema: z.object({
+        query: z.string().describe("검색 키워드 또는 구문 (대소문자 무시)"),
+        category: z
+          .enum(["profile", "preference", "person", "project", "rule", "fact", "event"])
+          .optional(),
+        limit: z.number().int().min(1).max(50).optional(),
+      }),
+      execute: async ({ query, category, limit }) => {
+        const all = await listMemories({
+          category: category as MemoryCategory | undefined,
+          limit: 200,
+          status: "active",
+        })
+        const q = query.toLowerCase()
+        const matches = all.filter(
+          (r) => r.name.toLowerCase().includes(q) || r.content.toLowerCase().includes(q)
+        )
+        return {
+          count: matches.length,
+          rows: matches.slice(0, limit ?? 20).map((r) => ({
+            page_id: r.page_id,
+            name: r.name,
+            category: r.category,
+            content: r.content,
+            importance: r.importance,
+            created_time: r.created_time,
+          })),
+        }
+      },
+    }),
+
     query_memory: tool({
       description:
         "Dakota Memory DB에서 특정 카테고리/중요도의 사실을 조회합니다. 시스템 프롬프트에 기본으로 들어간 digest로 부족할 때만 호출.",
