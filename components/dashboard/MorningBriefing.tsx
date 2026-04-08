@@ -12,6 +12,14 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { WeatherInline, useWeatherLocation } from "@/components/dashboard/WeatherInline"
 import { EmptyState } from "@/components/ui/empty-state"
 import { pickDakotaGreeting } from "@/lib/dakotaGreetings"
+import {
+  getSlot,
+  dateKeySeoul,
+  pickDakotaPhoto,
+  defaultWorkdayMode,
+  workdayOverrideKey,
+  type DakotaMode,
+} from "@/lib/dakotaPhotos"
 import type { WeatherData } from "@/lib/types/weather"
 
 function getChatText(parts: Array<{ type: string; text?: string }>): string {
@@ -20,15 +28,14 @@ function getChatText(parts: Array<{ type: string; text?: string }>): string {
 
 function DakotaGreetingChat({
   greeting,
-  image,
   dateStr,
   weatherLocation,
 }: {
   greeting: string
-  image: string
   dateStr: string
   weatherLocation: string | null
 }) {
+  const { image, mode, setMode } = useDakotaImage()
   const [inputValue, setInputValue] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -287,15 +294,33 @@ function DakotaGreetingChat({
       {typeof document !== "undefined" && focusedOverlay && createPortal(focusedOverlay, document.body)}
       {/* 상단: 캐릭터 + 인사 말풍선 */}
       <div className="flex items-start gap-3 md:gap-4">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={image}
-          alt="Dakota"
-          onClick={() => setFocused(true)}
-          className="w-24 md:w-32 h-auto object-contain shrink-0 select-none cursor-pointer hover:opacity-90 transition-opacity"
-          draggable={false}
-          title="클릭해서 대화 집중 모드"
-        />
+        <div className="flex flex-col items-center shrink-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={image}
+            alt="Dakota"
+            onClick={() => setFocused(true)}
+            className="w-24 md:w-32 h-auto object-contain select-none cursor-pointer hover:opacity-90 transition-opacity"
+            draggable={false}
+            title="클릭해서 대화 집중 모드"
+          />
+          <div className="mt-1 flex items-center gap-0.5 text-[10px] rounded-full border border-border overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setMode("work")}
+              className={`px-2 py-0.5 transition-colors ${mode === "work" ? "bg-blue-600 text-white" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              출근
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("off")}
+              className={`px-2 py-0.5 transition-colors ${mode === "off" ? "bg-orange-600 text-white" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              오프
+            </button>
+          </div>
+        </div>
 
         <div className="relative flex-1 min-w-0 mt-2">
           <div className="relative bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 md:px-5 md:py-3 shadow-lg">
@@ -426,11 +451,27 @@ function useDakotaGreeting(): string {
   })
 }
 
-function getDakotaImage(): string {
-  const hour = new Date().getHours()
-  if (hour < 12) return "/dakota-morning.png"
-  if (hour < 18) return "/dakota-afternoon.png"
-  return "/dakota-evening.png"
+function useDakotaImage(): { image: string; mode: DakotaMode; setMode: (m: DakotaMode) => void } {
+  const now = new Date()
+  const dateKey = dateKeySeoul(now)
+  const slot = getSlot(now)
+  const [mode, setModeState] = useState<DakotaMode>(() => defaultWorkdayMode(now))
+
+  // hydrate override from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(workdayOverrideKey(dateKey))
+      if (stored === "work" || stored === "off") setModeState(stored)
+    } catch {}
+  }, [dateKey])
+
+  function setMode(next: DakotaMode) {
+    setModeState(next)
+    try { localStorage.setItem(workdayOverrideKey(dateKey), next) } catch {}
+  }
+
+  const image = pickDakotaPhoto(mode, slot, dateKey)
+  return { image, mode, setMode }
 }
 
 function formatTimeRange(start: string, end: string | null): string {
@@ -536,7 +577,6 @@ export function MorningBriefing() {
     <div className="space-y-6">
       <DakotaGreetingChat
         greeting={greeting}
-        image={getDakotaImage()}
         dateStr={dateStr}
         weatherLocation={weatherLocation}
       />
