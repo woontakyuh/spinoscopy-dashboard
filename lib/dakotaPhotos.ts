@@ -1,5 +1,6 @@
-// Dakota 사진 풀에서 (출근 여부 + 시간대) 기반으로 결정적 픽
+// Dakota 사진 풀에서 (출근 여부 + 시간대 + 그날 variant) 기반으로 결정적 픽
 import manifest from "@/public/dakota/manifest.json"
+import outfitMap from "@/public/dakota/outfit-map.json"
 
 export type WorkSlot = "dawn" | "pre" | "morning" | "lunch" | "afternoon" | "evening" | "night"
 export type OffSlot = "slowmorning" | "day" | "evening" | "night"
@@ -16,7 +17,7 @@ const FALLBACKS: Record<string, string> = {
   // off
   slowmorning: "/dakota-morning.png",
   day: "/dakota-afternoon.png",
-  // 공통 (work + off)
+  // 공통
   evening: "/dakota-evening.png",
   night: "/dakota-evening.png",
 }
@@ -57,7 +58,6 @@ function getOffSlot(date: Date): OffSlot {
   return "night"
 }
 
-/** 모드에 따라 적절한 슬롯 반환 */
 export function getSlot(date: Date, mode: DakotaMode = "work"): DakotaSlot {
   return mode === "off" ? getOffSlot(date) : getWorkSlot(date)
 }
@@ -75,22 +75,56 @@ function hashString(s: string): number {
   return h >>> 0
 }
 
-/** 매일 새 사진 — (날짜 + 슬롯) 시드. 같은 날 같은 슬롯이면 같은 사진. */
+interface OutfitVariants {
+  [variant: string]: string[]
+}
+
+interface ManifestShape {
+  outfits: Record<string, OutfitVariants>
+}
+
+interface OutfitMapShape {
+  work: Record<string, string[]>
+  off: Record<string, string[]>
+}
+
+function getOutfitsForSlot(mode: DakotaMode, slot: DakotaSlot): string[] {
+  const map = (outfitMap as unknown as OutfitMapShape)[mode]
+  return (map?.[slot as string] ?? []) as string[]
+}
+
+/** 같은 날엔 한 outfit 안에서 같은 variant만 등장 */
 export function pickDakotaPhoto(mode: DakotaMode, slot: DakotaSlot, dateKey: string): string {
-  const m = manifest as Record<string, Record<string, string[]>>
-  const pool = m?.[mode]?.[slot] ?? []
-  if (pool.length === 0) return FALLBACKS[slot] ?? "/dakota-morning.png"
-  const idx = hashString(`${dateKey}-${mode}-${slot}`) % pool.length
-  return pool[idx]
+  const m = (manifest as unknown as ManifestShape).outfits ?? {}
+  const outfits = getOutfitsForSlot(mode, slot)
+
+  // 1) 각 outfit에 대해 오늘의 variant 결정 → 그 variant의 파일들만 풀에 추가
+  const candidates: string[] = []
+  for (const outfit of outfits) {
+    const variants = m[outfit]
+    if (!variants) continue
+    const variantNames = Object.keys(variants).filter((v) => variants[v].length > 0)
+    if (variantNames.length === 0) continue
+    const variantIdx = hashString(`${dateKey}-${outfit}-variant`) % variantNames.length
+    const todayVariant = variantNames[variantIdx]
+    candidates.push(...variants[todayVariant])
+  }
+
+  if (candidates.length === 0) return FALLBACKS[slot] ?? "/dakota-morning.png"
+
+  // 2) 슬롯+날짜 시드로 최종 1장 픽
+  const idx = hashString(`${dateKey}-${mode}-${slot}`) % candidates.length
+  return candidates[idx]
 }
 
 /** weekday 기본 휴리스틱 — 월~금=work, 토일=off */
 export function defaultWorkdayMode(date: Date = new Date()): DakotaMode {
-  const seoulDow = Number(
+  const dow = Number(
     new Intl.DateTimeFormat("en-US", {
       timeZone: "Asia/Seoul",
       weekday: "short",
-    }).format(date)
+    })
+      .format(date)
       .replace(/Sun/, "0")
       .replace(/Mon/, "1")
       .replace(/Tue/, "2")
@@ -99,11 +133,10 @@ export function defaultWorkdayMode(date: Date = new Date()): DakotaMode {
       .replace(/Fri/, "5")
       .replace(/Sat/, "6")
   )
-  if (seoulDow >= 1 && seoulDow <= 5) return "work"
+  if (dow >= 1 && dow <= 5) return "work"
   return "off"
 }
 
-/** localStorage override 키 */
 export function workdayOverrideKey(dateKey: string): string {
   return `dakota-workday-${dateKey}`
 }

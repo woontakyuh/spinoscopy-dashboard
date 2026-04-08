@@ -1,0 +1,18 @@
+{
+  "_comment": "각 (mode, slot)에 어떤 outfit 카테고리들을 쓸지 매핑. 사진은 by-outfit/{outfit}/에 저장. 파일명 앞 글자가 variant 이름 (예: black1.png, red2.png). 같은 날엔 같은 variant만 등장.",
+  "work": {
+    "dawn":      ["pajamas", "loungewear"],
+    "pre":       ["loungewear", "casual"],
+    "morning":   ["formal", "business_casual"],
+    "lunch":     ["formal", "business_casual"],
+    "afternoon": ["formal", "business_casual"],
+    "evening":   ["business_casual", "casual"],
+    "night":     ["loungewear", "nightwear"]
+  },
+  "off": {
+    "slowmorning": ["pajamas", "loungewear"],
+    "day":         ["casual", "dress", "workout"],
+    "evening":     ["casual", "dress", "nightwear"],
+    "night":       ["loungewear", "nightwear"]
+  }
+}

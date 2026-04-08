@@ -1,17 +1,12 @@
 {
-  "work": {
-    "dawn": [],
-    "pre": [],
-    "morning": [],
-    "lunch": [],
-    "afternoon": [],
-    "evening": [],
-    "night": []
-  },
-  "off": {
-    "slowmorning": [],
-    "day": [],
-    "evening": [],
-    "night": []
+  "outfits": {
+    "business_casual": {},
+    "casual": {},
+    "dress": {},
+    "formal": {},
+    "loungewear": {},
+    "nightwear": {},
+    "pajamas": {},
+    "workout": {}
   }
 }
