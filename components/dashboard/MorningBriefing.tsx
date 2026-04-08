@@ -454,7 +454,6 @@ function useDakotaGreeting(): string {
 function useDakotaImage(): { image: string; mode: DakotaMode; setMode: (m: DakotaMode) => void } {
   const now = new Date()
   const dateKey = dateKeySeoul(now)
-  const slot = getSlot(now)
   const [mode, setModeState] = useState<DakotaMode>(() => defaultWorkdayMode(now))
 
   // hydrate override from localStorage on mount
@@ -470,6 +469,8 @@ function useDakotaImage(): { image: string; mode: DakotaMode; setMode: (m: Dakot
     try { localStorage.setItem(workdayOverrideKey(dateKey), next) } catch {}
   }
 
+  // mode에 따라 슬롯 정의가 달라짐 (work=7개, off=4개)
+  const slot = getSlot(now, mode)
   const image = pickDakotaPhoto(mode, slot, dateKey)
   return { image, mode, setMode }
 }

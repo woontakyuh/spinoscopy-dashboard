@@ -1,22 +1,28 @@
 // Dakota 사진 풀에서 (출근 여부 + 시간대) 기반으로 결정적 픽
 import manifest from "@/public/dakota/manifest.json"
 
-export type DakotaSlot = "dawn" | "pre" | "morning" | "lunch" | "afternoon" | "evening" | "night"
+export type WorkSlot = "dawn" | "pre" | "morning" | "lunch" | "afternoon" | "evening" | "night"
+export type OffSlot = "slowmorning" | "day" | "evening" | "night"
+export type DakotaSlot = WorkSlot | OffSlot
 export type DakotaMode = "work" | "off"
 
 const FALLBACKS: Record<string, string> = {
+  // work
   dawn: "/dakota-evening.png",
   pre: "/dakota-morning.png",
   morning: "/dakota-morning.png",
   lunch: "/dakota-afternoon.png",
   afternoon: "/dakota-afternoon.png",
+  // off
+  slowmorning: "/dakota-morning.png",
+  day: "/dakota-afternoon.png",
+  // 공통 (work + off)
   evening: "/dakota-evening.png",
   night: "/dakota-evening.png",
 }
 
-export function getSlot(date: Date): DakotaSlot {
-  // Asia/Seoul 기준 시간 계산
-  const seoulHour = Number(
+function getSeoulMinutes(date: Date): number {
+  const hour = Number(
     new Intl.DateTimeFormat("en-GB", {
       timeZone: "Asia/Seoul",
       hour: "2-digit",
@@ -29,15 +35,31 @@ export function getSlot(date: Date): DakotaSlot {
       minute: "2-digit",
     }).format(date)
   )
-  const hm = seoulHour * 60 + minute
+  return hour * 60 + minute
+}
 
-  if (hm >= 0 * 60 && hm < 5 * 60) return "dawn"
-  if (hm >= 5 * 60 && hm < 8 * 60) return "pre"
-  if (hm >= 8 * 60 && hm < 12 * 60) return "morning"
-  if (hm >= 12 * 60 && hm < 13 * 60 + 30) return "lunch"
-  if (hm >= 13 * 60 + 30 && hm < 18 * 60) return "afternoon"
-  if (hm >= 18 * 60 && hm < 21 * 60) return "evening"
+function getWorkSlot(date: Date): WorkSlot {
+  const hm = getSeoulMinutes(date)
+  if (hm < 5 * 60) return "dawn"
+  if (hm < 8 * 60) return "pre"
+  if (hm < 12 * 60) return "morning"
+  if (hm < 13 * 60 + 30) return "lunch"
+  if (hm < 18 * 60) return "afternoon"
+  if (hm < 21 * 60) return "evening"
   return "night"
+}
+
+function getOffSlot(date: Date): OffSlot {
+  const hm = getSeoulMinutes(date)
+  if (hm < 10 * 60) return "slowmorning"
+  if (hm < 17 * 60) return "day"
+  if (hm < 21 * 60) return "evening"
+  return "night"
+}
+
+/** 모드에 따라 적절한 슬롯 반환 */
+export function getSlot(date: Date, mode: DakotaMode = "work"): DakotaSlot {
+  return mode === "off" ? getOffSlot(date) : getWorkSlot(date)
 }
 
 export function dateKeySeoul(date: Date = new Date()): string {

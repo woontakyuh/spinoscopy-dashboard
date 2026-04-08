@@ -9,11 +9,8 @@
     "night": []
   },
   "off": {
-    "dawn": [],
-    "pre": [],
-    "morning": [],
-    "lunch": [],
-    "afternoon": [],
+    "slowmorning": [],
+    "day": [],
     "evening": [],
     "night": []
   }

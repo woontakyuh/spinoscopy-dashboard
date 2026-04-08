@@ -6,7 +6,9 @@ import { readdirSync, writeFileSync, statSync } from "node:fs"
 import path from "node:path"
 
 const ROOT = path.join(process.cwd(), "public", "dakota")
-const SLOTS = ["dawn", "pre", "morning", "lunch", "afternoon", "evening", "night"] as const
+const WORK_SLOTS = ["dawn", "pre", "morning", "lunch", "afternoon", "evening", "night"] as const
+const OFF_SLOTS = ["slowmorning", "day", "evening", "night"] as const
+const SLOTS_BY_MODE = { work: WORK_SLOTS, off: OFF_SLOTS } as const
 const MODES = ["work", "off"] as const
 const VALID_EXT = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif"])
 
@@ -15,7 +17,7 @@ type Manifest = Record<string, Record<string, string[]>>
 const manifest: Manifest = { work: {}, off: {} }
 
 for (const mode of MODES) {
-  for (const slot of SLOTS) {
+  for (const slot of SLOTS_BY_MODE[mode]) {
     const dir = path.join(ROOT, mode, slot)
     let files: string[] = []
     try {
@@ -38,7 +40,7 @@ const out = path.join(ROOT, "manifest.json")
 writeFileSync(out, JSON.stringify(manifest, null, 2), "utf-8")
 
 const totals = MODES.map(
-  (m) => `${m}: ${SLOTS.reduce((sum, s) => sum + manifest[m][s].length, 0)}`
+  (m) => `${m}: ${SLOTS_BY_MODE[m].reduce((sum, s) => sum + manifest[m][s].length, 0)}`
 ).join(", ")
 console.log(`✓ wrote ${out}`)
 console.log(`  totals — ${totals}`)
