@@ -255,7 +255,7 @@ function DakotaGreetingChat({
               </p>
             </div>
 
-            <div ref={scrollRef} className="flex-1 min-h-[720px] overflow-y-auto space-y-2 pr-1">
+            <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
               {messages.length === 0 ? (
                 <p className="text-muted-foreground/70 text-sm text-center py-8">
                   Dakota에게 말 걸어보세요…
@@ -311,10 +311,10 @@ function DakotaGreetingChat({
         </div>
       </div>
 
-      {/* 전체 폭 대화 영역 — 달력 높이에 대략 맞춤 */}
-      <div ref={scrollRef} className="h-[340px] md:h-[380px] overflow-y-auto space-y-2 px-1">
+      {/* 전체 폭 대화 영역 — 끝부분만 살짝 */}
+      <div ref={scrollRef} className="h-[120px] md:h-[130px] overflow-y-auto space-y-2 px-1">
         {messages.length > 0 ? messageList : (
-          <p className="text-muted-foreground/60 text-xs text-center py-16">
+          <p className="text-muted-foreground/60 text-xs text-center py-6">
             Dakota에게 말 걸어보세요…
           </p>
         )}
