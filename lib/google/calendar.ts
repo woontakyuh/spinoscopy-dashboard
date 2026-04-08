@@ -214,6 +214,97 @@ export async function createGoogleCalendarEvent(input: GoogleCalendarCreateInput
   }
 }
 
+export interface GoogleCalendarUpdateInput {
+  eventId: string
+  calendarId?: string
+  name?: string
+  date_start?: string
+  date_end?: string
+  place?: string | null
+  description?: string | null
+}
+
+/** 모든 owned calendar에서 eventId를 찾아 어디에 있는지 반환 */
+async function findEventCalendarId(
+  calendar: calendar_v3.Calendar,
+  eventId: string,
+  hint?: string
+): Promise<string | null> {
+  if (hint) {
+    try {
+      await calendar.events.get({ calendarId: hint, eventId })
+      return hint
+    } catch {
+      // fall through
+    }
+  }
+  const calendarIds = await listOwnedCalendarIds(calendar)
+  for (const cid of calendarIds) {
+    try {
+      await calendar.events.get({ calendarId: cid, eventId })
+      return cid
+    } catch {
+      continue
+    }
+  }
+  return null
+}
+
+export async function updateGoogleCalendarEvent(
+  input: GoogleCalendarUpdateInput
+): Promise<GoogleCalendarResult> {
+  const auth = await getAuthorizedClient()
+  if (!auth) {
+    return { success: false, message: "Google Calendar not configured." }
+  }
+
+  const calendar = google.calendar({ version: "v3", auth })
+  const cid = await findEventCalendarId(calendar, input.eventId, input.calendarId)
+  if (!cid) {
+    return { success: false, message: `Event ${input.eventId} not found in any owned calendar` }
+  }
+
+  const patch: calendar_v3.Schema$Event = {}
+  if (input.name !== undefined) patch.summary = input.name
+  if (input.place !== undefined) patch.location = input.place ?? undefined
+  if (input.description !== undefined) patch.description = input.description ?? undefined
+  if (input.date_start !== undefined) {
+    const timing = buildEventTiming(input.date_start, input.date_end)
+    patch.start = timing.start
+    patch.end = timing.end
+  }
+
+  const res = await calendar.events.patch({
+    calendarId: cid,
+    eventId: input.eventId,
+    requestBody: patch,
+  })
+
+  return {
+    success: true,
+    message: "Event updated in Google Calendar",
+    eventId: res.data.id ?? undefined,
+    eventUrl: res.data.htmlLink ?? undefined,
+  }
+}
+
+export async function deleteGoogleCalendarEvent(
+  eventId: string,
+  calendarId?: string
+): Promise<GoogleCalendarResult> {
+  const auth = await getAuthorizedClient()
+  if (!auth) {
+    return { success: false, message: "Google Calendar not configured." }
+  }
+  const calendar = google.calendar({ version: "v3", auth })
+  const cid = await findEventCalendarId(calendar, eventId, calendarId)
+  if (!cid) {
+    return { success: false, message: `Event ${eventId} not found` }
+  }
+  await calendar.events.delete({ calendarId: cid, eventId })
+  return { success: true, message: "Event deleted from Google Calendar" }
+}
+
 async function listOwnedCalendarIds(
   calendarClient: calendar_v3.Calendar
 ): Promise<string[]> {

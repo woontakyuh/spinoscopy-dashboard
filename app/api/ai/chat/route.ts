@@ -15,7 +15,11 @@ import {
 import { listResearchProjects } from "@/lib/notion/research"
 import { getJournalStats } from "@/lib/notion/journal"
 import { getAllPatientRows } from "@/lib/notion/analytics"
-import { listGoogleCalendarEventsForRange } from "@/lib/google/calendar"
+import {
+  listGoogleCalendarEventsForRange,
+  updateGoogleCalendarEvent,
+  deleteGoogleCalendarEvent,
+} from "@/lib/google/calendar"
 
 interface UIPart { type: string; text?: string }
 interface UIMessage { role: "user" | "assistant" | "system"; parts?: UIPart[]; content?: string }
@@ -374,6 +378,39 @@ function buildDakotaTools(req: Request) {
       execute: async ({ page_id }) => {
         await deleteSchedule(page_id)
         return { ok: true }
+      },
+    }),
+
+    update_gcal_event: tool({
+      description:
+        "Google Calendar 이벤트를 수정합니다. event_id는 searchSchedules의 gcal 결과에서 'id' 필드로 얻을 수 있습니다. 이름·날짜·장소 변경 가능.",
+      inputSchema: z.object({
+        event_id: z.string(),
+        name: z.string().optional(),
+        date_start: z.string().optional().describe("YYYY-MM-DD 또는 ISO"),
+        date_end: z.string().optional(),
+        place: z.union([z.string(), z.null()]).optional(),
+        description: z.union([z.string(), z.null()]).optional(),
+      }),
+      execute: async (input) => {
+        const result = await updateGoogleCalendarEvent({
+          eventId: input.event_id,
+          name: input.name,
+          date_start: input.date_start,
+          date_end: input.date_end,
+          place: input.place,
+          description: input.description,
+        })
+        return result
+      },
+    }),
+
+    delete_gcal_event: tool({
+      description: "Google Calendar 이벤트 삭제",
+      inputSchema: z.object({ event_id: z.string() }),
+      execute: async ({ event_id }) => {
+        const result = await deleteGoogleCalendarEvent(event_id)
+        return result
       },
     }),
 

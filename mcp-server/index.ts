@@ -31,7 +31,11 @@ import {
   updateSchedule,
   deleteSchedule,
 } from "../lib/notion/schedule.js"
-import { listGoogleCalendarEventsForRange } from "../lib/google/calendar.js"
+import {
+  listGoogleCalendarEventsForRange,
+  updateGoogleCalendarEvent,
+  deleteGoogleCalendarEvent,
+} from "../lib/google/calendar.js"
 import {
   listMemories,
   createMemory,
@@ -280,6 +284,32 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         properties: { page_id: { type: "string" } },
       },
     },
+    {
+      name: "update_gcal_event",
+      description:
+        "Update a Google Calendar event by event_id. event_id is found via list_schedules result's gcal items.",
+      inputSchema: {
+        type: "object",
+        required: ["event_id"],
+        properties: {
+          event_id: { type: "string" },
+          name: { type: "string" },
+          date_start: { type: "string", description: "YYYY-MM-DD or ISO" },
+          date_end: { type: "string" },
+          place: { type: ["string", "null"] },
+          description: { type: ["string", "null"] },
+        },
+      },
+    },
+    {
+      name: "delete_gcal_event",
+      description: "Delete a Google Calendar event by event_id.",
+      inputSchema: {
+        type: "object",
+        required: ["event_id"],
+        properties: { event_id: { type: "string" } },
+      },
+    },
 
     // ─── Other agents (orchestration) ──────────────────────
     {
@@ -452,6 +482,21 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       case "delete_schedule": {
         await deleteSchedule(args.page_id as string)
         result = { ok: true }
+        break
+      }
+      case "update_gcal_event": {
+        result = await updateGoogleCalendarEvent({
+          eventId: args.event_id as string,
+          name: args.name as string | undefined,
+          date_start: args.date_start as string | undefined,
+          date_end: args.date_end as string | undefined,
+          place: args.place as string | null | undefined,
+          description: args.description as string | null | undefined,
+        })
+        break
+      }
+      case "delete_gcal_event": {
+        result = await deleteGoogleCalendarEvent(args.event_id as string)
         break
       }
 
