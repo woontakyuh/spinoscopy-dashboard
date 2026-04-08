@@ -6,7 +6,7 @@
     "morning":   ["formal", "business_casual"],
     "lunch":     ["formal", "business_casual"],
     "afternoon": ["formal", "business_casual"],
-    "evening":   ["business_casual", "casual"],
+    "evening":   ["loungewear", "casual"],
     "night":     ["loungewear", "nightwear"]
   },
   "off": {

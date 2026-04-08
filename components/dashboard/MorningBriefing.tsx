@@ -290,64 +290,62 @@ function DakotaGreetingChat({
 
   // ─── Normal inline mode ────────────────────────────────────
   return (
-    <div className="pt-2 md:pt-4 space-y-3">
+    <div className="pt-2 md:pt-4 flex items-start gap-3 md:gap-4">
       {typeof document !== "undefined" && focusedOverlay && createPortal(focusedOverlay, document.body)}
-      {/* 상단: 캐릭터 + 인사 말풍선 */}
-      <div className="flex items-start gap-3 md:gap-4">
-        <div className="flex flex-col items-center shrink-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={image}
-            alt="Dakota"
-            onClick={() => setFocused(true)}
-            className="w-24 md:w-32 h-auto object-contain select-none cursor-pointer hover:opacity-90 transition-opacity"
-            draggable={false}
-            title="클릭해서 대화 집중 모드"
-          />
-          <div className="mt-1 flex items-center gap-0.5 text-[10px] rounded-full border border-border overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setMode("work")}
-              className={`px-2 py-0.5 transition-colors ${mode === "work" ? "bg-blue-600 text-white" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              출근
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("off")}
-              className={`px-2 py-0.5 transition-colors ${mode === "off" ? "bg-orange-600 text-white" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              오프
-            </button>
-          </div>
-        </div>
 
-        <div className="relative flex-1 min-w-0 mt-2">
-          <div className="relative bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 md:px-5 md:py-3 shadow-lg">
-            <span aria-hidden className="absolute -left-2 top-3 w-3 h-3 rotate-45 bg-card border-l border-t border-border" />
-            <h2 className="text-base md:text-lg font-semibold text-foreground tracking-tight">
-              {greeting}
-            </h2>
-            <div className="mt-1"><WeatherInline /></div>
-            <p className="text-muted-foreground text-xs md:text-sm mt-1">
-              {dateStr}{weatherLocation && <span className="ml-2 text-muted-foreground/70">· {weatherLocation}</span>}
-            </p>
-          </div>
+      {/* 좌측: 캐릭터 (전신, 길어도 OK) + 토글 */}
+      <div className="flex flex-col items-center shrink-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={image}
+          alt="Dakota"
+          onClick={() => setFocused(true)}
+          className="w-24 md:w-32 h-auto object-contain select-none cursor-pointer hover:opacity-90 transition-opacity"
+          draggable={false}
+          title="클릭해서 대화 집중 모드"
+        />
+        <div className="mt-1 flex items-center gap-0.5 text-[10px] rounded-full border border-border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setMode("work")}
+            className={`px-2 py-0.5 transition-colors ${mode === "work" ? "bg-blue-600 text-white" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            출근
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("off")}
+            className={`px-2 py-0.5 transition-colors ${mode === "off" ? "bg-orange-600 text-white" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            오프
+          </button>
         </div>
       </div>
 
-      {/* 전체 폭 대화 영역 — 끝부분만 살짝 */}
-      <div ref={scrollRef} className="h-[120px] md:h-[130px] overflow-y-auto space-y-2 px-1">
-        {messages.length > 0 ? messageList : (
-          <p className="text-muted-foreground/60 text-xs text-center py-6">
-            Dakota에게 말 걸어보세요…
+      {/* 우측: 인사 말풍선 + 대화 + 입력창 모두 세로로 */}
+      <div className="relative flex-1 min-w-0 mt-2 flex flex-col gap-3">
+        <div className="relative bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 md:px-5 md:py-3 shadow-lg shrink-0">
+          <span aria-hidden className="absolute -left-2 top-3 w-3 h-3 rotate-45 bg-card border-l border-t border-border" />
+          <h2 className="text-base md:text-lg font-semibold text-foreground tracking-tight">
+            {greeting}
+          </h2>
+          <div className="mt-1"><WeatherInline /></div>
+          <p className="text-muted-foreground text-xs md:text-sm mt-1">
+            {dateStr}{weatherLocation && <span className="ml-2 text-muted-foreground/70">· {weatherLocation}</span>}
           </p>
-        )}
-      </div>
+        </div>
 
-      {/* 입력창 */}
-      <div className="flex flex-col gap-2">
-        {inputForm}
+        <div ref={scrollRef} className="h-[140px] md:h-[160px] overflow-y-auto space-y-2 px-1">
+          {messages.length > 0 ? messageList : (
+            <p className="text-muted-foreground/60 text-xs text-center py-6">
+              Dakota에게 말 걸어보세요…
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2 shrink-0">
+          {inputForm}
+        </div>
       </div>
     </div>
   )
