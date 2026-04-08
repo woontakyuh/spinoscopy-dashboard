@@ -4,7 +4,7 @@ import { z } from "zod"
 import { readFileSync, existsSync } from "node:fs"
 import path from "node:path"
 import { getAllTodos, createTodo, updateTodo, deleteTodo } from "@/lib/notion/todo"
-import { getUpcomingSchedules, getSchedulesRichInRange, createSchedule } from "@/lib/notion/schedule"
+import { getUpcomingSchedules, getSchedulesRichInRange, createSchedule, updateSchedule, deleteSchedule } from "@/lib/notion/schedule"
 import {
   getMemoryDigest,
   createMemory,
@@ -335,6 +335,44 @@ function buildDakotaTools(req: Request) {
       inputSchema: z.object({ page_id: z.string() }),
       execute: async ({ page_id }) => {
         await deleteTodo(page_id)
+        return { ok: true }
+      },
+    }),
+
+    update_schedule: tool({
+      description:
+        "기존 Notion Schedule DB row를 수정합니다. 이름·날짜·장소·분류·학회명·발표 주제·링크 등 변경 가능. page_id는 searchSchedules로 먼저 찾아야 합니다.",
+      inputSchema: z.object({
+        page_id: z.string().describe("Notion page_id"),
+        name: z.string().optional(),
+        date_start: z.string().optional().describe("YYYY-MM-DD 또는 ISO"),
+        date_end: z.union([z.string(), z.null()]).optional(),
+        place: z.union([z.string(), z.null()]).optional(),
+        category: z.union([z.string(), z.null()]).optional(),
+        society: z.array(z.string()).optional(),
+        topic: z.union([z.string(), z.null()]).optional(),
+        link: z.union([z.string(), z.null()]).optional(),
+      }),
+      execute: async (input) => {
+        await updateSchedule(input.page_id, {
+          name: input.name,
+          date_start: input.date_start,
+          date_end: input.date_end,
+          place: input.place,
+          category: input.category,
+          society: input.society,
+          topic: input.topic,
+          link: input.link,
+        })
+        return { ok: true }
+      },
+    }),
+
+    delete_schedule: tool({
+      description: "Notion Schedule row를 archive (보관 처리). 완전 삭제 아님.",
+      inputSchema: z.object({ page_id: z.string() }),
+      execute: async ({ page_id }) => {
+        await deleteSchedule(page_id)
         return { ok: true }
       },
     }),

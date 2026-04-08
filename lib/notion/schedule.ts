@@ -258,3 +258,67 @@ export async function createSchedule(input: ScheduleCreateInput): Promise<{ page
 
   return { page_id: response.id, url: response.url }
 }
+
+export interface ScheduleUpdateInput {
+  name?: string
+  date_start?: string
+  date_end?: string | null
+  place?: string | null
+  category?: string | null
+  society?: string[]
+  topic?: string | null
+  link?: string | null
+}
+
+export async function updateSchedule(pageId: string, input: ScheduleUpdateInput): Promise<void> {
+  const properties: Record<string, unknown> = {}
+
+  if (input.name !== undefined) {
+    properties.Name = { title: [{ text: { content: input.name } }] }
+  }
+  if (input.date_start !== undefined || input.date_end !== undefined) {
+    properties.Date = {
+      date: {
+        start: input.date_start,
+        end: input.date_end ?? null,
+      },
+    }
+  }
+  if (input.place !== undefined) {
+    properties.Place = {
+      rich_text: input.place ? [{ text: { content: input.place } }] : [],
+    }
+  }
+  if (input.category !== undefined) {
+    properties["분류"] = {
+      multi_select: input.category ? [{ name: input.category }] : [],
+    }
+  }
+  if (input.society !== undefined) {
+    properties["학회명"] = {
+      multi_select: input.society.map((name) => ({ name })),
+    }
+  }
+  if (input.topic !== undefined) {
+    properties["발표 주제"] = {
+      rich_text: input.topic ? [{ text: { content: input.topic } }] : [],
+    }
+  }
+  if (input.link !== undefined) {
+    properties.Link = { url: input.link }
+  }
+
+  if (Object.keys(properties).length === 0) return
+
+  await notionRequest(`/pages/${pageId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ properties }),
+  })
+}
+
+export async function deleteSchedule(pageId: string): Promise<void> {
+  await notionRequest(`/pages/${pageId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ archived: true }),
+  })
+}

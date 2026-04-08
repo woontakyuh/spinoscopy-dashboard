@@ -28,6 +28,8 @@ import {
   getUpcomingSchedules,
   getSchedulesRichInRange,
   createSchedule,
+  updateSchedule,
+  deleteSchedule,
 } from "../lib/notion/schedule.js"
 import { listGoogleCalendarEventsForRange } from "../lib/google/calendar.js"
 import {
@@ -250,6 +252,35 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
 
+    {
+      name: "update_schedule",
+      description: "Update an existing Notion Schedule row by page_id (rename, change date, place, category, etc).",
+      inputSchema: {
+        type: "object",
+        required: ["page_id"],
+        properties: {
+          page_id: { type: "string" },
+          name: { type: "string" },
+          date_start: { type: "string", description: "YYYY-MM-DD or ISO" },
+          date_end: { type: ["string", "null"] },
+          place: { type: ["string", "null"] },
+          category: { type: ["string", "null"] },
+          society: { type: "array", items: { type: "string" } },
+          topic: { type: ["string", "null"] },
+          link: { type: ["string", "null"] },
+        },
+      },
+    },
+    {
+      name: "delete_schedule",
+      description: "Archive a Notion Schedule row (not a hard delete).",
+      inputSchema: {
+        type: "object",
+        required: ["page_id"],
+        properties: { page_id: { type: "string" } },
+      },
+    },
+
     // ─── Other agents (orchestration) ──────────────────────
     {
       name: "ask_brian",
@@ -401,6 +432,26 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
           targets: (args.targets as ("notion" | "gcal")[] | undefined) ?? ["notion"],
         })
         result = { ok: true, ...created }
+        break
+      }
+
+      case "update_schedule": {
+        await updateSchedule(args.page_id as string, {
+          name: args.name as string | undefined,
+          date_start: args.date_start as string | undefined,
+          date_end: args.date_end as string | null | undefined,
+          place: args.place as string | null | undefined,
+          category: args.category as string | null | undefined,
+          society: args.society as string[] | undefined,
+          topic: args.topic as string | null | undefined,
+          link: args.link as string | null | undefined,
+        })
+        result = { ok: true }
+        break
+      }
+      case "delete_schedule": {
+        await deleteSchedule(args.page_id as string)
+        result = { ok: true }
         break
       }
 
