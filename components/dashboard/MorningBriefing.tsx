@@ -44,6 +44,7 @@ function DakotaGreetingChat({
   const isStreaming = status === "streaming" || status === "submitted"
   const hydratedRef = useRef(false)
   const lastSyncedCountRef = useRef(0)
+  const [focused, setFocused] = useState(false)
 
   // 1) localStorage 복원 (1회) — 비어 있으면 서버 archive에서 hydration
   useEffect(() => {
@@ -115,11 +116,16 @@ function DakotaGreetingChat({
     }).catch((e) => console.warn("[DakotaChat] memory sync failed:", e))
   }, [messages, isStreaming])
 
+  // 새 메시지 / focused 전환 시 스크롤을 항상 맨 아래로
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-    }
-  }, [messages, status])
+    if (!scrollRef.current) return
+    // 다음 프레임에 실행 — 새로 마운트된 ref가 확실히 연결된 뒤
+    requestAnimationFrame(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+      }
+    })
+  }, [messages, status, focused])
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -134,8 +140,6 @@ function DakotaGreetingChat({
     lastSyncedCountRef.current = 0
     try { localStorage.removeItem("dakota-chat-v1") } catch {}
   }
-
-  const [focused, setFocused] = useState(false)
 
   // focus 모드 진입 시 body scroll lock
   useEffect(() => {
