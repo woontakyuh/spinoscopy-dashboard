@@ -143,7 +143,7 @@ function DakotaGreetingChat({
 
   function clearConversation() {
     setMessages([])
-    lastSyncedCountRef.current = 0
+    sessionStartRef.current = null
     try { localStorage.removeItem("dakota-chat-v1") } catch {}
   }
 
@@ -241,32 +241,45 @@ function DakotaGreetingChat({
   // ─── Focused overlay (portal to body to escape transformed ancestors) ──
   const focusedOverlay = focused ? (
     <div className="fixed inset-0 z-50 bg-background backdrop-blur-sm overflow-hidden flex items-stretch md:items-center justify-center md:p-6">
-        <div className="h-full w-full md:h-[66vh] md:max-w-3xl md:bg-card/80 md:border md:border-border md:rounded-2xl md:shadow-2xl flex flex-col gap-2 md:gap-3 p-3 md:p-5 overflow-hidden">
-          {/* Dakota 캐릭터 — 상단 가운데 */}
-          <div className="shrink-0 flex justify-center">
+        <div className="w-full h-full md:max-w-5xl md:h-[80vh] flex flex-col md:flex-row md:gap-6 overflow-hidden">
+          {/* Dakota 캐릭터 — 모바일: 상단 가운데, 데스크탑: 좌측 채팅창 바깥 */}
+          <div className="shrink-0 flex justify-center md:items-center pt-3 md:pt-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={image}
               alt="Dakota"
               onClick={() => setFocused(false)}
-              className="h-[32vh] md:h-[36vh] w-auto object-contain select-none cursor-pointer hover:opacity-90 transition-opacity"
+              className="h-[28vh] md:h-full w-auto object-contain select-none cursor-pointer hover:opacity-90 transition-opacity"
               draggable={false}
               title="클릭해서 원래 크기로"
             />
           </div>
 
-          {/* 채팅 메시지 — 사진 아래 남은 공간 */}
-          <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto space-y-2 px-1">
-            {messages.length === 0 ? (
-              <p className="text-muted-foreground/70 text-xs text-center py-4">
-                Dakota에게 말 걸어보세요…
-              </p>
-            ) : messageList}
-          </div>
+          {/* 채팅 카드 */}
+          <div className="flex-1 min-h-0 flex flex-col gap-2 md:gap-3 p-3 md:p-5 md:bg-card/80 md:border md:border-border md:rounded-2xl md:shadow-2xl overflow-hidden">
+            {/* 메시지 */}
+            <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto space-y-2 px-1">
+              {messages.length === 0 ? (
+                <p className="text-muted-foreground/70 text-xs text-center py-4">
+                  …
+                </p>
+              ) : messageList}
+            </div>
 
-          {/* 입력창 — 하단 고정 */}
-          <div className="shrink-0 flex flex-col gap-2">
-            {inputForm}
+            {/* 입력창 + 비우기 버튼 */}
+            <div className="shrink-0 flex flex-col gap-1.5">
+              {inputForm}
+              {messages.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearConversation}
+                  className="text-[10px] text-muted-foreground/60 hover:text-muted-foreground self-end"
+                  title="채팅창 비우기 (기억은 유지)"
+                >
+                  대화창 비우기
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
