@@ -536,6 +536,8 @@ function buildDakotaTools(req: Request) {
       },
     }),
 
+    web_search: anthropic.tools.webSearch_20250305({ maxUses: 5 }),
+
     askOpDB: tool({
       description:
         "Op DB(Clinicus agent)에게 환자 케이스 요약을 물어봅니다. 센터장님이 '환자', '수술', '케이스', 'PROM' 등을 언급하면 호출하세요. 누적 환자 수와 최근 1주일 새 케이스 수를 반환합니다.",
