@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, type FormEvent } from "react"
+import { createPortal } from "react-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useChat } from "@ai-sdk/react"
 import { TextStreamChatTransport } from "ai"
@@ -224,38 +225,37 @@ function DakotaGreetingChat({
     </>
   )
 
-  // ─── Focused overlay ──────────────────────────────────────
-  if (focused) {
-    return (
-      <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm animate-fade-in-up">
-        <div className="h-full max-w-5xl mx-auto flex flex-col md:flex-row p-3 md:p-6 gap-4 md:gap-6">
-          {/* Dakota 캐릭터 — 크게, 클릭해서 나가기 */}
+  // ─── Focused overlay (portal to body to escape transformed ancestors) ──
+  const focusedOverlay = focused ? (
+    <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm overflow-hidden">
+        <div className="h-full max-w-5xl mx-auto flex flex-col md:flex-row p-3 md:p-6 gap-3 md:gap-6 overflow-hidden">
+          {/* Dakota 캐릭터 — 데스크탑: 세로 고정; 모바일: 작게 */}
           <div className="shrink-0 flex md:block justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={image}
               alt="Dakota"
               onClick={() => setFocused(false)}
-              className="w-40 md:w-64 h-auto object-contain select-none cursor-pointer hover:opacity-90 transition-opacity"
+              className="w-24 md:w-60 h-auto object-contain select-none cursor-pointer hover:opacity-90 transition-opacity"
               draggable={false}
               title="클릭해서 원래 크기로"
             />
           </div>
 
           {/* 대화 영역 */}
-          <div className="flex-1 min-w-0 flex flex-col gap-3 overflow-hidden">
-            <div className="relative bg-card border border-border rounded-2xl rounded-tl-sm px-5 py-4 shadow-lg shrink-0">
+          <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-2 md:gap-3">
+            <div className="relative bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-2.5 md:px-5 md:py-3 shadow-lg shrink-0">
               <span aria-hidden className="absolute -left-2 top-3 w-3 h-3 rotate-45 bg-card border-l border-t border-border" />
-              <h2 className="text-base md:text-lg font-semibold text-foreground tracking-tight">
+              <h2 className="text-sm md:text-base font-semibold text-foreground tracking-tight">
                 {greeting}
               </h2>
-              <div className="mt-1"><WeatherInline /></div>
-              <p className="text-muted-foreground text-xs md:text-sm mt-1">
+              <div className="mt-0.5"><WeatherInline /></div>
+              <p className="text-muted-foreground text-[11px] md:text-xs mt-0.5">
                 {dateStr}{weatherLocation && <span className="ml-2 text-muted-foreground/70">· {weatherLocation}</span>}
               </p>
             </div>
 
-            <div ref={scrollRef} className="flex-1 min-h-[480px] overflow-y-auto space-y-2 pr-1">
+            <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
               {messages.length === 0 ? (
                 <p className="text-muted-foreground/70 text-xs text-center py-8">
                   Dakota에게 말 걸어보세요…
@@ -279,12 +279,12 @@ function DakotaGreetingChat({
           ✕
         </button>
       </div>
-    )
-  }
+    ) : null
 
   // ─── Normal inline mode ────────────────────────────────────
   return (
     <div className="pt-2 md:pt-4 space-y-3">
+      {typeof document !== "undefined" && focusedOverlay && createPortal(focusedOverlay, document.body)}
       {/* 상단: 캐릭터 + 인사 말풍선 */}
       <div className="flex items-start gap-3 md:gap-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}
