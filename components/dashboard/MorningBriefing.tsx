@@ -205,13 +205,20 @@ function DakotaGreetingChat({
           오류: {error.message || "응답을 가져오지 못했습니다."}
         </div>
       )}
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
+      <form onSubmit={handleSubmit} className="flex gap-2 items-end">
+        <textarea
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          placeholder="Dakota에게 말 걸어보세요…"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault()
+              handleSubmit(e as unknown as FormEvent)
+            }
+          }}
+          placeholder="Dakota에게 말 걸어보세요… (Shift+Enter 줄바꿈)"
+          rows={1}
           style={{ fontSize: "16px" }}
-          className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-600"
+          className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-600 resize-none max-h-32 leading-snug"
         />
         <button
           type="submit"
