@@ -165,7 +165,7 @@ function DakotaGreetingChat({
         return (
           <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
-              className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed shadow-sm ${
+              className={`max-w-[85%] rounded-2xl px-3 py-1.5 text-[13px] leading-relaxed shadow-sm ${
                 m.role === "user"
                   ? "bg-blue-600 text-white rounded-br-sm"
                   : "bg-card border border-border text-foreground rounded-tl-sm"
@@ -255,9 +255,9 @@ function DakotaGreetingChat({
               </p>
             </div>
 
-            <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
+            <div ref={scrollRef} className="flex-1 min-h-[480px] overflow-y-auto space-y-2 pr-1">
               {messages.length === 0 ? (
-                <p className="text-muted-foreground/70 text-sm text-center py-8">
+                <p className="text-muted-foreground/70 text-xs text-center py-8">
                   Dakota에게 말 걸어보세요…
                 </p>
               ) : messageList}
