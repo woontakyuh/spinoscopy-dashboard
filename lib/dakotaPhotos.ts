@@ -93,8 +93,20 @@ function getOutfitsForSlot(mode: DakotaMode, slot: DakotaSlot): string[] {
   return (map?.[slot as string] ?? []) as string[]
 }
 
-/** 같은 날엔 한 outfit 안에서 같은 variant만 등장 */
-export function pickDakotaPhoto(mode: DakotaMode, slot: DakotaSlot, dateKey: string): string {
+/**
+ * 같은 날엔 한 outfit 안에서 같은 variant만 등장.
+ * 풀 크기가 크면 슬롯 안에서도 시간대별로 회전.
+ *  - 11장+ : 15분마다
+ *  - 6~10장: 30분마다
+ *  - 3~5장 : 60분마다
+ *  - 1~2장 : 슬롯 내내 고정
+ */
+export function pickDakotaPhoto(
+  mode: DakotaMode,
+  slot: DakotaSlot,
+  dateKey: string,
+  now: Date = new Date()
+): string {
   const m = (manifest as unknown as ManifestShape).outfits ?? {}
   const outfits = getOutfitsForSlot(mode, slot)
 
@@ -112,8 +124,18 @@ export function pickDakotaPhoto(mode: DakotaMode, slot: DakotaSlot, dateKey: str
 
   if (candidates.length === 0) return FALLBACKS[slot] ?? "/dakota-morning.png"
 
-  // 2) 슬롯+날짜 시드로 최종 1장 픽
-  const idx = hashString(`${dateKey}-${mode}-${slot}`) % candidates.length
+  // 2) 풀 크기에 따라 시간 bucket 결정 (분 단위)
+  let bucketMinutes: number
+  if (candidates.length >= 11) bucketMinutes = 15
+  else if (candidates.length >= 6) bucketMinutes = 30
+  else if (candidates.length >= 3) bucketMinutes = 60
+  else bucketMinutes = 24 * 60 // 사실상 슬롯 내내 고정
+
+  const minutes = getSeoulMinutes(now)
+  const bucket = Math.floor(minutes / bucketMinutes)
+
+  // 3) (날짜 + slot + bucket) 시드로 최종 1장 픽
+  const idx = hashString(`${dateKey}-${mode}-${slot}-${bucket}`) % candidates.length
   return candidates[idx]
 }
 

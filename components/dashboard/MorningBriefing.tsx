@@ -452,6 +452,13 @@ function useDakotaGreeting(): string {
 }
 
 function useDakotaImage(): { image: string; mode: DakotaMode; setMode: (m: DakotaMode) => void } {
+  // 5분마다 tick → 시간 bucket 회전 트리거
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 5 * 60 * 1000)
+    return () => clearInterval(id)
+  }, [])
+
   const now = new Date()
   const dateKey = dateKeySeoul(now)
   const [mode, setModeState] = useState<DakotaMode>(() => defaultWorkdayMode(now))
@@ -469,9 +476,10 @@ function useDakotaImage(): { image: string; mode: DakotaMode; setMode: (m: Dakot
     try { localStorage.setItem(workdayOverrideKey(dateKey), next) } catch {}
   }
 
-  // mode에 따라 슬롯 정의가 달라짐 (work=7개, off=4개)
   const slot = getSlot(now, mode)
-  const image = pickDakotaPhoto(mode, slot, dateKey)
+  // tick은 dependency로 사용해 매 interval마다 재계산
+  void tick
+  const image = pickDakotaPhoto(mode, slot, dateKey, now)
   return { image, mode, setMode }
 }
 
