@@ -236,31 +236,20 @@ function DakotaGreetingChat({
   const focusedOverlay = focused ? (
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm overflow-hidden flex items-center justify-center p-3 md:p-6">
         <div className="h-[66vh] w-full max-w-3xl bg-card/80 border border-border rounded-2xl shadow-2xl flex flex-col gap-2 md:gap-3 p-3 md:p-5 overflow-hidden">
-          {/* 1) 인사 말풍선 — 사진 위 */}
-          <div className="relative bg-card border border-border rounded-2xl px-4 py-2.5 md:px-5 md:py-3 shadow-lg shrink-0">
-            <h2 className="text-sm md:text-base font-semibold text-foreground tracking-tight">
-              {greeting}
-            </h2>
-            <div className="mt-0.5"><WeatherInline /></div>
-            <p className="text-muted-foreground text-[11px] md:text-xs mt-0.5">
-              {dateStr}{weatherLocation && <span className="ml-2 text-muted-foreground/70">· {weatherLocation}</span>}
-            </p>
-          </div>
-
-          {/* 2) Dakota 캐릭터 — 가운데 */}
+          {/* Dakota 캐릭터 — 상단 가운데 */}
           <div className="shrink-0 flex justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={image}
               alt="Dakota"
               onClick={() => setFocused(false)}
-              className="h-[28vh] md:h-[32vh] w-auto object-contain select-none cursor-pointer hover:opacity-90 transition-opacity"
+              className="h-[32vh] md:h-[36vh] w-auto object-contain select-none cursor-pointer hover:opacity-90 transition-opacity"
               draggable={false}
               title="클릭해서 원래 크기로"
             />
           </div>
 
-          {/* 3) 채팅 메시지 — 사진 아래 남은 공간 */}
+          {/* 채팅 메시지 — 사진 아래 남은 공간 */}
           <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto space-y-2 px-1">
             {messages.length === 0 ? (
               <p className="text-muted-foreground/70 text-xs text-center py-4">
@@ -269,7 +258,7 @@ function DakotaGreetingChat({
             ) : messageList}
           </div>
 
-          {/* 4) 입력창 — 하단 고정 */}
+          {/* 입력창 — 하단 고정 */}
           <div className="shrink-0 flex flex-col gap-2">
             {inputForm}
           </div>
