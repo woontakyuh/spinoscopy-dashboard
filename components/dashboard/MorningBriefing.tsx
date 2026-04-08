@@ -293,14 +293,14 @@ function DakotaGreetingChat({
     <div className="pt-2 md:pt-4 flex items-start gap-3 md:gap-4">
       {typeof document !== "undefined" && focusedOverlay && createPortal(focusedOverlay, document.body)}
 
-      {/* 좌측: 캐릭터 — 우측 컬럼 높이에 맞춰 키움 */}
+      {/* 좌측: 캐릭터 — 자연 비율로 (전신 사진은 길게) */}
       <div className="flex flex-col items-center shrink-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={image}
           alt="Dakota"
           onClick={() => setFocused(true)}
-          className="h-[320px] md:h-[400px] w-auto max-w-[140px] md:max-w-[200px] object-contain select-none cursor-pointer hover:opacity-90 transition-opacity"
+          className="w-32 md:w-44 h-auto object-contain select-none cursor-pointer hover:opacity-90 transition-opacity"
           draggable={false}
           title="클릭해서 대화 집중 모드"
         />
@@ -322,8 +322,8 @@ function DakotaGreetingChat({
         </div>
       </div>
 
-      {/* 우측: 인사 말풍선 + 대화 + 입력창 모두 세로로 */}
-      <div className="relative flex-1 min-w-0 mt-2 flex flex-col gap-3">
+      {/* 우측: 인사 말풍선 + 대화 + 입력창 — 자체 고정 높이, 사진은 자유롭게 길어짐 */}
+      <div className="relative flex-1 min-w-0 flex flex-col gap-3">
         <div className="relative bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 md:px-5 md:py-3 shadow-lg shrink-0">
           <span aria-hidden className="absolute -left-2 top-3 w-3 h-3 rotate-45 bg-card border-l border-t border-border" />
           <h2 className="text-base md:text-lg font-semibold text-foreground tracking-tight">
