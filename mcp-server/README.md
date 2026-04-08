@@ -1,0 +1,120 @@
+# Dakota MCP Server
+
+Exposes Dakota's persona, memory, and tools to any MCP client (Claude Desktop, Claude Code CLI, etc.) backed by the same Notion DBs and DAKOTA.md the web dashboard uses.
+
+**Single source of truth** — anything you save in Claude Desktop appears in the web dashboard, and vice versa.
+
+## What it provides
+
+### Resources
+- `dakota://persona` — DAKOTA.md content (immutable identity)
+- `dakota://memory-digest` — top facts from Dakota Memory DB
+
+### Tools
+- `list_memories`, `add_memory`, `update_memory`
+- `list_todos`, `add_todo`, `update_todo`
+- `list_schedules` (Notion + GCal merged), `create_schedule`
+- `ask_brian`, `ask_opdb` (orchestration shortcuts)
+
+## Setup
+
+### 1. Install (one-time)
+The repo already has `@modelcontextprotocol/sdk` installed. Just make sure dependencies are up to date:
+```
+npm install
+```
+
+### 2. Verify .env.local
+The MCP server reads `.env.local` from the repo root. Required keys:
+```
+NOTION_TOKEN=...
+NOTION_DAKOTA_MEMORY_DB_ID=...
+NOTION_TODO_DB_ID=...
+NOTION_SCHEDULE_DB_ID=...
+NOTION_JOURNAL_DB_ID=...        # (for ask_brian)
+NOTION_PATIENT_DB_ID=...        # (for ask_opdb)
+```
+Google Calendar (optional, for GCal merge in list_schedules):
+```
+GOOGLE_CREDENTIALS={...}
+GOOGLE_TOKEN={...}
+```
+
+### 3. Test locally
+```
+npx tsx mcp-server/index.ts
+```
+You should see `[dakota-mcp] connected via stdio` and the process waits for input. Hit Ctrl+C to exit.
+
+### 4. Register in Claude Desktop
+
+Open `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) and add:
+
+```json
+{
+  "mcpServers": {
+    "dakota": {
+      "command": "npx",
+      "args": [
+        "tsx",
+        "/Users/TakMD/workspace/spinoscopy-dashboard/mcp-server/index.ts"
+      ]
+    }
+  }
+}
+```
+
+(Adjust the absolute path to where the repo lives on your machine.)
+
+Restart Claude Desktop. You should see `dakota` listed in the bottom-right MCP indicator.
+
+### 5. Use in Claude Desktop
+
+#### Option A — Quick (manual)
+Start a new conversation and say:
+> Read the dakota://persona resource and follow it. Use the dakota://memory-digest resource to know about me.
+
+Claude will fetch both resources and start acting as Dakota.
+
+#### Option B — Project (recommended for daily use)
+1. Open Claude Desktop → Projects → New Project named "Dakota"
+2. Set Project Instructions:
+   ```
+   You are Dakota. Always read the dakota://persona MCP resource at
+   the start of every conversation and follow it strictly. Also read
+   dakota://memory-digest for current context. Use the available
+   tools (add_memory, list_todos, etc.) to manage Tak's data.
+   ```
+3. All conversations inside this project = Dakota
+
+### 6. Use in Claude Code CLI
+
+Add to `~/.claude.json` (or wherever your Claude Code MCP config lives):
+```json
+{
+  "mcpServers": {
+    "dakota": {
+      "command": "npx",
+      "args": ["tsx", "/Users/TakMD/workspace/spinoscopy-dashboard/mcp-server/index.ts"]
+    }
+  }
+}
+```
+
+## Architecture
+
+```
+DAKOTA.md (git)              ← immutable persona
+       ↓
+       ├──→ Web dashboard (Vercel)  ─┐
+       │                               │
+       └──→ Dakota MCP Server          ├─→ Notion DBs (single source of truth)
+              ↓                        │     - Dakota Memory
+              ├──→ Claude Desktop      │     - Todo
+              ├──→ Claude Code CLI     │     - Schedule
+              └──→ Other MCP clients   │     - Journal / Research / Patients
+                                       ─┘
+                                       └─→ Google Calendar
+```
+
+Same persona, same memory, same actions — whichever channel you use.
