@@ -3,8 +3,8 @@ import { streamText, stepCountIs, tool } from "ai"
 import { z } from "zod"
 import { readFileSync, existsSync } from "node:fs"
 import path from "node:path"
-import { getAllTodos } from "@/lib/notion/todo"
-import { getUpcomingSchedules, getSchedulesRichInRange } from "@/lib/notion/schedule"
+import { getAllTodos, createTodo, updateTodo, deleteTodo } from "@/lib/notion/todo"
+import { getUpcomingSchedules, getSchedulesRichInRange, createSchedule } from "@/lib/notion/schedule"
 import {
   getMemoryDigest,
   createMemory,
@@ -286,6 +286,89 @@ function buildDakotaTools(req: Request) {
         } catch (e) {
           return { error: e instanceof Error ? e.message : "unknown" }
         }
+      },
+    }),
+
+    add_todo: tool({
+      description:
+        "센터장님의 Notion Todo DB에 새 할 일을 추가합니다. 사용자가 '할 일 추가해줘' 또는 명확히 새 task를 요청할 때 호출.",
+      inputSchema: z.object({
+        name: z.string().min(1).max(200).describe("할 일 제목"),
+        due: z.string().optional().describe("마감일 YYYY-MM-DD"),
+        priority: z.enum(["High", "Medium", "Low"]).optional().describe("기본 Medium"),
+        category: z.string().optional().describe("일상업무, 가족, 학회, 연구, 임상, AI 등"),
+        notes: z.string().optional(),
+      }),
+      execute: async ({ name, due, priority, category, notes }) => {
+        const result = await createTodo({ name, due, priority, category, notes })
+        return { ok: true, page_id: result.page_id, url: result.url }
+      },
+    }),
+
+    update_todo: tool({
+      description:
+        "기존 할 일을 수정합니다. 이름·마감일·상태·우선순위·카테고리 변경 가능. 완료 처리는 status='Done'.",
+      inputSchema: z.object({
+        page_id: z.string().describe("할 일 page_id (먼저 searchTodos로 찾기)"),
+        name: z.string().optional(),
+        due: z.union([z.string(), z.null()]).optional().describe("YYYY-MM-DD 또는 null로 지움"),
+        status: z.string().optional().describe("To Do, In Progress, Done 등"),
+        priority: z.enum(["High", "Medium", "Low"]).optional(),
+        category: z.string().optional(),
+        notes: z.string().optional(),
+      }),
+      execute: async (input) => {
+        await updateTodo(input.page_id, {
+          name: input.name,
+          due: input.due,
+          status: input.status,
+          priority: input.priority,
+          category: input.category,
+          notes: input.notes,
+        })
+        return { ok: true }
+      },
+    }),
+
+    delete_todo: tool({
+      description: "할 일을 archive 처리 (완전 삭제 아닌 보관)",
+      inputSchema: z.object({ page_id: z.string() }),
+      execute: async ({ page_id }) => {
+        await deleteTodo(page_id)
+        return { ok: true }
+      },
+    }),
+
+    create_schedule: tool({
+      description:
+        "Notion Schedule DB에 새 일정을 생성하고, 옵션으로 Google Calendar에도 동기화. 학회·발표·미팅·약속 등 추가에 사용.",
+      inputSchema: z.object({
+        name: z.string().min(1).describe("일정 이름"),
+        date_start: z.string().describe("시작일 YYYY-MM-DD 또는 ISO 시간"),
+        date_end: z.string().optional().describe("종료일 YYYY-MM-DD"),
+        place: z.string().optional(),
+        category: z.string().optional().describe("학회, 회의, 강의 등"),
+        topic: z.string().optional().describe("발표 주제 등"),
+        link: z.string().optional(),
+        abstract_deadline: z.string().optional(),
+        targets: z
+          .array(z.enum(["notion", "gcal"]))
+          .optional()
+          .describe("기본 ['notion','gcal']"),
+      }),
+      execute: async (input) => {
+        const result = await createSchedule({
+          name: input.name,
+          date_start: input.date_start,
+          date_end: input.date_end,
+          place: input.place,
+          category: input.category,
+          topic: input.topic,
+          link: input.link,
+          abstract_deadline: input.abstract_deadline,
+          targets: input.targets ?? ["notion", "gcal"],
+        })
+        return { ok: true, ...result }
       },
     }),
 
