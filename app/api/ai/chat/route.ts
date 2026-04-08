@@ -17,6 +17,7 @@ import { getJournalStats } from "@/lib/notion/journal"
 import { getAllPatientRows } from "@/lib/notion/analytics"
 import {
   listGoogleCalendarEventsForRange,
+  createGoogleCalendarEvent,
   updateGoogleCalendarEvent,
   deleteGoogleCalendarEvent,
 } from "@/lib/google/calendar"
@@ -416,34 +417,56 @@ function buildDakotaTools(req: Request) {
 
     create_schedule: tool({
       description:
-        "Notion Schedule DB에 새 일정을 생성하고, 옵션으로 Google Calendar에도 동기화. 학회·발표·미팅·약속 등 추가에 사용.",
+        "일정을 생성합니다. targets로 어디에 만들지 지정 — ['notion'] / ['gcal'] / ['notion','gcal'] 중 선택. 학회·발표·미팅·약속 등 추가에 사용.",
       inputSchema: z.object({
         name: z.string().min(1).describe("일정 이름"),
         date_start: z.string().describe("시작일 YYYY-MM-DD 또는 ISO 시간"),
         date_end: z.string().optional().describe("종료일 YYYY-MM-DD"),
         place: z.string().optional(),
-        category: z.string().optional().describe("학회, 회의, 강의 등"),
-        topic: z.string().optional().describe("발표 주제 등"),
+        category: z.string().optional().describe("학회, 회의, 강의 등 (Notion 전용)"),
+        topic: z.string().optional().describe("발표 주제 (Notion 전용)"),
         link: z.string().optional(),
-        abstract_deadline: z.string().optional(),
         targets: z
           .array(z.enum(["notion", "gcal"]))
           .optional()
-          .describe("기본 ['notion','gcal']"),
+          .describe("기본 ['notion','gcal']. GCal 단독: ['gcal']. Notion 단독: ['notion']"),
       }),
       execute: async (input) => {
-        const result = await createSchedule({
-          name: input.name,
-          date_start: input.date_start,
-          date_end: input.date_end,
-          place: input.place,
-          category: input.category,
-          topic: input.topic,
-          link: input.link,
-          abstract_deadline: input.abstract_deadline,
-          targets: input.targets ?? ["notion", "gcal"],
-        })
-        return { ok: true, ...result }
+        const targets = input.targets ?? ["notion", "gcal"]
+        const out: Record<string, unknown> = {}
+
+        if (targets.includes("notion")) {
+          try {
+            const r = await createSchedule({
+              name: input.name,
+              date_start: input.date_start,
+              date_end: input.date_end,
+              place: input.place,
+              category: input.category,
+              topic: input.topic,
+              link: input.link,
+            })
+            out.notion = { ok: true, ...r }
+          } catch (e) {
+            out.notion = { ok: false, error: e instanceof Error ? e.message : "fail" }
+          }
+        }
+
+        if (targets.includes("gcal")) {
+          try {
+            const r = await createGoogleCalendarEvent({
+              name: input.name,
+              date_start: input.date_start,
+              date_end: input.date_end,
+              place: input.place,
+            })
+            out.gcal = r
+          } catch (e) {
+            out.gcal = { success: false, message: e instanceof Error ? e.message : "fail" }
+          }
+        }
+
+        return out
       },
     }),
 

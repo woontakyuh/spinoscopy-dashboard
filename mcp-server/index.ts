@@ -33,6 +33,7 @@ import {
 } from "../lib/notion/schedule.js"
 import {
   listGoogleCalendarEventsForRange,
+  createGoogleCalendarEvent,
   updateGoogleCalendarEvent,
   deleteGoogleCalendarEvent,
 } from "../lib/google/calendar.js"
@@ -453,15 +454,35 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         break
       }
       case "create_schedule": {
-        const created = await createSchedule({
-          name: args.name as string,
-          date_start: args.date_start as string,
-          date_end: args.date_end as string | undefined,
-          place: args.place as string | undefined,
-          category: args.category as string | undefined,
-          targets: (args.targets as ("notion" | "gcal")[] | undefined) ?? ["notion"],
-        })
-        result = { ok: true, ...created }
+        const targets = (args.targets as ("notion" | "gcal")[] | undefined) ?? ["notion", "gcal"]
+        const out: Record<string, unknown> = {}
+        if (targets.includes("notion")) {
+          try {
+            const r = await createSchedule({
+              name: args.name as string,
+              date_start: args.date_start as string,
+              date_end: args.date_end as string | undefined,
+              place: args.place as string | undefined,
+              category: args.category as string | undefined,
+            })
+            out.notion = { ok: true, ...r }
+          } catch (e) {
+            out.notion = { ok: false, error: e instanceof Error ? e.message : "fail" }
+          }
+        }
+        if (targets.includes("gcal")) {
+          try {
+            out.gcal = await createGoogleCalendarEvent({
+              name: args.name as string,
+              date_start: args.date_start as string,
+              date_end: args.date_end as string | undefined,
+              place: args.place as string | undefined,
+            })
+          } catch (e) {
+            out.gcal = { success: false, message: e instanceof Error ? e.message : "fail" }
+          }
+        }
+        result = out
         break
       }
 
