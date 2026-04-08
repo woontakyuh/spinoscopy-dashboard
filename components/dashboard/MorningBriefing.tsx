@@ -210,7 +210,8 @@ function DakotaGreetingChat({
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           placeholder="Dakota에게 말 걸어보세요…"
-          className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-600"
+          style={{ fontSize: "16px" }}
+          className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-600"
         />
         <button
           type="submit"
