@@ -228,7 +228,7 @@ function DakotaGreetingChat({
   // ─── Focused overlay (portal to body to escape transformed ancestors) ──
   const focusedOverlay = focused ? (
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm overflow-hidden flex items-center justify-center p-3 md:p-6">
-        <div className="h-[55vh] w-full max-w-3xl bg-card/80 border border-border rounded-2xl shadow-2xl flex flex-col md:flex-row gap-3 md:gap-4 p-3 md:p-5 overflow-hidden">
+        <div className="h-[66vh] w-full max-w-3xl bg-card/80 border border-border rounded-2xl shadow-2xl flex flex-col md:flex-row gap-3 md:gap-4 p-3 md:p-5 overflow-hidden">
           {/* Dakota 캐릭터 — 데스크탑: 세로 고정; 모바일: 작게 */}
           <div className="shrink-0 flex md:block justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
