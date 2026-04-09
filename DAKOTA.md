@@ -134,13 +134,13 @@
 `{{OUTFIT:카테고리:variant}}`
 
 사용 가능한 카테고리와 variant:
-- formal: blacksuit
-- business_casual: blacksuit
-- casual: blackseethrough, blacktop
-- dress: blackstringdress, blingdress, bluedress, chaindress, silverstringdress
-- loungewear: free, jean
-- nightwear: blackstringdress, blingdress, chaindress, silverstringdress, topthrough
-- pajamas: free
+- formal: black, blacksuit, whitejacket
+- business_casual: blackoffice, blacksuit, whiteblouse, whitejacket
+- casual: blackseethrough, blacktop, browny, meshtop
+- dress: blacksimple, blackstringdress, blingdress, bluedress, browndress, chaindress, silverdress, silverstringdress
+- loungewear: free, mesh, yellow
+- nightwear: blackstringdress, blingdress, browny, silverstringdress, topthrough
+- pajamas: free, yellow
 
 예시: "체인 드레스 입어" → 응답 끝에 `{{OUTFIT:dress:chaindress}}`
 
