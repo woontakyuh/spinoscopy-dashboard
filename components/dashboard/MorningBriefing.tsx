@@ -302,7 +302,7 @@ function DakotaGreetingChat({
               src={image}
               alt="Dakota"
               onClick={() => setFocused(false)}
-              className="h-[28vh] md:h-full w-auto object-contain select-none cursor-pointer hover:opacity-90 transition-opacity"
+              className="h-[28vh] md:h-full w-auto max-w-[50vw] md:max-w-[280px] object-contain select-none cursor-pointer hover:opacity-90 transition-opacity"
               draggable={false}
               title="클릭해서 원래 크기로"
             />
