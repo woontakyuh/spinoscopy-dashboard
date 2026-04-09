@@ -219,10 +219,25 @@ function DakotaGreetingChat({
             e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`
           }}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+            if (e.nativeEvent.isComposing) return
+            if (e.key !== "Enter") return
+            if (e.shiftKey) {
+              // 명시적으로 줄바꿈 삽입 (브라우저 native 동작 fallback)
               e.preventDefault()
-              handleSubmit(e as unknown as FormEvent)
+              const ta = e.currentTarget
+              const start = ta.selectionStart
+              const end = ta.selectionEnd
+              const next = inputValue.slice(0, start) + "\n" + inputValue.slice(end)
+              setInputValue(next)
+              requestAnimationFrame(() => {
+                ta.selectionStart = ta.selectionEnd = start + 1
+                ta.style.height = "auto"
+                ta.style.height = `${Math.min(ta.scrollHeight, 160)}px`
+              })
+              return
             }
+            e.preventDefault()
+            handleSubmit(e as unknown as FormEvent)
           }}
           placeholder=""
           rows={1}
@@ -237,15 +252,6 @@ function DakotaGreetingChat({
           보내기
         </button>
       </form>
-      {messages.length > 0 && (
-        <button
-          type="button"
-          onClick={clearConversation}
-          className="text-[10px] text-muted-foreground/70 hover:text-muted-foreground underline-offset-2 hover:underline self-start"
-        >
-          대화 초기화
-        </button>
-      )}
     </>
   )
 
