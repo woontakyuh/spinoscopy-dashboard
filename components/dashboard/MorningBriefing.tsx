@@ -212,7 +212,12 @@ function DakotaGreetingChat({
       <form onSubmit={handleSubmit} className="flex gap-2 items-end">
         <textarea
           value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
+          onChange={(e) => {
+            setInputValue(e.target.value)
+            // auto-resize
+            e.target.style.height = "auto"
+            e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault()
@@ -222,7 +227,7 @@ function DakotaGreetingChat({
           placeholder=""
           rows={1}
           style={{ fontSize: "16px" }}
-          className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-600 resize-none max-h-32 leading-snug"
+          className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-600 resize-none overflow-y-auto leading-snug"
         />
         <button
           type="submit"
