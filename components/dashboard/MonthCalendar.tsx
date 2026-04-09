@@ -320,10 +320,10 @@ export function MonthCalendar() {
                   key={ei}
                   className={`w-full truncate text-[8px] md:text-[9px] leading-tight px-0.5 rounded-sm mt-px ${
                     ev.source === "gcal"
-                      ? "bg-green-500/20 text-green-300"
+                      ? "bg-green-500/20 text-green-700 dark:text-green-300"
                       : ev.source === "both"
-                        ? "bg-cyan-500/20 text-cyan-300"
-                        : "bg-blue-500/20 text-blue-300"
+                        ? "bg-cyan-500/20 text-cyan-700 dark:text-cyan-300"
+                        : "bg-blue-500/20 text-blue-700 dark:text-blue-300"
                   }`}
                 >
                   {ev.title}
