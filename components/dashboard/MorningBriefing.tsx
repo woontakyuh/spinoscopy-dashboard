@@ -39,10 +39,28 @@ function DakotaGreetingChat({
   const [inputValue, setInputValue] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
 
+  const queryClient = useQueryClient()
+
+  // 클라이언트가 보유한 날씨를 매 메시지에 attach
+  const buildUserContext = () => {
+    const cached = queryClient.getQueriesData<WeatherData>({ queryKey: ["weather"] })
+      .map(([, d]) => d)
+      .find((d) => !!d) as WeatherData | undefined
+    if (!cached?.current) return undefined
+    const c = cached.current
+    return {
+      weatherLocation: cached.location ?? null,
+      weatherSummary: `${c.temp}°C ${c.description}, 체감 ${c.feels_like}°, 최고 ${c.temp_max}° / 최저 ${c.temp_min}°`,
+    }
+  }
+
   const { messages, sendMessage, status, error, setMessages } = useChat({
     transport: new TextStreamChatTransport({
       api: "/api/ai/chat",
-      body: { agentId: "dakota" },
+      body: () => ({
+        agentId: "dakota",
+        userContext: buildUserContext(),
+      }),
     }),
     onError: (err) => {
       console.error("[DakotaChat] error:", err)

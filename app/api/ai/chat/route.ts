@@ -93,30 +93,12 @@ function loadDakotaPersona(): string {
   }
 }
 
-// 센터장님 기본 활동 좌표 (용인). 향후 메모리에서 동적 추출 가능.
-const TAK_LAT = 37.2411
-const TAK_LON = 127.1776
-
-async function fetchWeatherLine(req: Request): Promise<string> {
-  try {
-    const url = new URL(req.url)
-    const weatherUrl = `${url.protocol}//${url.host}/api/weather?lat=${TAK_LAT}&lon=${TAK_LON}`
-    const res = await fetch(weatherUrl)
-    if (!res.ok) return ""
-    const data = (await res.json()) as {
-      location?: string
-      current?: { temp: number; feels_like: number; description: string; temp_min: number; temp_max: number }
-    }
-    if (!data.current) return ""
-    const c = data.current
-    const loc = data.location ?? "용인"
-    return `[현재 날씨 — ${loc}] ${c.temp}°C ${c.description}, 체감 ${c.feels_like}°, 최고 ${c.temp_max}° / 최저 ${c.temp_min}°`
-  } catch {
-    return ""
-  }
+interface UserContext {
+  weatherLocation?: string | null
+  weatherSummary?: string | null  // 클라이언트가 이미 표시 중인 한 줄
 }
 
-async function buildDakotaPrompt(req?: Request): Promise<string> {
+async function buildDakotaPrompt(userContext?: UserContext): Promise<string> {
   const persona = loadDakotaPersona() || `당신은 척추신경외과 전문의 Dr. Woon Tak Yuh의 개인 비서 Dakota입니다. 센터장님이라 부르고, 다정하고 신뢰감 있는 비서 톤으로 한국어로 대화합니다.`
 
   let context = ""
@@ -127,13 +109,17 @@ async function buildDakotaPrompt(req?: Request): Promise<string> {
     in14.setDate(in14.getDate() + 14)
     const in14Str = in14.toLocaleDateString("en-CA")
 
-    const [todos, notionSchedules, gcalEvents, memoryDigest, weatherLine] = await Promise.all([
+    const [todos, notionSchedules, gcalEvents, memoryDigest] = await Promise.all([
       getAllTodos({ status: "active" }).catch(() => []),
       getUpcomingSchedules(14).catch(() => []),
       listGoogleCalendarEventsForRange(today, in14Str).catch(() => []),
       getMemoryDigest(40).catch(() => ""),
-      req ? fetchWeatherLine(req) : Promise.resolve(""),
     ])
+
+    // 클라이언트가 보내준 날씨 한 줄 (이미 대시보드 위젯에 있는 데이터)
+    const weatherLine = userContext?.weatherSummary
+      ? `[현재 날씨 — ${userContext.weatherLocation ?? "현재 위치"}] ${userContext.weatherSummary}`
+      : ""
 
     if (memoryDigest) {
       memoryBlock = `\n\n[Dakota Memory — Notion DB에 저장된 센터장님 사실들. 자연스럽게 활용하되 굳이 언급하지 마세요. 새 사실 발견 시 add_memory 도구로 저장하세요.]\n${memoryDigest}`
@@ -626,11 +612,11 @@ export async function POST(req: Request) {
     )
   }
 
-  const { messages, agentId } = await req.json()
+  const { messages, agentId, userContext } = await req.json()
 
   let systemPrompt: string
   if (agentId === "dakota") {
-    systemPrompt = (await buildDakotaPrompt(req)) + ORCHESTRATOR_BLOCK
+    systemPrompt = (await buildDakotaPrompt(userContext)) + ORCHESTRATOR_BLOCK
   } else {
     systemPrompt = STATIC_PROMPTS[agentId as string] ?? STATIC_PROMPTS.default
   }
