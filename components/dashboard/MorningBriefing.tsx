@@ -16,9 +16,12 @@ import {
   getSlot,
   dateKeySeoul,
   pickDakotaPhoto,
+  pickOverridePhoto,
   defaultWorkdayMode,
   workdayOverrideKey,
+  outfitOverrideKey,
   type DakotaMode,
+  type OutfitOverride,
 } from "@/lib/dakotaPhotos"
 import type { WeatherData } from "@/lib/types/weather"
 
@@ -35,7 +38,7 @@ function DakotaGreetingChat({
   dateStr: string
   weatherLocation: string | null
 }) {
-  const { image, mode, setMode } = useDakotaImage()
+  const { image, mode, setMode, applyOutfitOverride } = useDakotaImage()
   const [inputValue, setInputValue] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -140,6 +143,18 @@ function DakotaGreetingChat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focused])
 
+  // 4) 착장 태그 감지 — Dakota가 {{OUTFIT:category:variant}} 포함하면 즉시 교체
+  useEffect(() => {
+    if (messages.length === 0) return
+    const last = messages[messages.length - 1]
+    if (last.role !== "assistant") return
+    const text = getChatText(last.parts)
+    const match = text.match(/\{\{OUTFIT:(\w+):(\w+)\}\}/)
+    if (match) {
+      applyOutfitOverride(match[1], match[2])
+    }
+  }, [messages, applyOutfitOverride])
+
   // 새 메시지 / focused 전환 시 스크롤을 항상 맨 아래로
   useEffect(() => {
     if (!scrollRef.current) return
@@ -184,7 +199,10 @@ function DakotaGreetingChat({
   const messageList = (
     <>
       {messages.map((m) => {
-        const text = getChatText(m.parts)
+        const rawText = getChatText(m.parts)
+        if (!rawText) return null
+        // {{OUTFIT:...}} 태그 숨김
+        const text = rawText.replace(/\s*\{\{OUTFIT:\w+:\w+\}\}\s*/g, "").trim()
         if (!text) return null
         return (
           <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -483,7 +501,7 @@ function useDakotaGreeting(): string {
   })
 }
 
-function useDakotaImage(): { image: string; mode: DakotaMode; setMode: (m: DakotaMode) => void } {
+function useDakotaImage() {
   // 5분마다 tick → 시간 bucket 회전 트리거
   const [tick, setTick] = useState(0)
   useEffect(() => {
@@ -508,11 +526,35 @@ function useDakotaImage(): { image: string; mode: DakotaMode; setMode: (m: Dakot
     try { localStorage.setItem(workdayOverrideKey(dateKey), next) } catch {}
   }
 
+  const [outfitOverride, setOutfitOverride] = useState<OutfitOverride | null>(null)
+
+  // hydrate outfit override
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(outfitOverrideKey(dateKey))
+      if (raw) setOutfitOverride(JSON.parse(raw))
+    } catch {}
+  }, [dateKey])
+
   const slot = getSlot(now, mode)
-  // tick은 dependency로 사용해 매 interval마다 재계산
   void tick
-  const image = pickDakotaPhoto(mode, slot, dateKey, now)
-  return { image, mode, setMode }
+
+  // override가 있으면 그 variant에서 시간 bucket 회전, 없으면 기본
+  const overridePhoto = outfitOverride ? pickOverridePhoto(outfitOverride, dateKey, now) : null
+  const image = overridePhoto ?? pickDakotaPhoto(mode, slot, dateKey, now)
+
+  function applyOutfitOverride(outfit: string, variant: string) {
+    const o = { outfit, variant }
+    setOutfitOverride(o)
+    try { localStorage.setItem(outfitOverrideKey(dateKey), JSON.stringify(o)) } catch {}
+  }
+
+  function clearOutfitOverride() {
+    setOutfitOverride(null)
+    try { localStorage.removeItem(outfitOverrideKey(dateKey)) } catch {}
+  }
+
+  return { image, mode, setMode, applyOutfitOverride, clearOutfitOverride }
 }
 
 function formatTimeRange(start: string, end: string | null): string {

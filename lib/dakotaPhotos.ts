@@ -162,3 +162,36 @@ export function defaultWorkdayMode(date: Date = new Date()): DakotaMode {
 export function workdayOverrideKey(dateKey: string): string {
   return `dakota-workday-${dateKey}`
 }
+
+export function outfitOverrideKey(dateKey: string): string {
+  return `dakota-outfit-override-${dateKey}`
+}
+
+export interface OutfitOverride {
+  outfit: string
+  variant: string
+}
+
+/** 착장 override — 해당 variant 내 사진들을 시간 bucket으로 돌아가며 픽 */
+export function pickOverridePhoto(
+  override: OutfitOverride,
+  dateKey: string,
+  now: Date = new Date()
+): string | null {
+  const m = (manifest as unknown as ManifestShape).outfits ?? {}
+  const variants = m[override.outfit]
+  if (!variants) return null
+  const files = variants[override.variant]
+  if (!files || files.length === 0) return null
+
+  let bucketMinutes: number
+  if (files.length >= 11) bucketMinutes = 15
+  else if (files.length >= 6) bucketMinutes = 30
+  else if (files.length >= 3) bucketMinutes = 60
+  else bucketMinutes = 24 * 60
+
+  const minutes = getSeoulMinutes(now)
+  const bucket = Math.floor(minutes / bucketMinutes)
+  const idx = hashString(`${dateKey}-override-${override.outfit}-${bucket}`) % files.length
+  return files[idx]
+}
