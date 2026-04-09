@@ -93,7 +93,30 @@ function loadDakotaPersona(): string {
   }
 }
 
-async function buildDakotaPrompt(): Promise<string> {
+// 센터장님 기본 활동 좌표 (용인). 향후 메모리에서 동적 추출 가능.
+const TAK_LAT = 37.2411
+const TAK_LON = 127.1776
+
+async function fetchWeatherLine(req: Request): Promise<string> {
+  try {
+    const url = new URL(req.url)
+    const weatherUrl = `${url.protocol}//${url.host}/api/weather?lat=${TAK_LAT}&lon=${TAK_LON}`
+    const res = await fetch(weatherUrl)
+    if (!res.ok) return ""
+    const data = (await res.json()) as {
+      location?: string
+      current?: { temp: number; feels_like: number; description: string; temp_min: number; temp_max: number }
+    }
+    if (!data.current) return ""
+    const c = data.current
+    const loc = data.location ?? "용인"
+    return `[현재 날씨 — ${loc}] ${c.temp}°C ${c.description}, 체감 ${c.feels_like}°, 최고 ${c.temp_max}° / 최저 ${c.temp_min}°`
+  } catch {
+    return ""
+  }
+}
+
+async function buildDakotaPrompt(req?: Request): Promise<string> {
   const persona = loadDakotaPersona() || `당신은 척추신경외과 전문의 Dr. Woon Tak Yuh의 개인 비서 Dakota입니다. 센터장님이라 부르고, 다정하고 신뢰감 있는 비서 톤으로 한국어로 대화합니다.`
 
   let context = ""
@@ -104,11 +127,12 @@ async function buildDakotaPrompt(): Promise<string> {
     in14.setDate(in14.getDate() + 14)
     const in14Str = in14.toLocaleDateString("en-CA")
 
-    const [todos, notionSchedules, gcalEvents, memoryDigest] = await Promise.all([
+    const [todos, notionSchedules, gcalEvents, memoryDigest, weatherLine] = await Promise.all([
       getAllTodos({ status: "active" }).catch(() => []),
       getUpcomingSchedules(14).catch(() => []),
       listGoogleCalendarEventsForRange(today, in14Str).catch(() => []),
       getMemoryDigest(40).catch(() => ""),
+      req ? fetchWeatherLine(req) : Promise.resolve(""),
     ])
 
     if (memoryDigest) {
@@ -148,7 +172,7 @@ async function buildDakotaPrompt(): Promise<string> {
       return `- ${m.date} ${m.title}${place}${tag}`
     }).join("\n")
 
-    context = `\n\n[현재 시각]\n${fmtKoreaTime()}\n\n[활성 할 일 ${todos.length}건]\n${todoLines || "(없음)"}\n\n[다가오는 일정 14일 (Notion ${notionSchedules.length}건 + GCal ${gcalEvents.length}건)]\n${scheduleLines || "(없음)"}`
+    context = `\n\n[현재 시각]\n${fmtKoreaTime()}${weatherLine ? `\n\n${weatherLine}` : ""}\n\n[활성 할 일 ${todos.length}건]\n${todoLines || "(없음)"}\n\n[다가오는 일정 14일 (Notion ${notionSchedules.length}건 + GCal ${gcalEvents.length}건)]\n${scheduleLines || "(없음)"}`
   } catch {
     context = `\n\n[현재 시각]\n${fmtKoreaTime()}\n(데이터 조회 실패 — 일반 상식 기반으로 답변)`
   }
@@ -606,7 +630,7 @@ export async function POST(req: Request) {
 
   let systemPrompt: string
   if (agentId === "dakota") {
-    systemPrompt = (await buildDakotaPrompt()) + ORCHESTRATOR_BLOCK
+    systemPrompt = (await buildDakotaPrompt(req)) + ORCHESTRATOR_BLOCK
   } else {
     systemPrompt = STATIC_PROMPTS[agentId as string] ?? STATIC_PROMPTS.default
   }
