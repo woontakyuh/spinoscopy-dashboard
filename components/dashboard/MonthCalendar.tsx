@@ -298,7 +298,7 @@ export function MonthCalendar() {
             <button
               key={dateStr}
               onClick={() => setSelectedDate(dateStr)}
-              className={`py-2 flex flex-col items-center justify-center rounded-lg text-sm transition-colors relative
+              className={`p-1 flex flex-col items-start rounded-lg text-sm transition-colors relative min-h-[60px] md:min-h-[72px] overflow-hidden
                 ${isSelected
                   ? "bg-muted ring-1 ring-cyan-500"
                   : "hover:bg-muted/60"
@@ -307,7 +307,7 @@ export function MonthCalendar() {
               `}
             >
               <span
-                className={`
+                className={`text-xs self-end mr-0.5
                   ${isToday ? "font-bold text-cyan-400" : ""}
                   ${dayOfWeek === 0 ? "text-red-400" : dayOfWeek === 6 ? "text-blue-400" : "text-foreground/90"}
                   ${isSelected ? "text-foreground" : ""}
@@ -315,12 +315,22 @@ export function MonthCalendar() {
               >
                 {day}
               </span>
-              {dots.length > 0 && (
-                <div className="flex gap-0.5 mt-0.5">
-                  {dots.map((color, di) => (
-                    <div key={di} className={`w-1 h-1 rounded-full ${color}`} />
-                  ))}
+              {dayEvents.slice(0, 3).map((ev, ei) => (
+                <div
+                  key={ei}
+                  className={`w-full truncate text-[8px] md:text-[9px] leading-tight px-0.5 rounded-sm mt-px ${
+                    ev.source === "gcal"
+                      ? "bg-green-500/20 text-green-300"
+                      : ev.source === "both"
+                        ? "bg-cyan-500/20 text-cyan-300"
+                        : "bg-blue-500/20 text-blue-300"
+                  }`}
+                >
+                  {ev.title}
                 </div>
+              ))}
+              {dayEvents.length > 3 && (
+                <span className="text-[7px] text-muted-foreground mt-px">+{dayEvents.length - 3}</span>
               )}
             </button>
           )
