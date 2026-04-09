@@ -15,6 +15,7 @@ import {
 import { listResearchProjects } from "@/lib/notion/research"
 import { getJournalStats } from "@/lib/notion/journal"
 import { getAllPatientRows } from "@/lib/notion/analytics"
+import { notionRequest } from "@/lib/notion/client"
 import {
   listGoogleCalendarEventsForRange,
   createGoogleCalendarEvent,
@@ -98,6 +99,41 @@ interface UserContext {
   weatherSummary?: string | null  // 클라이언트가 이미 표시 중인 한 줄
 }
 
+interface SurgeryItem { name: string; op_name: string; hospital: string }
+
+async function fetchTodaySurgeries(today: string): Promise<SurgeryItem[]> {
+  try {
+    const dbId = process.env.NOTION_PATIENT_DB_ID
+    if (!dbId) return []
+    const response = await notionRequest<{ results: Array<{ properties: Record<string, unknown> }> }>(
+      `/databases/${dbId}/query`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          filter: { property: "Op Date", date: { equals: today } },
+          sorts: [{ property: "Op Date", direction: "ascending" }],
+          page_size: 20,
+        }),
+      }
+    )
+    return response.results.map((page) => {
+      const p = page.properties as Record<string, { type: string; title?: Array<{ plain_text?: string }>; rich_text?: Array<{ plain_text?: string }>; multi_select?: Array<{ name: string }> }>
+      const getText = (prop: typeof p[string]) => {
+        if (!prop) return ""
+        if (prop.type === "title") return (prop.title ?? []).map((t) => t.plain_text ?? "").join("").trim()
+        if (prop.type === "rich_text") return (prop.rich_text ?? []).map((t) => t.plain_text ?? "").join("").trim()
+        return ""
+      }
+      return {
+        name: getText(p.Name),
+        op_name: getText(p["Op Name"]),
+        hospital: (p.Hospital?.multi_select ?? []).map((o) => o.name).join(", "),
+      }
+    })
+  } catch { return [] }
+}
+
+
 async function buildDakotaPrompt(userContext?: UserContext): Promise<string> {
   const persona = loadDakotaPersona() || `당신은 척추신경외과 전문의 Dr. Woon Tak Yuh의 개인 비서 Dakota입니다. 센터장님이라 부르고, 다정하고 신뢰감 있는 비서 톤으로 한국어로 대화합니다.`
 
@@ -109,11 +145,12 @@ async function buildDakotaPrompt(userContext?: UserContext): Promise<string> {
     in14.setDate(in14.getDate() + 14)
     const in14Str = in14.toLocaleDateString("en-CA")
 
-    const [todos, notionSchedules, gcalEvents, memoryDigest] = await Promise.all([
+    const [todos, notionSchedules, gcalEvents, memoryDigest, todaySurgeries] = await Promise.all([
       getAllTodos({ status: "active" }).catch(() => []),
       getUpcomingSchedules(14).catch(() => []),
       listGoogleCalendarEventsForRange(today, in14Str).catch(() => []),
       getMemoryDigest(40).catch(() => ""),
+      fetchTodaySurgeries(today).catch(() => []),
     ])
 
     // 클라이언트가 보내준 날씨 한 줄 (이미 대시보드 위젯에 있는 데이터)
@@ -158,7 +195,11 @@ async function buildDakotaPrompt(userContext?: UserContext): Promise<string> {
       return `- ${m.date} ${m.title}${place}${tag}`
     }).join("\n")
 
-    context = `\n\n[현재 시각]\n${fmtKoreaTime()}${weatherLine ? `\n\n${weatherLine}` : ""}\n\n[활성 할 일 ${todos.length}건]\n${todoLines || "(없음)"}\n\n[다가오는 일정 14일 (Notion ${notionSchedules.length}건 + GCal ${gcalEvents.length}건)]\n${scheduleLines || "(없음)"}`
+    const surgeryLines = todaySurgeries.length > 0
+      ? todaySurgeries.map((s) => `- ${s.name} — ${s.op_name}${s.hospital ? ` (${s.hospital})` : ""}`).join("\n")
+      : "(없음)"
+
+    context = `\n\n[현재 시각]\n${fmtKoreaTime()}${weatherLine ? `\n\n${weatherLine}` : ""}\n\n[오늘 수술 ${todaySurgeries.length}건]\n${surgeryLines}\n\n[활성 할 일 ${todos.length}건]\n${todoLines || "(없음)"}\n\n[다가오는 일정 14일 (Notion ${notionSchedules.length}건 + GCal ${gcalEvents.length}건)]\n${scheduleLines || "(없음)"}`
   } catch {
     context = `\n\n[현재 시각]\n${fmtKoreaTime()}\n(데이터 조회 실패 — 일반 상식 기반으로 답변)`
   }
