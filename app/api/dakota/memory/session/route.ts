@@ -49,23 +49,31 @@ export async function POST(req: NextRequest) {
       .map((m) => `${m.role === "user" ? "센터장" : "Dakota"}: ${m.content}`)
       .join("\n\n")
 
-    // Notion rich_text 1900자 제한 — 넘으면 잘라냄 (TODO: 분할 저장)
-    const trimmed = transcript.length > 1850
-      ? transcript.slice(0, 1850) + "…(truncated)"
-      : transcript
+    // 1850자 넘으면 여러 row로 분할 저장 (손실 없음)
+    const CHUNK = 1800
+    const chunks: string[] = []
+    for (let i = 0; i < transcript.length; i += CHUNK) {
+      chunks.push(transcript.slice(i, i + CHUNK))
+    }
+    if (chunks.length === 0) chunks.push("")
 
-    const row = await createMemory({
-      name: `[chat ${channel}] ${start.slice(6)}-${end.slice(12)}`.slice(0, 200),
-      category: "fact",
-      content: trimmed,
-      importance: 1, // 디지스트엔 안 들어감, search_memory로만 검색됨
-      source: "session",
-    })
+    const results: Array<{ page_id: string; url: string }> = []
+    for (let i = 0; i < chunks.length; i++) {
+      const suffix = chunks.length > 1 ? ` (${i + 1}/${chunks.length})` : ""
+      const row = await createMemory({
+        name: `[chat ${channel}] ${start.slice(6)}-${end.slice(12)}${suffix}`.slice(0, 200),
+        category: "fact",
+        content: chunks[i],
+        importance: 1,
+        source: "session",
+      })
+      results.push({ page_id: row.page_id, url: row.url })
+    }
 
     return NextResponse.json({
       ok: true,
-      page_id: row.page_id,
-      url: row.url,
+      chunks: results.length,
+      pages: results,
       exchanges: exchanges.length,
     })
   } catch (error) {

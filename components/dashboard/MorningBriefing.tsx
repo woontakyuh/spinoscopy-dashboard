@@ -180,6 +180,38 @@ function DakotaGreetingChat({
     try { localStorage.removeItem("dakota-chat-v1") } catch {}
   }
 
+  // 브라우저 닫기/새로고침 시에도 세션 저장 (beforeunload)
+  useEffect(() => {
+    function saveOnUnload() {
+      const start = sessionStartRef.current
+      if (!start || !focused) return
+      const sessionMessages = messages.slice(start.messageCount)
+      if (sessionMessages.length === 0) return
+      const exchanges = sessionMessages
+        .map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: getChatText(m.parts),
+        }))
+        .filter((m) => m.content.length > 0)
+      if (exchanges.length === 0) return
+      // sendBeacon — 브라우저 닫혀도 전송 보장
+      navigator.sendBeacon(
+        "/api/dakota/memory/session",
+        new Blob(
+          [JSON.stringify({
+            startTime: start.time,
+            endTime: new Date().toISOString(),
+            channel: "dashboard",
+            exchanges,
+          })],
+          { type: "application/json" }
+        )
+      )
+    }
+    window.addEventListener("beforeunload", saveOnUnload)
+    return () => window.removeEventListener("beforeunload", saveOnUnload)
+  }, [focused, messages])
+
   // focus 모드 진입 시 body scroll lock
   useEffect(() => {
     if (!focused) return
