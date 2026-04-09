@@ -508,17 +508,11 @@ async function createQuickSchedule(text: string): Promise<void> {
 }
 
 function useDakotaGreeting(): string {
-  // 다른 컴포넌트가 이미 캐싱한 weather 쿼리를 그대로 가져옴
-  const weatherQuery = useQuery<WeatherData>({
-    queryKey: ["weather"],
-    enabled: false, // 직접 호출 안 함, 캐시만 읽음
-  })
-  // queryKey가 [lat, lon] 까지 포함되므로 prefix 매칭으로 다시 시도
+  // 캐시에서 weather 읽기 (직접 fetch 안 함 — WeatherInline이 이미 fetch)
   const queryClient = useQueryClient()
-  const cached = weatherQuery.data
-    ?? queryClient.getQueriesData<WeatherData>({ queryKey: ["weather"] })
-        .map(([, d]) => d)
-        .find((d) => !!d) as WeatherData | undefined
+  const cached = queryClient.getQueriesData<WeatherData>({ queryKey: ["weather"] })
+    .map(([, d]) => d)
+    .find((d) => !!d) as WeatherData | undefined
 
   const seoul = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }))
   const dateKey = seoul.toLocaleDateString("en-CA")
