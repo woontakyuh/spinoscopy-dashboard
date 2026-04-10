@@ -11,14 +11,16 @@ import { SenseiStats } from "@/components/sensei/SenseiStats"
 import { SenseiStrategy } from "@/components/sensei/SenseiStrategy"
 import { SenseiCompetition } from "@/components/sensei/SenseiCompetition"
 import { SenseiNavMap } from "@/components/sensei/SenseiNavMap"
+import { SenseiCharacterSheet } from "@/components/sensei/SenseiCharacterSheet"
 import type { BjjStats } from "@/lib/types/sensei"
 
-type SenseiTab = "dashboard" | "skilltree" | "journal" | "strategy" | "map" | "competition"
+type SenseiTab = "dashboard" | "skilltree" | "map" | "character" | "journal" | "strategy" | "competition"
 
 const TABS: { id: SenseiTab; label: string; icon: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: "🎯" },
   { id: "skilltree", label: "Skill Tree", icon: "🌳" },
   { id: "map", label: "Map", icon: "🗺️" },
+  { id: "character", label: "Character", icon: "🎮" },
   { id: "journal", label: "Journal", icon: "📓" },
   { id: "strategy", label: "Strategy", icon: "🎯" },
   { id: "competition", label: "Competition", icon: "📅" },
@@ -103,6 +105,7 @@ export default function SenseiPage() {
         )}
 
         {activeTab === "map" && <SenseiNavMap />}
+        {activeTab === "character" && <SenseiCharacterSheet />}
         {activeTab === "strategy" && <SenseiStrategy />}
         {activeTab === "competition" && <SenseiCompetition />}
       </div>
