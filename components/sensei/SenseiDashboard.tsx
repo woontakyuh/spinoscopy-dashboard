@@ -22,8 +22,8 @@ const STAT_BARS: { key: keyof BjjAttributes; name: string; color: string; hex: s
   { key: "guard", name: "Guard", color: "bg-purple-500", hex: "#a855f7" },
   { key: "passing", name: "Passing", color: "bg-green-500", hex: "#22c55e" },
   { key: "control", name: "Control", color: "bg-orange-600", hex: "#ea580c" },
-  { key: "finishing", name: "Finishing", color: "bg-red-500", hex: "#ef4444" },
-  { key: "takedowns", name: "Takedowns", color: "bg-cyan-500", hex: "#06b6d4" },
+  { key: "finishing", name: "Submission", color: "bg-red-500", hex: "#ef4444" },
+  { key: "takedowns", name: "Standing", color: "bg-cyan-500", hex: "#06b6d4" },
   { key: "legLocks", name: "Leg Locks", color: "bg-yellow-500", hex: "#eab308" },
 ]
 
@@ -221,7 +221,7 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
                       <Radar name="Cap" dataKey="cap" stroke={beltHex} strokeWidth={1} strokeDasharray="4 3" fill="none" />
                       <Radar name="Me" dataKey="value" stroke="#f97316" strokeWidth={2} fill="#f97316" fillOpacity={0.2} />
                       {activeCompare && (
-                        <Radar name={activeCompare.name} dataKey="compare" stroke="var(--muted-foreground)" strokeWidth={1.5} fill="none" strokeDasharray="5 3" />
+                        <Radar name={activeCompare.name} dataKey="compare" stroke="#38bdf8" strokeWidth={1.5} fill="none" strokeDasharray="5 3" />
                       )}
                     </RadarChart>
                   </ResponsiveContainer>
@@ -310,9 +310,8 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
                 <button key={a.name} type="button" onClick={() => setCompareArch(isActive ? null : a)}
                   className={`shrink-0 w-24 rounded-xl border p-2 text-center transition-all ${isActive ? "border-orange-500 bg-orange-500/10 ring-1 ring-orange-500/30" : "border-border bg-muted/50 hover:border-foreground/20"}`}
                 >
-                  <div className="text-base">{a.flag}</div>
-                  <p className="text-[10px] font-semibold text-foreground truncate">{a.name}</p>
-                  <p className="text-[8px] text-muted-foreground truncate">{a.playstyle}</p>
+                  <p className="text-xs font-bold text-foreground truncate">{a.name}</p>
+                  <div className="text-[10px] text-muted-foreground">{a.flag} {a.playstyle}</div>
                   <div className="mt-0.5">
                     <span className="text-[9px] font-bold text-amber-500">{calculateOvr(a.stats).ovr}</span>
                     <span className="text-[8px] text-muted-foreground ml-1">{sim}%</span>
