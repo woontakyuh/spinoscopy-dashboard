@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useMemo, useRef, useCallback } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useSenseiData } from "@/lib/sensei/useSenseiData"
-import type { Position, PositionLayer, TransitionType } from "@/lib/types/sensei"
+import type { Position, PositionLayer, TransitionType, SenseiEntry } from "@/lib/types/sensei"
 
 // ─── Colors ─────────────────────────────────────────────────
 const LAYER_COLORS: Record<PositionLayer, string> = {
@@ -77,12 +78,83 @@ const GAME_PLANS = [
 ]
 
 // ─── Component ──────────────────────────────────────────────
+// ─── Training log per-position mapping ──────────────────────
+interface PositionTrainingInfo {
+  count: number
+  lastDate: string | null
+  videos: Array<{ url: string; title?: string }>
+  recentNotes: Array<{ date: string; note: string }>
+}
+
+function buildPositionTrainingMap(
+  entries: SenseiEntry[],
+  positions: Position[]
+): Record<string, PositionTrainingInfo> {
+  const map: Record<string, PositionTrainingInfo> = {}
+
+  // Build lookup: for each position, what strings to match
+  const matchTerms: Record<string, string[]> = {}
+  for (const p of positions) {
+    const terms = [p.id.toLowerCase(), p.name.toLowerCase()]
+    if (p.nameKr) terms.push(p.nameKr.toLowerCase())
+    matchTerms[p.id] = terms
+  }
+
+  for (const entry of entries) {
+    const allTags = [...entry.classTags, ...entry.sparringTags, ...entry.studyTags]
+      .map((t) => t.toLowerCase())
+
+    for (const pos of positions) {
+      const terms = matchTerms[pos.id]
+      const matched = allTags.some((tag) =>
+        terms.some((term) => tag.includes(term) || term.includes(tag))
+      )
+      if (!matched) continue
+
+      if (!map[pos.id]) {
+        map[pos.id] = { count: 0, lastDate: null, videos: [], recentNotes: [] }
+      }
+      const info = map[pos.id]
+      info.count++
+      if (entry.date && (!info.lastDate || entry.date > info.lastDate)) {
+        info.lastDate = entry.date
+      }
+      if (entry.videoUrl && info.videos.length < 3 && !info.videos.some((v) => v.url === entry.videoUrl)) {
+        info.videos.push({ url: entry.videoUrl, title: entry.videoTitle })
+      }
+      if (entry.note && info.recentNotes.length < 2) {
+        info.recentNotes.push({
+          date: entry.date ?? "",
+          note: entry.note.slice(0, 100),
+        })
+      }
+    }
+  }
+  return map
+}
+
 export function SenseiNavMap() {
   const { positions, transitions } = useSenseiData()
   const [selectedPlan, setSelectedPlan] = useState("all")
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null)
   const [ruleSetFilter, setRuleSetFilter] = useState<"all" | "gi" | "nogi">("all")
+
+  // Training Log fetch
+  const { data: trainingEntries } = useQuery<SenseiEntry[]>({
+    queryKey: ["sensei-entries-navmap"],
+    queryFn: async () => {
+      const res = await fetch("/api/notion/sensei")
+      if (!res.ok) throw new Error("training log fetch failed")
+      return res.json()
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const trainingMap = useMemo(
+    () => buildPositionTrainingMap(trainingEntries ?? [], positions),
+    [trainingEntries, positions]
+  )
 
   // Zoom/pan state
   const svgRef = useRef<SVGSVGElement>(null)
@@ -393,6 +465,58 @@ export function SenseiNavMap() {
                 )}
               </div>
             </div>
+
+            {/* Training Log Info */}
+            {(() => {
+              const info = trainingMap[selectedNode.id]
+              if (!info) return (
+                <p className="text-muted-foreground/60 text-[11px]">수업 기록 없음</p>
+              )
+              return (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 text-xs">
+                    <div>
+                      <span className="text-foreground font-semibold">{info.count}</span>
+                      <span className="text-muted-foreground ml-1">세션</span>
+                    </div>
+                    {info.lastDate && (
+                      <div className="text-muted-foreground">
+                        최근 <span className="text-foreground/80">{info.lastDate.slice(5)}</span>
+                      </div>
+                    )}
+                  </div>
+                  {info.videos.length > 0 && (
+                    <div>
+                      <h4 className="text-[10px] text-muted-foreground mb-0.5">영상</h4>
+                      {info.videos.map((v, vi) => (
+                        <a
+                          key={vi}
+                          href={v.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block text-[11px] text-blue-400 hover:text-blue-300 truncate"
+                        >
+                          🎬 {v.title || v.url.slice(0, 40)}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                  {info.recentNotes.length > 0 && (
+                    <div>
+                      <h4 className="text-[10px] text-muted-foreground mb-0.5">최근 노트</h4>
+                      {info.recentNotes.map((n, ni) => (
+                        <div key={ni} className="text-[10px] text-foreground/70 leading-tight mb-1">
+                          <span className="text-muted-foreground">{n.date.slice(5)}</span>{" "}
+                          {n.note}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            <div className="border-t border-border pt-2" />
 
             {outgoing.length > 0 && (
               <div>
