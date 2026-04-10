@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
 } from "recharts"
 import { loadUserProfile } from "@/lib/sensei/userProfile"
-import { ARCHETYPES } from "@/lib/sensei/archetypes"
+import { useSenseiData } from "@/lib/sensei/useSenseiData"
 import type { BjjStats, BjjAttributes, UserProfile } from "@/lib/types/sensei"
 
 const STAT_BARS: { key: keyof BjjAttributes; name: string; color: string }[] = [
@@ -59,10 +59,11 @@ export function SenseiCharacterSheet() {
     },
   })
 
+  const { archetypes } = useSenseiData()
   const arch = useMemo(() => {
     if (!data?.stats?.combined.closestArchetype) return null
-    return ARCHETYPES.find((a) => a.name === data.stats.combined.closestArchetype) ?? null
-  }, [data])
+    return archetypes.find((a) => a.name === data.stats.combined.closestArchetype) ?? null
+  }, [data, archetypes])
 
   if (isLoading || !profile) {
     return <div className="flex justify-center py-20"><span className="text-sm text-muted-foreground animate-pulse">로딩 중...</span></div>

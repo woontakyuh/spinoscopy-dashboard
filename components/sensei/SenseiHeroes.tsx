@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Badge } from "@/components/ui/badge"
-import { ARCHETYPES } from "@/lib/sensei/archetypes"
+import { useSenseiData } from "@/lib/sensei/useSenseiData"
 import { calculateOvr } from "@/lib/sensei/ovr"
 import { RadarChart } from "./RadarChart"
 import { StatBar } from "./StatBar"
@@ -59,10 +59,11 @@ export function SenseiHeroes() {
   })
 
   const myStats = data?.stats ?? null
+  const { archetypes } = useSenseiData()
 
   const filtered = filter === "all"
-    ? ARCHETYPES
-    : ARCHETYPES.filter((a) => a.category === filter)
+    ? archetypes
+    : archetypes.filter((a) => a.category === filter)
 
   return (
     <div className="space-y-4">

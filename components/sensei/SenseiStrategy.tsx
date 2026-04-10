@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { loadMyStrategies, saveMyStrategies, getAllProStrategies } from "@/lib/sensei/strategies"
 import { POSITIONS, getPositionById } from "@/lib/sensei/skillConnections"
+import { useSenseiData } from "@/lib/sensei/useSenseiData"
 import type { Strategy, StrategyStep } from "@/lib/types/sensei"
 import { SenseiHeroes } from "./SenseiHeroes"
 
@@ -14,6 +15,7 @@ const LAYER_COLORS: Record<string, string> = {
   standing: "#06b6d4", guard: "#a855f7", passing: "#22c55e",
   control: "#f97316", submission: "#ef4444", leglock: "#eab308",
 }
+
 
 function posColor(posId: string): string {
   const pos = getPositionById(posId)

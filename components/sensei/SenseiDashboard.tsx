@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
 } from "recharts"
 import { loadUserProfile } from "@/lib/sensei/userProfile"
-import { ARCHETYPES } from "@/lib/sensei/archetypes"
+import { useSenseiData } from "@/lib/sensei/useSenseiData"
 import { BELT_CAPS, PROMOTION_HISTORY } from "@/lib/sensei/stats"
 import type { BjjStats, BjjAttributes, UserProfile } from "@/lib/types/sensei"
 
@@ -82,10 +82,11 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
     setCoachLoading(false)
   }
 
+  const { archetypes } = useSenseiData()
   const arch = useMemo(() => {
     if (!data?.stats?.combined.closestArchetype) return null
-    return ARCHETYPES.find((a) => a.name === data.stats.combined.closestArchetype) ?? null
-  }, [data])
+    return archetypes.find((a) => a.name === data.stats.combined.closestArchetype) ?? null
+  }, [data, archetypes])
 
   if (isLoading || !profile) return <div className="flex justify-center py-20"><span className="text-sm text-muted-foreground animate-pulse">스탯 불러오는 중...</span></div>
   if (error || !data) return <div className="text-center py-20"><p className="text-sm text-red-400">스탯을 불러올 수 없습니다</p></div>

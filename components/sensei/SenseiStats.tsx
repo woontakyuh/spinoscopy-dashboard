@@ -4,7 +4,8 @@ import { useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { RadarChart } from "./RadarChart"
 import { StatBar } from "./StatBar"
-import { POSITIONS, TRANSITIONS, getPositionById, getTransitionsFrom } from "@/lib/sensei/skillConnections"
+import { getPositionById as getPositionByIdFallback, getTransitionsFrom as getTransitionsFromFallback } from "@/lib/sensei/skillConnections"
+import { useSenseiData } from "@/lib/sensei/useSenseiData"
 import { LESSON_VIDEOS } from "@/lib/sensei/lessonVideos"
 import type { Position, LessonVideo, BjjStats, BjjAttributes, BjjStatsSet } from "@/lib/types/sensei"
 
@@ -400,18 +401,22 @@ function isPositionInFilter(pos: Position, filter: LayerFilter): boolean {
 }
 
 function PositionMapView({ positionFreq }: { positionFreq: Record<string, number> }) {
+  const { positions: POSITIONS, transitions: TRANSITIONS } = useSenseiData()
   const [filter, setFilter] = useState<LayerFilter>("all")
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
+  const getPositionById = (id: string) => POSITIONS.find((p) => p.id === id)
+  const getTransitionsFrom = (id: string) => TRANSITIONS.filter((t) => t.from === id)
+
   const visiblePositions = useMemo(
     () => POSITIONS.filter((p) => NODE_XY[p.id] && isPositionInFilter(p, filter)),
-    [filter],
+    [filter, POSITIONS],
   )
   const visibleIds = useMemo(() => new Set(visiblePositions.map((p) => p.id)), [visiblePositions])
 
   const visibleTransitions = useMemo(
     () => TRANSITIONS.filter((t) => visibleIds.has(t.from) && visibleIds.has(t.to) && NODE_XY[t.from] && NODE_XY[t.to]),
-    [visibleIds],
+    [visibleIds, TRANSITIONS],
   )
 
   // Connected set for highlight
@@ -423,18 +428,19 @@ function PositionMapView({ positionFreq }: { positionFreq: Record<string, number
       if (t.to === selectedId) ids.add(t.from)
     }
     return ids
-  }, [selectedId])
+  }, [selectedId, TRANSITIONS])
 
   const connectedEdges = useMemo(() => {
     if (!selectedId) return null
     return new Set(
       TRANSITIONS.filter((t) => t.from === selectedId || t.to === selectedId).map((t) => `${t.from}-${t.to}`)
     )
-  }, [selectedId])
+  }, [selectedId, TRANSITIONS])
 
   const selectedTransitions = useMemo(
     () => (selectedId ? getTransitionsFrom(selectedId) : []),
-    [selectedId],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedId, TRANSITIONS],
   )
 
   // SVG bounds
@@ -682,6 +688,9 @@ function LayerSection({ label, color, children }: { label: string; color: string
 // ─── View 2: Guard Detail ────────────────────────────────────
 
 function GuardDetailView({ positionFreq }: { positionFreq: Record<string, number> }) {
+  const { positions: POSITIONS, transitions: TRANSITIONS } = useSenseiData()
+  const getPositionById = (id: string) => POSITIONS.find((p) => p.id === id)
+  const getTransitionsFrom = (id: string) => TRANSITIONS.filter((t) => t.from === id)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const guards = POSITIONS.filter((p) => p.layer === "guard")
 
@@ -840,6 +849,8 @@ function GuardDetailView({ positionFreq }: { positionFreq: Record<string, number
 // ─── View 3: My Journey ──────────────────────────────────────
 
 function MyJourneyView({ positionFreq }: { positionFreq: Record<string, number> }) {
+  const { positions: POSITIONS, transitions: TRANSITIONS } = useSenseiData()
+  const getPositionById = (id: string) => POSITIONS.find((p) => p.id === id)
   // Sort positions by frequency descending
   const maxFreq = Math.max(1, ...Object.values(positionFreq))
 
@@ -962,6 +973,7 @@ function MyJourneyView({ positionFreq }: { positionFreq: Record<string, number> 
 // ─── View 4: Lesson Map ──────────────────────────────────────
 
 function LessonMapView({ positionFreq }: { positionFreq: Record<string, number> }) {
+  const { positions: POSITIONS } = useSenseiData()
   // Group lessons by category
   const lessonsByCategory: Record<string, { key: string; video: LessonVideo }[]> = {}
   for (const [key, video] of Object.entries(LESSON_VIDEOS)) {
