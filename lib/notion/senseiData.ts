@@ -127,29 +127,24 @@ function parsePosition(p: Record<string, NP>): Position {
 }
 
 // ─── Parse Transitions ────────────────────────────────────
+// DB columns: Name(title), FromPos, ToPos, NameEn, Type, Condition, RuleSet, LessonNumber
 function parseTransition(p: Record<string, NP>): Transition {
-  const typeRaw = txt(p.Type || p.TransitionType).toLowerCase()
+  const typeRaw = sel(p.Type).toLowerCase()
   const type = (["sweep", "pass", "escape", "submission", "transition", "takedown", "guard_pull", "recovery"].includes(typeRaw) ? typeRaw : "transition") as TransitionType
 
   const ruleSetRaw = sel(p.RuleSet).toLowerCase()
   const ruleSet = (ruleSetRaw === "gi" || ruleSetRaw === "nogi" || ruleSetRaw === "common") ? ruleSetRaw as Transition["ruleSet"] : "common"
 
-  let lessonNumber: number | undefined
-  try {
-    const raw = txt(p.LessonNumber)
-    if (raw) lessonNumber = parseInt(raw, 10)
-    if (isNaN(lessonNumber as number)) lessonNumber = undefined
-  } catch { /* ignore */ }
+  const lessonNum = num(p.LessonNumber, 0)
 
   return {
-    from: txt(p.From),
-    to: txt(p.To),
-    action: txt(p.Action),
-    actionEn: txt(p.ActionEn || p.Action_En) || txt(p.Action),
+    from: txt(p.FromPos),
+    to: txt(p.ToPos),
+    action: txt(p.Name),        // Name = 한글 액션명
+    actionEn: txt(p.NameEn) || txt(p.Name),
     condition: txt(p.Condition) || undefined,
     type,
-    lessonNumber,
-    videoUrl: p.VideoURL?.url ?? undefined,
+    lessonNumber: lessonNum > 0 ? lessonNum : undefined,
     ruleSet,
   }
 }
