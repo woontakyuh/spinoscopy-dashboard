@@ -10,13 +10,15 @@ import { SenseiDashboard } from "@/components/sensei/SenseiDashboard"
 import { SenseiStats } from "@/components/sensei/SenseiStats"
 import { SenseiStrategy } from "@/components/sensei/SenseiStrategy"
 import { SenseiCompetition } from "@/components/sensei/SenseiCompetition"
+import { SenseiNavMap } from "@/components/sensei/SenseiNavMap"
 import type { BjjStats } from "@/lib/types/sensei"
 
-type SenseiTab = "dashboard" | "skilltree" | "journal" | "strategy" | "competition"
+type SenseiTab = "dashboard" | "skilltree" | "journal" | "strategy" | "map" | "competition"
 
 const TABS: { id: SenseiTab; label: string; icon: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: "🎯" },
   { id: "skilltree", label: "Skill Tree", icon: "🌳" },
+  { id: "map", label: "Map", icon: "🗺️" },
   { id: "journal", label: "Journal", icon: "📓" },
   { id: "strategy", label: "Strategy", icon: "🎯" },
   { id: "competition", label: "Competition", icon: "📅" },
@@ -81,7 +83,7 @@ export default function SenseiPage() {
       {/* Tab Content */}
       <div className={`${
         activeTab === "dashboard" ? "p-3 md:p-6 max-w-6xl"
-        : activeTab === "strategy" ? "p-3 md:p-6 max-w-7xl"
+        : activeTab === "strategy" || activeTab === "map" ? "p-3 md:p-6 max-w-7xl"
         : "p-3 md:p-6 max-w-5xl"
       } w-full`}>
         <AgentGreeter image="/lo.png" name="Lo" message={message} loading={isLoading} />
@@ -100,6 +102,7 @@ export default function SenseiPage() {
           </div>
         )}
 
+        {activeTab === "map" && <SenseiNavMap />}
         {activeTab === "strategy" && <SenseiStrategy />}
         {activeTab === "competition" && <SenseiCompetition />}
       </div>
