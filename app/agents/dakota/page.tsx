@@ -5,6 +5,7 @@ import { TopBar } from "@/components/layout/TopBar"
 import { AgentGreeter } from "@/components/layout/AgentGreeter"
 import { PresentationList } from "@/components/dakota/PresentationList"
 import { TodoHistory } from "@/components/dakota/TodoHistory"
+import { ConferenceTab } from "@/components/dakota/ConferenceTab"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 interface TodoItem { name: string; due: string | null; status: string; priority: string }
@@ -74,6 +75,7 @@ export default function DakotaPage() {
           <TabsList className="mb-4">
             <TabsTrigger value="history">Todo List</TabsTrigger>
             <TabsTrigger value="presentations">발표 관리</TabsTrigger>
+            <TabsTrigger value="conferences">학회</TabsTrigger>
           </TabsList>
           <TabsContent value="history">
             <TodoHistory />
@@ -85,6 +87,9 @@ export default function DakotaPage() {
               </p>
             </div>
             <PresentationList />
+          </TabsContent>
+          <TabsContent value="conferences">
+            <ConferenceTab />
           </TabsContent>
         </Tabs>
       </div>

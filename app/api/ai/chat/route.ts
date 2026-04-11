@@ -5,6 +5,8 @@ import { readFileSync, existsSync } from "node:fs"
 import path from "node:path"
 import { getAllTodos, createTodo, updateTodo, deleteTodo } from "@/lib/notion/todo"
 import { getUpcomingSchedules, getSchedulesRichInRange, createSchedule, updateSchedule, deleteSchedule } from "@/lib/notion/schedule"
+import { getPresentations } from "@/lib/notion/podium"
+import type { PresentationFilter, AttendanceFilter } from "@/lib/types/presentation"
 import {
   getMemoryDigest,
   createMemory,
@@ -262,6 +264,38 @@ function buildDakotaTools(req: Request) {
             end: e.end,
             location: e.location,
             url: e.url,
+          })),
+        }
+      },
+    }),
+
+    listConferences: tool({
+      description:
+        "학회/컨퍼런스 일정을 조회합니다. 참석 유형(발표/참석/불참/미정)으로 필터링 가능. '다음 발표 일정', '이번 달 학회', '올해 참석한 학회' 등의 질문에 사용하세요.",
+      inputSchema: z.object({
+        time: z.enum(["upcoming", "past"]).optional().describe("upcoming(앞으로) 또는 past(지난). 기본 upcoming"),
+        attendance: z.enum(["all", "발표", "참석", "불참", "미정"]).optional().describe("참석 유형 필터. 기본 all"),
+        society: z.string().optional().describe("학회명 필터 (부분 일치)"),
+      }),
+      execute: async ({ time, attendance, society }) => {
+        const filter: PresentationFilter = {
+          time: time ?? "upcoming",
+          attendance: (attendance ?? "all") as AttendanceFilter,
+          society: society,
+        }
+        const presentations = await getPresentations(filter)
+        return {
+          count: presentations.length,
+          conferences: presentations.slice(0, 20).map((p) => ({
+            name: p.name,
+            date_start: p.date_start,
+            date_end: p.date_end,
+            place: p.place,
+            attendance_type: p.attendance_type || "미정",
+            topic: p.topic || null,
+            society: p.society,
+            abstract_deadline: p.abstract_deadline,
+            link: p.link,
           })),
         }
       },

@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useMemo, useRef, useCallback } from "react"
+import { useState, useMemo, useRef, useCallback, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useSenseiData } from "@/lib/sensei/useSenseiData"
-import type { Position, PositionLayer, TransitionType, SenseiEntry } from "@/lib/types/sensei"
+import { loadMyStrategies } from "@/lib/sensei/strategies"
+import type { Position, PositionLayer, TransitionType, SenseiEntry, BjjStats, Strategy } from "@/lib/types/sensei"
 
 // ─── Colors ─────────────────────────────────────────────────
 const LAYER_COLORS: Record<PositionLayer, string> = {
@@ -24,6 +25,25 @@ const EDGE_COLORS: Record<TransitionType | string, string> = {
   takedown: "#a855f7",
   guard_pull: "#8b5cf6",
   recovery: "#06b6d4",
+}
+
+// ─── Skill Level ────────────────────────────────────────────
+function getSkillLevel(count: number): { level: number; label: string } {
+  if (count === 0) return { level: 0, label: "Locked" }
+  if (count <= 2) return { level: 1, label: "Lv.1" }
+  if (count <= 5) return { level: 2, label: "Lv.2" }
+  if (count <= 10) return { level: 3, label: "Lv.3" }
+  if (count <= 20) return { level: 4, label: "Lv.4" }
+  return { level: 5, label: "Lv.5" }
+}
+
+const SKILL_LEVEL_COLORS: Record<number, string> = {
+  0: "#3f3f46",  // zinc-700 — very dim
+  1: "#a1a1aa",  // zinc-400
+  2: "#22c55e",  // green
+  3: "#3b82f6",  // blue
+  4: "#a855f7",  // purple
+  5: "#f59e0b",  // amber/gold
 }
 
 // ─── Guard family Y offsets (서브행 분리) ────────────────────
@@ -66,8 +86,45 @@ function abbr(pos: Position): string {
   return (pos.nameKr || pos.name).slice(0, 3)
 }
 
+// ─── Tag → Position ID mapping (for skill levels) ──────────
+const TAG_TO_POS_ID: Record<string, string> = {
+  HG: "hg", DHG: "dhg", DLR: "dlr", RDLR: "rdlr", SLX: "slx", XG: "xg",
+  Butterfly: "butterfly", Closed: "closed", Open: "open", Spider: "spider",
+  Lasso: "lasso", "Sit-up": "situp", Lapel: "lapel", Worm: "worm",
+  RWorm: "rworm", Squid: "squid", Octopus: "octopus", Rubber: "rubber",
+  CrabRide: "crabride", Truck: "truck", KShield: "kshield", Waiter: "waiter",
+  KGuard: "kguard", HalfButt: "halfbutt", Bolo: "bolo",
+  KCP: "kcp", Torreando: "torreando", Stack: "smash", Smash: "smash",
+  LegPummel: "legpummel", HalfPass: "halfpass", LongStep: "longstep",
+  Bullfight: "bullfight", HQ: "hq",
+  Mount: "mount_top", "S-Mount": "mount_top", SideCtrl: "side_top",
+  BackTake: "back_top", BackMount: "back_top", KoB: "kob_top",
+  NS: "ns_top", Scarf: "scarf", Turtle: "turtle_top", Crucifix: "crucifix",
+  RNC: "rnc", Anaconda: "anaconda", Darce: "darce", Guillotine: "guillotine",
+  Omo: "omoplata", Triangle: "triangle", ArmB: "armb", Kimura: "kimura",
+  Americana: "americana", BowArrow: "bowarrow", CrossChoke: "crosschoke",
+  Ezekiel: "ezekiel", Baseball: "baseball", NSChoke: "nschoke",
+  ArmTriangle: "armtriangle", Gogoplata: "gogoplata", Wristlock: "wristlock",
+  Takedown: "standing", SingleLeg: "standing", DoubleLeg: "standing",
+  JudoThrow: "standing", Throw: "standing", GPull: "standing",
+  ArmDrag: "armdrag", AnklePick: "standing", WrestleUp: "standing",
+  Bodylock: "standing", InsideTrip: "standing",
+  IHH: "ihh", OHH: "ohh", Estima: "estima", ToeHold: "toehold",
+  KneeBar: "kneebar", SFL: "sfl", "50/50": "5050",
+  Ashi: "ashi", SLAshi: "slashi", Saddle: "saddle", OutAshi: "outashi",
+}
+
+function buildPositionSkillMap(tagFrequencies: Record<string, number>): Record<string, number> {
+  const map: Record<string, number> = {}
+  for (const [tag, count] of Object.entries(tagFrequencies)) {
+    const posId = TAG_TO_POS_ID[tag] ?? tag.toLowerCase()
+    map[posId] = (map[posId] ?? 0) + count
+  }
+  return map
+}
+
 // ─── Game Plans ─────────────────────────────────────────────
-const GAME_PLANS = [
+const BUILTIN_GAME_PLANS = [
   { id: "all", label: "전체", positionIds: [] as string[] },
   { id: "dlr", label: "DLR 게임", positionIds: ["dlr", "rdlr", "standing", "berimbolo", "backtake", "rnc", "open", "kguard", "slx", "butterfly"] },
   { id: "half", label: "하프가드", positionIds: ["hg", "dhg", "kshield", "halfbutt", "waiter", "underhook", "side", "mount", "standing"] },
@@ -83,7 +140,7 @@ interface PositionTrainingInfo {
   count: number
   lastDate: string | null
   videos: Array<{ url: string; title?: string }>
-  recentNotes: Array<{ date: string; note: string; url: string }>
+  recentNotes: Array<{ date: string; note: string }>
 }
 
 function buildPositionTrainingMap(
@@ -126,7 +183,6 @@ function buildPositionTrainingMap(
         info.recentNotes.push({
           date: entry.date ?? "",
           note: entry.note.slice(0, 100),
-          url: entry.url,
         })
       }
     }
@@ -134,12 +190,15 @@ function buildPositionTrainingMap(
   return map
 }
 
+type ColorMode = "layer" | "skill"
+
 export function SenseiNavMap() {
   const { positions, transitions } = useSenseiData()
   const [selectedPlan, setSelectedPlan] = useState("all")
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null)
   const [ruleSetFilter, setRuleSetFilter] = useState<"all" | "gi" | "nogi">("all")
+  const [colorMode, setColorMode] = useState<ColorMode>("layer")
 
   // Training Log fetch
   const { data: trainingEntries } = useQuery<SenseiEntry[]>({
@@ -151,6 +210,39 @@ export function SenseiNavMap() {
     },
     staleTime: 5 * 60 * 1000,
   })
+
+  // Tag frequencies (for skill levels)
+  const { data: statsData } = useQuery<{ stats: BjjStats; tagFrequencies: Record<string, number> }>({
+    queryKey: ["sensei-stats"],
+    queryFn: async () => {
+      const res = await fetch("/api/notion/sensei/stats")
+      if (!res.ok) throw new Error("스탯 조회 실패")
+      return res.json()
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const positionSkillMap = useMemo(
+    () => buildPositionSkillMap(statsData?.tagFrequencies ?? {}),
+    [statsData?.tagFrequencies]
+  )
+
+  // Custom strategies from localStorage
+  const [myStrategies, setMyStrategies] = useState<Strategy[]>([])
+  useEffect(() => {
+    setMyStrategies(loadMyStrategies())
+  }, [])
+
+  // Combined game plans: built-in + custom strategies
+  const GAME_PLANS = useMemo(() => {
+    const customPlans = myStrategies.map((s) => ({
+      id: `strat-${s.id}`,
+      label: s.name,
+      positionIds: s.flow.map((step) => step.positionId),
+      isStrategy: true as const,
+    }))
+    return [...BUILTIN_GAME_PLANS.map((gp) => ({ ...gp, isStrategy: false as const })), ...customPlans]
+  }, [myStrategies])
 
   const trainingMap = useMemo(
     () => buildPositionTrainingMap(trainingEntries ?? [], positions),
@@ -282,15 +374,38 @@ export function SenseiNavMap() {
               onClick={() => { setSelectedPlan(gp.id); setSelectedNodeId(null) }}
               className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
                 selectedPlan === gp.id
-                  ? "bg-orange-600 text-white"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
+                  ? gp.isStrategy ? "bg-purple-600 text-white" : "bg-orange-600 text-white"
+                  : gp.isStrategy
+                    ? "bg-purple-500/10 text-purple-400/80 border border-purple-500/20 hover:text-purple-300"
+                    : "bg-muted text-muted-foreground hover:text-foreground"
               }`}
             >
-              {gp.label}
+              {gp.isStrategy ? `📋 ${gp.label}` : gp.label}
             </button>
           ))}
         </div>
         <div className="ml-auto flex items-center gap-2">
+          {/* Color mode toggle */}
+          <div className="flex gap-0.5 border border-border rounded-md overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setColorMode("layer")}
+              className={`px-2 py-0.5 text-[10px] transition-colors ${
+                colorMode === "layer" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Layer
+            </button>
+            <button
+              type="button"
+              onClick={() => setColorMode("skill")}
+              className={`px-2 py-0.5 text-[10px] transition-colors ${
+                colorMode === "skill" ? "bg-amber-500/20 text-amber-300" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Skill
+            </button>
+          </div>
           <button type="button" onClick={resetZoom} className="text-[10px] text-muted-foreground hover:text-foreground">Reset</button>
           <div className="flex gap-1">
             {(["all", "gi", "nogi"] as const).map((rs) => (
@@ -311,7 +426,25 @@ export function SenseiNavMap() {
         </div>
       </div>
 
-      <div className="flex gap-4 items-start" style={{ minHeight: 550 }}>
+      {/* Skill Level Legend (when skill color mode active) */}
+      {colorMode === "skill" && (
+        <div className="flex items-center gap-3 px-1">
+          <span className="text-[10px] text-muted-foreground">Skill:</span>
+          {[0, 1, 2, 3, 4, 5].map((lv) => (
+            <div key={lv} className="flex items-center gap-1">
+              <div
+                className="w-2.5 h-2.5 rounded-full"
+                style={{ backgroundColor: SKILL_LEVEL_COLORS[lv], opacity: lv === 0 ? 0.3 : 1 }}
+              />
+              <span className="text-[9px] text-muted-foreground">
+                {lv === 0 ? "Locked" : `Lv.${lv}`}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex gap-4 items-start">
         {/* SVG Map */}
         <div className="flex-1 overflow-hidden border border-border rounded-xl bg-card p-1">
           <svg
@@ -393,9 +526,23 @@ export function SenseiNavMap() {
               const isSelected = pos.id === selectedNodeId
               const isHovered = pos.id === hoveredNodeId
               const isActive = isSelected || isHovered
-              const color = LAYER_COLORS[pos.layer]
-              const nodeOpacity = isHighlighted ? 1 : 0.1
-              const r = isActive ? 20 : 16
+
+              // Skill level for this position
+              const skillCount = positionSkillMap[pos.id] ?? 0
+              const { level: skillLevel } = getSkillLevel(skillCount)
+
+              // Color based on mode
+              const layerColor = LAYER_COLORS[pos.layer]
+              const color = colorMode === "skill" ? SKILL_LEVEL_COLORS[skillLevel] : layerColor
+
+              // In skill mode, scale opacity/size by skill level
+              const skillOpacityScale = colorMode === "skill"
+                ? skillLevel === 0 ? 0.15 : 0.3 + skillLevel * 0.14
+                : 1
+              const nodeOpacity = isHighlighted ? skillOpacityScale : 0.1
+              const baseR = colorMode === "skill" ? 12 + skillLevel * 1.6 : 16
+              const r = isActive ? baseR + 4 : baseR
+              const hasSkillGlow = colorMode === "skill" && skillLevel >= 4
 
               return (
                 <g
@@ -407,14 +554,18 @@ export function SenseiNavMap() {
                   className="cursor-pointer"
                   opacity={nodeOpacity}
                 >
+                  {/* Skill glow for Lv4+ */}
+                  {hasSkillGlow && (
+                    <circle r={r + 10} fill={color} fillOpacity={skillLevel === 5 ? 0.15 : 0.08} />
+                  )}
                   {/* Glow for active */}
                   {isActive && <circle r={r + 6} fill={color} fillOpacity={0.12} />}
                   <circle
                     r={r}
                     fill={color}
-                    fillOpacity={isActive ? 0.25 : 0.12}
+                    fillOpacity={isActive ? 0.25 : (colorMode === "skill" && skillLevel === 0 ? 0.05 : 0.12)}
                     stroke={color}
-                    strokeWidth={isActive ? 2.5 : 1.5}
+                    strokeWidth={isActive ? 2.5 : (hasSkillGlow ? 2 : 1.5)}
                   />
                   {/* Abbreviation inside node */}
                   <text
@@ -433,7 +584,7 @@ export function SenseiNavMap() {
                     dy={r + 12}
                     fill="var(--foreground)"
                     fontSize={8}
-                    opacity={isActive ? 0.9 : 0.5}
+                    opacity={isActive ? 0.9 : (colorMode === "skill" && skillLevel === 0 ? 0.2 : 0.5)}
                     fontWeight={isActive ? 600 : 400}
                     style={{ pointerEvents: "none" }}
                   >
@@ -445,16 +596,13 @@ export function SenseiNavMap() {
           </svg>
         </div>
 
-        {/* Detail Panel — 항상 표시, 노드 선택 전엔 안내 */}
-        <div className="w-64 shrink-0 border border-border rounded-xl bg-card p-4 space-y-3 hidden md:block overflow-y-auto" style={{ maxHeight: 550 }}>
-          {!selectedNode ? (
-            <p className="text-muted-foreground/60 text-xs text-center py-8">노드를 클릭하면 상세 정보가 여기에 표시됩니다</p>
-          ) : (
-            <>
+        {/* Detail Panel */}
+        {selectedNode && (
+          <div className="w-64 shrink-0 border border-border rounded-xl bg-card p-4 space-y-3 hidden md:block">
             <div>
               <h3 className="text-foreground font-semibold text-sm">{selectedNode.nameKr}</h3>
               <p className="text-muted-foreground text-xs">{selectedNode.name}</p>
-              <div className="flex items-center gap-1.5 mt-1">
+              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                 <span
                   className="inline-block px-2 py-0.5 rounded text-[10px] font-medium"
                   style={{ backgroundColor: LAYER_COLORS[selectedNode.layer] + "30", color: LAYER_COLORS[selectedNode.layer] }}
@@ -467,6 +615,20 @@ export function SenseiNavMap() {
                 {selectedNode.perspective && (
                   <span className="text-[10px] text-muted-foreground">· {selectedNode.perspective}</span>
                 )}
+                {/* Skill Level Badge */}
+                {(() => {
+                  const sc = positionSkillMap[selectedNode.id] ?? 0
+                  const { level, label } = getSkillLevel(sc)
+                  const skillColor = SKILL_LEVEL_COLORS[level]
+                  return (
+                    <span
+                      className="inline-block px-2 py-0.5 rounded text-[10px] font-bold"
+                      style={{ backgroundColor: skillColor + "25", color: skillColor, border: `1px solid ${skillColor}40` }}
+                    >
+                      {label} ({sc}회)
+                    </span>
+                  )
+                })()}
               </div>
             </div>
 
@@ -509,11 +671,10 @@ export function SenseiNavMap() {
                     <div>
                       <h4 className="text-[10px] text-muted-foreground mb-0.5">최근 노트</h4>
                       {info.recentNotes.map((n, ni) => (
-                        <a key={ni} href={n.url} target="_blank" rel="noreferrer"
-                          className="block text-[10px] text-foreground/70 leading-tight mb-1 hover:text-blue-400 transition-colors cursor-pointer">
+                        <div key={ni} className="text-[10px] text-foreground/70 leading-tight mb-1">
                           <span className="text-muted-foreground">{n.date.slice(5)}</span>{" "}
                           {n.note}
-                        </a>
+                        </div>
                       ))}
                     </div>
                   )}
@@ -568,9 +729,8 @@ export function SenseiNavMap() {
                 </div>
               </div>
             )}
-          </>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   )
