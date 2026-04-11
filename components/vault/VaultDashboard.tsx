@@ -111,48 +111,11 @@ export function VaultDashboard() {
         <AssetDailyChart symbol="206650" title="유바이오로직스 일봉" currency="KRW" height={240} />
       </div>
 
-      {/* TSLA, GOOGL, AAPL - AssetCard 3개 나란히 */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <p className="text-foreground/90 text-sm font-medium">주식</p>
-          {pricesQuery.data?.fetchedAt && (
-            <span className="text-muted-foreground text-xs">
-              {new Date(pricesQuery.data.fetchedAt).toLocaleTimeString("ko-KR", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })} 기준
-            </span>
-          )}
-        </div>
-
-        {pricesQuery.isLoading ? (
-          <div className="grid grid-cols-3 gap-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={`price-skeleton-${String(i)}`} className="border border-border rounded-lg p-3 bg-muted/50 space-y-2">
-                <Skeleton className="h-4 w-2/3 bg-muted" />
-                <Skeleton className="h-6 w-1/2 bg-muted" />
-              </div>
-            ))}
-          </div>
-        ) : pricesQuery.isError ? (
-          <div className="border border-border rounded-xl p-4 bg-card">
-            <p className="text-red-400 text-sm">시세 조회 실패</p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-2 text-xs border-border text-foreground/90"
-              onClick={() => pricesQuery.refetch()}
-            >
-              재시도
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-3">
-            {stockPrices.map((asset) => (
-              <AssetCard key={asset.symbol} asset={asset} />
-            ))}
-          </div>
-        )}
+      {/* TSLA, GOOGL, AAPL - 동일한 캔들스틱 차트 */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <AssetDailyChart symbol="TSLA" title="TSLA 테슬라 일봉" currency="USD" height={240} />
+        <AssetDailyChart symbol="GOOGL" title="GOOGL 구글 일봉" currency="USD" height={240} />
+        <AssetDailyChart symbol="AAPL" title="AAPL 애플 일봉" currency="USD" height={240} />
       </div>
 
       {/* 뉴스 */}
