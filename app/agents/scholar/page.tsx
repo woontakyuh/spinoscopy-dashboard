@@ -4,7 +4,6 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { TopBar } from "@/components/layout/TopBar"
 import { AgentGreeter } from "@/components/layout/AgentGreeter"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MyPapers } from "@/components/scholar/MyPapers"
 import { DashboardCharts } from "@/components/scholar/DashboardCharts"
 import { PaperDB } from "@/components/scholar/PaperDB"
@@ -13,8 +12,18 @@ import { Editorial } from "@/components/scholar/Editorial"
 import type { JournalStats } from "@/lib/types/journal"
 import type { ResearchProject } from "@/lib/types/research"
 
+const TABS = [
+  { id: "my-papers", label: "My Papers", icon: "📄" },
+  { id: "research", label: "My Research", icon: "🔬" },
+  { id: "dashboard", label: "UpToDate", icon: "📊" },
+  { id: "browse", label: "Journal DB", icon: "📚" },
+  { id: "editorial", label: "Editorial", icon: "✏️" },
+] as const
+
+type ScholarTab = (typeof TABS)[number]["id"]
+
 export default function ScholarPage() {
-  const [activeTab, setActiveTab] = useState("my-papers")
+  const [activeTab, setActiveTab] = useState<ScholarTab>("my-papers")
 
   const { data: stats, isLoading } = useQuery<JournalStats>({
     queryKey: ["journal", "stats"],
@@ -96,47 +105,60 @@ export default function ScholarPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="" />
-      <div className="p-3 md:p-6 max-w-5xl w-full">
-        <AgentGreeter image="/brian.png" name="Brian" message={message} loading={isLoading} />
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="bg-muted border border-border mb-4 md:mb-6 gap-1 p-1 [&]:!grid [&]:!w-full [&]:!h-auto grid-cols-3 md:grid-cols-5">
-            <TabsTrigger value="my-papers" className="min-h-9 data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-muted-foreground text-xs md:text-sm">
-              My Papers
-            </TabsTrigger>
-            <TabsTrigger value="research" className="min-h-9 data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-muted-foreground text-xs md:text-sm">
-              My Research
-            </TabsTrigger>
-            <TabsTrigger value="dashboard" className="min-h-9 data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-muted-foreground text-xs md:text-sm">
-              UpToDate
-            </TabsTrigger>
-            <TabsTrigger value="browse" className="min-h-9 data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-muted-foreground text-xs md:text-sm">
-              Journal DB
-            </TabsTrigger>
-            <TabsTrigger value="editorial" className="min-h-9 data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-muted-foreground text-xs md:text-sm">
-              Editorial
-            </TabsTrigger>
-          </TabsList>
 
-          <TabsContent value="my-papers" className="space-y-4">
-            <MyPapers />
-          </TabsContent>
+      {/* Mobile: horizontal tabs */}
+      <div className="md:hidden border-b border-border bg-background sticky top-0 z-10 overflow-x-auto">
+        <div className="flex gap-0.5 px-3 min-w-max">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`
+                px-3 py-2.5 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap
+                ${activeTab === tab.id ? "text-foreground" : "text-muted-foreground hover:text-foreground/90"}
+              `}
+            >
+              <span className="flex items-center gap-1.5">
+                <span>{tab.icon}</span>
+                <span>{tab.label}</span>
+              </span>
+              {activeTab === tab.id && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
 
-          <TabsContent value="research" className="space-y-4">
-            <ResearchPipeline />
-          </TabsContent>
+      <div className="flex flex-col md:flex-row flex-1">
+        {/* Desktop: vertical sidebar */}
+        <nav className="hidden md:flex flex-col w-48 shrink-0 border-r border-border bg-card/50 p-3 gap-1 sticky top-0 h-screen overflow-y-auto">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left w-full
+                ${activeTab === tab.id ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}
+              `}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </nav>
 
-          <TabsContent value="dashboard" className="space-y-4">
-            <DashboardCharts onViewArticles={handleViewArticles} />
-          </TabsContent>
+        {/* Content */}
+        <div className="flex-1 min-w-0 p-3 md:p-6">
+          <AgentGreeter image="/brian.png" name="Brian" message={message} loading={isLoading} />
 
-          <TabsContent value="browse" className="space-y-4">
-            <PaperDB />
-          </TabsContent>
-
-          <TabsContent value="editorial" className="space-y-4">
-            <Editorial />
-          </TabsContent>
-        </Tabs>
+          {activeTab === "my-papers" && <MyPapers />}
+          {activeTab === "research" && <ResearchPipeline />}
+          {activeTab === "dashboard" && <DashboardCharts onViewArticles={handleViewArticles} />}
+          {activeTab === "browse" && <PaperDB />}
+          {activeTab === "editorial" && <Editorial />}
+        </div>
       </div>
     </div>
   )

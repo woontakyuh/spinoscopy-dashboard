@@ -4,7 +4,6 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { TopBar } from "@/components/layout/TopBar"
 import { AgentGreeter } from "@/components/layout/AgentGreeter"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PatientSearch } from "@/components/clinicus/PatientSearch"
 import { PatientDetail } from "@/components/clinicus/PatientDetail"
 import { ClinicsAnalytics } from "@/components/clinicus/ClinicsAnalytics"
@@ -12,10 +11,19 @@ import { IdeaMemo } from "@/components/clinicus/IdeaMemo"
 import { PatientProfileView } from "@/components/clinicus/PatientProfileView"
 import type { PatientSearchResult } from "@/lib/types/patient"
 
+const TABS = [
+  { id: "analytics", label: "통계", icon: "📊" },
+  { id: "search", label: "환자 조회", icon: "🔍" },
+  { id: "memo", label: "메모", icon: "💡" },
+] as const
+
+type ClinicusTab = (typeof TABS)[number]["id"]
+
 interface AnalyticsRow { op_date: string | null }
 interface AnalyticsData { patients: AnalyticsRow[] }
 
 export default function ClinicusPage() {
+  const [activeTab, setActiveTab] = useState<ClinicusTab>("analytics")
   const [searchPatient, setSearchPatient] = useState<PatientSearchResult | null>(null)
 
   const { data, isLoading } = useQuery<AnalyticsData>({
@@ -46,54 +54,85 @@ export default function ClinicusPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="" />
-      <div className="p-3 md:p-6 max-w-7xl w-full">
-        <AgentGreeter image="/opdb.png" name="Op DB" message={message} loading={isLoading} />
-        <Tabs defaultValue="analytics">
-          <TabsList className="w-full bg-muted border border-border mb-4 md:mb-6 grid grid-cols-3 h-auto gap-1 p-1">
-            <TabsTrigger value="analytics" className="min-h-9 data-[state=active]:bg-violet-600 data-[state=active]:text-white text-muted-foreground text-xs md:text-sm">
-              📊 통계
-            </TabsTrigger>
-            <TabsTrigger value="search" className="min-h-9 data-[state=active]:bg-blue-600 data-[state=active]:text-white text-muted-foreground text-xs md:text-sm">
-              환자 조회
-            </TabsTrigger>
-            <TabsTrigger value="memo" className="min-h-9 data-[state=active]:bg-amber-600 data-[state=active]:text-white text-muted-foreground text-xs md:text-sm">
-              💡 메모
-            </TabsTrigger>
-          </TabsList>
 
-          <TabsContent value="analytics">
-            <ClinicsAnalytics />
-          </TabsContent>
+      {/* Mobile: horizontal tabs */}
+      <div className="md:hidden border-b border-border bg-background sticky top-0 z-10 overflow-x-auto">
+        <div className="flex gap-0.5 px-3 min-w-max">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`
+                px-3 py-2.5 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap
+                ${activeTab === tab.id ? "text-foreground" : "text-muted-foreground hover:text-foreground/90"}
+              `}
+            >
+              <span className="flex items-center gap-1.5">
+                <span>{tab.icon}</span>
+                <span>{tab.label}</span>
+              </span>
+              {activeTab === tab.id && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-500 rounded-full" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
 
-          <TabsContent value="search" className="space-y-4">
-            <div>
-              <p className="text-foreground/90 text-sm font-medium mb-2">환자 검색</p>
-              <PatientSearch
-                onSelect={(p) => setSearchPatient(p)}
-                selectedId={searchPatient?.page_id}
-              />
-            </div>
-            {searchPatient ? (
-              <div className="space-y-4">
-                <div className="border border-border rounded-xl p-4 bg-card">
-                  <PatientDetail
-                    patient={searchPatient}
-                    onOpenNotion={() => window.open(searchPatient.url, "_blank")}
-                  />
-                </div>
-                <PatientProfileView pageId={searchPatient.page_id} />
+      <div className="flex flex-col md:flex-row flex-1">
+        {/* Desktop: vertical sidebar */}
+        <nav className="hidden md:flex flex-col w-48 shrink-0 border-r border-border bg-card/50 p-3 gap-1 sticky top-0 h-screen overflow-y-auto">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left w-full
+                ${activeTab === tab.id ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}
+              `}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0 p-3 md:p-6">
+          <AgentGreeter image="/opdb.png" name="Op DB" message={message} loading={isLoading} />
+
+          {activeTab === "analytics" && <ClinicsAnalytics />}
+
+          {activeTab === "search" && (
+            <div className="space-y-4">
+              <div>
+                <p className="text-foreground/90 text-sm font-medium mb-2">환자 검색</p>
+                <PatientSearch
+                  onSelect={(p) => setSearchPatient(p)}
+                  selectedId={searchPatient?.page_id}
+                />
               </div>
-            ) : (
-              <p className="text-muted-foreground text-sm text-center py-8">
-                환자를 검색하여 선택하면 PROM 요약과 그래프가 표시됩니다.
-              </p>
-            )}
-          </TabsContent>
+              {searchPatient ? (
+                <div className="space-y-4">
+                  <div className="border border-border rounded-xl p-4 bg-card">
+                    <PatientDetail
+                      patient={searchPatient}
+                      onOpenNotion={() => window.open(searchPatient.url, "_blank")}
+                    />
+                  </div>
+                  <PatientProfileView pageId={searchPatient.page_id} />
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm text-center py-8">
+                  환자를 검색하여 선택하면 PROM 요약과 그래프가 표시됩니다.
+                </p>
+              )}
+            </div>
+          )}
 
-          <TabsContent value="memo">
-            <IdeaMemo />
-          </TabsContent>
-        </Tabs>
+          {activeTab === "memo" && <IdeaMemo />}
+        </div>
       </div>
     </div>
   )

@@ -53,9 +53,9 @@ export default function SenseiPage() {
     <div className="flex flex-col min-h-screen">
       <TopBar title="" />
 
-      {/* Tab Navigation */}
-      <div className="border-b border-border bg-background sticky top-0 z-10 overflow-x-auto">
-        <div className="flex gap-0.5 px-3 md:px-6 max-w-5xl min-w-max">
+      {/* Mobile: horizontal tabs */}
+      <div className="md:hidden border-b border-border bg-background sticky top-0 z-10 overflow-x-auto">
+        <div className="flex gap-0.5 px-3 min-w-max">
           {TABS.map((tab) => (
             <button
               key={tab.id}
@@ -78,28 +78,43 @@ export default function SenseiPage() {
         </div>
       </div>
 
-      {/* Tab Content */}
-      <div className={`${
-        activeTab === "dashboard" ? "p-3 md:p-6 max-w-6xl"
-        : activeTab === "map" ? "p-3 md:p-6 max-w-7xl"
-        : "p-3 md:p-6 max-w-5xl"
-      } w-full`}>
-        <AgentGreeter image="/lo.png" name="Lo" message={message} loading={isLoading} />
+      <div className="flex flex-col md:flex-row flex-1">
+        {/* Desktop: vertical sidebar */}
+        <nav className="hidden md:flex flex-col w-48 shrink-0 border-r border-border bg-card/50 p-3 gap-1 sticky top-0 h-screen overflow-y-auto">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left w-full
+                ${activeTab === tab.id ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}
+              `}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </nav>
 
-        {activeTab === "dashboard" && (
-          <SenseiDashboard onNavigate={(tab) => setActiveTab(tab as SenseiTab)} />
-        )}
+        {/* Content */}
+        <div className="flex-1 min-w-0 p-3 md:p-6">
+          <AgentGreeter image="/lo.png" name="Lo" message={message} loading={isLoading} />
 
-        {activeTab === "journal" && (
-          <div>
-            <SenseiCalendar onDateSelect={setSelectedDate} />
-            <div className="mt-4" />
-            <SenseiCapture selectedDate={selectedDate} />
-          </div>
-        )}
+          {activeTab === "dashboard" && (
+            <SenseiDashboard onNavigate={(tab) => setActiveTab(tab as SenseiTab)} />
+          )}
 
-        {activeTab === "map" && <SenseiNavMap />}
-        {activeTab === "competition" && <SenseiCompetition />}
+          {activeTab === "journal" && (
+            <div>
+              <SenseiCalendar onDateSelect={setSelectedDate} />
+              <div className="mt-4" />
+              <SenseiCapture selectedDate={selectedDate} />
+            </div>
+          )}
+
+          {activeTab === "map" && <SenseiNavMap />}
+          {activeTab === "competition" && <SenseiCompetition />}
+        </div>
       </div>
     </div>
   )

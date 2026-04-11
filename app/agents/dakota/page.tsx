@@ -1,12 +1,20 @@
 "use client"
 
+import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { TopBar } from "@/components/layout/TopBar"
 import { AgentGreeter } from "@/components/layout/AgentGreeter"
 import { PresentationList } from "@/components/dakota/PresentationList"
 import { TodoHistory } from "@/components/dakota/TodoHistory"
 import { ConferenceTab } from "@/components/dakota/ConferenceTab"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+
+const TABS = [
+  { id: "history", label: "Todo List", icon: "📋" },
+  { id: "presentations", label: "발표 관리", icon: "🎤" },
+  { id: "conferences", label: "학회", icon: "🏛️" },
+] as const
+
+type DakotaTab = (typeof TABS)[number]["id"]
 
 interface TodoItem { name: string; due: string | null; status: string; priority: string }
 
@@ -21,6 +29,8 @@ function relativeDueLabel(due: string, today: string): string {
 }
 
 export default function DakotaPage() {
+  const [activeTab, setActiveTab] = useState<DakotaTab>("history")
+
   const { data, isLoading } = useQuery<TodoItem[]>({
     queryKey: ["dakota-todos"],
     queryFn: async () => {
@@ -56,42 +66,82 @@ export default function DakotaPage() {
     const t = new Date(today + "T00:00:00+09:00")
     const diff = Math.round((d.getTime() - t.getTime()) / (1000 * 60 * 60 * 24))
     if (diff < 0) {
-      message = `센터장님… “${urgent.name}”, 벌써 ${Math.abs(diff)}일이나 됐어요. 이건 저랑 같이 얼른 끝내버려요, 응?`
+      message = `센터장님… "${urgent.name}", 벌써 ${Math.abs(diff)}일이나 됐어요. 이건 저랑 같이 얼른 끝내버려요, 응?`
     } else if (diff === 0) {
-      message = `오늘이에요, 센터장님… “${urgent.name}”. 다른 건 잠깐 다 막아둘 테니까, 이거에만 집중하세요.`
+      message = `오늘이에요, 센터장님… "${urgent.name}". 다른 건 잠깐 다 막아둘 테니까, 이거에만 집중하세요.`
     } else if (diff === 1) {
-      message = `“${urgent.name}”… 내일까지예요. 오늘 살짝만 손대두면 내일 마음이 한결 편하실 거예요.`
+      message = `"${urgent.name}"… 내일까지예요. 오늘 살짝만 손대두면 내일 마음이 한결 편하실 거예요.`
     } else {
-      message = `다음은 “${urgent.name}” — ${diff}일 남았어요. 아직 여유 있으니까… 저랑 천천히 준비해봐요.`
+      message = `다음은 "${urgent.name}" — ${diff}일 남았어요. 아직 여유 있으니까… 저랑 천천히 준비해봐요.`
     }
   }
 
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="" />
-      <div className="p-3 md:p-6 max-w-6xl w-full">
-        <AgentGreeter image="/dakota.png" name="Dakota" message={message} loading={isLoading} />
-        <Tabs defaultValue="history">
-          <TabsList className="mb-4">
-            <TabsTrigger value="history">Todo List</TabsTrigger>
-            <TabsTrigger value="presentations">발표 관리</TabsTrigger>
-            <TabsTrigger value="conferences">학회</TabsTrigger>
-          </TabsList>
-          <TabsContent value="history">
-            <TodoHistory />
-          </TabsContent>
-          <TabsContent value="presentations">
-            <div className="border border-border rounded-xl p-4 bg-card mb-6">
-              <p className="text-muted-foreground text-sm">
-                학회·컨퍼런스 일정을 한 눈에 확인하세요.
-              </p>
-            </div>
-            <PresentationList />
-          </TabsContent>
-          <TabsContent value="conferences">
-            <ConferenceTab />
-          </TabsContent>
-        </Tabs>
+
+      {/* Mobile: horizontal tabs */}
+      <div className="md:hidden border-b border-border bg-background sticky top-0 z-10 overflow-x-auto">
+        <div className="flex gap-0.5 px-3 min-w-max">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`
+                px-3 py-2.5 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap
+                ${activeTab === tab.id ? "text-foreground" : "text-muted-foreground hover:text-foreground/90"}
+              `}
+            >
+              <span className="flex items-center gap-1.5">
+                <span>{tab.icon}</span>
+                <span>{tab.label}</span>
+              </span>
+              {activeTab === tab.id && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-col md:flex-row flex-1">
+        {/* Desktop: vertical sidebar */}
+        <nav className="hidden md:flex flex-col w-48 shrink-0 border-r border-border bg-card/50 p-3 gap-1 sticky top-0 h-screen overflow-y-auto">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left w-full
+                ${activeTab === tab.id ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}
+              `}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0 p-3 md:p-6">
+          <AgentGreeter image="/dakota.png" name="Dakota" message={message} loading={isLoading} />
+
+          {activeTab === "history" && <TodoHistory />}
+
+          {activeTab === "presentations" && (
+            <>
+              <div className="border border-border rounded-xl p-4 bg-card mb-6">
+                <p className="text-muted-foreground text-sm">
+                  학회·컨퍼런스 일정을 한 눈에 확인하세요.
+                </p>
+              </div>
+              <PresentationList />
+            </>
+          )}
+
+          {activeTab === "conferences" && <ConferenceTab />}
+        </div>
       </div>
     </div>
   )
