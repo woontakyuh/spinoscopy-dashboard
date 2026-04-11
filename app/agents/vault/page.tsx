@@ -41,7 +41,7 @@ export default function VaultPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="" />
-      <div className="p-3 md:p-6 max-w-4xl w-full">
+      <div className="p-3 md:p-6 w-full">
         <AgentGreeter image="/warren.png" name="Warren" message={message} loading={isLoading} />
         <div className="border border-border rounded-xl p-4 bg-card mb-4">
           <p className="text-foreground/90 text-sm">

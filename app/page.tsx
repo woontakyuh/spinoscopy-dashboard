@@ -12,7 +12,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="Home" />
-      <div className="flex-1 p-3 md:p-6 max-w-7xl w-full space-y-4 md:space-y-6">
+      <div className="flex-1 p-3 md:p-6 w-full space-y-4 md:space-y-6">
         <div>
           <div className="flex items-center gap-2 mb-3">
             <div className="h-px flex-1 bg-gradient-to-r from-cyan-500/40 to-transparent" />

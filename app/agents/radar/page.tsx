@@ -43,7 +43,7 @@ export default function RadarPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="" />
-      <div className="p-3 md:p-6 max-w-4xl w-full">
+      <div className="p-3 md:p-6 w-full">
         <AgentGreeter image="/andrej.png" name="Andrej" message={message} loading={isLoading} />
         <RadarFeed />
       </div>
