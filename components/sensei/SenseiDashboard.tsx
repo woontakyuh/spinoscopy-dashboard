@@ -85,7 +85,8 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
     return best ? { arch: best, similarity: bestSim } : null
   }, [data, archetypes, giMode])
 
-  const activeCompare = compareArch ?? closestArch?.arch ?? null
+  const [hoveredArch, setHoveredArch] = useState<Archetype | null>(null)
+  const activeCompare = compareArch ?? hoveredArch ?? closestArch?.arch ?? null
 
   const filteredArchetypes = useMemo(() => {
     if (catFilter === "all") return archetypes
@@ -221,7 +222,7 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
                       <Radar name="Cap" dataKey="cap" stroke={beltHex} strokeWidth={1} strokeDasharray="4 3" fill="none" />
                       <Radar name="Me" dataKey="value" stroke="#f97316" strokeWidth={2} fill="#f97316" fillOpacity={0.2} />
                       {activeCompare && (
-                        <Radar name={activeCompare.name} dataKey="compare" stroke="#38bdf8" strokeWidth={1.5} fill="none" strokeDasharray="5 3" />
+                        <Radar name={activeCompare.name} dataKey="compare" stroke="#f87171" strokeWidth={1.5} fill="none" strokeDasharray="5 3" />
                       )}
                     </RadarChart>
                   </ResponsiveContainer>
@@ -304,22 +305,83 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             {filteredArchetypes.map((a) => {
-              const sim = cosineSimilarity(attrs, a.stats)
-              const isActive = activeCompare?.name === a.name
+              const isSelected = compareArch?.name === a.name
               return (
-                <button key={a.name} type="button" onClick={() => setCompareArch(isActive ? null : a)}
-                  className={`shrink-0 w-24 rounded-xl border p-2 text-center transition-all ${isActive ? "border-orange-500 bg-orange-500/10 ring-1 ring-orange-500/30" : "border-border bg-muted/50 hover:border-foreground/20"}`}
+                <button key={a.name} type="button"
+                  onClick={() => setCompareArch(isSelected ? null : a)}
+                  onPointerEnter={() => setHoveredArch(a)}
+                  onPointerLeave={() => setHoveredArch(null)}
+                  className={`shrink-0 w-20 rounded-xl border p-1.5 text-center transition-all ${isSelected ? "border-orange-500 bg-orange-500/10 ring-1 ring-orange-500/30" : "border-border bg-muted/50 hover:border-foreground/20"}`}
                 >
-                  <p className="text-xs font-bold text-foreground truncate">{a.name}</p>
-                  <div className="text-[10px] text-muted-foreground">{a.flag} {a.playstyle}</div>
-                  <div className="mt-0.5">
-                    <span className="text-[9px] font-bold text-amber-500">{calculateOvr(a.stats).ovr}</span>
-                    <span className="text-[8px] text-muted-foreground ml-1">{sim}%</span>
-                  </div>
+                  <p className="text-[11px] font-bold text-foreground truncate">{a.name}</p>
+                  <p className="text-[8px] text-muted-foreground truncate">{a.nickname}</p>
                 </button>
               )
             })}
           </div>
+
+          {/* 선수 상세 (클릭 고정 or 호버) */}
+          {activeCompare && (
+            <div className="mt-3 border border-border rounded-xl bg-muted/30 p-4 grid grid-cols-1 md:grid-cols-[1fr_200px] gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{activeCompare.flag}</span>
+                  <div>
+                    <h4 className="text-sm font-bold text-foreground">{activeCompare.name}</h4>
+                    <p className="text-[10px] text-muted-foreground">{activeCompare.nickname} · {activeCompare.team} · {activeCompare.playstyle}</p>
+                  </div>
+                  <span className="ml-auto text-xs font-bold text-amber-500">{calculateOvr(activeCompare.stats).ovr} OVR</span>
+                  <span className="text-[10px] text-muted-foreground">{cosineSimilarity(attrs, activeCompare.stats)}% match</span>
+                </div>
+                {/* 6축 비교 미니바 */}
+                <div className="grid grid-cols-3 gap-x-4 gap-y-1">
+                  {STAT_BARS.map((s) => (
+                    <div key={s.name} className="flex items-center gap-1.5 text-[10px]">
+                      <span className="text-muted-foreground w-16 shrink-0">{s.name}</span>
+                      <span className="font-semibold text-foreground w-5 text-right">{attrs[s.key]}</span>
+                      <span className="text-muted-foreground/60">vs</span>
+                      <span className="font-semibold w-5" style={{ color: activeCompare.stats[s.key] > attrs[s.key] ? "#f87171" : "#4ade80" }}>{activeCompare.stats[s.key]}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* 게임플랜 */}
+                {activeCompare.gameplan.length > 0 && (
+                  <div>
+                    <h5 className="text-[10px] text-muted-foreground mb-1">게임플랜</h5>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {activeCompare.gameplan.map((step, i) => (
+                        <span key={i} className="flex items-center gap-0.5 text-[9px]">
+                          <span className="px-1.5 py-0.5 bg-muted rounded border border-border text-foreground/80">{step.position}</span>
+                          {i < activeCompare.gameplan.length - 1 && <span className="text-muted-foreground">→</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* 시그니처 태그 */}
+                {activeCompare.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {activeCompare.tags.map((tag) => (
+                      <span key={tag} className="px-1.5 py-0.5 text-[8px] bg-muted border border-border rounded text-muted-foreground">{tag}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* 미니 레이더 */}
+              <div className="hidden md:block">
+                <div className="h-[160px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
+                      <PolarGrid stroke="var(--border)" />
+                      <PolarAngleAxis dataKey="subject" tick={{ fontSize: 8, fill: "var(--muted-foreground)" }} />
+                      <Radar dataKey="value" stroke="#f97316" strokeWidth={1.5} fill="#f97316" fillOpacity={0.15} />
+                      <Radar dataKey="compare" stroke="#f87171" strokeWidth={1.5} fill="none" strokeDasharray="4 3" />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ══ 성장 추천 ══ */}
