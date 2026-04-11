@@ -90,6 +90,7 @@ function ConferenceItem({ conf }: { conf: Presentation }) {
 
 export function ConferenceSchedule() {
   const [filter, setFilter] = useState<"all" | "presenting">("all")
+  const [expanded, setExpanded] = useState(false)
 
   const { data, isLoading, error } = useQuery<PresentationsResponse>({
     queryKey: ["dashboard-conferences"],
@@ -147,7 +148,7 @@ export function ConferenceSchedule() {
     <div className="border border-border rounded-xl bg-card p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-foreground/90 uppercase tracking-wider">
-          학회 · 발표 일정 ({conferences.length})
+          Upcoming Conference
         </h3>
         {filterToggle}
       </div>
@@ -158,13 +159,27 @@ export function ConferenceSchedule() {
         <EmptyState icon="🏆" message="다가오는 학회 일정이 없습니다." />
       ) : (
         <div className="space-y-2">
-          {conferences.slice(0, 6).map((conf) => (
+          {(expanded ? conferences : conferences.slice(0, 3)).map((conf) => (
             <ConferenceItem key={conf.page_id} conf={conf} />
           ))}
-          {conferences.length > 6 && (
-            <p className="text-muted-foreground/60 text-xs text-right">
-              +{conferences.length - 6}건 더
-            </p>
+          {conferences.length > 3 && (
+            <button
+              type="button"
+              onClick={() => setExpanded(!expanded)}
+              className="w-full flex items-center justify-center gap-1 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {expanded ? (
+                <>
+                  접기
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M12 10L8 6l-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </>
+              ) : (
+                <>
+                  +{conferences.length - 3}건 더
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </>
+              )}
+            </button>
           )}
         </div>
       )}

@@ -7,32 +7,16 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
 import { extractCountry, getCountryFlag, TOPIC_GROUPS } from "@/lib/scholar/country"
-import type { JournalArticle, JournalQueryResult, JournalStats, InterestLevel, ArticleMeta, DashboardData } from "@/lib/types/journal"
+import type { JournalArticle, JournalQueryResult, InterestLevel, DashboardData } from "@/lib/types/journal"
 
 // ── Constants ──────────────────────────────────────────────
 
-const JOURNALS = ["TSJ", "Spine", "ESJ", "JNS", "Neurospine", "GSJ"] as const
 const INTEREST_OPTIONS: { value: InterestLevel; icon: string }[] = [
   { value: "🔴 필독", icon: "🔴" },
   { value: "🟡 관심", icon: "🟡" },
   { value: "⚪ 참고", icon: "⚪" },
 ]
 const INTEREST_CYCLE: InterestLevel[] = ["🔴 필독", "🟡 관심", "⚪ 참고"]
-
-const TOPIC_NAMES = Object.keys(TOPIC_GROUPS)
-
-const TOPIC_COLORS: Record<string, string> = {
-  "Endoscopy": "bg-cyan-500/20 text-cyan-300 border-cyan-500/40",
-  "MIS": "bg-teal-500/20 text-teal-300 border-teal-500/40",
-  "Deformity": "bg-purple-500/20 text-purple-300 border-purple-500/40",
-  "Cervical": "bg-blue-500/20 text-blue-300 border-blue-500/40",
-  "AI/ML": "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
-  "Navigation": "bg-amber-500/20 text-amber-300 border-amber-500/40",
-  "Fusion": "bg-rose-500/20 text-rose-300 border-rose-500/40",
-  "Stenosis": "bg-orange-500/20 text-orange-300 border-orange-500/40",
-  "Disc": "bg-sky-500/20 text-sky-300 border-sky-500/40",
-  "Trauma": "bg-red-500/20 text-red-300 border-red-500/40",
-}
 
 const JOURNAL_COLORS: Record<string, string> = {
   TSJ: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
@@ -63,7 +47,7 @@ function interestStyle(interest: string) {
   return "bg-zinc-500/20 text-muted-foreground border-zinc-500/40 hover:bg-zinc-500/30"
 }
 
-// ── Dashboard Chart Helpers ─────────────────────────────────
+// ── Chart Helpers ─────────────────────────────────────────
 
 type ChartFilterKey = "topic" | "country" | "type" | "journal"
 
@@ -132,28 +116,6 @@ function sortedEntries(record: Record<string, number>, limit: number): [string, 
 
 // ── Filter State ────────────────────────────────────────────
 
-type DatePreset = "1m" | "3m" | "6m" | "1y" | "all"
-
-const DATE_PRESETS: { value: DatePreset; label: string }[] = [
-  { value: "1m", label: "1개월" },
-  { value: "3m", label: "3개월" },
-  { value: "6m", label: "6개월" },
-  { value: "1y", label: "1년" },
-  { value: "all", label: "전체" },
-]
-
-function datePresetToDateFrom(preset: DatePreset): string | null {
-  if (preset === "all") return null
-  const d = new Date()
-  switch (preset) {
-    case "1m": d.setMonth(d.getMonth() - 1); break
-    case "3m": d.setMonth(d.getMonth() - 3); break
-    case "6m": d.setMonth(d.getMonth() - 6); break
-    case "1y": d.setFullYear(d.getFullYear() - 1); break
-  }
-  return d.toISOString().slice(0, 10)
-}
-
 interface Filters {
   journals: string[]
   interest: InterestLevel | null
@@ -161,11 +123,10 @@ interface Filters {
   search: string
   topics: string[]
   categories: string[]
-  yearFrom: number | null
-  yearTo: number | null
+  types: string[]
   countries: string[]
   dateFrom: string | null
-  datePreset: DatePreset
+  dateTo: string | null
 }
 
 const INITIAL_FILTERS: Filters = {
@@ -175,11 +136,10 @@ const INITIAL_FILTERS: Filters = {
   search: "",
   topics: [],
   categories: [],
-  yearFrom: null,
-  yearTo: null,
+  types: [],
   countries: [],
   dateFrom: null,
-  datePreset: "all",
+  dateTo: null,
 }
 
 function buildQueryString(f: Filters): string {
@@ -202,18 +162,28 @@ function hasActiveFilters(f: Filters): boolean {
     f.search !== "" ||
     f.topics.length > 0 ||
     f.categories.length > 0 ||
-    f.yearFrom !== null ||
-    f.yearTo !== null ||
+    f.types.length > 0 ||
     f.countries.length > 0 ||
-    f.dateFrom !== null
+    f.dateFrom !== null ||
+    f.dateTo !== null
   )
+}
+
+const FILTER_LABELS: Record<string, string> = {
+  journal: "저널",
+  topic: "주제",
+  country: "국가",
+  type: "유형",
+  interest: "관심도",
+  readStatus: "읽음",
+  search: "검색",
+  dateFrom: "시작일",
+  dateTo: "종료일",
 }
 
 // ── Main Component ──────────────────────────────────────────
 
 export function PaperDB() {
-  const queryClient = useQueryClient()
-
   // Filter state
   const [filters, setFilters] = useState<Filters>(INITIAL_FILTERS)
   const [searchInput, setSearchInput] = useState("")
@@ -242,17 +212,6 @@ export function PaperDB() {
     setExpandedId(null)
   }, [filterQs])
 
-  // Fetch stats for categories
-  const { data: stats } = useQuery<JournalStats>({
-    queryKey: ["journal", "stats"],
-    queryFn: async () => {
-      const res = await fetch("/api/notion/journal?action=stats")
-      if (!res.ok) throw new Error("통계 조회 실패")
-      return res.json()
-    },
-    staleTime: 5 * 60 * 1000,
-  })
-
   // Dashboard data for charts & stat cards
   const { data: dashData, isLoading: dashLoading } = useQuery<DashboardData>({
     queryKey: ["scholar-dashboard"],
@@ -264,34 +223,42 @@ export function PaperDB() {
     staleTime: 5 * 60 * 1000,
   })
 
-  // Chart active keys derived from PaperDB filters
-  const chartActiveKeys: Partial<Record<ChartFilterKey, string>> = useMemo(() => {
-    const keys: Partial<Record<ChartFilterKey, string>> = {}
-    if (filters.topics.length === 1) keys.topic = filters.topics[0]
-    if (filters.countries.length === 1) keys.country = filters.countries[0]
-    if (filters.journals.length === 1) keys.journal = filters.journals[0]
-    return keys
-  }, [filters.topics, filters.countries, filters.journals])
+  // Chart active keys (multi-select)
+  const chartActiveKeys = useMemo<Record<ChartFilterKey, Set<string>>>(() => ({
+    topic: new Set(filters.topics),
+    country: new Set(filters.countries),
+    journal: new Set(filters.journals),
+    type: new Set(filters.types),
+  }), [filters.topics, filters.countries, filters.journals, filters.types])
 
-  // Chart aggregations from dashboard data
+  // Dashboard filtered (multi-select: same chart = OR, across charts = AND)
   const dashFiltered = useMemo(() => {
     if (!dashData) return []
     return dashData.articles.filter(a => {
-      if (chartActiveKeys.topic && !a.topics.includes(chartActiveKeys.topic)) return false
-      if (chartActiveKeys.country && a.country !== chartActiveKeys.country) return false
-      if (chartActiveKeys.type && a.pub_type !== chartActiveKeys.type) return false
-      if (chartActiveKeys.journal && a.journal !== chartActiveKeys.journal) return false
+      if (chartActiveKeys.topic.size > 0 && !a.topics.some(t => chartActiveKeys.topic.has(t))) return false
+      if (chartActiveKeys.country.size > 0 && !chartActiveKeys.country.has(a.country ?? "")) return false
+      if (chartActiveKeys.type.size > 0 && !chartActiveKeys.type.has(a.pub_type ?? "")) return false
+      if (chartActiveKeys.journal.size > 0 && !chartActiveKeys.journal.has(a.journal ?? "")) return false
       if (filters.dateFrom && (!a.pub_date || a.pub_date < filters.dateFrom)) return false
+      if (filters.dateTo && (!a.pub_date || a.pub_date > filters.dateTo)) return false
+      if (filters.interest && a.interest !== filters.interest) return false
+      if (filters.readStatus === "unread" && a.read) return false
+      if (filters.readStatus === "read" && !a.read) return false
+      if (filters.search) {
+        const q = filters.search.toLowerCase()
+        if (!a.title.toLowerCase().includes(q)) return false
+      }
       return true
     })
-  }, [dashData, chartActiveKeys, filters.dateFrom])
+  }, [dashData, chartActiveKeys, filters.dateFrom, filters.dateTo, filters.interest, filters.readStatus, filters.search])
 
+  // Chart aggregations
   const topicCounts = useMemo(() => countBy(dashFiltered, a => a.topics), [dashFiltered])
   const countryCounts = useMemo(() => countBy(dashFiltered, a => a.country), [dashFiltered])
   const typeCounts = useMemo(() => countBy(dashFiltered, a => a.pub_type), [dashFiltered])
   const journalCounts = useMemo(() => countBy(dashFiltered, a => a.journal), [dashFiltered])
 
-  // Stat card values from dashboard data
+  // Stat card values
   const dashUnreadCount = useMemo(() => dashFiltered.filter(a => !a.read).length, [dashFiltered])
   const dashWeekStr = useMemo(() => {
     const d = new Date()
@@ -304,40 +271,33 @@ export function PaperDB() {
     [dashFiltered]
   )
 
-  // Chart click → set PaperDB filter
+  // Chart click → toggle multi-select
   function handleChartClick(key: ChartFilterKey, value: string) {
     setFilters(prev => {
       switch (key) {
         case "topic": {
           const active = prev.topics.includes(value)
-          return { ...prev, topics: active ? [] : [value] }
+          return { ...prev, topics: active ? prev.topics.filter(t => t !== value) : [...prev.topics, value] }
         }
         case "country": {
           const active = prev.countries.includes(value)
-          return { ...prev, countries: active ? [] : [value] }
+          return { ...prev, countries: active ? prev.countries.filter(c => c !== value) : [...prev.countries, value] }
         }
         case "journal": {
           const active = prev.journals.includes(value)
-          return { ...prev, journals: active ? [] : [value] }
+          return { ...prev, journals: active ? prev.journals.filter(j => j !== value) : [...prev.journals, value] }
         }
-        case "type":
-          return prev
+        case "type": {
+          const active = prev.types.includes(value)
+          return { ...prev, types: active ? prev.types.filter(t => t !== value) : [...prev.types, value] }
+        }
         default:
           return prev
       }
     })
   }
 
-  // Top 15 categories from stats
-  const topCategories = useMemo(() => {
-    if (!stats?.by_category) return []
-    return Object.entries(stats.by_category)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 15)
-      .map(([name, count]) => ({ name, count }))
-  }, [stats])
-
-  // Query
+  // Paginated article query
   const { isLoading, error } = useQuery<JournalQueryResult>({
     queryKey: ["journal", filterQs],
     queryFn: async () => {
@@ -366,20 +326,7 @@ export function PaperDB() {
     }
   }, [nextCursor, isLoadingMore, filterQs])
 
-  // Compute top countries from loaded articles
-  const topCountries = useMemo(() => {
-    const countMap: Record<string, number> = {}
-    for (const a of allArticles) {
-      const c = extractCountry(a.affiliations)
-      if (c) countMap[c] = (countMap[c] || 0) + 1
-    }
-    return Object.entries(countMap)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([name, count]) => ({ name, count }))
-  }, [allArticles])
-
-  // Client-side filtering
+  // Client-side filtering on paginated articles
   const displayArticles = useMemo(() => {
     let list = allArticles
 
@@ -409,20 +356,9 @@ export function PaperDB() {
       )
     }
 
-    // year range
-    if (filters.yearFrom !== null) {
-      list = list.filter((a) => {
-        if (!a.pub_date) return false
-        const year = new Date(a.pub_date).getFullYear()
-        return year >= filters.yearFrom!
-      })
-    }
-    if (filters.yearTo !== null) {
-      list = list.filter((a) => {
-        if (!a.pub_date) return false
-        const year = new Date(a.pub_date).getFullYear()
-        return year <= filters.yearTo!
-      })
+    // types (client-side)
+    if (filters.types.length > 0) {
+      list = list.filter((a) => filters.types.includes(a.pub_type ?? ""))
     }
 
     // countries (client-side)
@@ -437,59 +373,14 @@ export function PaperDB() {
     if (filters.dateFrom) {
       list = list.filter((a) => a.pub_date && a.pub_date >= filters.dateFrom!)
     }
+    if (filters.dateTo) {
+      list = list.filter((a) => a.pub_date && a.pub_date <= filters.dateTo!)
+    }
 
     return list
   }, [allArticles, filters])
 
-  // ── Toggle helpers ──
-  function toggleJournal(j: string) {
-    setFilters((prev) => ({
-      ...prev,
-      journals: prev.journals.includes(j) ? [] : [j],
-    }))
-  }
-
-  function toggleInterest(v: InterestLevel) {
-    setFilters((prev) => ({
-      ...prev,
-      interest: prev.interest === v ? null : v,
-    }))
-  }
-
-  function setReadStatus(s: Filters["readStatus"]) {
-    setFilters((prev) => ({ ...prev, readStatus: s }))
-  }
-
-  function toggleTopic(topic: string) {
-    setFilters((prev) => {
-      const active = prev.topics.includes(topic)
-      return {
-        ...prev,
-        topics: active ? prev.topics.filter((t) => t !== topic) : [...prev.topics, topic],
-      }
-    })
-  }
-
-  function toggleCategory(cat: string) {
-    setFilters((prev) => {
-      const active = prev.categories.includes(cat)
-      return {
-        ...prev,
-        categories: active ? prev.categories.filter((c) => c !== cat) : [...prev.categories, cat],
-      }
-    })
-  }
-
-  function toggleCountry(country: string) {
-    setFilters((prev) => {
-      const active = prev.countries.includes(country)
-      return {
-        ...prev,
-        countries: active ? prev.countries.filter((c) => c !== country) : [...prev.countries, country],
-      }
-    })
-  }
-
+  // Remove a specific filter
   function removeFilter(key: string, value?: string) {
     setFilters((prev) => {
       switch (key) {
@@ -506,41 +397,126 @@ export function PaperDB() {
           return { ...prev, topics: prev.topics.filter((t) => t !== value) }
         case "category":
           return { ...prev, categories: prev.categories.filter((c) => c !== value) }
-        case "yearFrom":
-          return { ...prev, yearFrom: null }
-        case "yearTo":
-          return { ...prev, yearTo: null }
+        case "type":
+          return { ...prev, types: prev.types.filter((t) => t !== value) }
         case "country":
           return { ...prev, countries: prev.countries.filter((c) => c !== value) }
         case "dateFrom":
-          return { ...prev, dateFrom: null, datePreset: "all" }
+          return { ...prev, dateFrom: null }
+        case "dateTo":
+          return { ...prev, dateTo: null }
         default:
           return prev
       }
     })
   }
 
-  // Collect active filter tags for summary row
+  // Active filter tags
   const activeFilterTags = useMemo(() => {
     const tags: { key: string; value?: string; label: string }[] = []
     for (const j of filters.journals) tags.push({ key: "journal", value: j, label: j })
+    for (const t of filters.topics) tags.push({ key: "topic", value: t, label: t })
+    for (const t of filters.types) tags.push({ key: "type", value: t, label: t })
+    for (const c of filters.countries) tags.push({ key: "country", value: c, label: `${getCountryFlag(c)} ${c}` })
     if (filters.interest) tags.push({ key: "interest", label: filters.interest })
     if (filters.readStatus !== "all") tags.push({ key: "readStatus", label: filters.readStatus === "unread" ? "안읽음" : "읽음" })
     if (filters.search) tags.push({ key: "search", label: `"${filters.search}"` })
-    for (const t of filters.topics) tags.push({ key: "topic", value: t, label: t })
-    for (const c of filters.categories) tags.push({ key: "category", value: c, label: c })
-    if (filters.yearFrom !== null) tags.push({ key: "yearFrom", label: `${filters.yearFrom}~` })
-    if (filters.yearTo !== null) tags.push({ key: "yearTo", label: `~${filters.yearTo}` })
-    for (const c of filters.countries) tags.push({ key: "country", value: c, label: `${getCountryFlag(c)} ${c}` })
-    if (filters.dateFrom) {
-      const preset = DATE_PRESETS.find(p => p.value === filters.datePreset)
-      tags.push({ key: "dateFrom", label: preset ? `기간: ${preset.label}` : `${filters.dateFrom}~` })
-    }
+    if (filters.dateFrom) tags.push({ key: "dateFrom", label: `${filters.dateFrom}~` })
+    if (filters.dateTo) tags.push({ key: "dateTo", label: `~${filters.dateTo}` })
     return tags
   }, [filters])
 
   return (
     <div className="space-y-3">
+      {/* ── Compact Controls ── */}
+      <div className="flex flex-wrap items-center gap-2 p-2 rounded-lg bg-card border border-border">
+        {/* Search */}
+        <Input
+          placeholder="검색..."
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          className="w-40 bg-muted border-border text-foreground placeholder:text-muted-foreground/70 h-7 text-xs"
+        />
+
+        <div className="w-px h-5 bg-muted" />
+
+        {/* Date range */}
+        <span className="text-muted-foreground/70 text-[10px] font-medium shrink-0">기간</span>
+        <input
+          type="date"
+          value={filters.dateFrom ?? ""}
+          onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value || null }))}
+          className="h-7 px-2 rounded text-[11px] bg-muted border border-border text-foreground/90 focus:outline-none focus:border-zinc-500 [color-scheme:dark]"
+        />
+        <span className="text-muted-foreground/70 text-[10px]">~</span>
+        <input
+          type="date"
+          value={filters.dateTo ?? ""}
+          onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value || null }))}
+          className="h-7 px-2 rounded text-[11px] bg-muted border border-border text-foreground/90 focus:outline-none focus:border-zinc-500 [color-scheme:dark]"
+        />
+
+        <div className="w-px h-5 bg-muted" />
+
+        {/* Interest */}
+        <div className="flex items-center gap-1">
+          {INTEREST_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setFilters(prev => ({ ...prev, interest: prev.interest === opt.value ? null : opt.value }))}
+              className={`w-7 h-7 rounded flex items-center justify-center text-sm transition-colors border ${
+                filters.interest === opt.value
+                  ? "bg-muted border-zinc-500"
+                  : "bg-muted border-border/50 opacity-50 hover:opacity-100"
+              }`}
+            >
+              {opt.icon}
+            </button>
+          ))}
+        </div>
+
+        <div className="w-px h-5 bg-muted" />
+
+        {/* Read status */}
+        <div className="flex items-center rounded-md border border-border overflow-hidden">
+          {(
+            [
+              { key: "all", label: "전체" },
+              { key: "unread", label: "안읽음" },
+              { key: "read", label: "읽음" },
+            ] as const
+          ).map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => setFilters(prev => ({ ...prev, readStatus: opt.key }))}
+              className={`px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                filters.readStatus === opt.key
+                  ? "bg-zinc-600 text-foreground"
+                  : "bg-muted text-muted-foreground hover:text-foreground/90"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Reset */}
+        {hasActiveFilters(filters) && (
+          <>
+            <div className="w-px h-5 bg-muted" />
+            <button
+              type="button"
+              onClick={() => { setFilters(INITIAL_FILTERS); setSearchInput("") }}
+              className="text-[11px] text-muted-foreground hover:text-foreground/90 transition-colors underline underline-offset-2 decoration-zinc-700 hover:decoration-zinc-500"
+            >
+              초기화
+            </button>
+          </>
+        )}
+      </div>
+
       {/* ── Stat Cards + Charts ── */}
       {dashLoading ? (
         <div className="space-y-3">
@@ -566,14 +542,14 @@ export function PaperDB() {
             <BarChart
               title={CHART_CONFIG.topic.title}
               entries={sortedEntries(topicCounts, CHART_CONFIG.topic.limit)}
-              activeKey={chartActiveKeys.topic}
+              activeKeys={chartActiveKeys.topic}
               onClickItem={key => handleChartClick("topic", key)}
               color="indigo"
             />
             <BarChart
               title={CHART_CONFIG.country.title}
               entries={sortedEntries(countryCounts, CHART_CONFIG.country.limit)}
-              activeKey={chartActiveKeys.country}
+              activeKeys={chartActiveKeys.country}
               onClickItem={key => handleChartClick("country", key)}
               color="emerald"
               renderLabel={key => `${getCountryFlag(key)} ${key}`}
@@ -583,14 +559,14 @@ export function PaperDB() {
             <BarChart
               title={CHART_CONFIG.type.title}
               entries={sortedEntries(typeCounts, CHART_CONFIG.type.limit)}
-              activeKey={chartActiveKeys.type}
+              activeKeys={chartActiveKeys.type}
               onClickItem={key => handleChartClick("type", key)}
               color="amber"
             />
             <BarChart
               title={CHART_CONFIG.journal.title}
               entries={sortedEntries(journalCounts, CHART_CONFIG.journal.limit)}
-              activeKey={chartActiveKeys.journal}
+              activeKeys={chartActiveKeys.journal}
               onClickItem={key => handleChartClick("journal", key)}
               color="cyan"
             />
@@ -598,252 +574,30 @@ export function PaperDB() {
         </div>
       ) : null}
 
-      {/* ── Filter Bar ── */}
-      <div className="space-y-2 p-2 rounded-lg bg-card border border-border">
-        {/* Row 1: Journal, Interest, Read status, Search */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Journal toggles */}
-          <div className="flex items-center gap-1">
-            {JOURNALS.map((j) => {
-              const active = filters.journals.includes(j)
-              return (
-                <button
-                  key={j}
-                  type="button"
-                  onClick={() => toggleJournal(j)}
-                  className={`px-2 py-1 rounded text-[11px] font-medium transition-colors border ${
-                    active
-                      ? "bg-cyan-600/30 text-cyan-300 border-cyan-500/50"
-                      : "bg-muted text-muted-foreground border-border hover:text-foreground/90"
-                  }`}
-                >
-                  {j}
-                </button>
-              )
-            })}
-          </div>
-
-          <div className="w-px h-5 bg-muted" />
-
-          {/* Interest filter */}
-          <div className="flex items-center gap-1">
-            {INTEREST_OPTIONS.map((opt) => {
-              const active = filters.interest === opt.value
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => toggleInterest(opt.value)}
-                  className={`w-7 h-7 rounded flex items-center justify-center text-sm transition-colors border ${
-                    active
-                      ? "bg-muted border-zinc-500"
-                      : "bg-muted border-border/50 opacity-50 hover:opacity-100"
-                  }`}
-                >
-                  {opt.icon}
-                </button>
-              )
-            })}
-          </div>
-
-          <div className="w-px h-5 bg-muted" />
-
-          {/* Read status */}
-          <div className="flex items-center rounded-md border border-border overflow-hidden">
-            {(
-              [
-                { key: "all", label: "전체" },
-                { key: "unread", label: "안읽음" },
-                { key: "read", label: "읽음" },
-              ] as const
-            ).map((opt) => (
-              <button
-                key={opt.key}
-                type="button"
-                onClick={() => setReadStatus(opt.key)}
-                className={`px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                  filters.readStatus === opt.key
-                    ? "bg-zinc-600 text-foreground"
-                    : "bg-muted text-muted-foreground hover:text-foreground/90"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="w-px h-5 bg-muted" />
-
-          {/* Search */}
-          <Input
-            placeholder="검색..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="w-40 bg-muted border-border text-foreground placeholder:text-muted-foreground/70 h-7 text-xs"
-          />
-
-          <div className="w-px h-5 bg-muted" />
-
-          {/* Date period presets */}
-          <div className="flex items-center rounded-md border border-border overflow-hidden">
-            {DATE_PRESETS.map((p) => (
-              <button
-                key={p.value}
-                type="button"
-                onClick={() => {
-                  const dateFrom = datePresetToDateFrom(p.value)
-                  setFilters((prev) => ({ ...prev, dateFrom, datePreset: p.value }))
-                }}
-                className={`px-2 py-1 text-[11px] font-medium transition-colors ${
-                  filters.datePreset === p.value
-                    ? "bg-indigo-600 text-white"
-                    : "bg-muted text-muted-foreground hover:text-foreground/90"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Row 2: Topics */}
-        <div className="flex flex-wrap items-center gap-1">
-          <span className="text-muted-foreground/70 text-[10px] font-medium mr-1 shrink-0">Topic</span>
-          {TOPIC_NAMES.map((topic) => {
-            const active = filters.topics.includes(topic)
-            const colors = TOPIC_COLORS[topic] ?? "bg-zinc-500/20 text-muted-foreground border-zinc-500/40"
-            return (
-              <button
-                key={topic}
-                type="button"
-                onClick={() => toggleTopic(topic)}
-                className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all border ${
-                  active
-                    ? colors
-                    : "bg-muted/60 text-muted-foreground border-border/50 hover:text-foreground/90 hover:border-border"
-                }`}
-              >
-                {topic}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Row 3: Categories + Year + Countries */}
-        <div className="flex flex-wrap items-center gap-1">
-          <span className="text-muted-foreground/70 text-[10px] font-medium mr-1 shrink-0">Category</span>
-          {topCategories.length > 0 ? (
-            topCategories.map(({ name, count }) => {
-              const active = filters.categories.includes(name)
-              return (
-                <button
-                  key={name}
-                  type="button"
-                  onClick={() => toggleCategory(name)}
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-all border ${
-                    active
-                      ? "bg-indigo-500/25 text-indigo-300 border-indigo-500/50"
-                      : "bg-muted/60 text-muted-foreground border-border/50 hover:text-foreground/90 hover:border-border"
-                  }`}
-                  title={`${name} (${count})`}
-                >
-                  {name.length > 20 ? name.slice(0, 18) + "..." : name}
-                  <span className="ml-0.5 text-muted-foreground/70">{count}</span>
-                </button>
-              )
-            })
-          ) : (
-            <span className="text-zinc-700 text-[10px]">로딩 중...</span>
-          )}
-
-          <div className="w-px h-4 bg-muted mx-1" />
-
-          {/* Year range */}
-          <span className="text-muted-foreground/70 text-[10px] font-medium shrink-0">Year</span>
-          <input
-            type="number"
-            placeholder="from"
-            value={filters.yearFrom ?? ""}
-            onChange={(e) =>
-              setFilters((prev) => ({
-                ...prev,
-                yearFrom: e.target.value ? parseInt(e.target.value, 10) : null,
-              }))
-            }
-            className="w-16 h-6 px-1.5 rounded text-[11px] bg-muted border border-border text-foreground/90 placeholder:text-muted-foreground/70 focus:outline-none focus:border-zinc-500"
-          />
-          <span className="text-muted-foreground/70 text-[10px]">~</span>
-          <input
-            type="number"
-            placeholder="to"
-            value={filters.yearTo ?? ""}
-            onChange={(e) =>
-              setFilters((prev) => ({
-                ...prev,
-                yearTo: e.target.value ? parseInt(e.target.value, 10) : null,
-              }))
-            }
-            className="w-16 h-6 px-1.5 rounded text-[11px] bg-muted border border-border text-foreground/90 placeholder:text-muted-foreground/70 focus:outline-none focus:border-zinc-500"
-          />
-        </div>
-
-        {/* Row 3b: Countries */}
-        {topCountries.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1">
-            <span className="text-muted-foreground/70 text-[10px] font-medium mr-1 shrink-0">Country</span>
-            {topCountries.map(({ name, count }) => {
-              const active = filters.countries.includes(name)
-              return (
-                <button
-                  key={name}
-                  type="button"
-                  onClick={() => toggleCountry(name)}
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-all border ${
-                    active
-                      ? "bg-violet-500/25 text-violet-300 border-violet-500/50"
-                      : "bg-muted/60 text-muted-foreground border-border/50 hover:text-foreground/90 hover:border-border"
-                  }`}
-                >
-                  {getCountryFlag(name)} {name}
-                  <span className="ml-0.5 text-muted-foreground/70">{count}</span>
-                </button>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Row 4: Active filter summary */}
-        {hasActiveFilters(filters) && (
-          <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border">
-            <span className="text-muted-foreground/70 text-[10px] shrink-0">필터:</span>
-            {activeFilterTags.map((tag, i) => (
-              <span
-                key={`${tag.key}-${tag.value ?? tag.label}-${i}`}
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted border border-border text-foreground/90 text-[10px]"
-              >
-                {tag.label}
-                <button
-                  type="button"
-                  onClick={() => removeFilter(tag.key, tag.value)}
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  x
-                </button>
-              </span>
-            ))}
+      {/* ── Active Filter Pills ── */}
+      {hasActiveFilters(filters) && (
+        <div className="flex items-center gap-2 flex-wrap px-3 py-2.5 rounded-xl bg-indigo-950/40 border border-indigo-500/20 animate-fade-in-up">
+          <span className="text-[11px] text-indigo-400 uppercase tracking-wider font-semibold">필터</span>
+          {activeFilterTags.map((tag, i) => (
             <button
-              type="button"
-              onClick={() => {
-                setFilters(INITIAL_FILTERS)
-                setSearchInput("")
-              }}
-              className="text-muted-foreground text-[10px] hover:text-foreground/90 transition-colors ml-auto"
+              key={`${tag.key}-${tag.value ?? tag.label}-${i}`}
+              onClick={() => removeFilter(tag.key, tag.value)}
+              className="inline-flex items-center gap-1.5 pl-2.5 pr-2 py-1 rounded-full bg-muted text-foreground/90 text-xs border border-border/50 hover:border-zinc-500 hover:bg-muted/80 transition-all duration-150 group"
             >
-              초기화
+              <span className="text-muted-foreground text-[10px]">{FILTER_LABELS[tag.key] ?? tag.key}</span>
+              <span className="font-medium">{tag.label}</span>
+              <span className="text-muted-foreground group-hover:text-foreground/90 ml-0.5 transition-colors">✕</span>
             </button>
-          </div>
-        )}
-      </div>
+          ))}
+          <button
+            onClick={() => { setFilters(INITIAL_FILTERS); setSearchInput("") }}
+            className="text-[11px] text-muted-foreground hover:text-foreground/90 transition-colors underline underline-offset-2 decoration-zinc-700 hover:decoration-zinc-500"
+          >
+            전체 해제
+          </button>
+          <span className="text-[11px] text-muted-foreground ml-auto num">{dashFiltered.length}편 매칭</span>
+        </div>
+      )}
 
       {/* ── Table ── */}
       {isLoading ? (
@@ -1254,19 +1008,19 @@ function StatCard({
   )
 }
 
-// ── BarChart ───────────────────────────────────────────────
+// ── BarChart (multi-select) ───────────────────────────────
 
 function BarChart({
   title,
   entries,
-  activeKey,
+  activeKeys,
   onClickItem,
   color,
   renderLabel,
 }: {
   title: string
   entries: [string, number][]
-  activeKey?: string
+  activeKeys: Set<string>
   onClickItem: (key: string) => void
   color: ChartColorKey
   renderLabel?: (key: string) => string
@@ -1282,14 +1036,14 @@ function BarChart({
   }
 
   const maxCount = entries[0][1]
-  const hasActive = activeKey !== undefined
+  const hasActive = activeKeys.size > 0
 
   return (
     <div className="rounded-xl border border-border/80 bg-card p-4">
       <ChartHeader title={title} color={color} count={entries.reduce((s, [, n]) => s + n, 0)} />
       <div className="space-y-[5px] mt-3">
         {entries.map(([key, count]) => {
-          const isActive = activeKey === key
+          const isActive = activeKeys.has(key)
           const isDimmed = hasActive && !isActive
           const pct = Math.max((count / maxCount) * 100, 3)
 

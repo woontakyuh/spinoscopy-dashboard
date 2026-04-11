@@ -18,19 +18,18 @@ export function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="w-14 md:w-60 min-h-screen bg-card border-r border-border flex flex-col shrink-0 transition-[width] duration-200">
-      <div className="p-2 md:p-4 border-b border-border">
+    <aside className="w-14 md:w-44 min-h-screen bg-card border-r border-border flex flex-col shrink-0 transition-[width] duration-200">
+      <div className="p-2 md:px-3 md:py-3 border-b border-border">
         <Link href="/" className="flex items-center gap-2 justify-center md:justify-start hover:opacity-80 transition-opacity">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/tak.png" alt="Tak" className="w-10 h-10 md:w-16 md:h-16 rounded-full object-cover shrink-0" />
+          <img src="/tak.png" alt="Tak" className="w-10 h-10 md:w-11 md:h-11 rounded-full object-cover shrink-0" />
           <div className="hidden md:block">
             <p className="text-foreground font-semibold text-sm">Tak, MD</p>
-            <p className="text-muted-foreground text-xs">Dashboard</p>
           </div>
         </Link>
       </div>
 
-      <nav className="flex-1 p-1.5 md:p-3 space-y-1">
+      <nav className="flex-1 p-1.5 md:p-2 space-y-0.5">
         {NAV_ITEMS.map((item) => {
           const isCurrentPage = item.href !== "#" && (
             item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
@@ -83,8 +82,8 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="p-2 md:p-4 border-t border-border">
-        <p className="hidden md:block text-muted-foreground/70 text-xs text-center">Spinoscopy AI v0.1</p>
+      <div className="p-2 md:px-3 md:py-2 border-t border-border">
+        <p className="hidden md:block text-muted-foreground/70 text-[10px] text-center">v0.1</p>
         <p className="md:hidden text-muted-foreground/70 text-[10px] text-center">v0.1</p>
       </div>
     </aside>

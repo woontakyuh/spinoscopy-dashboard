@@ -366,9 +366,17 @@ export function MonthCalendar() {
                     </div>
                   </div>
                 </div>
-                <Badge variant="outline" className={`shrink-0 text-xs ${sourceBadgeClass(event.source)}`}>
-                  {sourceLabel(event.source)}
-                </Badge>
+                {event.notionUrl && (event.source === "notion" || event.source === "both") ? (
+                  <a href={event.notionUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                    <Badge variant="outline" className={`shrink-0 text-xs cursor-pointer hover:opacity-80 transition-opacity ${sourceBadgeClass(event.source)}`}>
+                      {sourceLabel(event.source)} ↗
+                    </Badge>
+                  </a>
+                ) : (
+                  <Badge variant="outline" className={`shrink-0 text-xs ${sourceBadgeClass(event.source)}`}>
+                    {sourceLabel(event.source)}
+                  </Badge>
+                )}
               </div>
             ))}
           </div>

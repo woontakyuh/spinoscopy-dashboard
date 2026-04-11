@@ -52,8 +52,8 @@ export default function VaultPage() {
     <div className="flex flex-col min-h-screen">
       <TopBar title="" />
 
-      {/* Mobile: horizontal tabs */}
-      <div className="md:hidden border-b border-border bg-background sticky top-0 z-10 overflow-x-auto">
+      {/* Tabs */}
+      <div className="border-b border-border bg-background sticky top-0 z-10 overflow-x-auto">
         <div className="flex gap-0.5 px-3 min-w-max">
           {TABS.map((tab) => (
             <button
@@ -77,34 +77,15 @@ export default function VaultPage() {
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row flex-1">
-        {/* Desktop: vertical sidebar */}
-        <nav className="hidden md:flex flex-col w-48 shrink-0 border-r border-border bg-card/50 p-3 gap-1 sticky top-0 h-screen overflow-y-auto">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left w-full
-                ${activeTab === tab.id ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}
-              `}
-            >
-              <span>{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </nav>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0 p-3 md:p-6 max-w-4xl w-full">
-          <AgentGreeter image="/warren.png" name="Warren" message={message} loading={isLoading} />
-          <div className="border border-border rounded-xl p-4 bg-card mb-4">
-            <p className="text-foreground/90 text-sm">
-              주요 자산 시세와 시장 지표를 실시간으로 추적하고, 관련 뉴스를 확인합니다.
-            </p>
-          </div>
-          <VaultDashboard view={activeTab} />
+      {/* Content */}
+      <div className="flex-1 min-w-0 p-3 md:p-6 max-w-4xl w-full">
+        <AgentGreeter image="/warren.png" name="Warren" message={message} loading={isLoading} />
+        <div className="border border-border rounded-xl p-4 bg-card mb-4">
+          <p className="text-foreground/90 text-sm">
+            주요 자산 시세와 시장 지표를 실시간으로 추적하고, 관련 뉴스를 확인합니다.
+          </p>
         </div>
+        <VaultDashboard view={activeTab} />
       </div>
     </div>
   )

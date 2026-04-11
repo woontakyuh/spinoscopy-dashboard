@@ -55,8 +55,8 @@ export default function ClinicusPage() {
     <div className="flex flex-col min-h-screen">
       <TopBar title="" />
 
-      {/* Mobile: horizontal tabs */}
-      <div className="md:hidden border-b border-border bg-background sticky top-0 z-10 overflow-x-auto">
+      {/* Tabs */}
+      <div className="border-b border-border bg-background sticky top-0 z-10 overflow-x-auto">
         <div className="flex gap-0.5 px-3 min-w-max">
           {TABS.map((tab) => (
             <button
@@ -80,59 +80,40 @@ export default function ClinicusPage() {
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row flex-1">
-        {/* Desktop: vertical sidebar */}
-        <nav className="hidden md:flex flex-col w-48 shrink-0 border-r border-border bg-card/50 p-3 gap-1 sticky top-0 h-screen overflow-y-auto">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left w-full
-                ${activeTab === tab.id ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}
-              `}
-            >
-              <span>{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </nav>
+      {/* Content */}
+      <div className="flex-1 min-w-0 p-3 md:p-6">
+        <AgentGreeter image="/opdb.png" name="Op DB" message={message} loading={isLoading} />
 
-        {/* Content */}
-        <div className="flex-1 min-w-0 p-3 md:p-6">
-          <AgentGreeter image="/opdb.png" name="Op DB" message={message} loading={isLoading} />
+        {activeTab === "analytics" && <ClinicsAnalytics />}
 
-          {activeTab === "analytics" && <ClinicsAnalytics />}
-
-          {activeTab === "search" && (
-            <div className="space-y-4">
-              <div>
-                <p className="text-foreground/90 text-sm font-medium mb-2">환자 검색</p>
-                <PatientSearch
-                  onSelect={(p) => setSearchPatient(p)}
-                  selectedId={searchPatient?.page_id}
-                />
-              </div>
-              {searchPatient ? (
-                <div className="space-y-4">
-                  <div className="border border-border rounded-xl p-4 bg-card">
-                    <PatientDetail
-                      patient={searchPatient}
-                      onOpenNotion={() => window.open(searchPatient.url, "_blank")}
-                    />
-                  </div>
-                  <PatientProfileView pageId={searchPatient.page_id} />
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-sm text-center py-8">
-                  환자를 검색하여 선택하면 PROM 요약과 그래프가 표시됩니다.
-                </p>
-              )}
+        {activeTab === "search" && (
+          <div className="space-y-4">
+            <div>
+              <p className="text-foreground/90 text-sm font-medium mb-2">환자 검색</p>
+              <PatientSearch
+                onSelect={(p) => setSearchPatient(p)}
+                selectedId={searchPatient?.page_id}
+              />
             </div>
-          )}
+            {searchPatient ? (
+              <div className="space-y-4">
+                <div className="border border-border rounded-xl p-4 bg-card">
+                  <PatientDetail
+                    patient={searchPatient}
+                    onOpenNotion={() => window.open(searchPatient.url, "_blank")}
+                  />
+                </div>
+                <PatientProfileView pageId={searchPatient.page_id} />
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm text-center py-8">
+                환자를 검색하여 선택하면 PROM 요약과 그래프가 표시됩니다.
+              </p>
+            )}
+          </div>
+        )}
 
-          {activeTab === "memo" && <IdeaMemo />}
-        </div>
+        {activeTab === "memo" && <IdeaMemo />}
       </div>
     </div>
   )

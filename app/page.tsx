@@ -6,7 +6,6 @@ import { TodaySurgery } from "@/components/dashboard/TodaySurgery"
 import { TodayTodo } from "@/components/dashboard/TodayTodo"
 import { MorningBriefing } from "@/components/dashboard/MorningBriefing"
 import { MonthCalendar } from "@/components/dashboard/MonthCalendar"
-import { TodaySchedule } from "@/components/dashboard/TodaySchedule"
 import { ConferenceSchedule } from "@/components/dashboard/ConferenceSchedule"
 
 export default function DashboardPage() {
@@ -24,19 +23,18 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-start">
-          {/* Column 1 — Dakota + Tasks */}
+          {/* Column 1 — Briefing + Surgery */}
           <div className="space-y-4">
             <MorningBriefing />
             <TodaySurgery />
-            <TodayTodo />
           </div>
-          {/* Column 2 — Calendar + Schedules */}
+          {/* Column 2 — Calendar + Conferences */}
           <div className="space-y-4">
             <MonthCalendar />
-            <TodaySchedule />
+            <ConferenceSchedule />
           </div>
-          {/* Column 3 — Conferences */}
-          <ConferenceSchedule />
+          {/* Column 3 — Todo */}
+          <TodayTodo />
         </div>
 
       </div>
