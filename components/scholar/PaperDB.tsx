@@ -269,13 +269,10 @@ export function PaperDB() {
 
   // ── Toggle helpers ──
   function toggleJournal(j: string) {
-    setFilters((prev) => {
-      const active = prev.journals.includes(j)
-      return {
-        ...prev,
-        journals: active ? prev.journals.filter((x) => x !== j) : [...prev.journals, j],
-      }
-    })
+    setFilters((prev) => ({
+      ...prev,
+      journals: prev.journals.includes(j) ? [] : [j],
+    }))
   }
 
   function toggleInterest(v: InterestLevel) {
