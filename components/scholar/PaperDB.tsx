@@ -231,7 +231,62 @@ export function PaperDB() {
     type: new Set(filters.types),
   }), [filters.topics, filters.countries, filters.journals, filters.types])
 
-  // Dashboard filtered (multi-select: same chart = OR, across charts = AND)
+  // Compact filter predicate (applied to all chart bases)
+  const compactFilter = useCallback((a: DashboardData["articles"][number]) => {
+    if (filters.dateFrom && (!a.pub_date || a.pub_date < filters.dateFrom)) return false
+    if (filters.dateTo && (!a.pub_date || a.pub_date > filters.dateTo)) return false
+    if (filters.interest && a.interest !== filters.interest) return false
+    if (filters.readStatus === "unread" && a.read) return false
+    if (filters.readStatus === "read" && !a.read) return false
+    if (filters.search) {
+      const q = filters.search.toLowerCase()
+      if (!a.title.toLowerCase().includes(q)) return false
+    }
+    return true
+  }, [filters.dateFrom, filters.dateTo, filters.interest, filters.readStatus, filters.search])
+
+  // Cross-filter: each chart excludes its OWN dimension, applies all others
+  const topicBase = useMemo(() => {
+    if (!dashData) return []
+    return dashData.articles.filter(a => {
+      if (chartActiveKeys.country.size > 0 && !chartActiveKeys.country.has(a.country ?? "")) return false
+      if (chartActiveKeys.type.size > 0 && !chartActiveKeys.type.has(a.pub_type ?? "")) return false
+      if (chartActiveKeys.journal.size > 0 && !chartActiveKeys.journal.has(a.journal ?? "")) return false
+      return compactFilter(a)
+    })
+  }, [dashData, chartActiveKeys.country, chartActiveKeys.type, chartActiveKeys.journal, compactFilter])
+
+  const countryBase = useMemo(() => {
+    if (!dashData) return []
+    return dashData.articles.filter(a => {
+      if (chartActiveKeys.topic.size > 0 && !a.topics.some(t => chartActiveKeys.topic.has(t))) return false
+      if (chartActiveKeys.type.size > 0 && !chartActiveKeys.type.has(a.pub_type ?? "")) return false
+      if (chartActiveKeys.journal.size > 0 && !chartActiveKeys.journal.has(a.journal ?? "")) return false
+      return compactFilter(a)
+    })
+  }, [dashData, chartActiveKeys.topic, chartActiveKeys.type, chartActiveKeys.journal, compactFilter])
+
+  const typeBase = useMemo(() => {
+    if (!dashData) return []
+    return dashData.articles.filter(a => {
+      if (chartActiveKeys.topic.size > 0 && !a.topics.some(t => chartActiveKeys.topic.has(t))) return false
+      if (chartActiveKeys.country.size > 0 && !chartActiveKeys.country.has(a.country ?? "")) return false
+      if (chartActiveKeys.journal.size > 0 && !chartActiveKeys.journal.has(a.journal ?? "")) return false
+      return compactFilter(a)
+    })
+  }, [dashData, chartActiveKeys.topic, chartActiveKeys.country, chartActiveKeys.journal, compactFilter])
+
+  const journalBase = useMemo(() => {
+    if (!dashData) return []
+    return dashData.articles.filter(a => {
+      if (chartActiveKeys.topic.size > 0 && !a.topics.some(t => chartActiveKeys.topic.has(t))) return false
+      if (chartActiveKeys.country.size > 0 && !chartActiveKeys.country.has(a.country ?? "")) return false
+      if (chartActiveKeys.type.size > 0 && !chartActiveKeys.type.has(a.pub_type ?? "")) return false
+      return compactFilter(a)
+    })
+  }, [dashData, chartActiveKeys.topic, chartActiveKeys.country, chartActiveKeys.type, compactFilter])
+
+  // Full cross-filter result (all dimensions applied) — for stat cards & article list
   const dashFiltered = useMemo(() => {
     if (!dashData) return []
     return dashData.articles.filter(a => {
@@ -239,24 +294,15 @@ export function PaperDB() {
       if (chartActiveKeys.country.size > 0 && !chartActiveKeys.country.has(a.country ?? "")) return false
       if (chartActiveKeys.type.size > 0 && !chartActiveKeys.type.has(a.pub_type ?? "")) return false
       if (chartActiveKeys.journal.size > 0 && !chartActiveKeys.journal.has(a.journal ?? "")) return false
-      if (filters.dateFrom && (!a.pub_date || a.pub_date < filters.dateFrom)) return false
-      if (filters.dateTo && (!a.pub_date || a.pub_date > filters.dateTo)) return false
-      if (filters.interest && a.interest !== filters.interest) return false
-      if (filters.readStatus === "unread" && a.read) return false
-      if (filters.readStatus === "read" && !a.read) return false
-      if (filters.search) {
-        const q = filters.search.toLowerCase()
-        if (!a.title.toLowerCase().includes(q)) return false
-      }
-      return true
+      return compactFilter(a)
     })
-  }, [dashData, chartActiveKeys, filters.dateFrom, filters.dateTo, filters.interest, filters.readStatus, filters.search])
+  }, [dashData, chartActiveKeys, compactFilter])
 
-  // Chart aggregations
-  const topicCounts = useMemo(() => countBy(dashFiltered, a => a.topics), [dashFiltered])
-  const countryCounts = useMemo(() => countBy(dashFiltered, a => a.country), [dashFiltered])
-  const typeCounts = useMemo(() => countBy(dashFiltered, a => a.pub_type), [dashFiltered])
-  const journalCounts = useMemo(() => countBy(dashFiltered, a => a.journal), [dashFiltered])
+  // Chart aggregations (each from its own cross-filtered base)
+  const topicCounts = useMemo(() => countBy(topicBase, a => a.topics), [topicBase])
+  const countryCounts = useMemo(() => countBy(countryBase, a => a.country), [countryBase])
+  const typeCounts = useMemo(() => countBy(typeBase, a => a.pub_type), [typeBase])
+  const journalCounts = useMemo(() => countBy(journalBase, a => a.journal), [journalBase])
 
   // Stat card values
   const dashUnreadCount = useMemo(() => dashFiltered.filter(a => !a.read).length, [dashFiltered])
@@ -425,6 +471,87 @@ export function PaperDB() {
     if (filters.dateTo) tags.push({ key: "dateTo", label: `~${filters.dateTo}` })
     return tags
   }, [filters])
+
+  // Sub-tabs: auto-generated when multi-select is active on any dimension
+  const [subTab, setSubTab] = useState<string | null>(null)
+
+  // Build sub-tab groups from multi-select dimensions
+  const subTabGroups = useMemo(() => {
+    const groups: { dimension: string; label: string; values: { key: string; label: string; count: number }[] }[] = []
+    if (filters.journals.length > 1) {
+      groups.push({
+        dimension: "journal",
+        label: "저널",
+        values: filters.journals.map(j => ({
+          key: `journal:${j}`,
+          label: j,
+          count: displayArticles.filter(a => a.journal_name.includes(j)).length,
+        })),
+      })
+    }
+    if (filters.topics.length > 1) {
+      groups.push({
+        dimension: "topic",
+        label: "주제",
+        values: filters.topics.map(t => ({
+          key: `topic:${t}`,
+          label: t,
+          count: displayArticles.filter(a => {
+            const text = `${a.title} ${a.categories.join(" ")}`.toLowerCase()
+            return TOPIC_GROUPS[t]?.some(kw => text.includes(kw)) ?? false
+          }).length,
+        })),
+      })
+    }
+    if (filters.countries.length > 1) {
+      groups.push({
+        dimension: "country",
+        label: "국가",
+        values: filters.countries.map(c => ({
+          key: `country:${c}`,
+          label: `${getCountryFlag(c)} ${c}`,
+          count: displayArticles.filter(a => extractCountry(a.affiliations) === c).length,
+        })),
+      })
+    }
+    if (filters.types.length > 1) {
+      groups.push({
+        dimension: "type",
+        label: "유형",
+        values: filters.types.map(t => ({
+          key: `type:${t}`,
+          label: t,
+          count: displayArticles.filter(a => (a.pub_type ?? "") === t).length,
+        })),
+      })
+    }
+    return groups
+  }, [filters.journals, filters.topics, filters.countries, filters.types, displayArticles])
+
+  // Apply sub-tab filter to display articles
+  const finalArticles = useMemo(() => {
+    if (!subTab) return displayArticles
+    const dim = subTab.split(":")[0]
+    const value = subTab.slice(dim.length + 1)
+    switch (dim) {
+      case "journal":
+        return displayArticles.filter(a => a.journal_name.includes(value))
+      case "topic":
+        return displayArticles.filter(a => {
+          const text = `${a.title} ${a.categories.join(" ")}`.toLowerCase()
+          return TOPIC_GROUPS[value]?.some(kw => text.includes(kw)) ?? false
+        })
+      case "country":
+        return displayArticles.filter(a => extractCountry(a.affiliations) === value)
+      case "type":
+        return displayArticles.filter(a => (a.pub_type ?? "") === value)
+      default:
+        return displayArticles
+    }
+  }, [displayArticles, subTab])
+
+  // Reset sub-tab when filters change
+  useEffect(() => { setSubTab(null) }, [filters.journals.length, filters.topics.length, filters.countries.length, filters.types.length])
 
   return (
     <div className="space-y-3">
@@ -599,6 +726,42 @@ export function PaperDB() {
         </div>
       )}
 
+      {/* ── Sub-tabs for multi-select drill-down ── */}
+      {subTabGroups.length > 0 && (
+        <div className="space-y-2">
+          {subTabGroups.map(group => (
+            <div key={group.dimension} className="flex items-center gap-1 flex-wrap">
+              <span className="text-muted-foreground/70 text-[10px] font-medium mr-1 shrink-0">{group.label}</span>
+              <button
+                type="button"
+                onClick={() => setSubTab(null)}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors border ${
+                  subTab === null
+                    ? "bg-indigo-600/30 text-indigo-300 border-indigo-500/50"
+                    : "bg-muted text-muted-foreground border-border/50 hover:text-foreground/90 hover:border-border"
+                }`}
+              >
+                전체 <span className="text-muted-foreground/70 ml-0.5">{displayArticles.length}</span>
+              </button>
+              {group.values.map(v => (
+                <button
+                  key={v.key}
+                  type="button"
+                  onClick={() => setSubTab(subTab === v.key ? null : v.key)}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors border ${
+                    subTab === v.key
+                      ? "bg-indigo-600/30 text-indigo-300 border-indigo-500/50"
+                      : "bg-muted text-muted-foreground border-border/50 hover:text-foreground/90 hover:border-border"
+                  }`}
+                >
+                  {v.label} <span className="text-muted-foreground/70 ml-0.5">{v.count}</span>
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* ── Table ── */}
       {isLoading ? (
         <div className="space-y-1">
@@ -610,7 +773,7 @@ export function PaperDB() {
         <p className="text-red-400 text-sm text-center py-8">
           로딩 실패: {(error as Error).message}
         </p>
-      ) : displayArticles.length === 0 ? (
+      ) : finalArticles.length === 0 ? (
         <p className="text-muted-foreground text-sm text-center py-12">논문이 없습니다.</p>
       ) : (
         <div className="border border-border rounded-lg overflow-hidden">
@@ -625,7 +788,7 @@ export function PaperDB() {
           </div>
 
           {/* Rows */}
-          {displayArticles.map((article) => (
+          {finalArticles.map((article) => (
             <Fragment key={article.page_id}>
               <div
                 role="button"
@@ -714,10 +877,10 @@ export function PaperDB() {
       )}
 
       {/* Footer */}
-      {!isLoading && !error && displayArticles.length > 0 && (
+      {!isLoading && !error && finalArticles.length > 0 && (
         <div className="flex items-center justify-between px-1">
           <span className="text-muted-foreground/70 text-xs num">
-            {displayArticles.length}편 표시{hasMore ? " · 더 있음" : ""}
+            {finalArticles.length}편 표시{hasMore ? " · 더 있음" : ""}
           </span>
           {hasMore && (
             <button
