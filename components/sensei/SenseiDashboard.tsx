@@ -14,7 +14,16 @@ import { loadUserProfile } from "@/lib/sensei/userProfile"
 import { useSenseiData } from "@/lib/sensei/useSenseiData"
 import { BELT_CAPS, PROMOTION_HISTORY } from "@/lib/sensei/stats"
 import { calculateOvr } from "@/lib/sensei/ovr"
-import type { BjjStats, BjjAttributes, UserProfile, Archetype } from "@/lib/types/sensei"
+import type { BjjStats, BjjAttributes, UserProfile, Archetype, PositionLayer } from "@/lib/types/sensei"
+
+const LAYER_COLORS_MAP: Record<PositionLayer, string> = {
+  standing: "#71717a",
+  guard: "#3b82f6",
+  passing: "#22c55e",
+  control: "#f59e0b",
+  submission: "#ef4444",
+  leglock: "#dc2626",
+}
 
 interface SenseiDashboardProps { onNavigate: (tab: string) => void }
 
@@ -71,7 +80,7 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
     queryFn: async () => { const r = await fetch("/api/notion/sensei/stats"); if (!r.ok) throw new Error("err"); return r.json() },
   })
 
-  const { archetypes } = useSenseiData()
+  const { archetypes, positions } = useSenseiData()
 
   const closestArch = useMemo(() => {
     if (!data?.stats) return null
@@ -306,6 +315,7 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             {filteredArchetypes.map((a) => {
               const isSelected = compareArch?.name === a.name
+              const firstName = a.name.split(" ").slice(-1)[0]
               return (
                 <button key={a.name} type="button"
                   onClick={() => setCompareArch(isSelected ? null : a)}
@@ -313,8 +323,9 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
                   onPointerLeave={() => setHoveredArch(null)}
                   className={`shrink-0 w-20 rounded-xl border p-1.5 text-center transition-all ${isSelected ? "border-orange-500 bg-orange-500/10 ring-1 ring-orange-500/30" : "border-border bg-muted/50 hover:border-foreground/20"}`}
                 >
-                  <p className="text-[11px] font-bold text-foreground truncate">{a.name}</p>
-                  <p className="text-[8px] text-muted-foreground truncate">{a.nickname}</p>
+                  <p className="text-[11px] font-bold text-foreground truncate">{firstName}</p>
+                  <p className="text-[8px]">{a.flag}</p>
+                  <p className="text-[7px] text-muted-foreground truncate">{a.nickname}</p>
                 </button>
               )
             })}
@@ -322,62 +333,105 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
 
           {/* 선수 상세 (클릭 고정 or 호버) */}
           {activeCompare && (
-            <div className="mt-3 border border-border rounded-xl bg-muted/30 p-4 grid grid-cols-1 md:grid-cols-[1fr_200px] gap-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">{activeCompare.flag}</span>
-                  <div>
-                    <h4 className="text-sm font-bold text-foreground">{activeCompare.name}</h4>
-                    <p className="text-[10px] text-muted-foreground">{activeCompare.nickname} · {activeCompare.team} · {activeCompare.playstyle}</p>
-                  </div>
-                  <span className="ml-auto text-xs font-bold text-amber-500">{calculateOvr(activeCompare.stats).ovr} OVR</span>
-                  <span className="text-[10px] text-muted-foreground">{cosineSimilarity(attrs, activeCompare.stats)}% match</span>
+            <div className="mt-3 border border-border rounded-xl bg-muted/30 p-4 space-y-3">
+              {/* 헤더: Full name 크게 */}
+              <div className="flex items-start gap-3">
+                <div className="flex-1">
+                  <h4 className="text-base font-bold text-foreground">{activeCompare.name}</h4>
+                  <p className="text-xs text-muted-foreground">{activeCompare.flag} {activeCompare.nickname} · {activeCompare.team}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{activeCompare.playstyle}</p>
                 </div>
-                {/* 6축 비교 미니바 */}
-                <div className="grid grid-cols-3 gap-x-4 gap-y-1">
-                  {STAT_BARS.map((s) => (
-                    <div key={s.name} className="flex items-center gap-1.5 text-[10px]">
-                      <span className="text-muted-foreground w-16 shrink-0">{s.name}</span>
-                      <span className="font-semibold text-foreground w-5 text-right">{attrs[s.key]}</span>
-                      <span className="text-muted-foreground/60">vs</span>
-                      <span className="font-semibold w-5" style={{ color: activeCompare.stats[s.key] > attrs[s.key] ? "#f87171" : "#4ade80" }}>{activeCompare.stats[s.key]}</span>
-                    </div>
-                  ))}
+                <div className="text-right shrink-0">
+                  <span className="text-lg font-bold text-amber-500">{calculateOvr(activeCompare.stats).ovr}</span>
+                  <span className="text-[10px] text-muted-foreground ml-1">OVR</span>
+                  <p className="text-[10px] text-muted-foreground">{cosineSimilarity(attrs, activeCompare.stats)}% match</p>
                 </div>
-                {/* 게임플랜 */}
-                {activeCompare.gameplan.length > 0 && (
-                  <div>
-                    <h5 className="text-[10px] text-muted-foreground mb-1">게임플랜</h5>
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {activeCompare.gameplan.map((step, i) => (
-                        <span key={i} className="flex items-center gap-0.5 text-[9px]">
-                          <span className="px-1.5 py-0.5 bg-muted rounded border border-border text-foreground/80">{step.position}</span>
-                          {i < activeCompare.gameplan.length - 1 && <span className="text-muted-foreground">→</span>}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {/* 시그니처 태그 */}
-                {activeCompare.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {activeCompare.tags.map((tag) => (
-                      <span key={tag} className="px-1.5 py-0.5 text-[8px] bg-muted border border-border rounded text-muted-foreground">{tag}</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-4">
+                <div className="space-y-3">
+                  {/* 6축 비교 */}
+                  <div className="grid grid-cols-3 gap-x-4 gap-y-1">
+                    {STAT_BARS.map((s) => (
+                      <div key={s.name} className="flex items-center gap-1.5 text-[10px]">
+                        <span className="text-muted-foreground w-16 shrink-0">{s.name}</span>
+                        <span className="font-semibold text-foreground w-5 text-right">{attrs[s.key]}</span>
+                        <span className="text-muted-foreground/60">vs</span>
+                        <span className="font-semibold w-5" style={{ color: activeCompare.stats[s.key] > attrs[s.key] ? "#f87171" : "#4ade80" }}>{activeCompare.stats[s.key]}</span>
+                      </div>
                     ))}
                   </div>
-                )}
-              </div>
-              {/* 미니 레이더 */}
-              <div className="hidden md:block">
-                <div className="h-[160px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
-                      <PolarGrid stroke="var(--border)" />
-                      <PolarAngleAxis dataKey="subject" tick={{ fontSize: 8, fill: "var(--muted-foreground)" }} />
-                      <Radar dataKey="value" stroke="#f97316" strokeWidth={1.5} fill="#f97316" fillOpacity={0.15} />
-                      <Radar dataKey="compare" stroke="#f87171" strokeWidth={1.5} fill="none" strokeDasharray="4 3" />
-                    </RadarChart>
-                  </ResponsiveContainer>
+
+                  {/* 시그니처 태그 */}
+                  {activeCompare.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {activeCompare.tags.map((tag) => (
+                        <span key={tag} className="px-1.5 py-0.5 text-[8px] bg-muted border border-border rounded text-muted-foreground">{tag}</span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* 게임플랜 — Map 스타일 SVG 시각화 */}
+                  {activeCompare.gameplan.length > 0 && (
+                    <div>
+                      <h5 className="text-[10px] text-muted-foreground mb-1.5">게임플랜</h5>
+                      <div className="border border-border rounded-lg bg-card p-2 overflow-x-auto">
+                        <svg viewBox={`0 0 ${Math.max(activeCompare.gameplan.length * 140, 400)} 80`} className="w-full" style={{ minHeight: 70 }}>
+                          {activeCompare.gameplan.map((step, i) => {
+                            const x = 70 + i * 130
+                            const y = 40
+                            const pos = positions.find((p) => p.id === step.position || p.name === step.position || p.nameKr === step.position)
+                            const layerColor = pos ? (LAYER_COLORS_MAP[pos.layer] || "#71717a") : "#71717a"
+                            return (
+                              <g key={i}>
+                                {/* 연결선 */}
+                                {i > 0 && (
+                                  <path
+                                    d={`M${x - 95},${y} Q${x - 60},${y - 15} ${x - 25},${y}`}
+                                    stroke={layerColor}
+                                    strokeWidth={1.5}
+                                    fill="none"
+                                    markerEnd="url(#gp-arrow)"
+                                    opacity={0.6}
+                                  />
+                                )}
+                                {/* 노드 */}
+                                <circle cx={x} cy={y} r={16} fill={layerColor} fillOpacity={0.15} stroke={layerColor} strokeWidth={1.5}
+                                  className="cursor-pointer" onClick={() => onNavigate("map")} />
+                                <text x={x} y={y + 3} textAnchor="middle" fill={layerColor} fontSize={8} fontWeight={700}>{step.position.slice(0, 4)}</text>
+                                {/* 액션 라벨 */}
+                                <text x={x} y={y + 32} textAnchor="middle" fill="var(--muted-foreground)" fontSize={7} opacity={0.8}>
+                                  {step.action.slice(0, 18)}
+                                </text>
+                              </g>
+                            )
+                          })}
+                          <defs>
+                            <marker id="gp-arrow" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto">
+                              <polygon points="0 0, 6 2.5, 0 5" fill="var(--muted-foreground)" opacity={0.5} />
+                            </marker>
+                          </defs>
+                        </svg>
+                      </div>
+                      <button type="button" onClick={() => onNavigate("map")} className="mt-1 text-[9px] text-blue-400 hover:text-blue-300">
+                        Map에서 자세히 보기 →
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* 미니 레이더 */}
+                <div className="hidden md:block">
+                  <div className="h-[160px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
+                        <PolarGrid stroke="var(--border)" />
+                        <PolarAngleAxis dataKey="subject" tick={{ fontSize: 8, fill: "var(--muted-foreground)" }} />
+                        <Radar dataKey="value" stroke="#f97316" strokeWidth={1.5} fill="#f97316" fillOpacity={0.15} />
+                        <Radar dataKey="compare" stroke="#f87171" strokeWidth={1.5} fill="none" strokeDasharray="4 3" />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               </div>
             </div>
