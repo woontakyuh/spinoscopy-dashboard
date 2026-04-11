@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { useQuery } from "@tanstack/react-query"
 import {
   Radar,
@@ -96,6 +96,25 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
 
   const [hoveredArch, setHoveredArch] = useState<Archetype | null>(null)
   const activeCompare = compareArch ?? hoveredArch ?? closestArch?.arch ?? null
+
+  // 가로 스크롤 마우스 드래그
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const dragState = useRef({ isDown: false, startX: 0, scrollLeft: 0 })
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    const el = scrollRef.current; if (!el) return
+    dragState.current = { isDown: true, startX: e.pageX - el.offsetLeft, scrollLeft: el.scrollLeft }
+    el.style.cursor = "grabbing"
+  }, [])
+  const onMouseUp = useCallback(() => {
+    if (scrollRef.current) scrollRef.current.style.cursor = "grab"
+    dragState.current.isDown = false
+  }, [])
+  const onMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!dragState.current.isDown) return; e.preventDefault()
+    const el = scrollRef.current; if (!el) return
+    const x = e.pageX - el.offsetLeft
+    el.scrollLeft = dragState.current.scrollLeft - (x - dragState.current.startX)
+  }, [])
 
   const filteredArchetypes = useMemo(() => {
     if (catFilter === "all") return archetypes
@@ -312,10 +331,11 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
               ))}
             </div>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          <div ref={scrollRef} className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide cursor-grab select-none"
+            onMouseDown={onMouseDown} onMouseUp={onMouseUp} onMouseLeave={onMouseUp} onMouseMove={onMouseMove}>
             {filteredArchetypes.map((a) => {
               const isSelected = compareArch?.name === a.name
-              const firstName = a.name.split(" ").slice(-1)[0]
+              const firstName = a.name.split(" ")[0]
               return (
                 <button key={a.name} type="button"
                   onClick={() => setCompareArch(isSelected ? null : a)}
