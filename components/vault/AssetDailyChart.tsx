@@ -16,11 +16,11 @@ import { Skeleton } from "@/components/ui/skeleton"
 import type { BtcChartBar, BtcChartPeriod, BtcChartResponse } from "@/lib/types/vault"
 
 const PERIODS: { value: BtcChartPeriod; label: string }[] = [
-  { value: "1W", label: "1주" },
-  { value: "1M", label: "1월" },
-  { value: "3M", label: "3월" },
-  { value: "6M", label: "6월" },
-  { value: "1Y", label: "1년" },
+  { value: "1W", label: "wk" },
+  { value: "1M", label: "mo" },
+  { value: "3M", label: "3mo" },
+  { value: "6M", label: "6mo" },
+  { value: "1Y", label: "yr" },
 ]
 
 interface AssetDailyChartProps {
@@ -29,6 +29,13 @@ interface AssetDailyChartProps {
   currency?: "USD" | "KRW"
   height?: number
   defaultPeriod?: BtcChartPeriod
+}
+
+function getSourceUrl(symbol: string): string {
+  if (symbol === "BTC") return "https://www.coingecko.com/en/coins/bitcoin"
+  if (symbol === "ETH") return "https://www.coingecko.com/en/coins/ethereum"
+  if (/^\d+$/.test(symbol)) return `https://finance.naver.com/item/main.naver?code=${symbol}`
+  return `https://www.google.com/finance/quote/${symbol}:NASDAQ`
 }
 
 function formatPrice(price: number, currency: string): string {
@@ -163,9 +170,13 @@ export function AssetDailyChart({
 
   return (
     <div className="border border-border rounded-xl bg-card overflow-hidden">
-      <div className="flex items-center justify-between p-3 pb-0 gap-2">
+      <div className="p-3 pb-0 space-y-1.5">
+        {/* 1줄: 이름(클릭→원본) + 가격 + 변동률 */}
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-foreground text-sm font-semibold truncate">{title}</span>
+          <a href={getSourceUrl(symbol)} target="_blank" rel="noreferrer"
+            className="text-foreground text-sm font-semibold truncate hover:text-blue-400 transition-colors cursor-pointer">
+            {title}
+          </a>
           {latestPrice !== null && (
             <span className="text-foreground text-base font-bold shrink-0">
               {formatPrice(latestPrice, currency)}
@@ -177,13 +188,14 @@ export function AssetDailyChart({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg p-0.5 border border-border shrink-0">
+        {/* 2줄: 기간 선택 */}
+        <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg p-0.5 border border-border w-fit">
           {PERIODS.map((p) => (
             <button
               key={p.value}
               type="button"
               onClick={() => setPeriod(p.value)}
-              className={`px-2 py-0.5 text-[11px] rounded-md transition-colors ${
+              className={`px-2 py-0.5 text-[10px] rounded-md transition-colors ${
                 period === p.value
                   ? "bg-muted text-foreground"
                   : "text-muted-foreground hover:text-foreground/90 hover:bg-muted/60"
