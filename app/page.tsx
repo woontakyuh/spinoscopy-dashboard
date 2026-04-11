@@ -12,8 +12,8 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="Home" />
-      <div className="flex-1 p-3 md:p-6 max-w-6xl w-full space-y-4 md:space-y-6">
-        <div className="animate-fade-in-up">
+      <div className="flex-1 p-3 md:p-6 max-w-7xl w-full space-y-4 md:space-y-6">
+        <div>
           <div className="flex items-center gap-2 mb-3">
             <div className="h-px flex-1 bg-gradient-to-r from-cyan-500/40 to-transparent" />
             <span className="text-zinc-500 text-xs tracking-wider uppercase">Sub-Agents</span>
@@ -22,18 +22,15 @@ export default function DashboardPage() {
           <AgentGrid />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 items-stretch animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-stretch">
           <MorningBriefing />
           <MonthCalendar />
+          <ConferenceSchedule />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <TodaySurgery />
           <TodayTodo />
-        </div>
-
-        <div className="animate-fade-in-up" style={{ animationDelay: "0.3s" }}>
-          <ConferenceSchedule />
         </div>
 
       </div>
