@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
-import { extractCountry, getCountryFlag, TOPIC_GROUPS } from "@/lib/scholar/country"
+import { extractCountry, getCountryFlag, TOPIC_GROUPS, normalizeArticleType } from "@/lib/scholar/country"
 import type { JournalArticle, JournalQueryResult, InterestLevel, DashboardData } from "@/lib/types/journal"
 
 // ── Constants ──────────────────────────────────────────────
@@ -402,9 +402,9 @@ export function PaperDB() {
       )
     }
 
-    // types (client-side)
+    // types (client-side, normalize to match chart values)
     if (filters.types.length > 0) {
-      list = list.filter((a) => filters.types.includes(a.pub_type ?? ""))
+      list = list.filter((a) => filters.types.includes(normalizeArticleType(a.pub_type ?? "")))
     }
 
     // countries (client-side)
@@ -521,7 +521,7 @@ export function PaperDB() {
         values: filters.types.map(t => ({
           key: `type:${t}`,
           label: t,
-          count: displayArticles.filter(a => (a.pub_type ?? "") === t).length,
+          count: displayArticles.filter(a => normalizeArticleType(a.pub_type ?? "") === t).length,
         })),
       })
     }
@@ -544,7 +544,7 @@ export function PaperDB() {
       case "country":
         return displayArticles.filter(a => extractCountry(a.affiliations) === value)
       case "type":
-        return displayArticles.filter(a => (a.pub_type ?? "") === value)
+        return displayArticles.filter(a => normalizeArticleType(a.pub_type ?? "") === value)
       default:
         return displayArticles
     }
