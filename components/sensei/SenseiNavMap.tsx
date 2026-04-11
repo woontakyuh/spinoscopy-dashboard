@@ -83,7 +83,7 @@ interface PositionTrainingInfo {
   count: number
   lastDate: string | null
   videos: Array<{ url: string; title?: string }>
-  recentNotes: Array<{ date: string; note: string }>
+  recentNotes: Array<{ date: string; note: string; url: string }>
 }
 
 function buildPositionTrainingMap(
@@ -126,6 +126,7 @@ function buildPositionTrainingMap(
         info.recentNotes.push({
           date: entry.date ?? "",
           note: entry.note.slice(0, 100),
+          url: entry.url,
         })
       }
     }
@@ -310,7 +311,7 @@ export function SenseiNavMap() {
         </div>
       </div>
 
-      <div className="flex gap-4 items-start">
+      <div className="flex gap-4 items-start" style={{ minHeight: 550 }}>
         {/* SVG Map */}
         <div className="flex-1 overflow-hidden border border-border rounded-xl bg-card p-1">
           <svg
@@ -444,9 +445,12 @@ export function SenseiNavMap() {
           </svg>
         </div>
 
-        {/* Detail Panel */}
-        {selectedNode && (
-          <div className="w-64 shrink-0 border border-border rounded-xl bg-card p-4 space-y-3 hidden md:block">
+        {/* Detail Panel — 항상 표시, 노드 선택 전엔 안내 */}
+        <div className="w-64 shrink-0 border border-border rounded-xl bg-card p-4 space-y-3 hidden md:block overflow-y-auto" style={{ maxHeight: 550 }}>
+          {!selectedNode ? (
+            <p className="text-muted-foreground/60 text-xs text-center py-8">노드를 클릭하면 상세 정보가 여기에 표시됩니다</p>
+          ) : (
+            <>
             <div>
               <h3 className="text-foreground font-semibold text-sm">{selectedNode.nameKr}</h3>
               <p className="text-muted-foreground text-xs">{selectedNode.name}</p>
@@ -505,10 +509,11 @@ export function SenseiNavMap() {
                     <div>
                       <h4 className="text-[10px] text-muted-foreground mb-0.5">최근 노트</h4>
                       {info.recentNotes.map((n, ni) => (
-                        <div key={ni} className="text-[10px] text-foreground/70 leading-tight mb-1">
+                        <a key={ni} href={n.url} target="_blank" rel="noreferrer"
+                          className="block text-[10px] text-foreground/70 leading-tight mb-1 hover:text-blue-400 transition-colors cursor-pointer">
                           <span className="text-muted-foreground">{n.date.slice(5)}</span>{" "}
                           {n.note}
-                        </div>
+                        </a>
                       ))}
                     </div>
                   )}
@@ -563,8 +568,9 @@ export function SenseiNavMap() {
                 </div>
               </div>
             )}
-          </div>
-        )}
+          </>
+          )}
+        </div>
       </div>
     </div>
   )
