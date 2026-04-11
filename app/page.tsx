@@ -6,6 +6,7 @@ import { TodaySurgery } from "@/components/dashboard/TodaySurgery"
 import { TodayTodo } from "@/components/dashboard/TodayTodo"
 import { MorningBriefing } from "@/components/dashboard/MorningBriefing"
 import { MonthCalendar } from "@/components/dashboard/MonthCalendar"
+import { TodaySchedule } from "@/components/dashboard/TodaySchedule"
 import { ConferenceSchedule } from "@/components/dashboard/ConferenceSchedule"
 
 export default function DashboardPage() {
@@ -22,15 +23,20 @@ export default function DashboardPage() {
           <AgentGrid />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-stretch">
-          <MorningBriefing />
-          <MonthCalendar />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-start">
+          {/* Column 1 — Dakota + Tasks */}
+          <div className="space-y-4">
+            <MorningBriefing />
+            <TodaySurgery />
+            <TodayTodo />
+          </div>
+          {/* Column 2 — Calendar + Schedules */}
+          <div className="space-y-4">
+            <MonthCalendar />
+            <TodaySchedule />
+          </div>
+          {/* Column 3 — Conferences */}
           <ConferenceSchedule />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <TodaySurgery />
-          <TodayTodo />
         </div>
 
       </div>

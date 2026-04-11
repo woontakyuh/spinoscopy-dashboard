@@ -5,7 +5,6 @@ import { useQuery } from "@tanstack/react-query"
 import { TopBar } from "@/components/layout/TopBar"
 import { AgentGreeter } from "@/components/layout/AgentGreeter"
 import { MyPapers } from "@/components/scholar/MyPapers"
-import { DashboardCharts } from "@/components/scholar/DashboardCharts"
 import { PaperDB } from "@/components/scholar/PaperDB"
 import { ResearchPipeline } from "@/components/scholar/ResearchPipeline"
 import { Editorial } from "@/components/scholar/Editorial"
@@ -15,7 +14,6 @@ import type { ResearchProject } from "@/lib/types/research"
 const TABS = [
   { id: "my-papers", label: "My Papers", icon: "📄" },
   { id: "research", label: "My Research", icon: "🔬" },
-  { id: "dashboard", label: "UpToDate", icon: "📊" },
   { id: "browse", label: "Journal DB", icon: "📚" },
   { id: "editorial", label: "Editorial", icon: "✏️" },
 ] as const
@@ -44,10 +42,6 @@ export default function ScholarPage() {
     },
     staleTime: 5 * 60 * 1000,
   })
-
-  function handleViewArticles() {
-    setActiveTab("browse")
-  }
 
   // ─── 메시지 풀: 저널 업데이트 + 연구 진행 둘 다 ───
   function buildMessages(): string[] {
@@ -155,7 +149,6 @@ export default function ScholarPage() {
 
           {activeTab === "my-papers" && <MyPapers />}
           {activeTab === "research" && <ResearchPipeline />}
-          {activeTab === "dashboard" && <DashboardCharts onViewArticles={handleViewArticles} />}
           {activeTab === "browse" && <PaperDB />}
           {activeTab === "editorial" && <Editorial />}
         </div>

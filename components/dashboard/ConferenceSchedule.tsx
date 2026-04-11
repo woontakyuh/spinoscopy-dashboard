@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -88,6 +89,8 @@ function ConferenceItem({ conf }: { conf: Presentation }) {
 }
 
 export function ConferenceSchedule() {
+  const [filter, setFilter] = useState<"all" | "presenting">("all")
+
   const { data, isLoading, error } = useQuery<PresentationsResponse>({
     queryKey: ["dashboard-conferences"],
     queryFn: async () => {
@@ -99,14 +102,39 @@ export function ConferenceSchedule() {
     staleTime: 2 * 60 * 1000,
   })
 
-  const conferences = (data?.presentations ?? []).filter((c) => c.attendance_type !== "불참")
+  const allConferences = (data?.presentations ?? []).filter((c) => c.attendance_type !== "불참")
+  const conferences = filter === "presenting"
+    ? allConferences.filter((c) => c.attendance_type === "발표" || c.attendance_type === "Instructor")
+    : allConferences
+
+  const filterToggle = (
+    <div className="flex items-center gap-0.5 text-[10px] rounded-full border border-border overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setFilter("all")}
+        className={`px-2 py-0.5 transition-colors ${filter === "all" ? "bg-blue-600 text-white" : "text-muted-foreground hover:text-foreground"}`}
+      >
+        전체
+      </button>
+      <button
+        type="button"
+        onClick={() => setFilter("presenting")}
+        className={`px-2 py-0.5 transition-colors ${filter === "presenting" ? "bg-amber-600 text-white" : "text-muted-foreground hover:text-foreground"}`}
+      >
+        발표
+      </button>
+    </div>
+  )
 
   if (isLoading) {
     return (
       <div className="border border-border rounded-xl bg-card p-4">
-        <h3 className="text-sm font-semibold text-foreground/90 uppercase tracking-wider mb-3">
-          🏆 학회 · 발표 일정
-        </h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-foreground/90 uppercase tracking-wider">
+            학회 · 발표 일정
+          </h3>
+          {filterToggle}
+        </div>
         <div className="space-y-2">
           <Skeleton className="h-14 w-full bg-muted" />
           <Skeleton className="h-14 w-full bg-muted" />
@@ -117,9 +145,12 @@ export function ConferenceSchedule() {
 
   return (
     <div className="border border-border rounded-xl bg-card p-4">
-      <h3 className="text-sm font-semibold text-foreground/90 uppercase tracking-wider mb-3">
-        🏆 학회 · 발표 일정 ({conferences.length})
-      </h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-foreground/90 uppercase tracking-wider">
+          학회 · 발표 일정 ({conferences.length})
+        </h3>
+        {filterToggle}
+      </div>
 
       {error ? (
         <p className="text-red-400 text-sm">학회 일정을 불러오지 못했습니다.</p>

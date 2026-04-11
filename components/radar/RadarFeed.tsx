@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { FeedCard } from "./FeedCard"
 import type { FeedItem, FeedResponse, FeedSource, FeedTier } from "@/lib/types/radar"
 
-const TABS: Array<{ value: FeedTier; label: string }> = [
+const TIERS: Array<{ value: FeedTier; label: string }> = [
   { value: "ai-company", label: "News" },
   { value: "thought-leader", label: "AI Leaders" },
   { value: "newsletter", label: "Papers" },
@@ -16,36 +16,18 @@ const TABS: Array<{ value: FeedTier; label: string }> = [
 
 type SortMode = "date" | "importance"
 
-export function RadarFeed() {
-  const [tab, setTab] = useState<FeedTier>("ai-company")
-  const [sortMode, setSortMode] = useState<SortMode>("date")
-  const [visibleCount, setVisibleCount] = useState(20)
-  const [selectedSources, setSelectedSources] = useState<Set<FeedSource>>(new Set())
+const SOURCE_PRIORITY: FeedSource[] = [
+  "anthropic-engineering",
+  "anthropic-research",
+  "deepmind-blog",
+  "google-ai-blog",
+  "openai-blog",
+  "the-batch",
+  "moduletter",
+]
 
-  const feedQuery = useQuery({
-    queryKey: ["radar-feed"],
-    queryFn: async () => {
-      const res = await fetch("/api/ai-feed")
-      if (!res.ok) throw new Error("피드 조회 실패")
-      return res.json() as Promise<FeedResponse>
-    },
-    staleTime: 5 * 60 * 1000,
-  })
-
-  const items: FeedItem[] = feedQuery.data?.items ?? []
-
-  // 현재 탭의 아이템에서 소스 목록 + 카운트 추출
-  const tabItems = items.filter((item) => item.tier === tab)
-  const SOURCE_PRIORITY: FeedSource[] = [
-    "anthropic-engineering",
-    "anthropic-research",
-    "deepmind-blog",
-    "google-ai-blog",
-    "openai-blog",
-    "the-batch",
-    "moduletter",
-  ]
-  const sourceOptions = Array.from(
+function getSourceOptions(tabItems: FeedItem[]) {
+  return Array.from(
     tabItems.reduce((map, item) => {
       const entry = map.get(item.source)
       if (entry) entry.count += 1
@@ -60,24 +42,32 @@ export function RadarFeed() {
     }
     return b.count - a.count
   })
+}
 
-  const filtered = tabItems
-    .filter((item) => selectedSources.size === 0 || selectedSources.has(item.source))
-    .sort((a, b) => {
-      if (sortMode === "date") {
-        if (a.date !== b.date) return b.date.localeCompare(a.date)
-        return b.importanceScore - a.importanceScore
-      }
-      if (a.importanceScore !== b.importanceScore) return b.importanceScore - a.importanceScore
-      return b.date.localeCompare(a.date)
-    })
+function sortItems(items: FeedItem[], sortMode: SortMode) {
+  return items.slice().sort((a, b) => {
+    if (sortMode === "date") {
+      if (a.date !== b.date) return b.date.localeCompare(a.date)
+      return b.importanceScore - a.importanceScore
+    }
+    if (a.importanceScore !== b.importanceScore) return b.importanceScore - a.importanceScore
+    return b.date.localeCompare(a.date)
+  })
+}
 
-  // 탭 변경 시 visibleCount + 소스 선택 리셋
-  function handleTabChange(value: FeedTier) {
-    setTab(value)
-    setVisibleCount(20)
-    setSelectedSources(new Set())
-  }
+// ─── Single-column feed for one tier ───
+function FeedColumn({ tier, items, fetchedAt }: { tier: typeof TIERS[number]; items: FeedItem[]; fetchedAt?: string }) {
+  const [sortMode, setSortMode] = useState<SortMode>("date")
+  const [visibleCount, setVisibleCount] = useState(20)
+  const [selectedSources, setSelectedSources] = useState<Set<FeedSource>>(new Set())
+
+  const tabItems = items.filter((i) => i.tier === tier.value)
+  const sourceOptions = getSourceOptions(tabItems)
+
+  const filtered = sortItems(
+    tabItems.filter((item) => selectedSources.size === 0 || selectedSources.has(item.source)),
+    sortMode
+  )
 
   function toggleSource(source: FeedSource) {
     setSelectedSources((prev) => {
@@ -90,31 +80,14 @@ export function RadarFeed() {
   }
 
   return (
-    <div className="space-y-3">
-      {/* 탭 */}
-      <div className="flex items-center gap-1 border-b border-border">
-        {TABS.map((t) => {
-          const active = tab === t.value
-          const count = items.filter((i) => i.tier === t.value).length
-          return (
-            <button
-              key={t.value}
-              type="button"
-              onClick={() => handleTabChange(t.value)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                active
-                  ? "border-cyan-500 text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground/90"
-              }`}
-            >
-              {t.label}
-              <span className="ml-1.5 text-xs text-muted-foreground">{count}</span>
-            </button>
-          )
-        })}
+    <div className="space-y-2">
+      {/* Column header (desktop only — mobile uses tabs) */}
+      <div className="hidden md:flex items-center gap-2 pb-1 border-b border-border">
+        <h3 className="text-sm font-medium text-foreground">{tier.label}</h3>
+        <span className="text-xs text-muted-foreground">{tabItems.length}</span>
       </div>
 
-      {/* 정렬 + 시간 */}
+      {/* Sort + count */}
       <div className="flex items-center gap-1.5">
         <span className="text-[10px] text-muted-foreground mr-1">정렬</span>
         <Button
@@ -142,18 +115,15 @@ export function RadarFeed() {
           중요도순
         </Button>
         <span className="text-xs text-muted-foreground ml-1">{filtered.length}개</span>
-        <div className="flex-1" />
-        {feedQuery.data?.fetchedAt && (
-          <span className="text-muted-foreground text-xs">
-            {new Date(feedQuery.data.fetchedAt).toLocaleTimeString("ko-KR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })} 기준
+        {/* fetchedAt: only show on mobile (desktop shows once at top) */}
+        {fetchedAt && (
+          <span className="md:hidden text-muted-foreground text-xs ml-auto">
+            {new Date(fetchedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} 기준
           </span>
         )}
       </div>
 
-      {/* 소스 필터 칩 (탭 내) — 한 줄, 가로 스크롤 폴백 */}
+      {/* Source filter chips */}
       {sourceOptions.length > 1 && (
         <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide whitespace-nowrap">
           <button
@@ -187,29 +157,8 @@ export function RadarFeed() {
         </div>
       )}
 
-      {feedQuery.isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={`skeleton-${String(i)}`} className="border border-border rounded-lg p-3 bg-muted/50 space-y-2">
-              <Skeleton className="h-4 w-3/4 bg-muted" />
-              <Skeleton className="h-3 w-1/3 bg-muted" />
-              <Skeleton className="h-3 w-1/2 bg-muted" />
-            </div>
-          ))}
-        </div>
-      ) : feedQuery.isError ? (
-        <div className="border border-border rounded-xl p-4 bg-card">
-          <p className="text-red-400 text-sm">오류: {(feedQuery.error as Error).message}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-2 text-xs border-border text-foreground/90"
-            onClick={() => feedQuery.refetch()}
-          >
-            재시도
-          </Button>
-        </div>
-      ) : filtered.length === 0 ? (
+      {/* Feed list */}
+      {filtered.length === 0 ? (
         <div className="border border-border rounded-xl p-4 bg-card">
           <EmptyState icon="🛰️" message="피드가 비어있습니다." />
         </div>
@@ -224,7 +173,7 @@ export function RadarFeed() {
                 variant="outline"
                 size="sm"
                 className="text-xs border-border text-muted-foreground hover:text-foreground"
-                onClick={() => setVisibleCount(prev => prev + 20)}
+                onClick={() => setVisibleCount((prev) => prev + 20)}
               >
                 더보기 ({filtered.length - visibleCount}개 남음)
               </Button>
@@ -232,6 +181,106 @@ export function RadarFeed() {
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── Main RadarFeed ───
+export function RadarFeed() {
+  const [mobileTab, setMobileTab] = useState<FeedTier>("ai-company")
+
+  const feedQuery = useQuery({
+    queryKey: ["radar-feed"],
+    queryFn: async () => {
+      const res = await fetch("/api/ai-feed")
+      if (!res.ok) throw new Error("피드 조회 실패")
+      return res.json() as Promise<FeedResponse>
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const items: FeedItem[] = feedQuery.data?.items ?? []
+
+  if (feedQuery.isLoading) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={`skeleton-${String(i)}`} className="border border-border rounded-lg p-3 bg-muted/50 space-y-2">
+            <Skeleton className="h-4 w-3/4 bg-muted" />
+            <Skeleton className="h-3 w-1/3 bg-muted" />
+            <Skeleton className="h-3 w-1/2 bg-muted" />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  if (feedQuery.isError) {
+    return (
+      <div className="border border-border rounded-xl p-4 bg-card">
+        <p className="text-red-400 text-sm">오류: {(feedQuery.error as Error).message}</p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-2 text-xs border-border text-foreground/90"
+          onClick={() => feedQuery.refetch()}
+        >
+          재시도
+        </Button>
+      </div>
+    )
+  }
+
+  const activeTier = TIERS.find((t) => t.value === mobileTab)!
+
+  return (
+    <div className="space-y-3">
+      {/* ─── Mobile: tab navigation ─── */}
+      <div className="md:hidden flex items-center gap-1 border-b border-border">
+        {TIERS.map((t) => {
+          const active = mobileTab === t.value
+          const count = items.filter((i) => i.tier === t.value).length
+          return (
+            <button
+              key={t.value}
+              type="button"
+              onClick={() => setMobileTab(t.value)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                active
+                  ? "border-cyan-500 text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground/90"
+              }`}
+            >
+              {t.label}
+              <span className="ml-1.5 text-xs text-muted-foreground">{count}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ─── Mobile: single column ─── */}
+      <div className="md:hidden">
+        <FeedColumn tier={activeTier} items={items} fetchedAt={feedQuery.data?.fetchedAt} />
+      </div>
+
+      {/* ─── Desktop: 3-column grid ─── */}
+      <div className="hidden md:block">
+        {feedQuery.data?.fetchedAt && (
+          <div className="flex justify-end mb-2">
+            <span className="text-muted-foreground text-xs">
+              {new Date(feedQuery.data.fetchedAt).toLocaleTimeString("ko-KR", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })} 기준
+            </span>
+          </div>
+        )}
+        <div className="grid grid-cols-3 gap-4">
+          {TIERS.map((tier) => (
+            <FeedColumn key={tier.value} tier={tier} items={items} />
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

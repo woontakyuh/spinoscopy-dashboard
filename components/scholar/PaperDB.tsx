@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
 import { extractCountry, getCountryFlag, TOPIC_GROUPS } from "@/lib/scholar/country"
-import type { JournalArticle, JournalQueryResult, JournalStats, InterestLevel } from "@/lib/types/journal"
+import type { JournalArticle, JournalQueryResult, JournalStats, InterestLevel, ArticleMeta, DashboardData } from "@/lib/types/journal"
 
 // ── Constants ──────────────────────────────────────────────
 
@@ -63,7 +63,96 @@ function interestStyle(interest: string) {
   return "bg-zinc-500/20 text-muted-foreground border-zinc-500/40 hover:bg-zinc-500/30"
 }
 
+// ── Dashboard Chart Helpers ─────────────────────────────────
+
+type ChartFilterKey = "topic" | "country" | "type" | "journal"
+
+const CHART_CONFIG = {
+  topic:   { title: "주제 트렌드",  color: "indigo" as const,  limit: 10 },
+  country: { title: "국가 분포",    color: "emerald" as const, limit: 12 },
+  type:    { title: "논문 유형",    color: "amber" as const,   limit: 10 },
+  journal: { title: "저널별",       color: "cyan" as const,    limit: 8  },
+} as const
+
+const chartColorMap = {
+  indigo: {
+    bar: "bg-indigo-500",
+    barActive: "bg-indigo-400",
+    barDim: "bg-indigo-500/40",
+    ring: "ring-indigo-400/50",
+    text: "text-indigo-400",
+    dot: "bg-indigo-400",
+  },
+  emerald: {
+    bar: "bg-emerald-500",
+    barActive: "bg-emerald-400",
+    barDim: "bg-emerald-500/40",
+    ring: "ring-emerald-400/50",
+    text: "text-emerald-400",
+    dot: "bg-emerald-400",
+  },
+  amber: {
+    bar: "bg-amber-500",
+    barActive: "bg-amber-400",
+    barDim: "bg-amber-500/40",
+    ring: "ring-amber-400/50",
+    text: "text-amber-400",
+    dot: "bg-amber-400",
+  },
+  cyan: {
+    bar: "bg-cyan-500",
+    barActive: "bg-cyan-400",
+    barDim: "bg-cyan-500/40",
+    ring: "ring-cyan-400/50",
+    text: "text-cyan-400",
+    dot: "bg-cyan-400",
+  },
+} as const
+
+type ChartColorKey = keyof typeof chartColorMap
+
+function countBy<T>(items: T[], keyFn: (item: T) => string | string[] | null): Record<string, number> {
+  const counts: Record<string, number> = {}
+  for (const item of items) {
+    const keys = keyFn(item)
+    if (keys === null) continue
+    const arr = Array.isArray(keys) ? keys : [keys]
+    for (const k of arr) {
+      if (k) counts[k] = (counts[k] ?? 0) + 1
+    }
+  }
+  return counts
+}
+
+function sortedEntries(record: Record<string, number>, limit: number): [string, number][] {
+  return Object.entries(record)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+}
+
 // ── Filter State ────────────────────────────────────────────
+
+type DatePreset = "1m" | "3m" | "6m" | "1y" | "all"
+
+const DATE_PRESETS: { value: DatePreset; label: string }[] = [
+  { value: "1m", label: "1개월" },
+  { value: "3m", label: "3개월" },
+  { value: "6m", label: "6개월" },
+  { value: "1y", label: "1년" },
+  { value: "all", label: "전체" },
+]
+
+function datePresetToDateFrom(preset: DatePreset): string | null {
+  if (preset === "all") return null
+  const d = new Date()
+  switch (preset) {
+    case "1m": d.setMonth(d.getMonth() - 1); break
+    case "3m": d.setMonth(d.getMonth() - 3); break
+    case "6m": d.setMonth(d.getMonth() - 6); break
+    case "1y": d.setFullYear(d.getFullYear() - 1); break
+  }
+  return d.toISOString().slice(0, 10)
+}
 
 interface Filters {
   journals: string[]
@@ -75,6 +164,8 @@ interface Filters {
   yearFrom: number | null
   yearTo: number | null
   countries: string[]
+  dateFrom: string | null
+  datePreset: DatePreset
 }
 
 const INITIAL_FILTERS: Filters = {
@@ -87,6 +178,8 @@ const INITIAL_FILTERS: Filters = {
   yearFrom: null,
   yearTo: null,
   countries: [],
+  dateFrom: null,
+  datePreset: "all",
 }
 
 function buildQueryString(f: Filters): string {
@@ -111,7 +204,8 @@ function hasActiveFilters(f: Filters): boolean {
     f.categories.length > 0 ||
     f.yearFrom !== null ||
     f.yearTo !== null ||
-    f.countries.length > 0
+    f.countries.length > 0 ||
+    f.dateFrom !== null
   )
 }
 
@@ -158,6 +252,81 @@ export function PaperDB() {
     },
     staleTime: 5 * 60 * 1000,
   })
+
+  // Dashboard data for charts & stat cards
+  const { data: dashData, isLoading: dashLoading } = useQuery<DashboardData>({
+    queryKey: ["scholar-dashboard"],
+    queryFn: async () => {
+      const res = await fetch("/api/notion/journal?action=dashboard")
+      if (!res.ok) throw new Error("대시보드 데이터 로딩 실패")
+      return res.json()
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // Chart active keys derived from PaperDB filters
+  const chartActiveKeys: Partial<Record<ChartFilterKey, string>> = useMemo(() => {
+    const keys: Partial<Record<ChartFilterKey, string>> = {}
+    if (filters.topics.length === 1) keys.topic = filters.topics[0]
+    if (filters.countries.length === 1) keys.country = filters.countries[0]
+    if (filters.journals.length === 1) keys.journal = filters.journals[0]
+    return keys
+  }, [filters.topics, filters.countries, filters.journals])
+
+  // Chart aggregations from dashboard data
+  const dashFiltered = useMemo(() => {
+    if (!dashData) return []
+    return dashData.articles.filter(a => {
+      if (chartActiveKeys.topic && !a.topics.includes(chartActiveKeys.topic)) return false
+      if (chartActiveKeys.country && a.country !== chartActiveKeys.country) return false
+      if (chartActiveKeys.type && a.pub_type !== chartActiveKeys.type) return false
+      if (chartActiveKeys.journal && a.journal !== chartActiveKeys.journal) return false
+      if (filters.dateFrom && (!a.pub_date || a.pub_date < filters.dateFrom)) return false
+      return true
+    })
+  }, [dashData, chartActiveKeys, filters.dateFrom])
+
+  const topicCounts = useMemo(() => countBy(dashFiltered, a => a.topics), [dashFiltered])
+  const countryCounts = useMemo(() => countBy(dashFiltered, a => a.country), [dashFiltered])
+  const typeCounts = useMemo(() => countBy(dashFiltered, a => a.pub_type), [dashFiltered])
+  const journalCounts = useMemo(() => countBy(dashFiltered, a => a.journal), [dashFiltered])
+
+  // Stat card values from dashboard data
+  const dashUnreadCount = useMemo(() => dashFiltered.filter(a => !a.read).length, [dashFiltered])
+  const dashWeekStr = useMemo(() => {
+    const d = new Date()
+    d.setDate(d.getDate() - 7)
+    return d.toISOString().slice(0, 10)
+  }, [])
+  const dashRecentCount = useMemo(() => dashFiltered.filter(a => a.pub_date && a.pub_date >= dashWeekStr).length, [dashFiltered, dashWeekStr])
+  const dashMustReadUnread = useMemo(() =>
+    dashFiltered.filter(a => a.interest === "🔴 필독" && !a.read).length,
+    [dashFiltered]
+  )
+
+  // Chart click → set PaperDB filter
+  function handleChartClick(key: ChartFilterKey, value: string) {
+    setFilters(prev => {
+      switch (key) {
+        case "topic": {
+          const active = prev.topics.includes(value)
+          return { ...prev, topics: active ? [] : [value] }
+        }
+        case "country": {
+          const active = prev.countries.includes(value)
+          return { ...prev, countries: active ? [] : [value] }
+        }
+        case "journal": {
+          const active = prev.journals.includes(value)
+          return { ...prev, journals: active ? [] : [value] }
+        }
+        case "type":
+          return prev
+        default:
+          return prev
+      }
+    })
+  }
 
   // Top 15 categories from stats
   const topCategories = useMemo(() => {
@@ -264,6 +433,11 @@ export function PaperDB() {
       })
     }
 
+    // date range (client-side)
+    if (filters.dateFrom) {
+      list = list.filter((a) => a.pub_date && a.pub_date >= filters.dateFrom!)
+    }
+
     return list
   }, [allArticles, filters])
 
@@ -338,6 +512,8 @@ export function PaperDB() {
           return { ...prev, yearTo: null }
         case "country":
           return { ...prev, countries: prev.countries.filter((c) => c !== value) }
+        case "dateFrom":
+          return { ...prev, dateFrom: null, datePreset: "all" }
         default:
           return prev
       }
@@ -356,11 +532,72 @@ export function PaperDB() {
     if (filters.yearFrom !== null) tags.push({ key: "yearFrom", label: `${filters.yearFrom}~` })
     if (filters.yearTo !== null) tags.push({ key: "yearTo", label: `~${filters.yearTo}` })
     for (const c of filters.countries) tags.push({ key: "country", value: c, label: `${getCountryFlag(c)} ${c}` })
+    if (filters.dateFrom) {
+      const preset = DATE_PRESETS.find(p => p.value === filters.datePreset)
+      tags.push({ key: "dateFrom", label: preset ? `기간: ${preset.label}` : `${filters.dateFrom}~` })
+    }
     return tags
   }, [filters])
 
   return (
     <div className="space-y-3">
+      {/* ── Stat Cards + Charts ── */}
+      {dashLoading ? (
+        <div className="space-y-3">
+          <div className="grid grid-cols-4 gap-3">
+            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-[72px] bg-muted/60 rounded-xl" />)}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-64 bg-muted/60 rounded-xl" />)}
+          </div>
+        </div>
+      ) : dashData ? (
+        <div className="space-y-3">
+          {/* Stat Cards */}
+          <div className="grid grid-cols-4 gap-3 animate-fade-in-up">
+            <StatCard label="전체" value={dashFiltered.length} icon="📄" />
+            <StatCard label="안읽음" value={dashUnreadCount} icon="📬" accent="blue" />
+            <StatCard label="이번주" value={dashRecentCount} icon="🗓️" accent="cyan" />
+            <StatCard label="필독 미읽음" value={dashMustReadUnread} icon="🔴" accent="red" />
+          </div>
+
+          {/* Charts 2x2 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in-up" style={{ animationDelay: "60ms" }}>
+            <BarChart
+              title={CHART_CONFIG.topic.title}
+              entries={sortedEntries(topicCounts, CHART_CONFIG.topic.limit)}
+              activeKey={chartActiveKeys.topic}
+              onClickItem={key => handleChartClick("topic", key)}
+              color="indigo"
+            />
+            <BarChart
+              title={CHART_CONFIG.country.title}
+              entries={sortedEntries(countryCounts, CHART_CONFIG.country.limit)}
+              activeKey={chartActiveKeys.country}
+              onClickItem={key => handleChartClick("country", key)}
+              color="emerald"
+              renderLabel={key => `${getCountryFlag(key)} ${key}`}
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in-up" style={{ animationDelay: "120ms" }}>
+            <BarChart
+              title={CHART_CONFIG.type.title}
+              entries={sortedEntries(typeCounts, CHART_CONFIG.type.limit)}
+              activeKey={chartActiveKeys.type}
+              onClickItem={key => handleChartClick("type", key)}
+              color="amber"
+            />
+            <BarChart
+              title={CHART_CONFIG.journal.title}
+              entries={sortedEntries(journalCounts, CHART_CONFIG.journal.limit)}
+              activeKey={chartActiveKeys.journal}
+              onClickItem={key => handleChartClick("journal", key)}
+              color="cyan"
+            />
+          </div>
+        </div>
+      ) : null}
+
       {/* ── Filter Bar ── */}
       <div className="space-y-2 p-2 rounded-lg bg-card border border-border">
         {/* Row 1: Journal, Interest, Read status, Search */}
@@ -444,6 +681,29 @@ export function PaperDB() {
             onChange={(e) => setSearchInput(e.target.value)}
             className="w-40 bg-muted border-border text-foreground placeholder:text-muted-foreground/70 h-7 text-xs"
           />
+
+          <div className="w-px h-5 bg-muted" />
+
+          {/* Date period presets */}
+          <div className="flex items-center rounded-md border border-border overflow-hidden">
+            {DATE_PRESETS.map((p) => (
+              <button
+                key={p.value}
+                type="button"
+                onClick={() => {
+                  const dateFrom = datePresetToDateFrom(p.value)
+                  setFilters((prev) => ({ ...prev, dateFrom, datePreset: p.value }))
+                }}
+                className={`px-2 py-1 text-[11px] font-medium transition-colors ${
+                  filters.datePreset === p.value
+                    ? "bg-indigo-600 text-white"
+                    : "bg-muted text-muted-foreground hover:text-foreground/90"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Row 2: Topics */}
@@ -958,6 +1218,133 @@ function InlineDetail({
             </Badge>
           ))}
         </div>
+      )}
+    </div>
+  )
+}
+
+// ── StatCard ───────────────────────────────────────────────
+
+function StatCard({
+  label,
+  value,
+  icon,
+  accent,
+}: {
+  label: string
+  value: number
+  icon: string
+  accent?: "blue" | "cyan" | "red"
+}) {
+  const accentClasses = {
+    blue: "text-blue-400",
+    cyan: "text-cyan-400",
+    red: "text-red-400",
+  }
+  const valueColor = accent ? accentClasses[accent] : "text-foreground"
+
+  return (
+    <div className="card-hover rounded-xl border border-border/80 bg-card px-4 py-3 cursor-default">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[11px] text-muted-foreground font-medium tracking-wide">{label}</span>
+        <span className="text-sm">{icon}</span>
+      </div>
+      <p className={`text-2xl font-semibold num leading-none ${valueColor}`}>{value}</p>
+    </div>
+  )
+}
+
+// ── BarChart ───────────────────────────────────────────────
+
+function BarChart({
+  title,
+  entries,
+  activeKey,
+  onClickItem,
+  color,
+  renderLabel,
+}: {
+  title: string
+  entries: [string, number][]
+  activeKey?: string
+  onClickItem: (key: string) => void
+  color: ChartColorKey
+  renderLabel?: (key: string) => string
+}) {
+  const c = chartColorMap[color]
+  if (entries.length === 0) {
+    return (
+      <div className="rounded-xl border border-border/80 bg-card p-4">
+        <ChartHeader title={title} color={color} />
+        <p className="text-muted-foreground/70 text-xs text-center py-6">데이터 없음</p>
+      </div>
+    )
+  }
+
+  const maxCount = entries[0][1]
+  const hasActive = activeKey !== undefined
+
+  return (
+    <div className="rounded-xl border border-border/80 bg-card p-4">
+      <ChartHeader title={title} color={color} count={entries.reduce((s, [, n]) => s + n, 0)} />
+      <div className="space-y-[5px] mt-3">
+        {entries.map(([key, count]) => {
+          const isActive = activeKey === key
+          const isDimmed = hasActive && !isActive
+          const pct = Math.max((count / maxCount) * 100, 3)
+
+          return (
+            <button
+              key={key}
+              onClick={() => onClickItem(key)}
+              className={`
+                w-full flex items-center gap-2 py-[5px] px-2.5 rounded-lg text-left
+                transition-all duration-150 cursor-pointer group
+                ${isActive
+                  ? `bg-muted/70 ring-1 ${c.ring}`
+                  : "hover:bg-muted/80"
+                }
+                ${isDimmed ? "opacity-50" : "opacity-100"}
+              `}
+            >
+              <span className={`text-xs w-[120px] shrink-0 truncate transition-colors ${
+                isActive ? "text-foreground font-medium" : "text-muted-foreground group-hover:text-foreground/90"
+              }`}>
+                {renderLabel ? renderLabel(key) : key}
+              </span>
+              <div className="flex-1 h-[7px] bg-muted rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    isActive ? c.barActive : isDimmed ? c.barDim : c.bar
+                  }`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <span className={`text-[11px] w-7 text-right num transition-colors ${
+                isActive ? "text-foreground font-medium" : "text-muted-foreground"
+              }`}>
+                {count}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── ChartHeader ────────────────────────────────────────────
+
+function ChartHeader({ title, color, count }: { title: string; color: ChartColorKey; count?: number }) {
+  const c = chartColorMap[color]
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <div className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</h3>
+      </div>
+      {count !== undefined && (
+        <span className="text-[10px] text-muted-foreground/70 num">{count}</span>
       )}
     </div>
   )

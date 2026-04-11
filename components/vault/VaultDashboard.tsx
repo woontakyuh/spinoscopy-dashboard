@@ -20,7 +20,11 @@ type NewsFilter = "all" | string
 
 const STOCK_SYMBOLS = new Set(["TSLA", "GOOGL", "AAPL"])
 
-export function VaultDashboard() {
+interface VaultDashboardProps {
+  view: "charts" | "news"
+}
+
+export function VaultDashboard({ view }: VaultDashboardProps) {
   const [newsFilter, setNewsFilter] = useState<NewsFilter>("all")
 
   const pricesQuery = useQuery({
@@ -54,69 +58,75 @@ export function VaultDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* 시장 지표: 1행 원/달러,공포탐욕,BTC도미넌스 | 2행 NASDAQ,DJI,KOSPI,KOSDAQ */}
-      {indicators.length > 0 && (() => {
-        const ROW1_KEYS = new Set(["usdkrw", "fng", "btc-dom"])
-        const row1 = indicators.filter((ind) => ROW1_KEYS.has(ind.key))
-        const row2 = indicators.filter((ind) => !ROW1_KEYS.has(ind.key))
+      {/* ─── Charts view ─── */}
+      {view === "charts" && (
+        <>
+          {/* 시장 지표: 1행 원/달러,공포탐욕,BTC도미넌스 | 2행 NASDAQ,DJI,KOSPI,KOSDAQ */}
+          {indicators.length > 0 && (() => {
+            const ROW1_KEYS = new Set(["usdkrw", "fng", "btc-dom"])
+            const row1 = indicators.filter((ind) => ROW1_KEYS.has(ind.key))
+            const row2 = indicators.filter((ind) => !ROW1_KEYS.has(ind.key))
 
-        const renderIndicator = (ind: MarketIndicator) => {
-          const isUp = ind.change !== null && ind.change >= 0
-          const isFng = ind.key === "fng"
-          const fngColor = isFng
-            ? ind.value <= 25 ? "text-red-400" : ind.value <= 45 ? "text-orange-400" : ind.value <= 55 ? "text-yellow-400" : ind.value <= 75 ? "text-green-400" : "text-emerald-400"
-            : "text-foreground"
+            const renderIndicator = (ind: MarketIndicator) => {
+              const isUp = ind.change !== null && ind.change >= 0
+              const isFng = ind.key === "fng"
+              const fngColor = isFng
+                ? ind.value <= 25 ? "text-red-400" : ind.value <= 45 ? "text-orange-400" : ind.value <= 55 ? "text-yellow-400" : ind.value <= 75 ? "text-green-400" : "text-emerald-400"
+                : "text-foreground"
 
-          return (
-            <div key={ind.key} className="bg-muted border border-border rounded-lg px-3 py-2 flex flex-col items-center text-center">
-              <span className="text-muted-foreground text-[10px] mb-1 whitespace-nowrap">{ind.label}</span>
-              <span className={`text-sm font-semibold ${isFng ? fngColor : "text-foreground"}`}>
-                {ind.key === "btc-dom"
-                  ? `${ind.value.toFixed(1)}%`
-                  : isFng
-                    ? ind.value
-                    : ind.value.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}
-              </span>
-              {isFng && ind.unit && (
-                <span className={`text-[10px] mt-0.5 ${fngColor}`}>{ind.unit}</span>
-              )}
-              {ind.change !== null && !isFng && (
-                <span className={`text-[10px] mt-0.5 ${isUp ? "text-green-400" : "text-red-400"}`}>
-                  {isUp ? "+" : ""}{ind.change.toFixed(2)}%
-                </span>
-              )}
-            </div>
-          )
-        }
+              return (
+                <div key={ind.key} className="bg-muted border border-border rounded-lg px-3 py-2 flex flex-col items-center text-center">
+                  <span className="text-muted-foreground text-[10px] mb-1 whitespace-nowrap">{ind.label}</span>
+                  <span className={`text-sm font-semibold ${isFng ? fngColor : "text-foreground"}`}>
+                    {ind.key === "btc-dom"
+                      ? `${ind.value.toFixed(1)}%`
+                      : isFng
+                        ? ind.value
+                        : ind.value.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}
+                  </span>
+                  {isFng && ind.unit && (
+                    <span className={`text-[10px] mt-0.5 ${fngColor}`}>{ind.unit}</span>
+                  )}
+                  {ind.change !== null && !isFng && (
+                    <span className={`text-[10px] mt-0.5 ${isUp ? "text-green-400" : "text-red-400"}`}>
+                      {isUp ? "+" : ""}{ind.change.toFixed(2)}%
+                    </span>
+                  )}
+                </div>
+              )
+            }
 
-        return (
-          <div className="border border-border rounded-xl p-3 bg-card space-y-3">
-            <p className="text-muted-foreground text-xs font-medium">시장 지표</p>
-            <div className="grid grid-cols-3 gap-2">
-              {row1.map(renderIndicator)}
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {row2.map(renderIndicator)}
-            </div>
+            return (
+              <div className="border border-border rounded-xl p-3 bg-card space-y-3">
+                <p className="text-muted-foreground text-xs font-medium">시장 지표</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {row1.map(renderIndicator)}
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {row2.map(renderIndicator)}
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* BTC 일봉 차트 - 풀 너비 */}
+          <AssetDailyChart symbol="BTC" title="₿ BTC/USDT" currency="USD" height={320} />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <AssetDailyChart symbol="ETH" title="Ξ ETH/USDT" currency="USD" height={240} />
+            <AssetDailyChart symbol="206650" title="유바이오로직스" currency="KRW" height={240} />
           </div>
-        )
-      })()}
 
-      {/* BTC 일봉 차트 - 풀 너비 */}
-      <AssetDailyChart symbol="BTC" title="₿ BTC/USDT" currency="USD" height={320} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <AssetDailyChart symbol="TSLA" title="TSLA 테슬라" currency="USD" height={240} />
+            <AssetDailyChart symbol="GOOGL" title="GOOGL 구글" currency="USD" height={240} />
+            <AssetDailyChart symbol="AAPL" title="AAPL 애플" currency="USD" height={240} />
+          </div>
+        </>
+      )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <AssetDailyChart symbol="ETH" title="Ξ ETH/USDT" currency="USD" height={240} />
-        <AssetDailyChart symbol="206650" title="유바이오로직스" currency="KRW" height={240} />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <AssetDailyChart symbol="TSLA" title="TSLA 테슬라" currency="USD" height={240} />
-        <AssetDailyChart symbol="GOOGL" title="GOOGL 구글" currency="USD" height={240} />
-        <AssetDailyChart symbol="AAPL" title="AAPL 애플" currency="USD" height={240} />
-      </div>
-
-      {/* 뉴스 */}
+      {/* ─── News view ─── */}
+      {view === "news" && (
       <div className="space-y-3">
         <p className="text-foreground/90 text-sm font-medium">관련 뉴스</p>
 
@@ -204,6 +214,7 @@ export function VaultDashboard() {
           </div>
         )}
       </div>
+      )}
     </div>
   )
 }
