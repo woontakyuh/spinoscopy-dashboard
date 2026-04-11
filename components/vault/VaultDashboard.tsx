@@ -103,19 +103,17 @@ export function VaultDashboard() {
       })()}
 
       {/* BTC 일봉 차트 - 풀 너비 */}
-      <AssetDailyChart symbol="BTC" title="₿ BTC/USDT 일봉" currency="USD" height={320} />
+      <AssetDailyChart symbol="BTC" title="₿ BTC/USDT" currency="USD" height={320} />
 
-      {/* ETH + 유바이오로직스 - 반씩 나란히 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <AssetDailyChart symbol="ETH" title="Ξ ETH/USDT 일봉" currency="USD" height={240} />
-        <AssetDailyChart symbol="206650" title="유바이오로직스 일봉" currency="KRW" height={240} />
+        <AssetDailyChart symbol="ETH" title="Ξ ETH/USDT" currency="USD" height={240} />
+        <AssetDailyChart symbol="206650" title="유바이오로직스" currency="KRW" height={240} />
       </div>
 
-      {/* TSLA, GOOGL, AAPL - 동일한 캔들스틱 차트 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <AssetDailyChart symbol="TSLA" title="TSLA 테슬라 일봉" currency="USD" height={240} />
-        <AssetDailyChart symbol="GOOGL" title="GOOGL 구글 일봉" currency="USD" height={240} />
-        <AssetDailyChart symbol="AAPL" title="AAPL 애플 일봉" currency="USD" height={240} />
+        <AssetDailyChart symbol="TSLA" title="TSLA 테슬라" currency="USD" height={240} />
+        <AssetDailyChart symbol="GOOGL" title="GOOGL 구글" currency="USD" height={240} />
+        <AssetDailyChart symbol="AAPL" title="AAPL 애플" currency="USD" height={240} />
       </div>
 
       {/* 뉴스 */}

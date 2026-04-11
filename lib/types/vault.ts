@@ -42,6 +42,7 @@ export interface PricesResponse {
 }
 
 export type BtcChartPeriod = "1W" | "1M" | "3M" | "6M" | "1Y"
+export type ChartInterval = "1d" | "1w" | "1mo"
 
 export interface BtcChartBar extends OHLCBar {
   volume: number

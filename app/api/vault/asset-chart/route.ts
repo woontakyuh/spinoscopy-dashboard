@@ -55,8 +55,8 @@ interface YahooChartResponse {
   }
 }
 
-async function fetchBinance(ticker: string, limit: number): Promise<BtcChartBar[]> {
-  const url = `https://data-api.binance.vision/api/v3/klines?symbol=${ticker}&interval=1d&limit=${limit}`
+async function fetchBinance(ticker: string, limit: number, interval = "1d"): Promise<BtcChartBar[]> {
+  const url = `https://data-api.binance.vision/api/v3/klines?symbol=${ticker}&interval=${interval}&limit=${limit}`
   const res = await fetch(url, { next: { revalidate: 300 } })
   if (!res.ok) return []
 
@@ -71,8 +71,8 @@ async function fetchBinance(ticker: string, limit: number): Promise<BtcChartBar[
   }))
 }
 
-async function fetchYahoo(ticker: string, range: string): Promise<BtcChartBar[]> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=${range}`
+async function fetchYahoo(ticker: string, range: string, interval = "1d"): Promise<BtcChartBar[]> {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=${interval}&range=${range}`
   const res = await fetch(url, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; SpinoscopyVault/1.0)" },
     next: { revalidate: 300 },
@@ -114,9 +114,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: `Unknown symbol: ${symbol}` }, { status: 400 })
     }
 
+    const interval = searchParams.get("interval") ?? "1d"
+    // Binance intervals: 1d, 1w, 1M; Yahoo intervals: 1d, 1wk, 1mo
+    const binanceInterval = interval === "1mo" ? "1M" : interval === "1w" ? "1w" : "1d"
+    const yahooInterval = interval === "1w" ? "1wk" : interval === "1mo" ? "1mo" : "1d"
+
     const bars = config.source === "binance"
-      ? await fetchBinance(config.ticker, PERIOD_LIMITS[period])
-      : await fetchYahoo(config.ticker, YAHOO_RANGES[period])
+      ? await fetchBinance(config.ticker, PERIOD_LIMITS[period], binanceInterval)
+      : await fetchYahoo(config.ticker, YAHOO_RANGES[period], yahooInterval)
 
     if (bars.length === 0) {
       return NextResponse.json({ error: "데이터 조회 실패" }, { status: 502 })

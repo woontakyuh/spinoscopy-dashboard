@@ -15,12 +15,20 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import type { BtcChartBar, BtcChartPeriod, BtcChartResponse } from "@/lib/types/vault"
 
+import type { ChartInterval } from "@/lib/types/vault"
+
 const PERIODS: { value: BtcChartPeriod; label: string }[] = [
   { value: "1W", label: "wk" },
   { value: "1M", label: "mo" },
   { value: "3M", label: "3mo" },
   { value: "6M", label: "6mo" },
   { value: "1Y", label: "yr" },
+]
+
+const INTERVALS: { value: ChartInterval; label: string }[] = [
+  { value: "1d", label: "일봉" },
+  { value: "1w", label: "주봉" },
+  { value: "1mo", label: "월봉" },
 ]
 
 interface AssetDailyChartProps {
@@ -55,12 +63,13 @@ export function AssetDailyChart({
   defaultPeriod = "3M",
 }: AssetDailyChartProps) {
   const [period, setPeriod] = useState<BtcChartPeriod>(defaultPeriod)
+  const [interval, setInterval] = useState<ChartInterval>("1d")
   const containerRef = useRef<HTMLDivElement>(null)
 
   const { data, isLoading, isError } = useQuery<BtcChartResponse>({
-    queryKey: ["vault-asset-chart", symbol, period],
+    queryKey: ["vault-asset-chart", symbol, period, interval],
     queryFn: async () => {
-      const res = await fetch(`/api/vault/asset-chart?symbol=${symbol}&period=${period}`)
+      const res = await fetch(`/api/vault/asset-chart?symbol=${symbol}&period=${period}&interval=${interval}`)
       if (!res.ok) throw new Error("차트 조회 실패")
       return res.json()
     },
@@ -188,22 +197,40 @@ export function AssetDailyChart({
             </span>
           )}
         </div>
-        {/* 2줄: 기간 선택 */}
-        <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg p-0.5 border border-border w-fit">
-          {PERIODS.map((p) => (
-            <button
-              key={p.value}
-              type="button"
-              onClick={() => setPeriod(p.value)}
-              className={`px-2 py-0.5 text-[10px] rounded-md transition-colors ${
-                period === p.value
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:text-foreground/90 hover:bg-muted/60"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
+        {/* 2줄: 봉 타입 + 기간 */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg p-0.5 border border-border">
+            {INTERVALS.map((iv) => (
+              <button
+                key={iv.value}
+                type="button"
+                onClick={() => setInterval(iv.value)}
+                className={`px-1.5 py-0.5 text-[9px] rounded-md transition-colors ${
+                  interval === iv.value
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground/90 hover:bg-muted/60"
+                }`}
+              >
+                {iv.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg p-0.5 border border-border">
+            {PERIODS.map((p) => (
+              <button
+                key={p.value}
+                type="button"
+                onClick={() => setPeriod(p.value)}
+                className={`px-2 py-0.5 text-[10px] rounded-md transition-colors ${
+                  period === p.value
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground/90 hover:bg-muted/60"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
