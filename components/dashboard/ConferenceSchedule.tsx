@@ -10,10 +10,10 @@ function attendanceBadge(type: string) {
   switch (type) {
     case "발표":
       return { label: "발표", className: "border-amber-400/60 text-amber-300 bg-amber-500/10" }
+    case "Instructor":
+      return { label: "Instructor", className: "border-purple-400/60 text-purple-300 bg-purple-500/10" }
     case "참석":
       return { label: "참석", className: "border-green-400/60 text-green-300 bg-green-500/10" }
-    case "불참":
-      return { label: "불참", className: "border-red-400/50 text-red-300/70 bg-red-500/5" }
     default:
       return { label: "미정", className: "border-border text-muted-foreground" }
   }
@@ -47,7 +47,7 @@ function formatDate(start: string | null, end: string | null): string {
 function ConferenceItem({ conf }: { conf: Presentation }) {
   const badge = attendanceBadge(conf.attendance_type)
   const dday = dDayLabel(conf.date_start)
-  const isPresenting = conf.attendance_type === "발표"
+  const isPresenting = conf.attendance_type === "발표" || conf.attendance_type === "Instructor"
 
   return (
     <a
@@ -99,7 +99,7 @@ export function ConferenceSchedule() {
     staleTime: 2 * 60 * 1000,
   })
 
-  const conferences = data?.presentations ?? []
+  const conferences = (data?.presentations ?? []).filter((c) => c.attendance_type !== "불참")
 
   if (isLoading) {
     return (
