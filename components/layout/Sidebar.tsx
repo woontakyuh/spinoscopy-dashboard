@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Badge } from "@/components/ui/badge"
 
 const NAV_ITEMS = [
   { icon: "🩺", image: "/opdb.png", label: "Op DB", href: "/agents/clinicus", active: true, color: "bg-emerald-600" },
@@ -18,45 +17,22 @@ export function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="w-14 md:w-44 min-h-screen bg-card border-r border-border flex flex-col shrink-0 transition-[width] duration-200">
-      <div className="p-2 md:px-3 md:py-3 border-b border-border">
-        <Link href="/" className="flex items-center gap-2 justify-center md:justify-start hover:opacity-80 transition-opacity">
+    <aside className="w-16 min-h-screen bg-card border-r border-border flex flex-col shrink-0">
+      {/* Profile */}
+      <div className="p-2 py-3 border-b border-border">
+        <Link href="/" className="flex flex-col items-center gap-1 hover:opacity-80 transition-opacity">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/tak.png" alt="Tak" className="w-10 h-10 md:w-11 md:h-11 rounded-full object-cover shrink-0" />
-          <div className="hidden md:block">
-            <p className="text-foreground font-semibold text-sm">Tak, MD</p>
-          </div>
+          <img src="/tak.png" alt="Tak" className="w-10 h-10 rounded-full object-cover" />
+          <span className="text-[9px] text-muted-foreground font-medium">Tak</span>
         </Link>
       </div>
 
-      <nav className="flex-1 p-1.5 md:p-2 space-y-0.5">
+      {/* Nav */}
+      <nav className="flex-1 p-1.5 space-y-1">
         {NAV_ITEMS.map((item) => {
           const isCurrentPage = item.href !== "#" && (
             item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
           )
-
-          if (!item.active) {
-            return (
-              <div
-                key={item.label}
-                className="flex items-center justify-center md:justify-between px-2 md:px-3 py-2 rounded-lg opacity-40 cursor-not-allowed"
-                title={item.label}
-              >
-                <div className="flex items-center gap-3">
-                  {"image" in item && item.image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={item.image} alt={item.label} className="w-8 h-8 rounded-full object-cover" />
-              ) : (
-                <span className="text-2xl">{item.icon}</span>
-              )}
-                  <span className="hidden md:inline text-muted-foreground text-sm">{item.label}</span>
-                </div>
-                <Badge variant="outline" className="hidden md:inline-flex text-xs border-border text-muted-foreground/70">
-                  준비중
-                </Badge>
-              </div>
-            )
-          }
 
           return (
             <Link
@@ -64,7 +40,7 @@ export function Sidebar() {
               href={item.href}
               title={item.label}
               className={cn(
-                "flex items-center justify-center md:justify-start gap-3 px-2 md:px-3 py-2 rounded-lg transition-colors text-sm",
+                "flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-lg transition-colors",
                 isCurrentPage
                   ? `${item.color} text-white`
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -74,17 +50,16 @@ export function Sidebar() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={item.image} alt={item.label} className="w-8 h-8 rounded-full object-cover" />
               ) : (
-                <span className="text-2xl">{item.icon}</span>
+                <span className="text-xl">{item.icon}</span>
               )}
-              <span className="hidden md:inline">{item.label}</span>
+              <span className="text-[9px] font-medium leading-none">{item.label}</span>
             </Link>
           )
         })}
       </nav>
 
-      <div className="p-2 md:px-3 md:py-2 border-t border-border">
-        <p className="hidden md:block text-muted-foreground/70 text-[10px] text-center">v0.1</p>
-        <p className="md:hidden text-muted-foreground/70 text-[10px] text-center">v0.1</p>
+      <div className="p-2 border-t border-border">
+        <p className="text-muted-foreground/70 text-[9px] text-center">v0.1</p>
       </div>
     </aside>
   )
