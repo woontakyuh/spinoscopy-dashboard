@@ -380,14 +380,14 @@ function DakotaGreetingChat({
     <div className="pt-2 md:pt-4 flex items-start gap-3 md:gap-4">
       {typeof document !== "undefined" && focusedOverlay && createPortal(focusedOverlay, document.body)}
 
-      {/* 좌측: 캐릭터 — 자연 비율로 (전신 사진은 길게) */}
+      {/* 좌측: 캐릭터 — 상체만 크롭, 클릭하면 전신 보기 */}
       <div className="flex flex-col items-center shrink-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={image}
           alt="Dakota"
           onClick={() => setFocused(true)}
-          className="w-32 md:w-44 h-auto object-contain select-none cursor-pointer hover:opacity-90 transition-opacity"
+          className="w-32 md:w-44 h-40 md:h-52 object-cover object-top rounded-lg select-none cursor-pointer hover:opacity-90 transition-opacity"
           draggable={false}
           title="클릭해서 대화 집중 모드"
         />
