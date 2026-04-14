@@ -90,8 +90,6 @@ function ConferenceItem({ conf }: { conf: Presentation }) {
 
 export function ConferenceSchedule() {
   const [filter, setFilter] = useState<"all" | "presenting">("all")
-  const [expanded, setExpanded] = useState(false)
-
   const { data, isLoading, error } = useQuery<PresentationsResponse>({
     queryKey: ["dashboard-conferences"],
     queryFn: async () => {
@@ -159,28 +157,9 @@ export function ConferenceSchedule() {
         <EmptyState icon="🏆" message="다가오는 학회 일정이 없습니다." />
       ) : (
         <div className="space-y-2">
-          {(expanded ? conferences : conferences.slice(0, 3)).map((conf) => (
+          {conferences.map((conf) => (
             <ConferenceItem key={conf.page_id} conf={conf} />
           ))}
-          {conferences.length > 3 && (
-            <button
-              type="button"
-              onClick={() => setExpanded(!expanded)}
-              className="w-full flex items-center justify-center gap-1 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {expanded ? (
-                <>
-                  접기
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M12 10L8 6l-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </>
-              ) : (
-                <>
-                  +{conferences.length - 3}건 더
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </>
-              )}
-            </button>
-          )}
         </div>
       )}
     </div>

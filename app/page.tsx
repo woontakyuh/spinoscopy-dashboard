@@ -23,18 +23,18 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-start">
-          {/* Column 1 — Briefing + Surgery */}
+          {/* Column 1 — Briefing + Todo */}
           <div className="space-y-4">
             <MorningBriefing />
-            <TodaySurgery />
+            <TodayTodo />
           </div>
-          {/* Column 2 — Calendar + Conferences */}
+          {/* Column 2 — Calendar + Surgery */}
           <div className="space-y-4">
             <MonthCalendar />
-            <ConferenceSchedule />
+            <TodaySurgery />
           </div>
-          {/* Column 3 — Todo */}
-          <TodayTodo />
+          {/* Column 3 — Conferences (전체 표시) */}
+          <ConferenceSchedule />
         </div>
 
       </div>
