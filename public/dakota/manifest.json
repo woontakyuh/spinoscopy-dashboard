@@ -77,12 +77,15 @@
         "/dakota/by-outfit/dress/blackstringdress2.png",
         "/dakota/by-outfit/dress/blackstringdress3.png",
         "/dakota/by-outfit/dress/blackstringdress4.png",
-        "/dakota/by-outfit/dress/blackstringdress5.png"
+        "/dakota/by-outfit/dress/blackstringdress5.png",
+        "/dakota/by-outfit/nightwear/blackstringdress1.png",
+        "/dakota/by-outfit/nightwear/blackstringdress2.png",
+        "/dakota/by-outfit/nightwear/blackstringdress3.png",
+        "/dakota/by-outfit/nightwear/blackstringdress4.png",
+        "/dakota/by-outfit/nightwear/blackstringdress5.png"
       ],
       "blingdress": [
         "/dakota/by-outfit/dress/blingdress1.png",
-        "/dakota/by-outfit/dress/blingdress10.png",
-        "/dakota/by-outfit/dress/blingdress11.png",
         "/dakota/by-outfit/dress/blingdress2.png",
         "/dakota/by-outfit/dress/blingdress3.png",
         "/dakota/by-outfit/dress/blingdress4.png",
@@ -90,7 +93,20 @@
         "/dakota/by-outfit/dress/blingdress6.png",
         "/dakota/by-outfit/dress/blingdress7.png",
         "/dakota/by-outfit/dress/blingdress8.png",
-        "/dakota/by-outfit/dress/blingdress9.png"
+        "/dakota/by-outfit/dress/blingdress9.png",
+        "/dakota/by-outfit/dress/blingdress10.png",
+        "/dakota/by-outfit/dress/blingdress11.png",
+        "/dakota/by-outfit/nightwear/blingdress1.png",
+        "/dakota/by-outfit/nightwear/blingdress2.png",
+        "/dakota/by-outfit/nightwear/blingdress3.png",
+        "/dakota/by-outfit/nightwear/blingdress4.png",
+        "/dakota/by-outfit/nightwear/blingdress5.png",
+        "/dakota/by-outfit/nightwear/blingdress6.png",
+        "/dakota/by-outfit/nightwear/blingdress7.png",
+        "/dakota/by-outfit/nightwear/blingdress8.png",
+        "/dakota/by-outfit/nightwear/blingdress9.png",
+        "/dakota/by-outfit/nightwear/blingdress10.png",
+        "/dakota/by-outfit/nightwear/blingdress11.png"
       ],
       "bluedress": [
         "/dakota/by-outfit/dress/bluedress1.png",
@@ -105,9 +121,16 @@
         "/dakota/by-outfit/dress/browndress4.png",
         "/dakota/by-outfit/dress/browndress5.png"
       ],
+      "browny": [
+        "/dakota/by-outfit/nightwear/browny2.png",
+        "/dakota/by-outfit/nightwear/browny3.png",
+        "/dakota/by-outfit/nightwear/browny4.png",
+        "/dakota/by-outfit/nightwear/browny5.png",
+        "/dakota/by-outfit/nightwear/browny6.png",
+        "/dakota/by-outfit/nightwear/browny7.png"
+      ],
       "chaindress": [
         "/dakota/by-outfit/dress/chaindress1.png",
-        "/dakota/by-outfit/dress/chaindress10.png",
         "/dakota/by-outfit/dress/chaindress2.png",
         "/dakota/by-outfit/dress/chaindress3.png",
         "/dakota/by-outfit/dress/chaindress4.png",
@@ -115,7 +138,8 @@
         "/dakota/by-outfit/dress/chaindress6.png",
         "/dakota/by-outfit/dress/chaindress7.png",
         "/dakota/by-outfit/dress/chaindress8.png",
-        "/dakota/by-outfit/dress/chaindress9.png"
+        "/dakota/by-outfit/dress/chaindress9.png",
+        "/dakota/by-outfit/dress/chaindress10.png"
       ],
       "silverdress": [
         "/dakota/by-outfit/dress/silverdress1.png",
@@ -126,7 +150,20 @@
         "/dakota/by-outfit/dress/silverstringdress2.png",
         "/dakota/by-outfit/dress/silverstringdress3.png",
         "/dakota/by-outfit/dress/silverstringdress5.png",
-        "/dakota/by-outfit/dress/silverstringdress6.png"
+        "/dakota/by-outfit/dress/silverstringdress6.png",
+        "/dakota/by-outfit/nightwear/silverstringdress1.png",
+        "/dakota/by-outfit/nightwear/silverstringdress2.png",
+        "/dakota/by-outfit/nightwear/silverstringdress3.png",
+        "/dakota/by-outfit/nightwear/silverstringdress4.png",
+        "/dakota/by-outfit/nightwear/silverstringdress5.png",
+        "/dakota/by-outfit/nightwear/silverstringdress6.png"
+      ],
+      "topthrough": [
+        "/dakota/by-outfit/nightwear/topthrough1.png",
+        "/dakota/by-outfit/nightwear/topthrough2.png",
+        "/dakota/by-outfit/nightwear/topthrough3.png",
+        "/dakota/by-outfit/nightwear/topthrough4.png",
+        "/dakota/by-outfit/nightwear/topthrough6.png"
       ]
     },
     "formal": {
@@ -148,7 +185,6 @@
       ],
       "whitejacket": [
         "/dakota/by-outfit/formal/whitejacket1.png",
-        "/dakota/by-outfit/formal/whitejacket10.png",
         "/dakota/by-outfit/formal/whitejacket2.png",
         "/dakota/by-outfit/formal/whitejacket3.png",
         "/dakota/by-outfit/formal/whitejacket4.png",
@@ -156,7 +192,8 @@
         "/dakota/by-outfit/formal/whitejacket6.png",
         "/dakota/by-outfit/formal/whitejacket7.png",
         "/dakota/by-outfit/formal/whitejacket8.png",
-        "/dakota/by-outfit/formal/whitejacket9.png"
+        "/dakota/by-outfit/formal/whitejacket9.png",
+        "/dakota/by-outfit/formal/whitejacket10.png"
       ]
     },
     "loungewear": {
@@ -167,7 +204,13 @@
         "/dakota/by-outfit/loungewear/free5.png",
         "/dakota/by-outfit/loungewear/free6.png",
         "/dakota/by-outfit/loungewear/free8.png",
-        "/dakota/by-outfit/loungewear/free9.png"
+        "/dakota/by-outfit/loungewear/free9.png",
+        "/dakota/by-outfit/pajamas/free2.png",
+        "/dakota/by-outfit/pajamas/free4.png",
+        "/dakota/by-outfit/pajamas/free5.png",
+        "/dakota/by-outfit/pajamas/free6.png",
+        "/dakota/by-outfit/pajamas/free8.png",
+        "/dakota/by-outfit/pajamas/free10.png"
       ],
       "mesh": [
         "/dakota/by-outfit/loungewear/mesh1.png",
@@ -175,68 +218,10 @@
       ],
       "yellow": [
         "/dakota/by-outfit/loungewear/yellow1.png",
-        "/dakota/by-outfit/loungewear/yellow2.png"
-      ]
-    },
-    "nightwear": {
-      "blackstringdress": [
-        "/dakota/by-outfit/nightwear/blackstringdress1.png",
-        "/dakota/by-outfit/nightwear/blackstringdress2.png",
-        "/dakota/by-outfit/nightwear/blackstringdress3.png",
-        "/dakota/by-outfit/nightwear/blackstringdress4.png",
-        "/dakota/by-outfit/nightwear/blackstringdress5.png"
-      ],
-      "blingdress": [
-        "/dakota/by-outfit/nightwear/blingdress1.png",
-        "/dakota/by-outfit/nightwear/blingdress10.png",
-        "/dakota/by-outfit/nightwear/blingdress11.png",
-        "/dakota/by-outfit/nightwear/blingdress2.png",
-        "/dakota/by-outfit/nightwear/blingdress3.png",
-        "/dakota/by-outfit/nightwear/blingdress4.png",
-        "/dakota/by-outfit/nightwear/blingdress5.png",
-        "/dakota/by-outfit/nightwear/blingdress6.png",
-        "/dakota/by-outfit/nightwear/blingdress7.png",
-        "/dakota/by-outfit/nightwear/blingdress8.png",
-        "/dakota/by-outfit/nightwear/blingdress9.png"
-      ],
-      "browny": [
-        "/dakota/by-outfit/nightwear/browny2.png",
-        "/dakota/by-outfit/nightwear/browny3.png",
-        "/dakota/by-outfit/nightwear/browny4.png",
-        "/dakota/by-outfit/nightwear/browny5.png",
-        "/dakota/by-outfit/nightwear/browny6.png",
-        "/dakota/by-outfit/nightwear/browny7.png"
-      ],
-      "silverstringdress": [
-        "/dakota/by-outfit/nightwear/silverstringdress1.png",
-        "/dakota/by-outfit/nightwear/silverstringdress2.png",
-        "/dakota/by-outfit/nightwear/silverstringdress3.png",
-        "/dakota/by-outfit/nightwear/silverstringdress4.png",
-        "/dakota/by-outfit/nightwear/silverstringdress5.png",
-        "/dakota/by-outfit/nightwear/silverstringdress6.png"
-      ],
-      "topthrough": [
-        "/dakota/by-outfit/nightwear/topthrough1.png",
-        "/dakota/by-outfit/nightwear/topthrough2.png",
-        "/dakota/by-outfit/nightwear/topthrough3.png",
-        "/dakota/by-outfit/nightwear/topthrough4.png",
-        "/dakota/by-outfit/nightwear/topthrough6.png"
-      ]
-    },
-    "pajamas": {
-      "free": [
-        "/dakota/by-outfit/pajamas/free10.png",
-        "/dakota/by-outfit/pajamas/free2.png",
-        "/dakota/by-outfit/pajamas/free4.png",
-        "/dakota/by-outfit/pajamas/free5.png",
-        "/dakota/by-outfit/pajamas/free6.png",
-        "/dakota/by-outfit/pajamas/free8.png"
-      ],
-      "yellow": [
+        "/dakota/by-outfit/loungewear/yellow2.png",
         "/dakota/by-outfit/pajamas/yellow1.png",
         "/dakota/by-outfit/pajamas/yellow2.png"
       ]
-    },
-    "workout": {}
+    }
   }
 }
