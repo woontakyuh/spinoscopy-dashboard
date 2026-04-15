@@ -3,6 +3,9 @@
     "business_casual": {
       "blackoffice": [
         "/dakota/by-outfit/business_casual/blackoffice1.png",
+        "/dakota/by-outfit/business_casual/blackoffice10.png",
+        "/dakota/by-outfit/business_casual/blackoffice11.png",
+        "/dakota/by-outfit/business_casual/blackoffice12.png",
         "/dakota/by-outfit/business_casual/blackoffice2.png",
         "/dakota/by-outfit/business_casual/blackoffice3.png",
         "/dakota/by-outfit/business_casual/blackoffice4.png",
@@ -10,10 +13,7 @@
         "/dakota/by-outfit/business_casual/blackoffice6.png",
         "/dakota/by-outfit/business_casual/blackoffice7.png",
         "/dakota/by-outfit/business_casual/blackoffice8.png",
-        "/dakota/by-outfit/business_casual/blackoffice9.png",
-        "/dakota/by-outfit/business_casual/blackoffice10.png",
-        "/dakota/by-outfit/business_casual/blackoffice11.png",
-        "/dakota/by-outfit/business_casual/blackoffice12.png"
+        "/dakota/by-outfit/business_casual/blackoffice9.png"
       ],
       "blacksuit": [
         "/dakota/by-outfit/business_casual/blacksuit1.png",
@@ -33,14 +33,15 @@
       ],
       "whiteblouse": [
         "/dakota/by-outfit/business_casual/whiteblouse1.png",
+        "/dakota/by-outfit/business_casual/whiteblouse16.png",
         "/dakota/by-outfit/business_casual/whiteblouse2.png",
         "/dakota/by-outfit/business_casual/whiteblouse3.png",
         "/dakota/by-outfit/business_casual/whiteblouse4.png",
-        "/dakota/by-outfit/business_casual/whiteblouse5.png",
-        "/dakota/by-outfit/business_casual/whiteblouse16.png"
+        "/dakota/by-outfit/business_casual/whiteblouse5.png"
       ],
       "whitejacket": [
         "/dakota/by-outfit/business_casual/whitejacket1.png",
+        "/dakota/by-outfit/business_casual/whitejacket10.png",
         "/dakota/by-outfit/business_casual/whitejacket2.png",
         "/dakota/by-outfit/business_casual/whitejacket3.png",
         "/dakota/by-outfit/business_casual/whitejacket4.png",
@@ -48,8 +49,7 @@
         "/dakota/by-outfit/business_casual/whitejacket6.png",
         "/dakota/by-outfit/business_casual/whitejacket7.png",
         "/dakota/by-outfit/business_casual/whitejacket8.png",
-        "/dakota/by-outfit/business_casual/whitejacket9.png",
-        "/dakota/by-outfit/business_casual/whitejacket10.png"
+        "/dakota/by-outfit/business_casual/whitejacket9.png"
       ]
     },
     "casual": {
@@ -80,7 +80,7 @@
       ]
     },
     "dress": {
-      "black2piece": [
+      "black": [
         "/dakota/by-outfit/dress/black2piece1.png",
         "/dakota/by-outfit/dress/black2piece2.png",
         "/dakota/by-outfit/dress/black2piece3.png"
@@ -92,6 +92,8 @@
       ],
       "blingdress": [
         "/dakota/by-outfit/dress/blingdress1.png",
+        "/dakota/by-outfit/dress/blingdress10.png",
+        "/dakota/by-outfit/dress/blingdress11.png",
         "/dakota/by-outfit/dress/blingdress2.png",
         "/dakota/by-outfit/dress/blingdress3.png",
         "/dakota/by-outfit/dress/blingdress4.png",
@@ -99,20 +101,7 @@
         "/dakota/by-outfit/dress/blingdress6.png",
         "/dakota/by-outfit/dress/blingdress7.png",
         "/dakota/by-outfit/dress/blingdress8.png",
-        "/dakota/by-outfit/dress/blingdress9.png",
-        "/dakota/by-outfit/dress/blingdress10.png",
-        "/dakota/by-outfit/dress/blingdress11.png",
-        "/dakota/by-outfit/nightwear/blingdress1.png",
-        "/dakota/by-outfit/nightwear/blingdress2.png",
-        "/dakota/by-outfit/nightwear/blingdress3.png",
-        "/dakota/by-outfit/nightwear/blingdress4.png",
-        "/dakota/by-outfit/nightwear/blingdress5.png",
-        "/dakota/by-outfit/nightwear/blingdress6.png",
-        "/dakota/by-outfit/nightwear/blingdress7.png",
-        "/dakota/by-outfit/nightwear/blingdress8.png",
-        "/dakota/by-outfit/nightwear/blingdress9.png",
-        "/dakota/by-outfit/nightwear/blingdress10.png",
-        "/dakota/by-outfit/nightwear/blingdress11.png"
+        "/dakota/by-outfit/dress/blingdress9.png"
       ],
       "bluedress": [
         "/dakota/by-outfit/dress/bluedress1.png",
@@ -128,15 +117,16 @@
         "/dakota/by-outfit/dress/browndress5.png"
       ],
       "browny": [
-        "/dakota/by-outfit/nightwear/browny2.png",
-        "/dakota/by-outfit/nightwear/browny3.png",
-        "/dakota/by-outfit/nightwear/browny4.png",
-        "/dakota/by-outfit/nightwear/browny5.png",
-        "/dakota/by-outfit/nightwear/browny6.png",
-        "/dakota/by-outfit/nightwear/browny7.png"
+        "/dakota/by-outfit/dress/browny2.png",
+        "/dakota/by-outfit/dress/browny3.png",
+        "/dakota/by-outfit/dress/browny4.png",
+        "/dakota/by-outfit/dress/browny5.png",
+        "/dakota/by-outfit/dress/browny6.png",
+        "/dakota/by-outfit/dress/browny7.png"
       ],
       "chaindress": [
         "/dakota/by-outfit/dress/chaindress1.png",
+        "/dakota/by-outfit/dress/chaindress10.png",
         "/dakota/by-outfit/dress/chaindress2.png",
         "/dakota/by-outfit/dress/chaindress3.png",
         "/dakota/by-outfit/dress/chaindress4.png",
@@ -144,8 +134,7 @@
         "/dakota/by-outfit/dress/chaindress6.png",
         "/dakota/by-outfit/dress/chaindress7.png",
         "/dakota/by-outfit/dress/chaindress8.png",
-        "/dakota/by-outfit/dress/chaindress9.png",
-        "/dakota/by-outfit/dress/chaindress10.png"
+        "/dakota/by-outfit/dress/chaindress9.png"
       ],
       "pinkdress": [
         "/dakota/by-outfit/dress/pinkdress1.png",
@@ -157,11 +146,11 @@
         "/dakota/by-outfit/dress/silverdress2.png"
       ],
       "topthrough": [
-        "/dakota/by-outfit/nightwear/topthrough1.png",
-        "/dakota/by-outfit/nightwear/topthrough2.png",
-        "/dakota/by-outfit/nightwear/topthrough3.png",
-        "/dakota/by-outfit/nightwear/topthrough4.png",
-        "/dakota/by-outfit/nightwear/topthrough6.png"
+        "/dakota/by-outfit/dress/topthrough1.png",
+        "/dakota/by-outfit/dress/topthrough2.png",
+        "/dakota/by-outfit/dress/topthrough3.png",
+        "/dakota/by-outfit/dress/topthrough4.png",
+        "/dakota/by-outfit/dress/topthrough6.png"
       ]
     },
     "formal": {
@@ -177,6 +166,7 @@
       ],
       "whitejacket": [
         "/dakota/by-outfit/formal/whitejacket1.png",
+        "/dakota/by-outfit/formal/whitejacket10.png",
         "/dakota/by-outfit/formal/whitejacket2.png",
         "/dakota/by-outfit/formal/whitejacket3.png",
         "/dakota/by-outfit/formal/whitejacket4.png",
@@ -184,8 +174,7 @@
         "/dakota/by-outfit/formal/whitejacket6.png",
         "/dakota/by-outfit/formal/whitejacket7.png",
         "/dakota/by-outfit/formal/whitejacket8.png",
-        "/dakota/by-outfit/formal/whitejacket9.png",
-        "/dakota/by-outfit/formal/whitejacket10.png"
+        "/dakota/by-outfit/formal/whitejacket9.png"
       ]
     },
     "loungewear": {
