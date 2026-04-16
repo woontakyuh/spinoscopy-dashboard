@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url"
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const REPO_ROOT = path.resolve(__dirname, "..")
-config({ path: path.join(REPO_ROOT, ".env.local") })
+config({ path: path.join(REPO_ROOT, ".env.local"), quiet: true })
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
