@@ -31,22 +31,21 @@ export default function VaultPage() {
   const withChange = prices.filter((p) => typeof p.change24h === "number")
   const top = withChange.slice().sort((a, b) => Math.abs((b.change24h ?? 0)) - Math.abs((a.change24h ?? 0)))[0]
 
-  let message: string
-  if (prices.length === 0) {
-    message = "Tak, 시장 시세 가져오고 있어요. 잠시만요."
-  } else if (!top) {
-    message = `${prices.length}개 자산 지켜보고 있는데, 오늘은 큰 움직임 없어요. 좋은 신호일 수 있죠, Tak.`
-  } else {
+  function getMessageForTab(tab: VaultTab): string {
+    if (tab === "news") {
+      return "여선생, 오늘 시장 관련 뉴스 모아뒀어요. 거시 흐름 읽는 데 도움이 됩니다."
+    }
+    // charts 탭 — prices 기반
+    if (prices.length === 0) return "여선생, 시장 시세 가져오고 있어요. 잠시만요."
+    if (!top) return `${prices.length}개 자산 지켜보고 있는데, 오늘은 큰 움직임 없어요. 좋은 신호일 수 있죠, 여선생.`
     const ch = top.change24h ?? 0
     const sign = ch >= 0 ? "+" : ""
-    if (ch <= -5) {
-      message = `Tak, ${top.symbol}이 오늘 ${sign}${ch.toFixed(2)}% 빠졌어요. 기본기 좋은 회사라면 이런 날이 오히려 기회일 수 있습니다.`
-    } else if (ch >= 5) {
-      message = `Tak, ${top.symbol}이 ${sign}${ch.toFixed(2)}% 올랐네요. 들뜨지 마시고 왜 올랐는지 한번 짚어보시죠.`
-    } else {
-      message = `Tak, 오늘 가장 큰 움직임은 ${top.symbol} ${sign}${ch.toFixed(2)}%. 단기 노이즈인지 추세인지 차분히 보시죠.`
-    }
+    if (ch <= -5) return `여선생, ${top.symbol}이 오늘 ${sign}${ch.toFixed(2)}% 빠졌어요. 기본기 좋은 회사라면 이런 날이 오히려 기회일 수 있습니다.`
+    if (ch >= 5) return `여선생, ${top.symbol}이 ${sign}${ch.toFixed(2)}% 올랐네요. 들뜨지 마시고 왜 올랐는지 한번 짚어보시죠.`
+    return `여선생, 오늘 가장 큰 움직임은 ${top.symbol} ${sign}${ch.toFixed(2)}%. 단기 노이즈인지 추세인지 차분히 보시죠.`
   }
+
+  const message = getMessageForTab(activeTab)
 
   return (
     <div className="flex flex-col min-h-screen">
