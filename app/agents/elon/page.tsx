@@ -124,7 +124,7 @@ export default function ClinicusPage() {
 
       {/* Content */}
       <div className="flex-1 min-w-0 p-3 md:p-6">
-        <AgentGreeter image="/opdb.png" name="Op DB" message={message} loading={isTabLoading} />
+        <AgentGreeter image="/elon.png" name="Elon" message={message} loading={isTabLoading} />
 
         {activeTab === "analytics" && <ClinicsAnalytics />}
 

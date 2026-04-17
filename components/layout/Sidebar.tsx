@@ -5,12 +5,12 @@ import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 
 const NAV_ITEMS = [
-  { icon: "🩺", image: "/opdb.png", label: "Op DB", href: "/agents/clinicus", active: true, color: "bg-emerald-600" },
   { icon: "📋", image: "/dakota.png", label: "Dakota", href: "/agents/dakota", active: true, color: "bg-blue-600" },
-  { icon: "🔬", image: "/brian.png", label: "Brian", href: "/agents/scholar", active: true, color: "bg-indigo-600" },
-  { icon: "💰", image: "/warren.png", label: "Warren", href: "/agents/vault", active: true, color: "bg-amber-600" },
-  { icon: "🥋", image: "/lo.png", label: "Lo", href: "/agents/sensei", active: true, color: "bg-orange-600" },
-  { icon: "🛰️", image: "/andrej.png", label: "Andrej", href: "/agents/radar", active: true, color: "bg-cyan-600" },
+  { icon: "🩺", image: "/elon.png", label: "Elon", href: "/agents/elon", active: true, color: "bg-emerald-600" },
+  { icon: "🔬", image: "/brian.png", label: "Brian", href: "/agents/brian", active: true, color: "bg-indigo-600" },
+  { icon: "💰", image: "/warren.png", label: "Warren", href: "/agents/warren", active: true, color: "bg-amber-600" },
+  { icon: "🥋", image: "/lo.png", label: "Lo", href: "/agents/lo", active: true, color: "bg-orange-600" },
+  { icon: "🛰️", image: "/andrej.png", label: "Andrej", href: "/agents/andrej", active: true, color: "bg-cyan-600" },
 ]
 
 export function Sidebar() {
