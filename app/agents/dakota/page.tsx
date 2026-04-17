@@ -7,6 +7,7 @@ import { AgentGreeter } from "@/components/layout/AgentGreeter"
 import { PresentationList } from "@/components/dakota/PresentationList"
 import { TodoHistory } from "@/components/dakota/TodoHistory"
 import { ConferenceTab } from "@/components/dakota/ConferenceTab"
+import type { Presentation } from "@/lib/types/presentation"
 
 const TABS = [
   { id: "history", label: "Todo List", icon: "📋" },
@@ -18,11 +19,16 @@ type DakotaTab = (typeof TABS)[number]["id"]
 
 interface TodoItem { name: string; due: string | null; status: string; priority: string }
 
+function dday(dateStr: string, today: string): number {
+  const d = new Date(dateStr.slice(0, 10) + "T00:00:00+09:00")
+  const t = new Date(today + "T00:00:00+09:00")
+  return Math.round((d.getTime() - t.getTime()) / (1000 * 60 * 60 * 24))
+}
 
 export default function DakotaPage() {
   const [activeTab, setActiveTab] = useState<DakotaTab>("history")
 
-  const { data, isLoading } = useQuery<TodoItem[]>({
+  const { data, isLoading: isTodosLoading } = useQuery<TodoItem[]>({
     queryKey: ["dakota-todos"],
     queryFn: async () => {
       const res = await fetch("/api/dakota/todo?status=active")
@@ -31,7 +37,18 @@ export default function DakotaPage() {
     },
   })
 
+  const { data: presData, isLoading: isPresLoading } = useQuery<{ presentations: Presentation[] }>({
+    queryKey: ["dakota-presentations-upcoming"],
+    queryFn: async () => {
+      const res = await fetch("/api/dakota/presentations?time=upcoming")
+      if (!res.ok) throw new Error("발표 조회 실패")
+      return res.json()
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
   const todos = data ?? []
+  const presentations = presData?.presentations ?? []
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
 
   // 우선순위 가중치 + 마감일 기준으로 정렬해 가장 급한 1건 선택
@@ -48,18 +65,38 @@ export default function DakotaPage() {
 
   function getMessageForTab(tab: DakotaTab): string {
     if (tab === "presentations") {
-      return "센터장님, 발표 자료들 정리해뒀어요. 다음 학회 준비 같이 해요."
+      // 발표(attendance_type === "발표") 중 가장 가까운 것
+      const talks = presentations.filter((p) => p.attendance_type === "발표" && p.date_start)
+      const sorted = talks.slice().sort((a, b) => (a.date_start ?? "").localeCompare(b.date_start ?? ""))
+      const next = sorted[0]
+      if (next && next.date_start) {
+        const diff = dday(next.date_start, today)
+        return `센터장님, 다음 발표는 "${next.name}" — D-${diff}일 남았어요. 준비 같이 해요.`
+      }
+      // 발표는 없고 참석 예정
+      const attending = presentations.filter((p) => p.date_start).sort((a, b) => (a.date_start ?? "").localeCompare(b.date_start ?? ""))[0]
+      if (attending && attending.date_start) {
+        const diff = dday(attending.date_start, today)
+        return `센터장님, 다음 학회 "${attending.name}"이 D-${diff}일 남았어요.`
+      }
+      return "센터장님, 예정된 발표가 없어요. 다음 학회 계획 세워볼까요?"
     }
+
     if (tab === "conferences") {
-      return "센터장님, 학회 일정 한눈에 볼 수 있어요. 등록 마감 놓치지 말아요."
+      const upcoming = presentations.filter((p) => p.date_start)
+      if (upcoming.length > 0) {
+        const nearest = upcoming.slice().sort((a, b) => (a.date_start ?? "").localeCompare(b.date_start ?? ""))[0]
+        const diff = nearest.date_start ? dday(nearest.date_start, today) : 0
+        return `센터장님, 다가오는 학회 ${upcoming.length}건이에요. 가장 가까운 건 "${nearest.name}" D-${diff}일.`
+      }
+      return "센터장님, 예정된 학회가 없네요. 올해 학회 일정 한번 살펴볼까요?"
     }
+
     // history 탭 — todos 기반
     if (todos.length === 0) return "센터장님… 오늘은 할 일이 깨끗해요. 잠깐 한숨 돌리세요. 저랑 같이요."
     if (!urgent) return `할 일이 ${todos.length}건 있는데 마감이 다 비어 있네요… 저랑 차근차근 같이 정해봐요.`
     const due = urgent.due as string
-    const d = new Date(due.slice(0, 10) + "T00:00:00+09:00")
-    const t = new Date(today + "T00:00:00+09:00")
-    const diff = Math.round((d.getTime() - t.getTime()) / (1000 * 60 * 60 * 24))
+    const diff = dday(due, today)
     if (diff < 0) return `센터장님… "${urgent.name}", 벌써 ${Math.abs(diff)}일이나 됐어요. 이건 저랑 같이 얼른 끝내버려요, 응?`
     if (diff === 0) return `오늘이에요, 센터장님… "${urgent.name}". 다른 건 잠깐 다 막아둘 테니까, 이거에만 집중하세요.`
     if (diff === 1) return `"${urgent.name}"… 내일까지예요. 오늘 살짝만 손대두면 내일 마음이 한결 편하실 거예요.`
@@ -67,6 +104,10 @@ export default function DakotaPage() {
   }
 
   const message = getMessageForTab(activeTab)
+  const isTabLoading =
+    (activeTab === "history" && isTodosLoading) ||
+    (activeTab === "presentations" && isPresLoading) ||
+    (activeTab === "conferences" && isPresLoading)
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -99,7 +140,7 @@ export default function DakotaPage() {
 
       {/* Content */}
       <div className="flex-1 min-w-0 p-3 md:p-6">
-        <AgentGreeter image="/dakota.png" name="Dakota" message={message} loading={isLoading} />
+        <AgentGreeter image="/dakota.png" name="Dakota" message={message} loading={isTabLoading} />
 
         {activeTab === "history" && <TodoHistory />}
 
