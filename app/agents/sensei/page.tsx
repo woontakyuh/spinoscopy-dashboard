@@ -9,7 +9,7 @@ import { SenseiCapture } from "@/components/sensei/SenseiCapture"
 import { SenseiDashboard } from "@/components/sensei/SenseiDashboard"
 import { SenseiCompetition } from "@/components/sensei/SenseiCompetition"
 import { SenseiNavMap } from "@/components/sensei/SenseiNavMap"
-import type { BjjStats } from "@/lib/types/sensei"
+import type { BjjStats, BjjAttributes, SenseiEntry } from "@/lib/types/sensei"
 
 type SenseiTab = "dashboard" | "map" | "journal" | "competition"
 
@@ -20,11 +20,17 @@ const TABS: { id: SenseiTab; label: string; icon: string }[] = [
   { id: "competition", label: "Competition", icon: "📅" },
 ]
 
+function getHighLow(attrs: BjjAttributes): { highest: string; lowest: string } {
+  const entries = Object.entries(attrs) as [string, number][]
+  entries.sort((a, b) => b[1] - a[1])
+  return { highest: entries[0][0], lowest: entries[entries.length - 1][0] }
+}
+
 export default function SenseiPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<SenseiTab>("dashboard")
 
-  const { data, isLoading } = useQuery<{ stats: BjjStats }>({
+  const { data, isLoading: isStatsLoading } = useQuery<{ stats: BjjStats }>({
     queryKey: ["sensei-stats"],
     queryFn: async () => {
       const res = await fetch("/api/notion/sensei/stats")
@@ -33,18 +39,45 @@ export default function SenseiPage() {
     },
   })
 
+  const { data: entriesData, isLoading: isEntriesLoading } = useQuery<SenseiEntry[]>({
+    queryKey: ["sensei-entries"],
+    queryFn: async () => {
+      const res = await fetch("/api/notion/sensei")
+      if (!res.ok) throw new Error("훈련 기록 조회 실패")
+      return res.json()
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
   const stats = data?.stats
+  const entries = entriesData ?? []
 
   function getMessageForTab(tab: SenseiTab): string {
     if (tab === "map") {
-      return "Tak, 기술 맵이야. 지금 내 게임에서 강한 포지션 어딘지 한번 봐."
+      if (!stats) return "Tak, 기술 맵 아직 데이터가 부족해. 훈련 좀 더 쌓자."
+      const { highest, lowest } = getHighLow(stats.combined.attributes)
+      return `Tak, 지금 네 강점은 ${highest}야. ${lowest}는 좀 더 갈고닦자.`
     }
+
     if (tab === "journal") {
-      return "Tak, 훈련 기록 쌓이고 있어. 오늘 것도 남겨두자."
+      const now = new Date()
+      const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+      const monthEntries = entries.filter((e) => e.date && e.date.startsWith(thisMonth))
+      if (monthEntries.length > 0) {
+        const sorted = monthEntries.slice().sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
+        const lastDate = sorted[0].date?.slice(5, 10).replace("-", "/") ?? ""
+        return `Tak, 이번 달 ${monthEntries.length}회 훈련했어. 마지막은 ${lastDate}.`
+      }
+      return "Tak, 이번 달 아직 기록이 없어. 오늘 시작하자."
     }
+
     if (tab === "competition") {
-      return "Tak, 대회 일정 여기 있어. 몸 상태 보고 타겟 잡아두자."
+      if (stats) {
+        return `Tak, ${stats.belt} belt, 올해 ${stats.sessions2026}회 훈련. 대회 목표 잡아보자.`
+      }
+      return "Tak, 대회 일정 여기서 관리해. 목표 하나 잡아두자."
     }
+
     // dashboard 탭 — stats 기반
     if (!stats) return "Tak, 오늘도 매트에서 보자. 한 라운드면 충분해."
     if (stats.streaks.current >= 5) return `${stats.streaks.current}일 연속이야 Tak, 올해 ${stats.sessions2026}회. 페이스 진짜 좋아 — 이대로 가자.`
@@ -54,6 +87,11 @@ export default function SenseiPage() {
   }
 
   const message = getMessageForTab(activeTab)
+  const isTabLoading =
+    (activeTab === "dashboard" && isStatsLoading) ||
+    (activeTab === "map" && isStatsLoading) ||
+    (activeTab === "journal" && isEntriesLoading) ||
+    (activeTab === "competition" && isStatsLoading)
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -86,7 +124,7 @@ export default function SenseiPage() {
 
       {/* Content */}
       <div className="flex-1 min-w-0 p-3 md:p-6">
-        <AgentGreeter image="/lo.png" name="Lo" message={message} loading={isLoading} />
+        <AgentGreeter image="/lo.png" name="Lo" message={message} loading={isTabLoading} />
 
         {activeTab === "dashboard" && (
           <SenseiDashboard onNavigate={(tab) => setActiveTab(tab as SenseiTab)} />

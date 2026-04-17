@@ -10,6 +10,7 @@ import { ClinicsAnalytics } from "@/components/clinicus/ClinicsAnalytics"
 import { IdeaMemo } from "@/components/clinicus/IdeaMemo"
 import { PatientProfileView } from "@/components/clinicus/PatientProfileView"
 import type { PatientSearchResult } from "@/lib/types/patient"
+import type { MemoDraft } from "@/lib/types/draft"
 
 const TABS = [
   { id: "analytics", label: "통계", icon: "📊" },
@@ -26,7 +27,7 @@ export default function ClinicusPage() {
   const [activeTab, setActiveTab] = useState<ClinicusTab>("analytics")
   const [searchPatient, setSearchPatient] = useState<PatientSearchResult | null>(null)
 
-  const { data, isLoading } = useQuery<AnalyticsData>({
+  const { data, isLoading: isAnalyticsLoading } = useQuery<AnalyticsData>({
     queryKey: ["clinicus-greeter"],
     queryFn: async () => {
       const res = await fetch("/api/notion/analytics")
@@ -36,16 +37,37 @@ export default function ClinicusPage() {
     staleTime: 5 * 60 * 1000,
   })
 
+  const { data: drafts, isLoading: isDraftsLoading } = useQuery<MemoDraft[]>({
+    queryKey: ["clinicus-drafts"],
+    queryFn: async () => {
+      const res = await fetch("/api/notion/drafts")
+      if (!res.ok) throw new Error("메모 조회 실패")
+      return res.json()
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
   const patients = data?.patients ?? []
   const now = new Date()
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const recent = patients.filter((p) => p.op_date && p.op_date.slice(0, 10) >= weekAgo).length
+
   function getMessageForTab(tab: ClinicusTab): string {
     if (tab === "search") {
-      return "선생님, 환자 이름이나 수술명으로 바로 찾을 수 있어요."
+      if (patients.length > 0) {
+        return `선생님, 현재 ${patients.length}명 등록돼 있어요. 이름이나 수술명으로 검색해보세요.`
+      }
+      return "선생님, 환자 데이터를 불러오고 있어요."
     }
     if (tab === "memo") {
-      return "선생님, 임상 아이디어 메모 공간이에요. 새로운 생각 있으시면 남겨요."
+      if (drafts && drafts.length > 0) {
+        const latest = drafts[0]
+        return `선생님, 메모 ${drafts.length}건 있어요. 최근 건: "${latest.title}".`
+      }
+      if (drafts && drafts.length === 0) {
+        return "선생님, 아직 메모가 없어요. 임상 아이디어 떠오르면 남겨두세요."
+      }
+      return "선생님, 메모 불러오고 있어요."
     }
     // analytics 탭 — patients 기반
     if (patients.length === 0) return "환자 데이터 불러오고 있습니다. 잠시만요, 선생님."
@@ -55,6 +77,10 @@ export default function ClinicusPage() {
   }
 
   const message = getMessageForTab(activeTab)
+  const isTabLoading =
+    (activeTab === "analytics" && isAnalyticsLoading) ||
+    (activeTab === "search" && isAnalyticsLoading) ||
+    (activeTab === "memo" && isDraftsLoading)
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -87,7 +113,7 @@ export default function ClinicusPage() {
 
       {/* Content */}
       <div className="flex-1 min-w-0 p-3 md:p-6">
-        <AgentGreeter image="/opdb.png" name="Op DB" message={message} loading={isLoading} />
+        <AgentGreeter image="/opdb.png" name="Op DB" message={message} loading={isTabLoading} />
 
         {activeTab === "analytics" && <ClinicsAnalytics />}
 

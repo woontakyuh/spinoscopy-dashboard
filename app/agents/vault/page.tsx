@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import { TopBar } from "@/components/layout/TopBar"
 import { AgentGreeter } from "@/components/layout/AgentGreeter"
 import { VaultDashboard } from "@/components/vault/VaultDashboard"
-import type { PricesResponse, AssetPrice } from "@/lib/types/vault"
+import type { PricesResponse, AssetPrice, VaultNewsResponse } from "@/lib/types/vault"
 
 const TABS = [
   { id: "charts", label: "Charts", icon: "📊" },
@@ -17,7 +17,7 @@ type VaultTab = (typeof TABS)[number]["id"]
 export default function VaultPage() {
   const [activeTab, setActiveTab] = useState<VaultTab>("charts")
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading: isPricesLoading } = useQuery({
     queryKey: ["vault-prices"],
     queryFn: async () => {
       const res = await fetch("/api/vault/prices")
@@ -27,13 +27,33 @@ export default function VaultPage() {
     refetchInterval: 2 * 60 * 1000,
   })
 
+  const { data: newsData, isLoading: isNewsLoading } = useQuery<VaultNewsResponse>({
+    queryKey: ["vault-news"],
+    queryFn: async () => {
+      const res = await fetch("/api/vault/news")
+      if (!res.ok) throw new Error("뉴스 조회 실패")
+      return res.json()
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
   const prices: AssetPrice[] = data?.prices ?? []
+  const newsItems = newsData?.items ?? []
   const withChange = prices.filter((p) => typeof p.change24h === "number")
   const top = withChange.slice().sort((a, b) => Math.abs((b.change24h ?? 0)) - Math.abs((a.change24h ?? 0)))[0]
 
   function getMessageForTab(tab: VaultTab): string {
     if (tab === "news") {
-      return "여선생, 오늘 시장 관련 뉴스 모아뒀어요. 거시 흐름 읽는 데 도움이 됩니다."
+      if (newsItems.length > 0) {
+        // 가장 많이 언급된 asset
+        const assetCounts: Record<string, number> = {}
+        for (const item of newsItems) {
+          assetCounts[item.asset] = (assetCounts[item.asset] ?? 0) + 1
+        }
+        const topAsset = Object.entries(assetCounts).sort((a, b) => b[1] - a[1])[0]
+        return `여선생, 오늘 뉴스 ${newsItems.length}건 있어요. ${topAsset[0]} 관련이 ${topAsset[1]}건으로 가장 많네요.`
+      }
+      return "여선생, 지금은 새 뉴스가 없어요. 시세 먼저 보시죠."
     }
     // charts 탭 — prices 기반
     if (prices.length === 0) return "여선생, 시장 시세 가져오고 있어요. 잠시만요."
@@ -46,6 +66,9 @@ export default function VaultPage() {
   }
 
   const message = getMessageForTab(activeTab)
+  const isTabLoading =
+    (activeTab === "charts" && isPricesLoading) ||
+    (activeTab === "news" && isNewsLoading)
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -78,7 +101,7 @@ export default function VaultPage() {
 
       {/* Content */}
       <div className="flex-1 min-w-0 p-3 md:p-6 max-w-4xl w-full">
-        <AgentGreeter image="/warren.png" name="Warren" message={message} loading={isLoading} />
+        <AgentGreeter image="/warren.png" name="Warren" message={message} loading={isTabLoading} />
         <div className="border border-border rounded-xl p-4 bg-card mb-4">
           <p className="text-foreground/90 text-sm">
             주요 자산 시세와 시장 지표를 실시간으로 추적하고, 관련 뉴스를 확인합니다.

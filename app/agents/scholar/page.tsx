@@ -8,8 +8,10 @@ import { MyPapers } from "@/components/scholar/MyPapers"
 import { PaperDB } from "@/components/scholar/PaperDB"
 import { ResearchPipeline } from "@/components/scholar/ResearchPipeline"
 import { Editorial } from "@/components/scholar/Editorial"
+import { MY_PAPERS } from "@/lib/data/my-papers"
 import type { JournalStats } from "@/lib/types/journal"
 import type { ResearchProject } from "@/lib/types/research"
+import type { EditorialItem } from "@/lib/types/editorial"
 
 const TABS = [
   { id: "browse", label: "UpToDate", icon: "📚" },
@@ -20,10 +22,12 @@ const TABS = [
 
 type ScholarTab = (typeof TABS)[number]["id"]
 
+const CURRENT_YEAR = new Date().getFullYear()
+
 export default function ScholarPage() {
   const [activeTab, setActiveTab] = useState<ScholarTab>("browse")
 
-  const { data: stats, isLoading } = useQuery<JournalStats>({
+  const { data: stats, isLoading: isStatsLoading } = useQuery<JournalStats>({
     queryKey: ["journal", "stats"],
     queryFn: async () => {
       const res = await fetch("/api/notion/journal?action=stats")
@@ -33,7 +37,7 @@ export default function ScholarPage() {
     staleTime: 5 * 60 * 1000,
   })
 
-  const { data: research } = useQuery<ResearchProject[]>({
+  const { data: research, isLoading: isResearchLoading } = useQuery<ResearchProject[]>({
     queryKey: ["research-projects"],
     queryFn: async () => {
       const res = await fetch("/api/notion/research")
@@ -43,10 +47,19 @@ export default function ScholarPage() {
     staleTime: 5 * 60 * 1000,
   })
 
+  const { data: editorial, isLoading: isEditorialLoading } = useQuery<EditorialItem[]>({
+    queryKey: ["editorial-items"],
+    queryFn: async () => {
+      const res = await fetch("/api/notion/editorial")
+      if (!res.ok) throw new Error("심사 조회 실패")
+      return res.json()
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
   // ─── 탭별 메시지 ───
   function getMessageForTab(tab: ScholarTab): string {
     if (tab === "browse") {
-      // stats 기반 — 이번 주 논문 수 메시지
       if (!stats) return "여교수, 최신 저널들 좀 정리해두고 있네. 흥미로운 게 있으면 짚어주겠네."
       if (stats.recent_week === 0) {
         return `여교수, 이번 주엔 새로 들어온 게 없군. 그동안 모아둔 ${stats.total}편 중에 다시 들여다볼 만한 거 찾아볼까.`
@@ -58,7 +71,6 @@ export default function ScholarPage() {
     }
 
     if (tab === "research") {
-      // research 기반 — revision/submitted 등 메시지
       if (!research || research.length === 0) return "여교수, 최신 저널들 좀 정리해두고 있네. 흥미로운 게 있으면 짚어주겠네."
       const revision = research.filter((r) => r.status === "Revision").length
       const submitted = research.filter((r) => r.status === "Submitted" || r.status === "2nd Review").length
@@ -74,14 +86,35 @@ export default function ScholarPage() {
     }
 
     if (tab === "my-papers") {
-      return "여교수, 출판 이력 정리해뒀네. IF 높은 것부터 훑어볼까."
+      const thisYear = MY_PAPERS.filter((p) => p.year === CURRENT_YEAR)
+      const firstAuthor = MY_PAPERS.filter((p) => p.role === "1st").length
+      if (thisYear.length > 0) {
+        return `여교수, 올해 벌써 ${thisYear.length}편 나갔군. 총 ${MY_PAPERS.length}편, 꾸준히 쌓이고 있어.`
+      }
+      return `여교수, 지금까지 ${MY_PAPERS.length}편 출판했네. 1저자 ${firstAuthor}편이야. 다음 거 준비해볼까.`
     }
 
-    // editorial
-    return "여교수, 심사 요청 들어온 원고들 여기 있네. 어떤 것부터 리뷰할까."
+    // editorial — API 기반
+    if (!editorial) return "여교수, 심사 목록 불러오고 있네. 잠깐만 기다리게."
+    const today = new Date().toISOString().slice(0, 10)
+    const active = editorial.filter((e) => e.status !== "Complete" && e.status !== "Desk Reject" && e.status !== "Decision Made")
+    const overdue = active.filter((e) => e.deadline && e.deadline < today)
+    const urgent = active.filter((e) => {
+      if (!e.deadline || e.deadline < today) return false
+      const diff = (new Date(e.deadline).getTime() - new Date(today).getTime()) / (1000 * 60 * 60 * 24)
+      return diff <= 7
+    })
+    if (overdue.length > 0) return `여교수, 심사 마감 지난 원고 ${overdue.length}편이네. 이건 빨리 처리하세.`
+    if (urgent.length > 0) return `여교수, 이번 주 안에 심사해야 할 원고 ${urgent.length}편 있네. 마감 놓치지 말게.`
+    if (active.length > 0) return `여교수, 심사 중인 원고 ${active.length}편이야. 여유 있을 때 한번 보게.`
+    return "여교수, 지금은 심사 요청 들어온 게 없군. 한가할 때 즐기게."
   }
 
   const message = getMessageForTab(activeTab)
+  const isTabLoading =
+    (activeTab === "browse" && isStatsLoading) ||
+    (activeTab === "research" && isResearchLoading) ||
+    (activeTab === "editorial" && isEditorialLoading)
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -114,7 +147,7 @@ export default function ScholarPage() {
 
       {/* Content */}
       <div className="flex-1 min-w-0 p-3 md:p-6">
-        <AgentGreeter image="/brian.png" name="Brian" message={message} loading={isLoading} />
+        <AgentGreeter image="/brian.png" name="Brian" message={message} loading={isTabLoading} />
 
         {activeTab === "browse" && <PaperDB />}
         {activeTab === "research" && <ResearchPipeline />}
