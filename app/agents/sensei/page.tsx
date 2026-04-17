@@ -36,18 +36,26 @@ export default function SenseiPage() {
   })
 
   const stats = data?.stats
-  let message: string
-  if (!stats) {
-    message = "Tak, 오늘도 매트에서 보자. 한 라운드면 충분해."
-  } else if (stats.streaks.current >= 5) {
-    message = `${stats.streaks.current}일 연속이야 Tak, 올해 ${stats.sessions2026}회. 페이스 진짜 좋아 — 이대로 가자.`
-  } else if (stats.streaks.current >= 3) {
-    message = `${stats.streaks.current}일 연속 좋아 Tak. 올해 ${stats.sessions2026}회 찍었네. 오늘도 한 판 가볍게 하고 가자.`
-  } else if (stats.streaks.current === 0) {
-    message = `Tak, 며칠 쉬었지? 올해 ${stats.sessions2026}회 찍었으니까 오늘 다시 올라와. 가볍게라도, 형이 옆에서 봐줄게.`
-  } else {
-    message = `Tak, 이번 주 ${stats.streaks.current}일. 올해 ${stats.sessions2026}회. 꾸준함이 답이야 — 오늘도 매트에서 보자.`
+
+  function getMessageForTab(tab: SenseiTab): string {
+    if (tab === "map") {
+      return "Tak, 기술 맵이야. 지금 내 게임에서 강한 포지션 어딘지 한번 봐."
+    }
+    if (tab === "journal") {
+      return "Tak, 훈련 기록 쌓이고 있어. 오늘 것도 남겨두자."
+    }
+    if (tab === "competition") {
+      return "Tak, 대회 일정 여기 있어. 몸 상태 보고 타겟 잡아두자."
+    }
+    // dashboard 탭 — stats 기반
+    if (!stats) return "Tak, 오늘도 매트에서 보자. 한 라운드면 충분해."
+    if (stats.streaks.current >= 5) return `${stats.streaks.current}일 연속이야 Tak, 올해 ${stats.sessions2026}회. 페이스 진짜 좋아 — 이대로 가자.`
+    if (stats.streaks.current >= 3) return `${stats.streaks.current}일 연속 좋아 Tak. 올해 ${stats.sessions2026}회 찍었네. 오늘도 한 판 가볍게 하고 가자.`
+    if (stats.streaks.current === 0) return `Tak, 며칠 쉬었지? 올해 ${stats.sessions2026}회 찍었으니까 오늘 다시 올라와. 가볍게라도, 형이 옆에서 봐줄게.`
+    return `Tak, 이번 주 ${stats.streaks.current}일. 올해 ${stats.sessions2026}회. 꾸준함이 답이야 — 오늘도 매트에서 보자.`
   }
+
+  const message = getMessageForTab(activeTab)
 
   return (
     <div className="flex flex-col min-h-screen">

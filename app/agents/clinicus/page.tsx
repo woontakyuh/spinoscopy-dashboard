@@ -40,16 +40,21 @@ export default function ClinicusPage() {
   const now = new Date()
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const recent = patients.filter((p) => p.op_date && p.op_date.slice(0, 10) >= weekAgo).length
-  let message: string
-  if (patients.length === 0) {
-    message = "환자 데이터 불러오고 있습니다. 잠시만요, 선생님."
-  } else if (recent === 0) {
-    message = `누적 ${patients.length}명. 최근 1주일은 신규 케이스 없었어요. 기존 환자분들 PROM 추이 한번 훑어보시죠.`
-  } else if (recent >= 5) {
-    message = `이번 주 ${recent}건 새로 들어왔어요. 바쁘셨겠어요. 새 케이스 PROM 입력 빠뜨리지 마시구요.`
-  } else {
-    message = `누적 ${patients.length}명, 이번 주 +${recent}건이에요. 새 환자분들 차트 정리부터 도와드릴까요?`
+  function getMessageForTab(tab: ClinicusTab): string {
+    if (tab === "search") {
+      return "선생님, 환자 이름이나 수술명으로 바로 찾을 수 있어요."
+    }
+    if (tab === "memo") {
+      return "선생님, 임상 아이디어 메모 공간이에요. 새로운 생각 있으시면 남겨요."
+    }
+    // analytics 탭 — patients 기반
+    if (patients.length === 0) return "환자 데이터 불러오고 있습니다. 잠시만요, 선생님."
+    if (recent === 0) return `누적 ${patients.length}명. 최근 1주일은 신규 케이스 없었어요. 기존 환자분들 PROM 추이 한번 훑어보시죠.`
+    if (recent >= 5) return `이번 주 ${recent}건 새로 들어왔어요. 바쁘셨겠어요. 새 케이스 PROM 입력 빠뜨리지 마시구요.`
+    return `누적 ${patients.length}명, 이번 주 +${recent}건이에요. 새 환자분들 차트 정리부터 도와드릴까요?`
   }
+
+  const message = getMessageForTab(activeTab)
 
   return (
     <div className="flex flex-col min-h-screen">
