@@ -78,7 +78,7 @@ export default function ScholarPage() {
     }
 
     // editorial
-    return "여교수, 초고 다듬는 것들 여기 있네. 어떤 것부터 손볼까."
+    return "여교수, 심사 요청 들어온 원고들 여기 있네. 어떤 것부터 리뷰할까."
   }
 
   const message = getMessageForTab(activeTab)
