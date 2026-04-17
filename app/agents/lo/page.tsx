@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { TopBar } from "@/components/layout/TopBar"
-import { AgentGreeter } from "@/components/layout/AgentGreeter"
+import { AgentChat } from "@/components/layout/AgentChat"
 import { SenseiCalendar } from "@/components/sensei/SenseiCalendar"
 import { SenseiCapture } from "@/components/sensei/SenseiCapture"
 import { SenseiDashboard } from "@/components/sensei/SenseiDashboard"
@@ -138,7 +138,7 @@ export default function SenseiPage() {
 
       {/* Content */}
       <div className="flex-1 min-w-0 p-3 md:p-6">
-        <AgentGreeter image="/lo.png" name="Lo" message={message} loading={isTabLoading} />
+        <AgentChat agentId="lo" image="/lo.png" name="Lo" greeting={isTabLoading ? "..." : message} />
 
         {activeTab === "dashboard" && (
           <SenseiDashboard onNavigate={(tab) => setActiveTab(tab as SenseiTab)} />

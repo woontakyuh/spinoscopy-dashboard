@@ -3,12 +3,13 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { TopBar } from "@/components/layout/TopBar"
-import { AgentGreeter } from "@/components/layout/AgentGreeter"
+import { AgentChat } from "@/components/layout/AgentChat"
 import { PatientSearch } from "@/components/clinicus/PatientSearch"
 import { PatientDetail } from "@/components/clinicus/PatientDetail"
 import { ClinicsAnalytics } from "@/components/clinicus/ClinicsAnalytics"
 import { IdeaMemo } from "@/components/clinicus/IdeaMemo"
 import { PatientProfileView } from "@/components/clinicus/PatientProfileView"
+import { InterestingCaseList } from "@/components/elon/InterestingCaseList"
 import type { PatientSearchResult } from "@/lib/types/patient"
 import { getTimeContext } from "@/lib/greeterContext"
 import type { MemoDraft } from "@/lib/types/draft"
@@ -16,6 +17,7 @@ import type { MemoDraft } from "@/lib/types/draft"
 const TABS = [
   { id: "analytics", label: "통계", icon: "📊" },
   { id: "search", label: "환자 조회", icon: "🔍" },
+  { id: "interesting", label: "Interesting", icon: "⭐" },
   { id: "memo", label: "메모", icon: "💡" },
 ] as const
 
@@ -61,6 +63,10 @@ export default function ClinicusPage() {
         return `Tak, ${patients.length}명 DB에 있어. 누구 찾아?`
       }
       return "Tak, 환자 데이터 불러오고 있어."
+    }
+
+    if (tab === "interesting") {
+      return "Tak, 태그된 케이스들이야. 하나 클릭해서 같이 파고들어보자."
     }
 
     if (tab === "memo") {
@@ -124,7 +130,7 @@ export default function ClinicusPage() {
 
       {/* Content */}
       <div className="flex-1 min-w-0 p-3 md:p-6">
-        <AgentGreeter image="/elon.png" name="Elon" message={message} loading={isTabLoading} />
+        <AgentChat agentId="elon" image="/elon.png" name="Elon" greeting={isTabLoading ? "..." : message} />
 
         {activeTab === "analytics" && <ClinicsAnalytics />}
 
@@ -154,6 +160,8 @@ export default function ClinicusPage() {
             )}
           </div>
         )}
+
+        {activeTab === "interesting" && <InterestingCaseList />}
 
         {activeTab === "memo" && <IdeaMemo />}
       </div>

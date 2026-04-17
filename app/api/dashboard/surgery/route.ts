@@ -55,8 +55,11 @@ export async function GET() {
       method: "POST",
       body: JSON.stringify({
         filter: {
-          property: "Op Date",
-          date: { equals: today },
+          and: [
+            { property: "DB", multi_select: { contains: "Op" } },
+            { property: "Sch", select: { does_not_equal: "canceled" } },
+            { property: "Op Date", date: { equals: today } },
+          ],
         },
         sorts: [{ property: "Op Date", direction: "ascending" }],
         page_size: 100,

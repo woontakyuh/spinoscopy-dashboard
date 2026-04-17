@@ -58,6 +58,7 @@ export async function searchPatients(query: string): Promise<PatientSearchResult
         filter: {
           and: [
             { property: "Name", title: { contains: query } },
+            { property: "DB", multi_select: { contains: "Op" } },
             { property: "Sch", select: { does_not_equal: "canceled" } },
           ],
         },
