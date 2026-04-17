@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import { TopBar } from "@/components/layout/TopBar"
 import { AgentGreeter } from "@/components/layout/AgentGreeter"
 import { VaultDashboard } from "@/components/vault/VaultDashboard"
+import { getTimeContext } from "@/lib/greeterContext"
 import type { PricesResponse, AssetPrice, VaultNewsResponse } from "@/lib/types/vault"
 
 const TABS = [
@@ -42,21 +43,35 @@ export default function VaultPage() {
   const withChange = prices.filter((p) => typeof p.change24h === "number")
   const top = withChange.slice().sort((a, b) => Math.abs((b.change24h ?? 0)) - Math.abs((a.change24h ?? 0)))[0]
 
+  const indicators = data?.indicators ?? []
+  const fngIndicator = indicators.find((i) => i.key === "fng")
+  const fngValue = fngIndicator?.value ?? null
+
   function getMessageForTab(tab: VaultTab): string {
+    const tc = getTimeContext()
+
     if (tab === "news") {
       if (newsItems.length > 0) {
-        // 가장 많이 언급된 asset
-        const assetCounts: Record<string, number> = {}
-        for (const item of newsItems) {
-          assetCounts[item.asset] = (assetCounts[item.asset] ?? 0) + 1
-        }
-        const topAsset = Object.entries(assetCounts).sort((a, b) => b[1] - a[1])[0]
-        return `여선생, 오늘 뉴스 ${newsItems.length}건 있어요. ${topAsset[0]} 관련이 ${topAsset[1]}건으로 가장 많네요.`
+        // 구체적 건명: 첫 번째 뉴스 제목 언급
+        return `여선생, 오늘 ${newsItems.length}건 뉴스 중 "${newsItems[0].title}" 이게 주목할 만해요.`
       }
       return "여선생, 지금은 새 뉴스가 없어요. 시세 먼저 보시죠."
     }
-    // charts 탭 — prices 기반
+
+    // charts 탭 — prices 기반 + 시간맥락 + FNG
     if (prices.length === 0) return "여선생, 시장 시세 가져오고 있어요. 잠시만요."
+    if (tc.isWeekend) {
+      return "여선생, 주말이라 시장 쉬는 날이에요. 지난 주 흐름 복기해보시죠."
+    }
+    // Fear & Greed 지수 우선 표시
+    if (fngValue !== null) {
+      const fngMsg = fngValue < 30
+        ? "남들이 무서워할 때가 기회일 수 있죠."
+        : fngValue > 70
+        ? "과열 구간이에요. 차분하게."
+        : "중립이에요."
+      return `여선생, 공포 지수가 ${fngValue}이에요. ${fngMsg}`
+    }
     if (!top) return `${prices.length}개 자산 지켜보고 있는데, 오늘은 큰 움직임 없어요. 좋은 신호일 수 있죠, 여선생.`
     const ch = top.change24h ?? 0
     const sign = ch >= 0 ? "+" : ""

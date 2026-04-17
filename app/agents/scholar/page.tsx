@@ -11,6 +11,7 @@ import { Editorial } from "@/components/scholar/Editorial"
 import { MY_PAPERS } from "@/lib/data/my-papers"
 import type { JournalStats } from "@/lib/types/journal"
 import type { ResearchProject } from "@/lib/types/research"
+import { dday } from "@/lib/greeterContext"
 import type { EditorialItem } from "@/lib/types/editorial"
 
 const TABS = [
@@ -71,12 +72,28 @@ export default function ScholarPage() {
     }
 
     if (tab === "research") {
-      if (!research || research.length === 0) return "여교수, 최신 저널들 좀 정리해두고 있네. 흥미로운 게 있으면 짚어주겠네."
-      const revision = research.filter((r) => r.status === "Revision").length
+      if (!research || research.length === 0) return "여교수, 연구 프로젝트 불러오고 있네. 잠깐만."
+      const revisionList = research.filter((r) => r.status === "Revision")
+      const revision = revisionList.length
       const submitted = research.filter((r) => r.status === "Submitted" || r.status === "2nd Review").length
       const accepted = research.filter((r) => r.status === "Accepted").length
       const drafting = research.filter((r) => r.status === "Drafting" || r.status === "Editing").length
       const idea = research.filter((r) => r.status === "Idea" || r.status === "Lit Review").length
+
+      // 크로스 참조: revision 급하면서 editorial에도 급한 게 있는 경우
+      if (revision > 0 && editorial) {
+        const activeEditorial = editorial.filter((e) => e.status !== "Complete" && e.status !== "Desk Reject" && e.status !== "Decision Made")
+        const editorialUrgent = activeEditorial.filter((e) => {
+          if (!e.deadline) return false
+          const d = dday(e.deadline)
+          return d >= 0 && d <= 7
+        }).length
+        if (editorialUrgent > 0) {
+          const revTitle = revisionList[0].title ?? "Revision"
+          return `여교수, "${revTitle}" Revision이 급하고, 심사 원고도 ${editorialUrgent}편 밀려 있네. Revision부터 치우게.`
+        }
+        return `여교수, Revision 중인 논문 ${revision}편 있던데, 마감 챙기게. 리뷰어 코멘트 한번 같이 보겠나?`
+      }
       if (revision > 0) return `여교수, Revision 중인 논문 ${revision}편 있던데, 마감 챙기게. 리뷰어 코멘트 한번 같이 보겠나?`
       if (submitted > 0) return `여교수, Submitted 상태가 ${submitted}편이군. 결과 기다리는 게 제일 길지. 그동안 다음 거 준비해두세.`
       if (accepted > 0) return `여교수, Accepted ${accepted}편 — 축하하네. 잘하고 있어.`
@@ -94,18 +111,26 @@ export default function ScholarPage() {
       return `여교수, 지금까지 ${MY_PAPERS.length}편 출판했네. 1저자 ${firstAuthor}편이야. 다음 거 준비해볼까.`
     }
 
-    // editorial — API 기반
+    // editorial — API 기반 + 구체적 건명
     if (!editorial) return "여교수, 심사 목록 불러오고 있네. 잠깐만 기다리게."
-    const today = new Date().toISOString().slice(0, 10)
+    const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
     const active = editorial.filter((e) => e.status !== "Complete" && e.status !== "Desk Reject" && e.status !== "Decision Made")
-    const overdue = active.filter((e) => e.deadline && e.deadline < today)
-    const urgent = active.filter((e) => {
-      if (!e.deadline || e.deadline < today) return false
-      const diff = (new Date(e.deadline).getTime() - new Date(today).getTime()) / (1000 * 60 * 60 * 24)
-      return diff <= 7
+    const overdue = active.filter((e) => e.deadline && e.deadline < todayStr)
+    const urgentEditorial = active.filter((e) => {
+      if (!e.deadline || e.deadline < todayStr) return false
+      const d = dday(e.deadline)
+      return d <= 7
     })
-    if (overdue.length > 0) return `여교수, 심사 마감 지난 원고 ${overdue.length}편이네. 이건 빨리 처리하세.`
-    if (urgent.length > 0) return `여교수, 이번 주 안에 심사해야 할 원고 ${urgent.length}편 있네. 마감 놓치지 말게.`
+    if (overdue.length > 0) {
+      const first = overdue[0]
+      const d = first.deadline ? Math.abs(dday(first.deadline)) : 0
+      return `여교수, "${first.name}" 심사 마감이 ${d}일 지났네. 이건 빨리 처리하세.`
+    }
+    if (urgentEditorial.length > 0) {
+      const first = urgentEditorial[0]
+      const d = first.deadline ? dday(first.deadline) : 0
+      return `여교수, "${first.name}" 심사가 D-${d}일이야. 이번 주 안에 끝내게.`
+    }
     if (active.length > 0) return `여교수, 심사 중인 원고 ${active.length}편이야. 여유 있을 때 한번 보게.`
     return "여교수, 지금은 심사 요청 들어온 게 없군. 한가할 때 즐기게."
   }

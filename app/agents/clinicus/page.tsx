@@ -10,6 +10,7 @@ import { ClinicsAnalytics } from "@/components/clinicus/ClinicsAnalytics"
 import { IdeaMemo } from "@/components/clinicus/IdeaMemo"
 import { PatientProfileView } from "@/components/clinicus/PatientProfileView"
 import type { PatientSearchResult } from "@/lib/types/patient"
+import { getTimeContext } from "@/lib/greeterContext"
 import type { MemoDraft } from "@/lib/types/draft"
 
 const TABS = [
@@ -53,27 +54,37 @@ export default function ClinicusPage() {
   const recent = patients.filter((p) => p.op_date && p.op_date.slice(0, 10) >= weekAgo).length
 
   function getMessageForTab(tab: ClinicusTab): string {
+    const tc = getTimeContext()
+
     if (tab === "search") {
       if (patients.length > 0) {
-        return `선생님, 현재 ${patients.length}명 등록돼 있어요. 이름이나 수술명으로 검색해보세요.`
+        return `Tak, ${patients.length}명 DB에 있어. 누구 찾아?`
       }
-      return "선생님, 환자 데이터를 불러오고 있어요."
+      return "Tak, 환자 데이터 불러오고 있어."
     }
+
     if (tab === "memo") {
       if (drafts && drafts.length > 0) {
         const latest = drafts[0]
-        return `선생님, 메모 ${drafts.length}건 있어요. 최근 건: "${latest.title}".`
+        return `Tak, 메모 ${drafts.length}건 쌓여 있어. 가장 최근 건 "${latest.title}" — 마무리하자.`
       }
       if (drafts && drafts.length === 0) {
-        return "선생님, 아직 메모가 없어요. 임상 아이디어 떠오르면 남겨두세요."
+        return "Tak, 아이디어 떠오르면 바로 메모해. 나중에 정리해줄게."
       }
-      return "선생님, 메모 불러오고 있어요."
+      return "Tak, 메모 불러오고 있어."
     }
-    // analytics 탭 — patients 기반
-    if (patients.length === 0) return "환자 데이터 불러오고 있습니다. 잠시만요, 선생님."
-    if (recent === 0) return `누적 ${patients.length}명. 최근 1주일은 신규 케이스 없었어요. 기존 환자분들 PROM 추이 한번 훑어보시죠.`
-    if (recent >= 5) return `이번 주 ${recent}건 새로 들어왔어요. 바쁘셨겠어요. 새 케이스 PROM 입력 빠뜨리지 마시구요.`
-    return `누적 ${patients.length}명, 이번 주 +${recent}건이에요. 새 환자분들 차트 정리부터 도와드릴까요?`
+
+    // analytics 탭 — patients 기반 + 시간맥락
+    if (patients.length === 0) return "Tak, 환자 데이터 불러오고 있어. 잠깐만."
+    if (tc.bucket === "night" || tc.bucket === "dawn") {
+      return "Tak, 이 시간에도 데이터 보는 거야? 내일 아침에 하자."
+    }
+    if (tc.isMondayMorning) {
+      return `Tak, 새 주 시작이야. 이번 주 수술 일정부터 확인하지. 이번 주 새로 ${recent}건 들어왔어.`
+    }
+    if (recent === 0) return `Tak, 누적 ${patients.length}명. 이번 주는 신규 없었어. 기존 환자 PROM 추이 한번 훑어보자.`
+    if (recent >= 5) return `Tak, 이번 주 ${recent}건 새로 들어왔어. 바빴겠다. 새 케이스 PROM 빠뜨리지 마.`
+    return `Tak, 이번 주 새로 ${recent}건 들어왔어. 가장 최근 건부터 — PROM 아직 안 넣었으면 지금 하자.`
   }
 
   const message = getMessageForTab(activeTab)

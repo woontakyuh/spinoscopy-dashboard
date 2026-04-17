@@ -9,6 +9,7 @@ import { SenseiCapture } from "@/components/sensei/SenseiCapture"
 import { SenseiDashboard } from "@/components/sensei/SenseiDashboard"
 import { SenseiCompetition } from "@/components/sensei/SenseiCompetition"
 import { SenseiNavMap } from "@/components/sensei/SenseiNavMap"
+import { getTimeContext } from "@/lib/greeterContext"
 import type { BjjStats, BjjAttributes, SenseiEntry } from "@/lib/types/sensei"
 
 type SenseiTab = "dashboard" | "map" | "journal" | "competition"
@@ -53,6 +54,8 @@ export default function SenseiPage() {
   const entries = entriesData ?? []
 
   function getMessageForTab(tab: SenseiTab): string {
+    const tc = getTimeContext()
+
     if (tab === "map") {
       if (!stats) return "Tak, 기술 맵 아직 데이터가 부족해. 훈련 좀 더 쌓자."
       const { highest, lowest } = getHighLow(stats.combined.attributes)
@@ -66,7 +69,8 @@ export default function SenseiPage() {
       if (monthEntries.length > 0) {
         const sorted = monthEntries.slice().sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
         const lastDate = sorted[0].date?.slice(5, 10).replace("-", "/") ?? ""
-        return `Tak, 이번 달 ${monthEntries.length}회 훈련했어. 마지막은 ${lastDate}.`
+        const count = monthEntries.length
+        return `Tak, 이번 달 ${count}회, 마지막은 ${lastDate}. ${count < 5 ? "조금 더 올라와야지." : "꾸준하다. 계속 가자."}`
       }
       return "Tak, 이번 달 아직 기록이 없어. 오늘 시작하자."
     }
@@ -78,8 +82,18 @@ export default function SenseiPage() {
       return "Tak, 대회 일정 여기서 관리해. 목표 하나 잡아두자."
     }
 
-    // dashboard 탭 — stats 기반
-    if (!stats) return "Tak, 오늘도 매트에서 보자. 한 라운드면 충분해."
+    // dashboard 탭 — stats 기반 + 시간맥락
+    if (!stats) {
+      if (tc.bucket === "morning") return "Tak, 오늘 아침 훈련 가능해? 한 라운드면 충분해."
+      if (tc.bucket === "evening") return "Tak, 오늘 하루 어땠어? 매트 위에서 정리하고 가자."
+      return "Tak, 오늘도 매트에서 보자. 한 라운드면 충분해."
+    }
+    if (tc.bucket === "morning" && stats.streaks.current === 0) {
+      return `Tak, 오늘 아침 훈련 가능해? 며칠 쉬었으니까 가볍게라도 올라와. 올해 ${stats.sessions2026}회.`
+    }
+    if (tc.bucket === "evening") {
+      return `Tak, 오늘 하루 어땠어? 올해 ${stats.sessions2026}회. 매트 위에서 정리하고 가자.`
+    }
     if (stats.streaks.current >= 5) return `${stats.streaks.current}일 연속이야 Tak, 올해 ${stats.sessions2026}회. 페이스 진짜 좋아 — 이대로 가자.`
     if (stats.streaks.current >= 3) return `${stats.streaks.current}일 연속 좋아 Tak. 올해 ${stats.sessions2026}회 찍었네. 오늘도 한 판 가볍게 하고 가자.`
     if (stats.streaks.current === 0) return `Tak, 며칠 쉬었지? 올해 ${stats.sessions2026}회 찍었으니까 오늘 다시 올라와. 가볍게라도, 형이 옆에서 봐줄게.`
