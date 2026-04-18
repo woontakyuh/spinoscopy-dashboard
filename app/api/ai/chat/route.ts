@@ -14,9 +14,15 @@ import {
   listMemories,
   type MemoryCategory,
 } from "@/lib/notion/dakotaMemoryV2"
-import { elonMemory } from "@/lib/notion/elonMemory"
-import { loMemory } from "@/lib/notion/loMemory"
-import { listInterestingCases } from "@/lib/notion/interestingCases"
+import {
+  getPlayerProfile,
+  listGamePlans,
+  getGamePlan,
+  lookupTechnique,
+  lookupPosition,
+  lookupArchetype,
+  findTransitions,
+} from "@/lib/notion/lo"
 import { listAllSenseiEntries } from "@/lib/notion/sensei"
 import { listResearchProjects } from "@/lib/notion/research"
 import { getJournalStats } from "@/lib/notion/journal"
@@ -100,59 +106,9 @@ function loadDakotaPersona(): string {
   }
 }
 
-let cachedElonPersona: string | null = null
-function loadElonPersona(): string {
-  if (cachedElonPersona !== null) return cachedElonPersona
-  try {
-    cachedElonPersona = readFileSync(path.join(process.cwd(), "ELON.md"), "utf-8")
-  } catch {
-    cachedElonPersona = ""
-  }
-  return cachedElonPersona
-}
-
-let cachedLoPersona: string | null = null
-function loadLoPersona(): string {
-  if (cachedLoPersona !== null) return cachedLoPersona
-  try {
-    cachedLoPersona = readFileSync(path.join(process.cwd(), "LO.md"), "utf-8")
-  } catch {
-    cachedLoPersona = ""
-  }
-  return cachedLoPersona
-}
-
 function getMonthStartInSeoul(): string {
   const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }))
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
-}
-
-function getTodayInSeoul(): string {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
-}
-
-interface MonthlySurgeryStats {
-  month_start: string
-  month_count: number
-  lifetime_count: number
-  by_category: Record<string, number>
-}
-
-async function getMonthlySurgeryStats(): Promise<MonthlySurgeryStats> {
-  const data = await getAllPatientRows()
-  const monthStart = getMonthStartInSeoul()
-  const thisMonth = data.patients.filter((p) => p.op_date && p.op_date.slice(0, 10) >= monthStart)
-  const by_category: Record<string, number> = {}
-  for (const p of thisMonth) {
-    const cats = p.op_category.length > 0 ? p.op_category : ["(uncategorized)"]
-    for (const c of cats) by_category[c] = (by_category[c] ?? 0) + 1
-  }
-  return {
-    month_start: monthStart,
-    month_count: thisMonth.length,
-    lifetime_count: data.patients.length,
-    by_category,
-  }
 }
 
 interface MonthlyTrainingStats {
@@ -803,372 +759,113 @@ function buildDakotaTools(req: Request) {
   }
 }
 
-// ─── Elon ──────────────────────────────────────────────────────
+// ─── Lo (read-only BJJ coach) ──────────────────────────────────
 
-async function buildElonPrompt(): Promise<string> {
-  const persona = loadElonPersona() || "당신은 Tak의 환자 데이터 엔지니어링 파트너 Elon입니다. 직설적이고 first-principles 기반. 한국어로 대답."
-
-  let block = `\n\n[현재 시각]\n${fmtKoreaTime()}`
-  try {
-    const [memoryDigest, todaySurgeries, stats] = await Promise.all([
-      elonMemory.getMemoryDigest(40).catch(() => ""),
-      fetchTodaySurgeries(getTodayInSeoul()).catch(() => []),
-      getMonthlySurgeryStats().catch(() => null),
-    ])
-
-    if (memoryDigest) {
-      block += `\n\n[Elon Memory — Tak에 대해 저장된 사실들. 자연스럽게 활용하되 굳이 언급하지 말 것. 새 사실은 add_memory로 저장.]\n${memoryDigest}`
-    }
-
-    const surgeryLines = todaySurgeries.length > 0
-      ? todaySurgeries.map((s) => `- ${s.name} — ${s.op_name}${s.hospital ? ` (${s.hospital})` : ""}`).join("\n")
-      : "(없음)"
-    block += `\n\n[오늘 수술 ${todaySurgeries.length}건]\n${surgeryLines}`
-
-    if (stats) {
-      const catLines = Object.entries(stats.by_category)
-        .sort((a, b) => b[1] - a[1])
-        .map(([cat, n]) => `- ${cat}: ${n}`)
-        .join("\n")
-      block += `\n\n[이번 달 수술 현황 (${stats.month_start} 이후)]\n합계: ${stats.month_count}건 / 누적 총 ${stats.lifetime_count}건\n카테고리 분포:\n${catLines || "(없음)"}`
-    }
-  } catch {
-    // live data 조회 실패 시 persona만 사용
-  }
-  return persona + block
-}
-
-function buildElonTools() {
-  return {
-    search_patients: tool({
-      description:
-        "Notion Patient DB에서 환자를 검색합니다. 수술 환자(DB=Op AND Sch≠canceled)만 반환. 이름(부분 일치)으로 검색.",
-      inputSchema: z.object({
-        query: z.string().describe("환자 이름의 부분 문자열"),
-        limit: z.number().int().min(1).max(50).optional(),
-      }),
-      execute: async ({ query, limit }) => {
-        const dbId = process.env.NOTION_PATIENT_DB_ID
-        if (!dbId) return { error: "NOTION_PATIENT_DB_ID not set" }
-        const res = await notionRequest<{ results: Array<{ id: string; url: string; properties: Record<string, { type: string; title?: Array<{ plain_text?: string }>; rich_text?: Array<{ plain_text?: string }>; date?: { start: string } | null; select?: { name: string } | null; multi_select?: Array<{ name: string }> }> }> }>(
-          `/databases/${dbId}/query`,
-          {
-            method: "POST",
-            body: JSON.stringify({
-              filter: {
-                and: [
-                  { property: "Name", title: { contains: query } },
-                  { property: "DB", multi_select: { contains: "Op" } },
-                  { property: "Sch", select: { does_not_equal: "canceled" } },
-                ],
-              },
-              page_size: Math.min(limit ?? 20, 50),
-              sorts: [{ property: "Op Date", direction: "descending" }],
-            }),
-          },
-        )
-        const items = res.results.map((p) => {
-          const pr = p.properties
-          const getText = (x: typeof pr[string]) => {
-            if (!x) return ""
-            if (x.type === "title") return (x.title ?? []).map((t) => t.plain_text ?? "").join("").trim()
-            if (x.type === "rich_text") return (x.rich_text ?? []).map((t) => t.plain_text ?? "").join("").trim()
-            return ""
-          }
-          return {
-            page_id: p.id,
-            url: p.url,
-            name: getText(pr.Name),
-            pt_no: getText(pr["Pt No"]),
-            age: getText(pr.Age),
-            sex: pr.Sex?.select?.name?.trim() ?? "",
-            op_date: pr["Op Date"]?.date?.start ?? null,
-            op_name: getText(pr["Op Name"]),
-            op_category: (pr["Op Category"]?.multi_select ?? []).map((o) => o.name),
-            hospital: (pr.Hospital?.multi_select ?? []).map((o) => o.name),
-          }
-        })
-        return { count: items.length, items }
-      },
-    }),
-
-    list_interesting_cases: tool({
-      description:
-        "Patient DB에서 DB 컬럼에 'Interesting case' 태그가 있는 환자(수술·비수술 불문)를 최근 수정순으로 반환. '흥미로운 케이스', '인터레스팅', 'interesting' 언급 시 호출.",
-      inputSchema: z.object({
-        limit: z.number().int().min(1).max(100).optional(),
-      }),
-      execute: async ({ limit }) => {
-        const cases = await listInterestingCases(limit ?? 30)
-        return { count: cases.length, cases }
-      },
-    }),
-
-    get_monthly_surgery_stats: tool({
-      description:
-        "이번 달 수술 현황 — 건수, op category 분포, 누적 총계. '이번 달', '월 수술', '카테고리 별' 언급 시 호출.",
-      inputSchema: z.object({}),
-      execute: async () => getMonthlySurgeryStats(),
-    }),
-
-    add_memory: tool({
-      description:
-        "Elon Memory DB에 새 사실을 저장. Tak이 '기억해둬' 명시 또는 대화 중 장기적으로 가치 있는 환자/임상 관련 사실 발견 시. 일회성 잡담은 저장 X. 환자 실명 대신 익명화된 식별자 사용.",
-      inputSchema: z.object({
-        name: z.string().max(100),
-        category: z.enum(["profile", "preference", "person", "project", "rule", "fact", "event"]),
-        content: z.string().max(1500),
-        importance: z.number().int().min(1).max(5),
-      }),
-      execute: async ({ name, category, content, importance }) => {
-        const row = await elonMemory.createMemory({ name, category, content, importance })
-        return { ok: true, page_id: row.page_id, name: row.name }
-      },
-    }),
-
-    update_memory: tool({
-      description: "기존 Elon Memory row를 수정. page_id는 search_memory로 먼저 찾기.",
-      inputSchema: z.object({
-        page_id: z.string(),
-        name: z.string().max(100).optional(),
-        category: z.enum(["profile", "preference", "person", "project", "rule", "fact", "event"]).optional(),
-        content: z.string().max(1500).optional(),
-        importance: z.number().int().min(1).max(5).optional(),
-        status: z.enum(["active", "archived"]).optional(),
-      }),
-      execute: async (input) => {
-        await elonMemory.updateMemory({
-          pageId: input.page_id,
-          name: input.name,
-          category: input.category,
-          content: input.content,
-          importance: input.importance,
-          status: input.status,
-        })
-        return { ok: true }
-      },
-    }),
-
-    search_memory: tool({
-      description:
-        "Elon Memory DB에서 텍스트로 검색. Tak이 '아까', '전에', '그 케이스', '지난번', '기억나?' 같은 표현으로 과거를 언급하면 먼저 호출. 이름·내용 양쪽에서 부분 매칭.",
-      inputSchema: z.object({
-        query: z.string(),
-        category: z.enum(["profile", "preference", "person", "project", "rule", "fact", "event"]).optional(),
-        limit: z.number().int().min(1).max(50).optional(),
-      }),
-      execute: async ({ query, category, limit }) => {
-        const all = await elonMemory.listMemories({
-          category,
-          limit: 200,
-          status: "active",
-        })
-        const q = query.toLowerCase()
-        const matches = all.filter((r) => r.name.toLowerCase().includes(q) || r.content.toLowerCase().includes(q))
-        return {
-          count: matches.length,
-          rows: matches.slice(0, limit ?? 20).map((r) => ({
-            page_id: r.page_id,
-            name: r.name,
-            category: r.category,
-            content: r.content,
-            importance: r.importance,
-            created_time: r.created_time,
-          })),
-        }
-      },
-    }),
-
-    query_memory: tool({
-      description: "Elon Memory DB에서 카테고리/중요도 조건으로 조회.",
-      inputSchema: z.object({
-        category: z.enum(["profile", "preference", "person", "project", "rule", "fact", "event"]).optional(),
-        min_importance: z.number().int().min(1).max(5).optional(),
-        limit: z.number().int().min(1).max(50).optional(),
-      }),
-      execute: async ({ category, min_importance, limit }) => {
-        const rows = await elonMemory.listMemories({ category, minImportance: min_importance, limit })
-        return {
-          count: rows.length,
-          rows: rows.map((r) => ({
-            page_id: r.page_id,
-            name: r.name,
-            category: r.category,
-            content: r.content,
-            importance: r.importance,
-          })),
-        }
-      },
-    }),
-
-    web_search: anthropic.tools.webSearch_20250305({ maxUses: 5 }),
-  }
-}
-
-// ─── Lo ────────────────────────────────────────────────────────
+const LO_PERSONA = `당신은 Tak의 BJJ 코치 Lo입니다.
+- 차분하고 기술적으로 정밀한 톤. 한국어로 대답.
+- Tak의 현재 Player Profile, 최근 수련 기록, Game Plans를 맥락으로 참고해 코칭하세요.
+- BJJ 기술/포지션/아키타입/트랜지션 질문은 lookup_* · find_transitions 툴로 Notion BJJ 지식베이스에서 찾아 답변.
+- 저장 기능은 없습니다. Tak이 "기억해둬"라고 하면 "Claude Desktop BJJ 프로젝트에서 기록해 두면 다음 세션에 반영됨"이라고 안내.
+- Desktop에서 정리된 내용은 Player Profile·Game Plans에 누적되므로, Tak이 그걸 언급하면 해당 Notion 자료를 기반으로 답변.`
 
 async function buildLoPrompt(): Promise<string> {
-  const persona = loadLoPersona() || "당신은 Tak의 BJJ 코치 Lo입니다. 차분하고 기술적으로 정밀한 톤. 한국어로 대답."
-
-  let block = `\n\n[현재 시각]\n${fmtKoreaTime()}`
+  let context = `\n\n[현재 시각]\n${fmtKoreaTime()}`
   try {
-    const [memoryDigest, stats] = await Promise.all([
-      loMemory.getMemoryDigest(40).catch(() => ""),
+    const [profile, plans, stats] = await Promise.all([
+      getPlayerProfile().catch(() => null),
+      listGamePlans().catch(() => []),
       getMonthlyTrainingStats().catch(() => null),
     ])
 
-    if (memoryDigest) {
-      block += `\n\n[Lo Memory — Tak에 대해 저장된 BJJ 관련 사실들. 자연스럽게 활용하되 굳이 언급하지 말 것. 새 사실은 add_memory로 저장.]\n${memoryDigest}`
+    if (profile) {
+      context += `\n\n[Player Profile — Tak의 현재 상태]\n${profile}`
     }
 
     if (stats) {
-      const tagLines = stats.top_tags.map((t) => `  ${t.tag}(${t.count})`).join(", ")
-      const sessionLines = stats.sessions
-        .map((s) => `- ${s.date ?? "?"} @ ${s.gym || "?"} — ${s.tags.slice(0, 6).join(", ")}`)
+      const s: MonthlyTrainingStats = stats
+      const tagLines = s.top_tags.slice(0, 8).map((t) => `${t.tag}(${t.count})`).join(", ")
+      const sessionLines = s.sessions.slice(0, 10)
+        .map((se) => `- ${se.date ?? "?"} @ ${se.gym || "?"} — ${se.tags.slice(0, 6).join(", ")}`)
         .join("\n")
-      block += `\n\n[이번 달 수련 (${stats.month_start} 이후)]\n세션 수: ${stats.month_count}건, 현재 streak: ${stats.streak_days}일\n탑 태그: ${tagLines || "(없음)"}\n세션:\n${sessionLines || "(없음)"}`
+      context += `\n\n[이번 달 수련 (${s.month_start} 이후)]\n세션 ${s.month_count}건 · streak ${s.streak_days}일\n탑 태그: ${tagLines || "(없음)"}\n최근 세션:\n${sessionLines || "(없음)"}`
+    }
+
+    if (plans.length > 0) {
+      const planLines = plans.map((p: { title: string }) => `- ${p.title}`).join("\n")
+      context += `\n\n[Game Plans 인덱스 (${plans.length}개)]\n${planLines}\n(특정 플랜 상세는 get_game_plan 툴 호출)`
     }
   } catch {
-    // ignore
+    // live data 조회 실패 시 persona만
   }
-  return persona + block
+  return LO_PERSONA + context
 }
 
 function buildLoTools() {
   return {
-    list_training_sessions: tool({
-      description:
-        "BJJ training DB에서 수련 세션을 조회. 기본 최근 30일. 특정 태그나 도장으로 필터링 가능. 'BJJ 기록', '수련', '매트', '지난 세션' 언급 시.",
+    lookup_technique: tool({
+      description: "BJJ Techniques DB에서 기술을 이름으로 조회. 'X 기술 알려줘', 'Y 디테일' 등 기술 관련 질문 시.",
       inputSchema: z.object({
-        from: z.string().optional().describe("YYYY-MM-DD, 기본 이번 달 시작"),
-        to: z.string().optional().describe("YYYY-MM-DD, 기본 오늘"),
-        tag: z.string().optional().describe("tag 부분 일치 필터 (class/sparring/study 통합)"),
-        limit: z.number().int().min(1).max(100).optional(),
+        name: z.string().describe("기술 이름 부분 일치"),
+        limit: z.number().int().min(1).max(10).optional(),
       }),
-      execute: async ({ from, to, tag, limit }) => {
-        const fromDate = from ?? getMonthStartInSeoul()
-        const toDate = to ?? getTodayInSeoul()
-        const all = await listAllSenseiEntries()
-        let filtered = all.filter((s) => s.date && s.date >= fromDate && s.date <= toDate)
-        if (tag) {
-          const q = tag.toLowerCase()
-          filtered = filtered.filter((s) =>
-            [...s.classTags, ...s.sparringTags, ...(s.studyTags ?? [])].some((t) => t.toLowerCase().includes(q)),
-          )
-        }
-        const items = filtered.slice(0, limit ?? 30).map((s) => ({
-          id: s.id,
-          date: s.date,
-          title: s.title,
-          sessionType: s.sessionType,
-          instructor: s.instructor,
-          gym: s.gym,
-          classTags: s.classTags,
-          sparringTags: s.sparringTags,
-          studyTags: s.studyTags ?? [],
-          note: s.note,
-          url: s.url,
-        }))
-        return { count: filtered.length, from: fromDate, to: toDate, items }
+      execute: async ({ name, limit }) => {
+        const rows = await lookupTechnique(name, limit ?? 5)
+        return { count: rows.length, rows }
       },
     }),
 
-    get_training_stats: tool({
-      description:
-        "이번 달 수련 스탯 — 세션 수, 연속 수련 streak, 탑 태그. '이번 달 수련', 'streak' 언급 시.",
-      inputSchema: z.object({}),
-      execute: async () => getMonthlyTrainingStats(),
-    }),
-
-    add_memory: tool({
-      description:
-        "Lo Memory DB에 새 사실을 저장. Tak이 '기억해줘' 명시 또는 BJJ 관련 가치 있는 사실 발견 시. 일회성 농담은 저장 X.",
+    lookup_position: tool({
+      description: "BJJ Positions DB에서 포지션 조회. '클로즈 가드', 'de la Riva' 등 포지션 언급 시.",
       inputSchema: z.object({
-        name: z.string().max(100),
-        category: z.enum(["profile", "preference", "person", "project", "rule", "fact", "event"]),
-        content: z.string().max(1500),
-        importance: z.number().int().min(1).max(5),
+        name: z.string(),
+        limit: z.number().int().min(1).max(10).optional(),
       }),
-      execute: async ({ name, category, content, importance }) => {
-        const row = await loMemory.createMemory({ name, category, content, importance })
-        return { ok: true, page_id: row.page_id, name: row.name }
+      execute: async ({ name, limit }) => {
+        const rows = await lookupPosition(name, limit ?? 5)
+        return { count: rows.length, rows }
       },
     }),
 
-    update_memory: tool({
-      description: "기존 Lo Memory row 수정.",
+    lookup_archetype: tool({
+      description: "BJJ Archetypes DB에서 선수 스타일/아키타입 조회. 'Gordon Ryan 스타일', '홀로 알레그리 게임' 등.",
       inputSchema: z.object({
-        page_id: z.string(),
-        name: z.string().max(100).optional(),
-        category: z.enum(["profile", "preference", "person", "project", "rule", "fact", "event"]).optional(),
-        content: z.string().max(1500).optional(),
-        importance: z.number().int().min(1).max(5).optional(),
-        status: z.enum(["active", "archived"]).optional(),
+        name: z.string(),
+        limit: z.number().int().min(1).max(5).optional(),
       }),
-      execute: async (input) => {
-        await loMemory.updateMemory({
-          pageId: input.page_id,
-          name: input.name,
-          category: input.category,
-          content: input.content,
-          importance: input.importance,
-          status: input.status,
-        })
-        return { ok: true }
+      execute: async ({ name, limit }) => {
+        const rows = await lookupArchetype(name, limit ?? 3)
+        return { count: rows.length, rows }
       },
     }),
 
-    search_memory: tool({
-      description:
-        "Lo Memory DB에서 텍스트로 검색. Tak이 '지난번', '그 스파링', '우리 얘기했던', '기억나?' 언급 시 먼저 호출.",
+    find_transitions: tool({
+      description: "BJJ Transitions DB에서 포지션 간 이동 엣지 조회. from/to 포지션 중 최소 하나 필수. 'X에서 Y로 넘어가는 법' 질문 시.",
       inputSchema: z.object({
-        query: z.string(),
-        category: z.enum(["profile", "preference", "person", "project", "rule", "fact", "event"]).optional(),
-        limit: z.number().int().min(1).max(50).optional(),
+        from_position: z.string().optional(),
+        to_position: z.string().optional(),
+        limit: z.number().int().min(1).max(30).optional(),
       }),
-      execute: async ({ query, category, limit }) => {
-        const all = await loMemory.listMemories({ category, limit: 200, status: "active" })
-        const q = query.toLowerCase()
-        const matches = all.filter((r) => r.name.toLowerCase().includes(q) || r.content.toLowerCase().includes(q))
-        return {
-          count: matches.length,
-          rows: matches.slice(0, limit ?? 20).map((r) => ({
-            page_id: r.page_id,
-            name: r.name,
-            category: r.category,
-            content: r.content,
-            importance: r.importance,
-            created_time: r.created_time,
-          })),
-        }
+      execute: async ({ from_position, to_position, limit }) => {
+        const rows = await findTransitions(from_position, to_position, limit ?? 20)
+        return { count: rows.length, rows }
       },
     }),
 
-    query_memory: tool({
-      description: "Lo Memory DB에서 카테고리/중요도 조건으로 조회.",
+    get_game_plan: tool({
+      description: "Game Plans 허브의 특정 플랜 상세 조회. 시스템 프롬프트의 플랜 인덱스에서 제목 뽑아 호출.",
       inputSchema: z.object({
-        category: z.enum(["profile", "preference", "person", "project", "rule", "fact", "event"]).optional(),
-        min_importance: z.number().int().min(1).max(5).optional(),
-        limit: z.number().int().min(1).max(50).optional(),
+        title: z.string().describe("Game Plan 페이지 제목 부분 일치"),
       }),
-      execute: async ({ category, min_importance, limit }) => {
-        const rows = await loMemory.listMemories({ category, minImportance: min_importance, limit })
-        return {
-          count: rows.length,
-          rows: rows.map((r) => ({
-            page_id: r.page_id,
-            name: r.name,
-            category: r.category,
-            content: r.content,
-            importance: r.importance,
-          })),
-        }
+      execute: async ({ title }) => {
+        const plan = await getGamePlan(title)
+        return plan ?? { error: "not found" }
       },
     }),
 
     web_search: anthropic.tools.webSearch_20250305({ maxUses: 5 }),
   }
 }
+
 
 export async function POST(req: Request) {
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -1183,8 +880,6 @@ export async function POST(req: Request) {
   let systemPrompt: string
   if (agentId === "dakota") {
     systemPrompt = (await buildDakotaPrompt(userContext)) + ORCHESTRATOR_BLOCK
-  } else if (agentId === "elon") {
-    systemPrompt = await buildElonPrompt()
   } else if (agentId === "lo") {
     systemPrompt = await buildLoPrompt()
   } else {
@@ -1203,7 +898,6 @@ export async function POST(req: Request) {
 
     const activeTools =
       agentId === "dakota" ? buildDakotaTools(req)
-      : agentId === "elon" ? buildElonTools()
       : agentId === "lo" ? buildLoTools()
       : undefined
 
