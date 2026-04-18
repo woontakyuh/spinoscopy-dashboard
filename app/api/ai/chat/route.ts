@@ -23,6 +23,13 @@ import {
   lookupArchetype,
   findTransitions,
 } from "@/lib/notion/lo"
+import { searchPatients, getPatientProfile } from "@/lib/notion/patients"
+import {
+  getSurgeryStatsInRange,
+  getSurgeryStatsForMonth,
+  formatPatientForPrompt,
+} from "@/lib/notion/elon"
+import { listInterestingCases } from "@/lib/notion/interestingCases"
 import { listAllSenseiEntries } from "@/lib/notion/sensei"
 import { listResearchProjects } from "@/lib/notion/research"
 import { getJournalStats } from "@/lib/notion/journal"
@@ -866,6 +873,108 @@ function buildLoTools() {
   }
 }
 
+// ─── Elon (read-only clinical coworker) ────────────────────────
+
+const ELON_PERSONA = `당신은 Tak의 임상 데이터 파트너 Elon입니다.
+- 직설적이고 first-principles 기반. 한국어로 대답.
+- Notion Patient DB가 진실의 원천. 환자 이름이 언급되면 반드시 먼저 search_patients로 검색 → page_id 확정 → get_patient_full로 전체 프로필(PROM 타임포인트, BTM, BMI, AI Insight, Cx, Comorbidities 등) 로드 후 깊이 있는 토론.
+- 동명이인이 여럿이면 Pt No·수술일·Op Name으로 구분해 어느 환자인지 되물으세요.
+- "N월 수술현황", "이번 달 수술", "카테고리 분포" 같은 질문은 get_surgery_stats 툴.
+- "흥미로운 케이스" / "interesting" 언급 시 list_interesting_cases 툴.
+- 저장 기능 없음. Tak이 "기억해둬" 하면 "Claude Desktop의 EMR workflow / Clinical consultation 프로젝트에 입력하면 Notion Patient DB에 누적되어 여기서도 자동 반영됨"이라고 안내.`
+
+async function buildElonPrompt(): Promise<string> {
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
+  const monthStart = getMonthStartInSeoul()
+  let context = `\n\n[현재 시각]\n${fmtKoreaTime()}`
+  try {
+    const [todaySurgeries, monthlyStats] = await Promise.all([
+      fetchTodaySurgeries(today).catch(() => []),
+      getSurgeryStatsInRange(monthStart, undefined, `이번 달 (${monthStart} 이후)`).catch(() => null),
+    ])
+
+    const surgeryLines = todaySurgeries.length > 0
+      ? todaySurgeries.map((s) => `- ${s.name} — ${s.op_name}${s.hospital ? ` (${s.hospital})` : ""}`).join("\n")
+      : "(없음)"
+    context += `\n\n[오늘 수술 ${todaySurgeries.length}건]\n${surgeryLines}`
+
+    if (monthlyStats) {
+      const catLines = Object.entries(monthlyStats.by_category)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 12)
+        .map(([c, n]) => `- ${c}: ${n}`)
+        .join("\n")
+      context += `\n\n[${monthlyStats.period_label}]\n합계 ${monthlyStats.count}건\n카테고리 상위:\n${catLines || "(없음)"}`
+    }
+  } catch {
+    // live data 실패 시 persona만
+  }
+  return ELON_PERSONA + context
+}
+
+function buildElonTools() {
+  return {
+    search_patients: tool({
+      description:
+        "Notion Patient DB에서 환자 이름으로 검색. 필터: DB=Op AND Sch≠canceled. 환자 이름이 나오면 항상 첫 단계로 호출. 결과의 page_id를 get_patient_full에 넘겨 전체 로드.",
+      inputSchema: z.object({
+        query: z.string().describe("환자 이름 부분 문자열"),
+        limit: z.number().int().min(1).max(30).optional(),
+      }),
+      execute: async ({ query, limit }) => {
+        const all = await searchPatients(query)
+        return { count: all.length, patients: all.slice(0, limit ?? 15) }
+      },
+    }),
+
+    get_patient_full: tool({
+      description:
+        "특정 환자의 전체 프로필 — PROM(pre/1mo/3mo/6mo/1y × VAS/ODI/JOA/NDI/EQ5D), BTM(VitD/CTx/P1NP/HbA1c pre·fu), 체지표(Height/Weight/BMI/BMD), AI Insight, Cx, PMHx, Comorbidities, 수술/비용 모두 포함. 환자 토론 전 필수.",
+      inputSchema: z.object({
+        page_id: z.string().describe("search_patients가 반환한 환자 Notion page_id"),
+      }),
+      execute: async ({ page_id }) => {
+        try {
+          const profile = await getPatientProfile(page_id)
+          return { text: formatPatientForPrompt(profile), url: profile.url }
+        } catch (e) {
+          return { error: e instanceof Error ? e.message : "unknown" }
+        }
+      },
+    }),
+
+    get_surgery_stats: tool({
+      description:
+        "수술 현황 통계. year+month 지정(예: 2026, 3) 또는 from_date/to_date 범위. 미지정 시 이번 달. 카테고리·ClassA·병원별 분포 포함.",
+      inputSchema: z.object({
+        year: z.number().int().optional(),
+        month: z.number().int().min(1).max(12).optional(),
+        from_date: z.string().optional().describe("YYYY-MM-DD"),
+        to_date: z.string().optional().describe("YYYY-MM-DD"),
+      }),
+      execute: async ({ year, month, from_date, to_date }) => {
+        if (year && month) return getSurgeryStatsForMonth(year, month)
+        if (from_date) return getSurgeryStatsInRange(from_date, to_date)
+        return getSurgeryStatsInRange(getMonthStartInSeoul(), undefined, "이번 달")
+      },
+    }),
+
+    list_interesting_cases: tool({
+      description:
+        "Patient DB에서 'Interesting case' 태그 환자(수술·비수술 불문) 최근 수정순. '흥미로운 케이스', 'interesting' 언급 시.",
+      inputSchema: z.object({
+        limit: z.number().int().min(1).max(50).optional(),
+      }),
+      execute: async ({ limit }) => {
+        const cases = await listInterestingCases(limit ?? 20)
+        return { count: cases.length, cases }
+      },
+    }),
+
+    web_search: anthropic.tools.webSearch_20250305({ maxUses: 5 }),
+  }
+}
+
 
 export async function POST(req: Request) {
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -882,6 +991,8 @@ export async function POST(req: Request) {
     systemPrompt = (await buildDakotaPrompt(userContext)) + ORCHESTRATOR_BLOCK
   } else if (agentId === "lo") {
     systemPrompt = await buildLoPrompt()
+  } else if (agentId === "elon") {
+    systemPrompt = await buildElonPrompt()
   } else {
     systemPrompt = STATIC_PROMPTS[agentId as string] ?? STATIC_PROMPTS.default
   }
@@ -899,6 +1010,7 @@ export async function POST(req: Request) {
     const activeTools =
       agentId === "dakota" ? buildDakotaTools(req)
       : agentId === "lo" ? buildLoTools()
+      : agentId === "elon" ? buildElonTools()
       : undefined
 
     const result = streamText({
