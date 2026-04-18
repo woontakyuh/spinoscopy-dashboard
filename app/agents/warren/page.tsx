@@ -5,7 +5,6 @@ import { useQuery } from "@tanstack/react-query"
 import { TopBar } from "@/components/layout/TopBar"
 import { AgentGreeter } from "@/components/layout/AgentGreeter"
 import { VaultDashboard } from "@/components/vault/VaultDashboard"
-import { getTimeContext } from "@/lib/greeterContext"
 import type { PricesResponse, AssetPrice, VaultNewsResponse } from "@/lib/types/vault"
 
 const TABS = [
@@ -40,44 +39,55 @@ export default function VaultPage() {
 
   const prices: AssetPrice[] = data?.prices ?? []
   const newsItems = newsData?.items ?? []
-  const withChange = prices.filter((p) => typeof p.change24h === "number")
-  const top = withChange.slice().sort((a, b) => Math.abs((b.change24h ?? 0)) - Math.abs((a.change24h ?? 0)))[0]
+  const btc = prices.find((p) => p.symbol === "BTC")
+  const btcNews = newsItems.find((n) => n.asset === "BTC")
 
   const indicators = data?.indicators ?? []
   const fngIndicator = indicators.find((i) => i.key === "fng")
   const fngValue = fngIndicator?.value ?? null
 
   function getMessageForTab(tab: VaultTab): string {
-    const tc = getTimeContext()
-
     if (tab === "news") {
       if (newsItems.length > 0) {
-        // 구체적 건명: 첫 번째 뉴스 제목 언급
         return `여선생, 오늘 ${newsItems.length}건 뉴스 중 "${newsItems[0].title}" 이게 주목할 만해요.`
       }
       return "여선생, 지금은 새 뉴스가 없어요. 시세 먼저 보시죠."
     }
 
-    // charts 탭 — prices 기반 + 시간맥락 + FNG
+    // charts 탭 — 비트코인 중심 (가격 변동 + BTC 뉴스 headline)
     if (prices.length === 0) return "여선생, 시장 시세 가져오고 있어요. 잠시만요."
-    if (tc.isWeekend) {
-      return "여선생, 주말이라 시장 쉬는 날이에요. 지난 주 흐름 복기해보시죠."
-    }
-    // Fear & Greed 지수 우선 표시
-    if (fngValue !== null) {
-      const fngMsg = fngValue < 30
-        ? "남들이 무서워할 때가 기회일 수 있죠."
-        : fngValue > 70
-        ? "과열 구간이에요. 차분하게."
-        : "중립이에요."
-      return `여선생, 공포 지수가 ${fngValue}이에요. ${fngMsg}`
-    }
-    if (!top) return `${prices.length}개 자산 지켜보고 있는데, 오늘은 큰 움직임 없어요. 좋은 신호일 수 있죠, 여선생.`
-    const ch = top.change24h ?? 0
+    if (!btc) return "여선생, 비트코인 시세를 못 가져오고 있어요. 잠시 후 다시."
+
+    const ch = btc.change24h ?? 0
     const sign = ch >= 0 ? "+" : ""
-    if (ch <= -5) return `여선생, ${top.symbol}이 오늘 ${sign}${ch.toFixed(2)}% 빠졌어요. 기본기 좋은 회사라면 이런 날이 오히려 기회일 수 있습니다.`
-    if (ch >= 5) return `여선생, ${top.symbol}이 ${sign}${ch.toFixed(2)}% 올랐네요. 들뜨지 마시고 왜 올랐는지 한번 짚어보시죠.`
-    return `여선생, 오늘 가장 큰 움직임은 ${top.symbol} ${sign}${ch.toFixed(2)}%. 단기 노이즈인지 추세인지 차분히 보시죠.`
+    const pct = `${sign}${ch.toFixed(2)}%`
+    const priceStr = btc.price >= 1000
+      ? `$${Math.round(btc.price).toLocaleString("en-US")}`
+      : `$${btc.price.toFixed(2)}`
+    const newsSnippet = btcNews ? `"${btcNews.title}"` : null
+
+    // 큰 하락
+    if (ch <= -5) {
+      if (newsSnippet) return `여선생, 비트코인 ${pct} (${priceStr}). ${newsSnippet}. 남들이 무서워할 때 기회일 수 있죠.`
+      return `여선생, 비트코인 ${pct} (${priceStr}). 공포장이에요. 차분하게 보세요.`
+    }
+    // 큰 상승
+    if (ch >= 5) {
+      if (newsSnippet) return `여선생, 비트코인 ${pct} (${priceStr}). ${newsSnippet}. 들뜨지 마시고 왜 올랐는지 보시죠.`
+      return `여선생, 비트코인 ${pct} (${priceStr}). 강한 랠리네요. 왜 올랐는지 먼저 확인.`
+    }
+    // 완만한 움직임 (±2~5%)
+    if (Math.abs(ch) >= 2) {
+      if (newsSnippet) return `여선생, 비트코인 ${pct} (${priceStr}). ${newsSnippet}. 추세인지 잡음인지 차분히.`
+      return `여선생, 비트코인 ${pct} (${priceStr}). 방향성 슬슬 잡히나 보시죠.`
+    }
+    // 횡보 — FNG 끼워넣기
+    if (fngValue !== null && (fngValue < 30 || fngValue > 70)) {
+      const fngMsg = fngValue < 30 ? "남들 무서워할 때가 기회일 수 있죠." : "과열 구간이니 차분하게."
+      return `여선생, 비트코인 ${pct} (${priceStr}), 공포지수 ${fngValue}. ${fngMsg}`
+    }
+    if (newsSnippet) return `여선생, 비트코인 ${pct} (${priceStr}). ${newsSnippet}.`
+    return `여선생, 비트코인 ${pct} (${priceStr}). 횡보 중. 오늘은 지켜보는 날이에요.`
   }
 
   const message = getMessageForTab(activeTab)

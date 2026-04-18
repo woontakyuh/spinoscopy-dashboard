@@ -104,6 +104,23 @@ server.setRequestHandler(ReadResourceRequestSchema, async (req) => {
 // ─── Tools ─────────────────────────────────────────────────────
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
+    // ── Persona/context (call these at session start) ──
+    {
+      name: "read_persona",
+      description:
+        "Return LO.md content — Lo's immutable persona, tone, role, and hard rules. Call this FIRST at the start of every conversation and follow it for all replies. Equivalent to reading the lo://persona resource but callable as a tool.",
+      inputSchema: { type: "object", properties: {} },
+    },
+    {
+      name: "get_memory_digest",
+      description:
+        "Return a pre-formatted text summary of top facts from Lo Memory DB (most important first). Call this at the start of every conversation after read_persona to know what Lo already knows about Tak.",
+      inputSchema: {
+        type: "object",
+        properties: { max_rows: { type: "number", minimum: 1, maximum: 100, default: 60 } },
+      },
+    },
+
     // ── Memory ──
     {
       name: "list_memories",
@@ -209,6 +226,16 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
     let result: unknown
 
     switch (name) {
+      case "read_persona": {
+        result = loadPersona()
+        break
+      }
+      case "get_memory_digest": {
+        const max = (args.max_rows as number | undefined) ?? 60
+        const digest = await loMemory.getMemoryDigest(max)
+        result = digest || "(memory empty)"
+        break
+      }
       case "list_memories": {
         const rows = await loMemory.listMemories({
           category: args.category as MemoryCategory | undefined,
