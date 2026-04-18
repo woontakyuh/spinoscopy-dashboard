@@ -129,7 +129,7 @@ export function SenseiCoach({ initialQuestion, onQuestionConsumed }: SenseiCoach
                 {stats.belt.toUpperCase()} {stats.beltStripes > 0 && `${"I".repeat(stats.beltStripes)}`}
               </Badge>
               <span className="text-[11px] text-muted-foreground">
-                Lv.{stats.level} · {stats.trainingMonths}개월 · 🔥 {stats.streaks.current}일
+                Lv.{stats.level} · {stats.trainingMonths}개월 · 🔥 {stats.streaks.current}주
               </span>
             </div>
 

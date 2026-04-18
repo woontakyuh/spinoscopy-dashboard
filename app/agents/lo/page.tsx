@@ -94,10 +94,10 @@ export default function SenseiPage() {
     if (tc.bucket === "evening") {
       return `Tak, 오늘 하루 어땠어? 올해 ${stats.sessions2026}회. 매트 위에서 정리하고 가자.`
     }
-    if (stats.streaks.current >= 5) return `${stats.streaks.current}일 연속이야 Tak, 올해 ${stats.sessions2026}회. 페이스 진짜 좋아 — 이대로 가자.`
-    if (stats.streaks.current >= 3) return `${stats.streaks.current}일 연속 좋아 Tak. 올해 ${stats.sessions2026}회 찍었네. 오늘도 한 판 가볍게 하고 가자.`
-    if (stats.streaks.current === 0) return `Tak, 며칠 쉬었지? 올해 ${stats.sessions2026}회 찍었으니까 오늘 다시 올라와. 가볍게라도, 형이 옆에서 봐줄게.`
-    return `Tak, 이번 주 ${stats.streaks.current}일. 올해 ${stats.sessions2026}회. 꾸준함이 답이야 — 오늘도 매트에서 보자.`
+    if (stats.streaks.current >= 5) return `${stats.streaks.current}주 연속이야 Tak, 올해 ${stats.sessions2026}회 매트 올라왔지. 페이스 진짜 좋아 — 이대로 가자.`
+    if (stats.streaks.current >= 3) return `${stats.streaks.current}주 연속 좋아 Tak. 올해 ${stats.sessions2026}회 매트 찍었네. 오늘도 한 판 가볍게 하고 가자.`
+    if (stats.streaks.current === 0) return `Tak, 요즘 매트에 안 올라왔지? 올해 ${stats.sessions2026}회 찍어놓고 쉬고 있네. 몸 풀렸으면 다시 올라와. 가볍게라도, 형이 옆에서 봐줄게.`
+    return `Tak, 이번 주 ${stats.streaks.current}주째. 올해 ${stats.sessions2026}회 매트. 꾸준함이 답이야 — 오늘도 매트에서 보자.`
   }
 
   const message = getMessageForTab(activeTab)

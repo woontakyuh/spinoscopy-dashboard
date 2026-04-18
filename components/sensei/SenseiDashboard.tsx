@@ -186,7 +186,7 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
                 { v: "2019.11", l: "수련 시작" },
                 { v: String(stats.totalSessions), l: "총 세션" },
                 { v: String(stats.sessions2026), l: "올해" },
-                { v: `${stats.streaks.current}`, l: "연속" },
+                { v: `${stats.streaks.current}`, l: "주 연속" },
                 { v: `${Math.round(stats.giRatio * 100)}%`, l: "Gi 비율" },
               ].map(({ v, l }) => (
                 <div key={l}>

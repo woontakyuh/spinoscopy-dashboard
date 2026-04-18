@@ -95,9 +95,14 @@ function findClosestArchetype(attrs: BjjAttributes, ruleSet: "gi" | "nogi" | "bo
   return bestMatch
 }
 
+function isGymSession(e: SenseiEntry): boolean {
+  return e.sessionType === "class" || e.sessionType === "openmat"
+}
+
 function calculateStreaks(entries: SenseiEntry[]): { current: number; best: number } {
+  // 체육관 출석 기반 (class + openmat). study/reflection/body/promotion 제외.
   const dates = entries
-    .filter((e) => e.date && e.sessionType !== "promotion")
+    .filter((e) => e.date && isGymSession(e))
     .map((e) => e.date!)
     .sort()
   const uniqueDates = Array.from(new Set(dates))
@@ -202,8 +207,12 @@ function buildStatsSet(attrs: BjjAttributes, ruleSet: "gi" | "nogi" | "both"): B
 }
 
 export function calculateBjjStats(entries: SenseiEntry[]): BjjStats {
+  // RPG side (level/XP/attributes): 모든 non-promotion entries (study/reflection/body 포함)
   const sessions = entries.filter((e) => e.sessionType !== "promotion")
   const totalSessions = sessions.length
+  // 체육관 출석 side (연속/올해 횟수/출석률): class + openmat만
+  const gymSessions = entries.filter(isGymSession)
+
   const beltInfo = getLatestBeltInfo(entries)
   const beltCap = BELT_CAPS[beltInfo.belt] ?? 40
 
@@ -211,30 +220,31 @@ export function calculateBjjStats(entries: SenseiEntry[]): BjjStats {
   const { attrs: nogiAttrs, tagFreq: nogiTagFreq } = calculateAttributesForRuleSet(entries, "nogi", beltCap)
   const { attrs: combinedAttrs } = calculateAttributesForRuleSet(entries, "combined", beltCap)
 
-  // 2026 sessions + attendance
-  const sessions2026 = sessions.filter((e) => e.date?.startsWith("2026")).length
-  const sessions2026Gi = sessions.filter((e) => e.date?.startsWith("2026") && ![...e.classTags, ...e.sparringTags].includes("NoGi")).length
+  // 2026 체육관 출석 + attendance
+  const sessions2026 = gymSessions.filter((e) => e.date?.startsWith("2026")).length
+  const sessions2026Gi = gymSessions.filter((e) => e.date?.startsWith("2026") && ![...e.classTags, ...e.sparringTags].includes("NoGi")).length
   const sessions2026Nogi = sessions2026 - sessions2026Gi
   const lastCeremony = PROMOTION_CEREMONIES[0] || "2026-01-01"
   const daysSinceCeremony = Math.max(1, Math.ceil((Date.now() - new Date(lastCeremony).getTime()) / (1000 * 60 * 60 * 24)))
   const weekdaysSinceCeremony = Math.ceil(daysSinceCeremony * 5 / 7)
-  const sessionsSinceCeremony = sessions.filter((e) => e.date && e.date >= lastCeremony).length
+  const sessionsSinceCeremony = gymSessions.filter((e) => e.date && e.date >= lastCeremony).length
   const attendanceRate = Math.min(100, Math.round((sessionsSinceCeremony / weekdaysSinceCeremony) * 100))
 
-  // Level & XP
+  // Level & XP — 모든 non-promotion 기반 (영상 학습도 실력 성장에 기여)
   let level = 1
   while (xpForLevel(level + 1) <= totalSessions) level++
   const xpCurrent = totalSessions - xpForLevel(level)
   const xpToNext = xpForLevel(level + 1) - xpForLevel(level)
 
-  // Gi ratio
+  // Gi ratio — 실제 매트 시간 기준 (gymSessions)
   let giCount = 0
   let nogiCount = 0
-  for (const entry of sessions) {
+  for (const entry of gymSessions) {
     if ([...entry.classTags, ...entry.sparringTags].includes("NoGi")) nogiCount++
     else giCount++
   }
-  const giRatio = totalSessions > 0 ? giCount / totalSessions : 1
+  const gymTotal = gymSessions.length
+  const giRatio = gymTotal > 0 ? giCount / gymTotal : 1
 
   // Recent focus
   const recentSessions = sessions.slice(0, 10)
