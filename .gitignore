@@ -48,3 +48,6 @@ scripts/
 # superpowers brainstorming
 .superpowers/
 credentials.json
+
+# Claude Code worktrees (embedded repos, never commit)
+.claude/worktrees/
