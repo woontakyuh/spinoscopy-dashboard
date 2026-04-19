@@ -487,7 +487,7 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
 
         {/* ══ 네비 ══ */}
         <div className="flex gap-2 flex-wrap pt-2 border-t border-border">
-          {[{ t: "map", l: "Map", i: "🗺️" }, { t: "journal", l: "수련 기록", i: "📝" }, { t: "competition", l: "대회", i: "📅" }].map(({ t, l, i }) => (
+          {[{ t: "navmap", l: "NavMap", i: "🗺️" }, { t: "training", l: "수련 기록", i: "📝" }, { t: "competitions", l: "대회", i: "📅" }].map(({ t, l, i }) => (
             <button key={t} type="button" onClick={() => onNavigate(t)} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs text-muted-foreground bg-card border border-border hover:text-foreground/90 hover:border-border transition-colors">
               <span>{i}</span><span>{l}</span>
             </button>

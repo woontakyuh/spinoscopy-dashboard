@@ -8,10 +8,10 @@ import { SenseiCalendar } from "@/components/sensei/SenseiCalendar"
 import { SenseiCapture } from "@/components/sensei/SenseiCapture"
 import { SenseiDashboard } from "@/components/sensei/SenseiDashboard"
 import { SenseiCompetition } from "@/components/sensei/SenseiCompetition"
-import { SenseiNavMap } from "@/components/sensei/SenseiNavMap"
 import { HomeOverview } from "@/components/lo/HomeOverview"
 import { ConceptsFeed } from "@/components/lo/ConceptsFeed"
 import { WorkingHypothesisBanner } from "@/components/lo/WorkingHypothesisBanner"
+import { NavMapWrapper } from "@/components/lo/NavMapWrapper"
 import { getTimeContext } from "@/lib/greeterContext"
 import type { BjjStats, BjjAttributes, SenseiEntry } from "@/lib/types/sensei"
 
@@ -158,7 +158,7 @@ export default function LoPage() {
           <SenseiDashboard onNavigate={(t) => setActiveTab(t as LoTab)} />
         )}
 
-        {activeTab === "navmap" && <SenseiNavMap />}
+        {activeTab === "navmap" && <NavMapWrapper />}
 
         {activeTab === "training" && (
           <div>

@@ -239,6 +239,75 @@ export async function getPlayerProfile(): Promise<string | null> {
   }
 }
 
+/**
+ * Player Profile 페이지 body를 heading(`#`) 기준으로 섹션 분할.
+ * 헤딩 이름은 키워드 매칭으로 정규화: working hypothesis / current focus /
+ * medical / block roadmap. 매칭 안 되는 섹션은 other로.
+ */
+export interface PlayerProfileSections {
+  workingHypothesis: string | null
+  currentFocus: string | null
+  medicalExclusions: string | null
+  blockRoadmap: string | null
+  other: Array<{ heading: string; body: string }>
+  raw: string | null
+}
+
+function classifyHeading(heading: string): keyof PlayerProfileSections | null {
+  const h = heading.toLowerCase()
+  if (h.includes("working hypothesis") || h.includes("hypothesis") || h.includes("가설")) return "workingHypothesis"
+  if (h.includes("current focus") || h.includes("focus block") || h.includes("현재") && h.includes("포커스")) return "currentFocus"
+  if (h.includes("medical") || h.includes("exclusion") || h.includes("의학") || h.includes("제외")) return "medicalExclusions"
+  if (h.includes("block roadmap") || h.includes("roadmap") || h.includes("로드맵")) return "blockRoadmap"
+  return null
+}
+
+export async function getPlayerProfileSections(): Promise<PlayerProfileSections> {
+  const result: PlayerProfileSections = {
+    workingHypothesis: null,
+    currentFocus: null,
+    medicalExclusions: null,
+    blockRoadmap: null,
+    other: [],
+    raw: null,
+  }
+  try {
+    const raw = await flattenPage(PLAYER_PROFILE_PAGE, 2)
+    result.raw = raw || null
+    if (!raw) return result
+
+    // 헤딩 라인(`#`)으로 분할. flattenPage가 "# ", "## ", "### " 형태로 출력.
+    const lines = raw.split("\n")
+    let currentHeading: string | null = null
+    let buffer: string[] = []
+    const commitSection = () => {
+      if (currentHeading === null) return
+      const body = buffer.join("\n").trim()
+      if (!body) return
+      const key = classifyHeading(currentHeading)
+      if (key === "workingHypothesis") result.workingHypothesis = body
+      else if (key === "currentFocus") result.currentFocus = body
+      else if (key === "medicalExclusions") result.medicalExclusions = body
+      else if (key === "blockRoadmap") result.blockRoadmap = body
+      else result.other.push({ heading: currentHeading, body })
+    }
+    for (const line of lines) {
+      const m = /^#{1,3}\s+(.*)$/.exec(line.trim())
+      if (m) {
+        commitSection()
+        currentHeading = m[1].trim()
+        buffer = []
+      } else {
+        buffer.push(line)
+      }
+    }
+    commitSection()
+    return result
+  } catch {
+    return result
+  }
+}
+
 export async function listGamePlans(): Promise<Array<{ id: string; title: string; url: string }>> {
   try {
     const blocks = await fetchAllBlocks(GAME_PLANS_HUB)
