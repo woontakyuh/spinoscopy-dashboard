@@ -1,10 +1,13 @@
 "use client"
 
+import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Badge } from "@/components/ui/badge"
 import type { BjjStats, SenseiEntry } from "@/lib/types/sensei"
 
-// 대시보드 Home — 7 카드 + Medical rail.
+// Home = Lo 종합 dashboard.
+// 오늘 briefing + this week + current focus + next target +
+// recent training/concepts + mini-nav + medical rail.
 
 interface PlayerProfileSections {
   workingHypothesis: string | null
@@ -29,7 +32,12 @@ interface ConceptNoteRow {
   title: string
   date: string | null
   type: string[]
-  related_count: Record<string, number>
+}
+
+interface SurgeryItem {
+  name: string
+  op_name: string
+  hospital: string
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -41,11 +49,44 @@ const TYPE_COLORS: Record<string, string> = {
   멘탈: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300",
 }
 
+const SESSION_TYPE_COLORS: Record<string, string> = {
+  class: "bg-purple-500/15 text-purple-700 dark:text-purple-300",
+  openmat: "bg-green-500/15 text-green-700 dark:text-green-300",
+  승급식: "bg-red-500/15 text-red-700 dark:text-red-300",
+  study: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
+  reflection: "bg-zinc-500/15 text-zinc-700 dark:text-zinc-300",
+  body: "bg-orange-500/15 text-orange-700 dark:text-orange-300",
+}
+
+const NAV_LINKS: { id: string; label: string; icon: string; desc: string }[] = [
+  { id: "character", label: "Character", icon: "🥋", desc: "radar · OVR · archetype" },
+  { id: "navmap", label: "NavMap", icon: "🗺️", desc: "61 positions · 94 transitions" },
+  { id: "training", label: "Training", icon: "📓", desc: "달력 · 세션 기록" },
+  { id: "competitions", label: "Competitions", icon: "🏆", desc: "timeline · targets" },
+  { id: "concepts", label: "Concepts", icon: "💡", desc: "notes · type filter" },
+]
+
 function dDay(dateStr: string): string {
   const diff = Math.ceil((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
   if (diff > 0) return `D-${diff}`
   if (diff === 0) return "D-Day"
   return `D+${Math.abs(diff)}`
+}
+
+function formatTodayLabel(): string {
+  const d = new Date()
+  return d.toLocaleDateString("ko-KR", {
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  })
+}
+
+function isoWeekKey(date: string): string {
+  const d = new Date(date)
+  const yearStart = new Date(d.getFullYear(), 0, 1)
+  const weekNum = Math.floor((d.getTime() - yearStart.getTime()) / (7 * 24 * 60 * 60 * 1000))
+  return `${d.getFullYear()}-W${weekNum}`
 }
 
 export function HomeOverview({ goTo }: { goTo?: (tab: string) => void }) {
@@ -60,7 +101,7 @@ export function HomeOverview({ goTo }: { goTo?: (tab: string) => void }) {
     staleTime: 5 * 60 * 1000,
   })
 
-  const { data: statsData } = useQuery<{ stats: BjjStats }>({
+  const { data: statsData } = useQuery<{ stats: BjjStats; tagFrequencies: Record<string, number> }>({
     queryKey: ["sensei-stats"],
     queryFn: async () => {
       const r = await fetch("/api/notion/sensei/stats")
@@ -101,92 +142,141 @@ export function HomeOverview({ goTo }: { goTo?: (tab: string) => void }) {
     staleTime: 5 * 60 * 1000,
   })
 
-  const stats = statsData?.stats
-  const recentSessions = (entries ?? [])
-    .filter((e) => e.date)
-    .slice()
-    .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
-    .slice(0, 3)
+  const { data: todaySurgeries } = useQuery<SurgeryItem[]>({
+    queryKey: ["dashboard-surgery"],
+    queryFn: async () => {
+      const r = await fetch("/api/dashboard/surgery")
+      if (!r.ok) throw new Error("surgery err")
+      return r.json()
+    },
+    staleTime: 5 * 60 * 1000,
+  })
 
-  const nextTarget = (comps ?? [])
-    .filter((c) => c.date && new Date(c.date) >= new Date(new Date().toDateString()))
-    .sort((a, b) => {
+  const stats = statsData?.stats
+  const tagFreqs = statsData?.tagFrequencies ?? {}
+
+  // 이번 주 세션 수 (gym only — class/openmat)
+  const thisWeekCount = useMemo(() => {
+    if (!entries) return 0
+    const now = new Date()
+    const currentWeek = isoWeekKey(now.toISOString().slice(0, 10))
+    return entries.filter(
+      (e) =>
+        e.date &&
+        (e.sessionType === "class" || e.sessionType === "openmat") &&
+        isoWeekKey(e.date) === currentWeek,
+    ).length
+  }, [entries])
+
+  // 최근 3 세션
+  const recentSessions = useMemo(() => {
+    return (entries ?? [])
+      .filter((e) => e.date)
+      .slice()
+      .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
+      .slice(0, 4)
+  }, [entries])
+
+  // 다음 target 대회
+  const nextTarget = useMemo(() => {
+    const todayIso = new Date().toISOString().slice(0, 10)
+    const upcoming = (comps ?? []).filter((c) => c.date && c.date >= todayIso)
+    upcoming.sort((a, b) => {
       if (a.is_target && !b.is_target) return -1
       if (!a.is_target && b.is_target) return 1
       return (a.date ?? "").localeCompare(b.date ?? "")
-    })[0]
+    })
+    return upcoming[0] ?? null
+  }, [comps])
 
+  // 최근 3 concept notes
   const recentNotes = (notes ?? []).slice(0, 3)
+
+  // 상위 focus tag
+  const topFocusTag = useMemo(() => {
+    if (!stats?.recentFocus?.length) return null
+    const top = stats.recentFocus[0]
+    const freq = tagFreqs[top] ?? 0
+    const total = Object.values(tagFreqs).reduce((s, n) => s + n, 0)
+    if (!total) return { tag: top, pct: null as number | null }
+    return { tag: top, pct: Math.round((freq / total) * 100) }
+  }, [stats, tagFreqs])
+
+  // 오늘 훈련 여부 (이번 주 gym 세션 기반 권유 톤)
+  const todayCoach = useMemo(() => {
+    if (!stats) return ""
+    if (stats.streaks.current >= 3) return `${stats.streaks.current}주 연속. 페이스 좋아 — 오늘도 매트.`
+    if (stats.streaks.current === 0) return "이번 주 아직 매트 안 올라갔지. 가볍게라도 붙어보자."
+    if (thisWeekCount >= 3) return "이번 주 잘 찍고 있어. 몸 좀 풀고 가볍게 하고 와."
+    return "꾸준함이 답이야. 오늘 한 라운드."
+  }, [stats, thisWeekCount])
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {/* Card 1: Character preview */}
-        <Card title="Character" onClick={() => goTo?.("character")}>
-          {stats ? (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-muted-foreground">Belt</span>
-                <span className="text-[13px] font-semibold text-foreground capitalize">
-                  {stats.belt} {stats.beltStripes > 0 ? `·${stats.beltStripes}` : ""}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-muted-foreground">OVR</span>
-                <span className="text-[13px] font-semibold text-foreground">{stats.combined.ovr}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-muted-foreground">Playstyle</span>
-                <span className="text-[11px] text-foreground/80 truncate">{stats.playstyle}</span>
-              </div>
+      {/* ─── Today Briefing strip ─── */}
+      <div className="rounded-xl border border-border bg-card/50 p-4">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="min-w-0">
+            <div className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">
+              Today
             </div>
-          ) : (
-            <Skeleton />
-          )}
+            <div className="text-[15px] font-semibold text-foreground">{formatTodayLabel()}</div>
+            <p className="text-[12px] text-foreground/80 mt-1">{todayCoach}</p>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <Pill label="수술" value={todaySurgeries?.length ?? 0} />
+            <Pill label="이번 주 매트" value={thisWeekCount} suffix="회" />
+            <Pill label="streak" value={stats?.streaks.current ?? 0} suffix="주" />
+            {nextTarget && nextTarget.date && (
+              <Pill label="다음 대회" value={dDay(nextTarget.date)} highlight />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ─── 3 카드 row: Week / Focus / Target ─── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {/* This Week */}
+        <Card title="This Week" onClick={() => goTo?.("training")}>
+          <div className="space-y-1">
+            <div className="flex items-baseline gap-2">
+              <span className="text-[22px] font-semibold text-foreground">{thisWeekCount}</span>
+              <span className="text-[11px] text-muted-foreground">세션</span>
+            </div>
+            {topFocusTag && (
+              <div className="text-[11px] text-muted-foreground">
+                탑 태그:{" "}
+                <span className="text-foreground/80">{topFocusTag.tag}</span>
+                {topFocusTag.pct !== null && (
+                  <span className="text-muted-foreground/70"> · {topFocusTag.pct}%</span>
+                )}
+              </div>
+            )}
+            <div className="text-[11px] text-muted-foreground">
+              streak {stats?.streaks.current ?? 0}주 · 올해 {stats?.sessions2026 ?? 0}회
+            </div>
+          </div>
         </Card>
 
-        {/* Card 2: Current Focus */}
+        {/* Current Focus */}
         <Card title="Current Focus" onClick={() => goTo?.("navmap")}>
           {profile?.currentFocus ? (
             <p className="text-[12px] text-foreground/80 leading-relaxed line-clamp-4 whitespace-pre-wrap">
               {profile.currentFocus}
             </p>
           ) : (
-            <Placeholder label="Player Profile의 Current Focus 섹션 필요" />
+            <p className="text-[11px] text-muted-foreground/70">
+              Player Profile `## Current Focus` 섹션 추가 시 표시
+            </p>
           )}
         </Card>
 
-        {/* Card 3: NavMap preview */}
-        <Card title="NavMap" onClick={() => goTo?.("navmap")}>
-          {stats ? (
-            <div className="space-y-1.5">
-              <div className="text-[11px] text-muted-foreground">최근 포커스</div>
-              <div className="flex flex-wrap gap-1">
-                {stats.recentFocus.length > 0 ? (
-                  stats.recentFocus.slice(0, 5).map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-1.5 py-0.5 bg-teal-500/15 text-teal-700 dark:text-teal-300 rounded text-[10px]"
-                    >
-                      {tag}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-[10px] text-muted-foreground/70">없음</span>
-                )}
-              </div>
-            </div>
-          ) : (
-            <Skeleton />
-          )}
-        </Card>
-
-        {/* Card 4: Next Target */}
+        {/* Next Target */}
         <Card title="Next Target" onClick={() => goTo?.("competitions")}>
           {nextTarget ? (
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[12px] font-semibold text-foreground truncate">
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-[13px] font-semibold text-foreground leading-tight line-clamp-2">
                   {nextTarget.name}
                 </span>
                 {nextTarget.date && (
@@ -195,9 +285,8 @@ export function HomeOverview({ goTo }: { goTo?: (tab: string) => void }) {
                   </span>
                 )}
               </div>
-              <div className="text-[10px] text-muted-foreground">
-                {nextTarget.tier && <span>{nextTarget.tier}</span>}
-                {nextTarget.location && <span> · {nextTarget.location}</span>}
+              <div className="text-[11px] text-muted-foreground line-clamp-1">
+                {[nextTarget.tier, nextTarget.location, nextTarget.gi_nogi].filter(Boolean).join(" · ")}
               </div>
               {nextTarget.status && (
                 <Badge className="bg-muted/50 text-foreground/80 border-0 text-[10px] px-1.5 py-0">
@@ -206,40 +295,47 @@ export function HomeOverview({ goTo }: { goTo?: (tab: string) => void }) {
               )}
             </div>
           ) : (
-            <Placeholder label="아직 등록된 대회 없음" />
+            <p className="text-[11px] text-muted-foreground/70">등록된 대회 없음</p>
           )}
         </Card>
+      </div>
 
-        {/* Card 5: Recent Training */}
+      {/* ─── Recent training + concepts ─── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Card title="Recent Training" onClick={() => goTo?.("training")}>
           {recentSessions.length > 0 ? (
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               {recentSessions.map((s) => (
                 <div
                   key={s.id}
-                  className="text-[11px] text-foreground/80 truncate flex items-center gap-1.5"
+                  className="flex items-center gap-2 text-[12px] text-foreground/80 min-w-0"
                 >
-                  <span className="text-muted-foreground font-mono shrink-0">
+                  <span className="text-muted-foreground font-mono shrink-0 w-14">
                     {s.date?.slice(5) ?? "?"}
                   </span>
-                  <span className="text-muted-foreground/70 shrink-0">·</span>
-                  <span className="truncate">
-                    {s.sessionType} @ {s.gym || "?"}
+                  {s.sessionType && (
+                    <Badge
+                      className={`${SESSION_TYPE_COLORS[s.sessionType] ?? ""} border-0 text-[10px] px-1 py-0 shrink-0`}
+                    >
+                      {s.sessionType}
+                    </Badge>
+                  )}
+                  <span className="truncate text-muted-foreground">
+                    {[...s.classTags, ...s.sparringTags].slice(0, 3).join(", ") || s.gym || "—"}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
-            <Skeleton />
+            <p className="text-[11px] text-muted-foreground/70">세션 기록 없음</p>
           )}
         </Card>
 
-        {/* Card 6: Recent Concepts */}
         <Card title="Recent Concepts" onClick={() => goTo?.("concepts")}>
           {recentNotes.length > 0 ? (
             <div className="space-y-1.5">
               {recentNotes.map((n) => (
-                <div key={n.id} className="flex items-center gap-1.5 flex-wrap">
+                <div key={n.id} className="flex items-center gap-1.5 flex-wrap min-w-0">
                   {n.type.slice(0, 1).map((t) => (
                     <Badge
                       key={t}
@@ -248,25 +344,45 @@ export function HomeOverview({ goTo }: { goTo?: (tab: string) => void }) {
                       {t}
                     </Badge>
                   ))}
-                  <span className="text-[11px] text-foreground/80 truncate">{n.title}</span>
+                  <span className="text-[12px] text-foreground/80 truncate">{n.title}</span>
                 </div>
               ))}
             </div>
           ) : (
-            <Placeholder label="Concept Note 아직 없음" />
+            <p className="text-[11px] text-muted-foreground/70">
+              Concept Note 없음 (Notion 연결 후 claude.ai Lo에서 작성)
+            </p>
           )}
         </Card>
       </div>
 
-      {/* Medical exclusions rail */}
+      {/* ─── Mini-nav grid ─── */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+        {NAV_LINKS.map((n) => (
+          <button
+            key={n.id}
+            type="button"
+            onClick={() => goTo?.(n.id)}
+            className="rounded-xl border border-border bg-muted/30 p-3 text-left hover:bg-muted/60 transition-colors"
+          >
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span>{n.icon}</span>
+              <span className="text-[12px] font-semibold text-foreground">{n.label}</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground truncate">{n.desc}</p>
+          </button>
+        ))}
+      </div>
+
+      {/* ─── Medical rail ─── */}
       <div className="rounded-xl border border-[#993C1D]/25 bg-[#FAECE7]/5 px-4 py-3">
         <div className="flex items-start gap-2">
           <span className="text-[11px] font-semibold tracking-wider text-[#993C1D] uppercase shrink-0 mt-0.5">
             Medical
           </span>
-          <p className="text-[12px] text-foreground/80 leading-relaxed whitespace-pre-wrap">
+          <p className="text-[12px] text-foreground/80 leading-relaxed whitespace-pre-wrap line-clamp-3">
             {profile?.medicalExclusions ??
-              "Player Profile에 Medical exclusions 섹션을 추가하면 여기 표시돼."}
+              "Player Profile에 `## Medical exclusions` 섹션을 추가하면 여기 표시됨."}
           </p>
         </div>
       </div>
@@ -287,7 +403,7 @@ function Card({
     <button
       type="button"
       onClick={onClick}
-      className="rounded-xl border border-border bg-card/50 p-4 text-left hover:bg-muted/40 transition-colors min-h-[120px]"
+      className="rounded-xl border border-border bg-card/50 p-4 text-left hover:bg-muted/40 transition-colors min-h-[110px]"
     >
       <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase mb-2">
         {title}
@@ -297,15 +413,32 @@ function Card({
   )
 }
 
-function Skeleton() {
+function Pill({
+  label,
+  value,
+  suffix,
+  highlight = false,
+}: {
+  label: string
+  value: string | number
+  suffix?: string
+  highlight?: boolean
+}) {
   return (
-    <div className="space-y-2">
-      <div className="h-3 rounded bg-muted/50 w-3/4 animate-pulse" />
-      <div className="h-3 rounded bg-muted/50 w-1/2 animate-pulse" />
+    <div
+      className={`flex items-baseline gap-1.5 rounded-lg px-2.5 py-1 ${
+        highlight
+          ? "bg-[#993C1D]/15 border border-[#993C1D]/30"
+          : "bg-muted/40 border border-border"
+      }`}
+    >
+      <span className="text-[10px] text-muted-foreground">{label}</span>
+      <span
+        className={`text-[13px] font-semibold ${highlight ? "text-[#993C1D]" : "text-foreground"}`}
+      >
+        {value}
+        {suffix && <span className="text-muted-foreground/70 ml-0.5 text-[10px]">{suffix}</span>}
+      </span>
     </div>
   )
-}
-
-function Placeholder({ label }: { label: string }) {
-  return <p className="text-[11px] text-muted-foreground/70">{label}</p>
 }
