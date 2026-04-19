@@ -9,16 +9,21 @@ import { SenseiCapture } from "@/components/sensei/SenseiCapture"
 import { SenseiDashboard } from "@/components/sensei/SenseiDashboard"
 import { SenseiCompetition } from "@/components/sensei/SenseiCompetition"
 import { SenseiNavMap } from "@/components/sensei/SenseiNavMap"
+import { HomeOverview } from "@/components/lo/HomeOverview"
+import { ConceptsFeed } from "@/components/lo/ConceptsFeed"
+import { WorkingHypothesisBanner } from "@/components/lo/WorkingHypothesisBanner"
 import { getTimeContext } from "@/lib/greeterContext"
 import type { BjjStats, BjjAttributes, SenseiEntry } from "@/lib/types/sensei"
 
-type SenseiTab = "dashboard" | "map" | "journal" | "competition"
+type LoTab = "home" | "character" | "navmap" | "training" | "competitions" | "concepts"
 
-const TABS: { id: SenseiTab; label: string; icon: string }[] = [
-  { id: "dashboard", label: "Dashboard", icon: "🎯" },
-  { id: "map", label: "Map", icon: "🗺️" },
-  { id: "journal", label: "Journal", icon: "📓" },
-  { id: "competition", label: "Competition", icon: "📅" },
+const TABS: { id: LoTab; label: string; icon: string }[] = [
+  { id: "home", label: "Home", icon: "🏠" },
+  { id: "character", label: "Character", icon: "🥋" },
+  { id: "navmap", label: "NavMap", icon: "🗺️" },
+  { id: "training", label: "Training", icon: "📓" },
+  { id: "competitions", label: "Competitions", icon: "🏆" },
+  { id: "concepts", label: "Concepts", icon: "💡" },
 ]
 
 function getHighLow(attrs: BjjAttributes): { highest: string; lowest: string } {
@@ -27,9 +32,9 @@ function getHighLow(attrs: BjjAttributes): { highest: string; lowest: string } {
   return { highest: entries[0][0], lowest: entries[entries.length - 1][0] }
 }
 
-export default function SenseiPage() {
+export default function LoPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<SenseiTab>("dashboard")
+  const [activeTab, setActiveTab] = useState<LoTab>("home")
 
   const { data, isLoading: isStatsLoading } = useQuery<{ stats: BjjStats }>({
     queryKey: ["sensei-stats"],
@@ -53,16 +58,27 @@ export default function SenseiPage() {
   const stats = data?.stats
   const entries = entriesData ?? []
 
-  function getMessageForTab(tab: SenseiTab): string {
+  function getMessageForTab(tab: LoTab): string {
     const tc = getTimeContext()
 
-    if (tab === "map") {
-      if (!stats) return "Tak, 기술 맵 아직 데이터가 부족해. 훈련 좀 더 쌓자."
+    if (tab === "home") {
+      if (!stats) return "Tak, 왔어? 오늘 컨디션 어때."
+      return `Tak, 올해 ${stats.sessions2026}회 매트. ${stats.streaks.current}주 연속. 홈에서 뭐부터 볼래.`
+    }
+
+    if (tab === "character") {
+      if (!stats) return "Tak, 아직 데이터 부족. 훈련 기록 좀 더 쌓자."
       const { highest, lowest } = getHighLow(stats.combined.attributes)
       return `Tak, 지금 네 강점은 ${highest}야. ${lowest}는 좀 더 갈고닦자.`
     }
 
-    if (tab === "journal") {
+    if (tab === "navmap") {
+      if (!stats) return "Tak, NavMap에 들어왔네. 노드 하나 눌러봐."
+      const { highest, lowest } = getHighLow(stats.combined.attributes)
+      return `Tak, 맵 넓지? ${highest}는 불 들어와있고 ${lowest} 쪽은 더 파야 돼.`
+    }
+
+    if (tab === "training") {
       const now = new Date()
       const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
       const monthEntries = entries.filter((e) => e.date && e.date.startsWith(thisMonth))
@@ -75,37 +91,30 @@ export default function SenseiPage() {
       return "Tak, 이번 달 아직 기록이 없어. 오늘 시작하자."
     }
 
-    if (tab === "competition") {
+    if (tab === "competitions") {
       if (stats) {
-        return `Tak, ${stats.belt} belt, 올해 ${stats.sessions2026}회 훈련. 대회 목표 잡아보자.`
+        return `Tak, ${stats.belt} belt, 올해 ${stats.sessions2026}회. 대회 목표 잡아보자.`
       }
       return "Tak, 대회 일정 여기서 관리해. 목표 하나 잡아두자."
     }
 
-    // dashboard 탭 — stats 기반 + 시간맥락
-    if (!stats) {
-      if (tc.bucket === "morning") return "Tak, 오늘 아침 훈련 가능해? 한 라운드면 충분해."
-      if (tc.bucket === "evening") return "Tak, 오늘 하루 어땠어? 매트 위에서 정리하고 가자."
-      return "Tak, 오늘도 매트에서 보자. 한 라운드면 충분해."
+    if (tab === "concepts") {
+      return "Tak, 개념 노트 쌓이는 공간이야. Desktop에서 적어둔 거 여기서 다시 보자."
     }
-    if (tc.bucket === "morning" && stats.streaks.current === 0) {
-      return `Tak, 오늘 아침 훈련 가능해? 며칠 쉬었으니까 가볍게라도 올라와. 올해 ${stats.sessions2026}회.`
-    }
-    if (tc.bucket === "evening") {
-      return `Tak, 오늘 하루 어땠어? 올해 ${stats.sessions2026}회. 매트 위에서 정리하고 가자.`
-    }
-    if (stats.streaks.current >= 5) return `${stats.streaks.current}주 연속이야 Tak, 올해 ${stats.sessions2026}회 매트 올라왔지. 페이스 진짜 좋아 — 이대로 가자.`
-    if (stats.streaks.current >= 3) return `${stats.streaks.current}주 연속 좋아 Tak. 올해 ${stats.sessions2026}회 매트 찍었네. 오늘도 한 판 가볍게 하고 가자.`
-    if (stats.streaks.current === 0) return `Tak, 요즘 매트에 안 올라왔지? 올해 ${stats.sessions2026}회 찍어놓고 쉬고 있네. 몸 풀렸으면 다시 올라와. 가볍게라도, 형이 옆에서 봐줄게.`
-    return `Tak, 이번 주 ${stats.streaks.current}주째. 올해 ${stats.sessions2026}회 매트. 꾸준함이 답이야 — 오늘도 매트에서 보자.`
+
+    // fallback — time context 기반
+    if (tc.bucket === "morning") return "Tak, 오늘 아침 훈련 가능해? 한 라운드면 충분해."
+    if (tc.bucket === "evening") return "Tak, 오늘 하루 어땠어? 매트 위에서 정리하고 가자."
+    return "Tak, 오늘도 매트에서 보자."
   }
 
   const message = getMessageForTab(activeTab)
   const isTabLoading =
-    (activeTab === "dashboard" && isStatsLoading) ||
-    (activeTab === "map" && isStatsLoading) ||
-    (activeTab === "journal" && isEntriesLoading) ||
-    (activeTab === "competition" && isStatsLoading)
+    (activeTab === "character" && isStatsLoading) ||
+    (activeTab === "navmap" && isStatsLoading) ||
+    (activeTab === "training" && isEntriesLoading) ||
+    (activeTab === "competitions" && isStatsLoading) ||
+    (activeTab === "home" && isStatsLoading)
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -140,11 +149,18 @@ export default function SenseiPage() {
       <div className="flex-1 min-w-0 p-3 md:p-6">
         <AgentChat agentId="lo" image="/lo.png" name="Lo" greeting={isTabLoading ? "..." : message} />
 
-        {activeTab === "dashboard" && (
-          <SenseiDashboard onNavigate={(tab) => setActiveTab(tab as SenseiTab)} />
+        {/* Persistent Working Hypothesis banner (Phase 2에서 데이터 연결) */}
+        <WorkingHypothesisBanner />
+
+        {activeTab === "home" && <HomeOverview goTo={(t) => setActiveTab(t as LoTab)} />}
+
+        {activeTab === "character" && (
+          <SenseiDashboard onNavigate={(t) => setActiveTab(t as LoTab)} />
         )}
 
-        {activeTab === "journal" && (
+        {activeTab === "navmap" && <SenseiNavMap />}
+
+        {activeTab === "training" && (
           <div>
             <SenseiCalendar onDateSelect={setSelectedDate} />
             <div className="mt-4" />
@@ -152,8 +168,9 @@ export default function SenseiPage() {
           </div>
         )}
 
-        {activeTab === "map" && <SenseiNavMap />}
-        {activeTab === "competition" && <SenseiCompetition />}
+        {activeTab === "competitions" && <SenseiCompetition />}
+
+        {activeTab === "concepts" && <ConceptsFeed />}
       </div>
     </div>
   )
