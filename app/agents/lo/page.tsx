@@ -4,14 +4,13 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { TopBar } from "@/components/layout/TopBar"
 import { AgentChat } from "@/components/layout/AgentChat"
-import { SenseiCalendar } from "@/components/sensei/SenseiCalendar"
-import { SenseiCapture } from "@/components/sensei/SenseiCapture"
 import { SenseiDashboard } from "@/components/sensei/SenseiDashboard"
-import { SenseiCompetition } from "@/components/sensei/SenseiCompetition"
 import { HomeOverview } from "@/components/lo/HomeOverview"
 import { ConceptsFeed } from "@/components/lo/ConceptsFeed"
 import { WorkingHypothesisBanner } from "@/components/lo/WorkingHypothesisBanner"
 import { NavMapWrapper } from "@/components/lo/NavMapWrapper"
+import { TrainingLog } from "@/components/lo/TrainingLog"
+import { CompetitionsView } from "@/components/lo/CompetitionsView"
 import { getTimeContext } from "@/lib/greeterContext"
 import type { BjjStats, BjjAttributes, SenseiEntry } from "@/lib/types/sensei"
 
@@ -33,7 +32,6 @@ function getHighLow(attrs: BjjAttributes): { highest: string; lowest: string } {
 }
 
 export default function LoPage() {
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<LoTab>("home")
 
   const { data, isLoading: isStatsLoading } = useQuery<{ stats: BjjStats }>({
@@ -160,15 +158,9 @@ export default function LoPage() {
 
         {activeTab === "navmap" && <NavMapWrapper />}
 
-        {activeTab === "training" && (
-          <div>
-            <SenseiCalendar onDateSelect={setSelectedDate} />
-            <div className="mt-4" />
-            <SenseiCapture selectedDate={selectedDate} />
-          </div>
-        )}
+        {activeTab === "training" && <TrainingLog />}
 
-        {activeTab === "competitions" && <SenseiCompetition />}
+        {activeTab === "competitions" && <CompetitionsView />}
 
         {activeTab === "concepts" && <ConceptsFeed />}
       </div>

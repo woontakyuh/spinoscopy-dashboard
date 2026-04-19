@@ -1,11 +1,9 @@
 "use client"
 
+import { useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Badge } from "@/components/ui/badge"
 import { EmptyState } from "@/components/ui/empty-state"
-
-// Phase 1: 피드 placeholder + API 시도 → 404면 empty state.
-// Phase 3에서 Concept Notes DB 풀 구현 (filter chips + 리스트).
 
 interface ConceptNote {
   id: string
@@ -22,6 +20,7 @@ interface ConceptNote {
 }
 
 const TYPES = ["메타", "운영", "전략", "철학", "피지컬", "멘탈"] as const
+type TypeFilter = (typeof TYPES)[number] | "all"
 
 const TYPE_COLORS: Record<string, string> = {
   메타: "bg-purple-500/15 text-purple-700 dark:text-purple-300",
@@ -33,6 +32,8 @@ const TYPE_COLORS: Record<string, string> = {
 }
 
 export function ConceptsFeed() {
+  const [filter, setFilter] = useState<TypeFilter>("all")
+
   const { data, isLoading, error } = useQuery<ConceptNote[]>({
     queryKey: ["concept-notes"],
     queryFn: async () => {
@@ -44,33 +45,47 @@ export function ConceptsFeed() {
     staleTime: 60_000,
   })
 
+  const filtered = useMemo(() => {
+    if (!data) return []
+    if (filter === "all") return data
+    return data.filter((n) => n.type.includes(filter))
+  }, [data, filter])
+
   return (
     <div className="space-y-4">
-      {/* Filter chips (all + 6 types) */}
+      {/* Filter chips */}
       <div className="flex flex-wrap gap-2">
-        <Chip label="All" active />
+        <Chip label="All" active={filter === "all"} onClick={() => setFilter("all")} />
         {TYPES.map((t) => (
-          <Chip key={t} label={t} />
+          <Chip
+            key={t}
+            label={t}
+            colorClass={TYPE_COLORS[t]}
+            active={filter === t}
+            onClick={() => setFilter(t)}
+          />
         ))}
       </div>
 
       {isLoading ? (
-        <div className="text-muted-foreground/70 text-[13px] p-6 text-center">
-          Loading…
-        </div>
+        <div className="text-muted-foreground/70 text-[13px] p-6 text-center">Loading…</div>
       ) : error || !data ? (
         <EmptyState
           icon="📝"
           message="Concept Notes DB가 아직 ClinicalPipeline integration에 연결되지 않았거나 비어있습니다. claude.ai의 Lo에서 노트를 추가하면 여기 나타납니다."
         />
-      ) : data.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <EmptyState
           icon="📝"
-          message="아직 Concept Note가 없습니다. claude.ai Lo 프로젝트에서 작성해 주세요."
+          message={
+            filter === "all"
+              ? "아직 Concept Note가 없습니다. claude.ai Lo 프로젝트에서 작성해 주세요."
+              : `"${filter}" 타입 노트가 없습니다.`
+          }
         />
       ) : (
         <div className="space-y-2">
-          {data.map((note) => (
+          {filtered.map((note) => (
             <NoteCard key={note.id} note={note} />
           ))}
         </div>
@@ -79,17 +94,31 @@ export function ConceptsFeed() {
   )
 }
 
-function Chip({ label, active = false }: { label: string; active?: boolean }) {
+function Chip({
+  label,
+  active,
+  onClick,
+  colorClass,
+}: {
+  label: string
+  active: boolean
+  onClick: () => void
+  colorClass?: string
+}) {
   return (
-    <span
-      className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] border transition-colors cursor-default ${
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] border transition-colors ${
         active
-          ? "bg-foreground/10 border-foreground/20 text-foreground"
-          : "bg-transparent border-border text-muted-foreground"
+          ? colorClass
+            ? `${colorClass} border-transparent`
+            : "bg-foreground/10 border-foreground/20 text-foreground"
+          : "bg-transparent border-border text-muted-foreground hover:text-foreground"
       }`}
     >
       {label}
-    </span>
+    </button>
   )
 }
 
@@ -118,9 +147,7 @@ function NoteCard({ note }: { note: ConceptNote }) {
             <div className="text-[11px] text-muted-foreground">→ {relations.join(" · ")}</div>
           )}
         </div>
-        <span className="text-[11px] text-muted-foreground/70 shrink-0">
-          {note.date ?? ""}
-        </span>
+        <span className="text-[11px] text-muted-foreground/70 shrink-0">{note.date ?? ""}</span>
       </div>
     </div>
   )
