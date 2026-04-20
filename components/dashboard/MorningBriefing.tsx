@@ -445,8 +445,13 @@ function DakotaGreetingChat({
   )
 
   // ─── Voice immersive view (ChatGPT 스타일) ───────────────────
-  // Listening(Tak 차례) = 파랑. Speaking/Thinking(Dakota 차례) = 녹색.
-  const dakotaBusy = isSpeaking || isStreaming
+  // Listening(Tak 차례) = 파랑. Stop 누르자마자 / Streaming / Speaking = 녹색.
+  // expectingResponse 로 stop → streaming 사이 갭 메움 (즉시 녹색 전환).
+  const [expectingResponse, setExpectingResponse] = useState(false)
+  useEffect(() => {
+    if (isStreaming || isSpeaking) setExpectingResponse(false)
+  }, [isStreaming, isSpeaking])
+  const dakotaBusy = isSpeaking || isStreaming || expectingResponse
   const voiceImmersive = (focused && voiceMode) ? (
     <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-center p-6">
       <button
@@ -494,7 +499,10 @@ function DakotaGreetingChat({
         onClick={(e) => {
           e.stopPropagation()
           e.preventDefault()
-          if (isListening) commitVoiceInput()
+          if (isListening) {
+            setExpectingResponse(true)  // 즉시 녹색 전환
+            commitVoiceInput()
+          }
         }}
         disabled={!isListening}
         aria-label="내 차례 종료"
