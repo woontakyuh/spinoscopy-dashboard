@@ -136,13 +136,25 @@ export function useSpeechRecognition(opts: {
     const SR = getSRConstructor()
     if (!SR) return
     // 이미 listening 중이면 중단
+    const hadPrevious = !!recogRef.current
     if (recogRef.current) {
       try {
         recogRef.current.abort()
       } catch {}
       recogRef.current = null
     }
-    const r = new SR()
+    // 이전 instance 있었으면 브라우저가 audio resource 해제할 시간 확보
+    // (Safari가 즉시 start() 호출 시 InvalidStateError 내는 경향)
+    if (hadPrevious) {
+      setTimeout(() => startInternal(), 250)
+      return
+    }
+    startInternal()
+
+    function startInternal() {
+      const SRCtor = getSRConstructor()
+      if (!SRCtor) return
+      const r = new SRCtor()
     r.lang = lang
     // continuous=true: 침묵 자동 종료 안 함. 사용자가 정지 버튼으로 명시 종료.
     // 말 도중 엔진이 제멋대로 멈춰버려 버퍼 유실되는 이슈 방지.
@@ -186,14 +198,29 @@ export function useSpeechRecognition(opts: {
       if (text) onFinalText(text)
     }
 
-    try {
-      r.start()
-      recogRef.current = r
-      setIsListening(true)
-      // 첫 발화 전까지 최대 대기: 말 안 하면 10초 후 자동 종료 (empty → 재시작)
-      resetSilenceTimer(INITIAL_SILENCE_MS)
-    } catch {
-      setIsListening(false)
+      try {
+        r.start()
+        recogRef.current = r
+        setIsListening(true)
+        resetSilenceTimer(INITIAL_SILENCE_MS)
+      } catch {
+        // InvalidStateError 등 일시 실패 — 1회 재시도
+        setTimeout(() => {
+          try {
+            const r2 = new SRCtor()
+            Object.assign(r2, { lang: r.lang, continuous: r.continuous, interimResults: r.interimResults })
+            r2.onresult = r.onresult
+            r2.onerror = r.onerror
+            r2.onend = r.onend
+            r2.start()
+            recogRef.current = r2
+            setIsListening(true)
+            resetSilenceTimer(INITIAL_SILENCE_MS)
+          } catch {
+            setIsListening(false)
+          }
+        }, 500)
+      }
     }
   }, [lang, interim, onFinalText])
 

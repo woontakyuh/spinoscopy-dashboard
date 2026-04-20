@@ -159,13 +159,25 @@ function DakotaGreetingChat({
   }, [voiceMode, messages.length, stopSpeech, stopListening, startListening, primeAudio])
 
   // TTS 끝나면 자동으로 다시 listening (ChatGPT 음성모드 스타일 대화 루프)
+  // 첫 시도 실패할 수 있어 300ms 뒤 재시도 + 1.5s 안전망도 둠.
   const prevSpeakingRef = useRef(false)
   useEffect(() => {
     const wasSpeaking = prevSpeakingRef.current
     prevSpeakingRef.current = isSpeaking
-    if (!wasSpeaking || isSpeaking) return // speaking → idle 전환만 감지
+    if (!wasSpeaking || isSpeaking) return
     if (!voiceMode || isListening || isStreaming) return
-    startListening()
+    const t1 = setTimeout(() => {
+      if (voiceMode && !isStreaming && !isSpeaking) startListening()
+    }, 300)
+    const t2 = setTimeout(() => {
+      if (voiceMode && !isListening && !isStreaming && !isSpeaking) {
+        startListening()
+      }
+    }, 1500)
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+    }
   }, [isSpeaking, voiceMode, isListening, isStreaming, startListening])
 
   // KO/EN 언어 바꿨을 때 인식 재시작 — setTimeout 클로저는 oldLang 캡처하므로
