@@ -472,35 +472,21 @@ function DakotaGreetingChat({
         className="relative focus:outline-none"
         aria-label="음성모드 종료"
       >
-        {/* Glitter halo — pointer-events-none 으로 탭 방해 안 함 */}
+        {/* Subtle outline glow — 사진 윤곽선 따라 은은한 단일 그림자 */}
         <div
-          className={`pointer-events-none absolute inset-0 -m-12 rounded-full blur-3xl transition-colors duration-500 ${
+          className={`pointer-events-none absolute inset-0 rounded-full transition-[box-shadow,border-color] duration-500 ${
             dakotaBusy
-              ? "bg-emerald-500/40 animate-pulse"
+              ? "border border-emerald-400/40 shadow-[0_0_28px_6px_rgba(16,185,129,0.35)]"
               : isListening
-                ? "bg-blue-500/40 animate-pulse"
-                : "bg-foreground/10"
-          }`}
-        />
-        <div
-          className={`pointer-events-none absolute inset-0 -m-4 rounded-full border-2 transition-colors ${
-            dakotaBusy
-              ? "border-emerald-400/40 animate-ping"
-              : isListening
-                ? "border-blue-400/50 animate-ping"
-                : "border-transparent"
-          }`}
-        />
-        <div
-          className={`pointer-events-none absolute inset-0 -m-1 rounded-full border transition-colors ${
-            dakotaBusy ? "border-emerald-400/30" : isListening ? "border-blue-400/40" : "border-border"
+                ? "border border-blue-400/40 shadow-[0_0_28px_6px_rgba(59,130,246,0.35)]"
+                : "border border-border/40"
           }`}
         />
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={image}
           alt="Dakota"
-          className="relative w-80 h-80 md:w-[26rem] md:h-[26rem] rounded-full object-cover object-top border-2 border-border shadow-2xl select-none"
+          className="relative w-[90vw] h-[90vw] max-w-[28rem] max-h-[28rem] md:w-[30rem] md:h-[30rem] rounded-full object-cover object-top border-2 border-border shadow-2xl select-none"
           draggable={false}
         />
       </button>
@@ -525,17 +511,20 @@ function DakotaGreetingChat({
             stopSpeech()
             setExpectingResponse(false)
             startListening()
+          } else if (voiceMode) {
+            // 자동 중단 상태 → 다시 듣기 재개
+            startListening()
           }
         }}
-        disabled={!voiceMode || (!isListening && !dakotaBusy)}
-        aria-label={isListening ? "내 차례 종료" : "Dakota 끊고 내가 말하기"}
-        title={isListening ? "내 차례 종료" : "Dakota 끊기"}
+        disabled={!voiceMode}
+        aria-label={isListening ? "내 차례 종료" : dakotaBusy ? "Dakota 끊고 내가 말하기" : "다시 듣기"}
+        title={isListening ? "내 차례 종료" : dakotaBusy ? "Dakota 끊기" : "다시 듣기"}
         className={`mt-10 w-14 h-14 rounded-full flex items-center justify-center transition-all ${
           isListening
             ? "bg-blue-500 text-white shadow-xl active:scale-95"
             : dakotaBusy
               ? "bg-emerald-500 text-white shadow-xl active:scale-95"
-              : "bg-muted/30 text-muted-foreground/40 pointer-events-none"
+              : "bg-blue-500/15 text-blue-300 border border-blue-400/40 shadow-lg active:scale-95"
         }`}
       >
         <span className="block w-4 h-4 bg-current rounded-sm" />
@@ -549,7 +538,7 @@ function DakotaGreetingChat({
               ? "… thinking"
               : isListening
                 ? "🎙 Listening"
-                : "Tap photo to exit"}
+                : "🎙 Tap to resume"}
         </div>
       </div>
 
