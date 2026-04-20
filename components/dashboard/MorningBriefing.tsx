@@ -40,6 +40,9 @@ function DakotaGreetingChat({
 
   const queryClient = useQueryClient()
 
+  // voice mode ref — useChat body 콜백이 stale closure 되지 않게 ref로 전달
+  const voiceModeRef = useRef(false)
+
   // 클라이언트가 보유한 날씨를 매 메시지에 attach
   const buildUserContext = () => {
     const cached = queryClient.getQueriesData<WeatherData>({ queryKey: ["weather"] })
@@ -59,6 +62,7 @@ function DakotaGreetingChat({
       body: () => ({
         agentId: "dakota",
         userContext: buildUserContext(),
+        voiceMode: voiceModeRef.current,
       }),
     }),
     onError: (err) => {
@@ -71,11 +75,18 @@ function DakotaGreetingChat({
   const [focused, setFocused] = useState(false)
   const sessionStartRef = useRef<{ time: string; messageCount: number } | null>(null)
 
-  // ─── Voice (ElevenLabs TTS + Web Speech STT) ─────────────────
-  // 세션 단위 상태 — localStorage 비저장. 페이지 재진입·새로고침 시 default OFF.
-  // 토글 켜진 시점 이후 추가되는 메시지만 읽어줌 (기존 로그/hydration 자동 낭독 방지).
-  const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(false)
+  // ─── 음성대화모드 (단일 토글) ─────────────────────────────
+  // 운전 중 Dakota와 음성으로 대화. 토글 ON → 마이크 버튼 등장 + 음성 입력
+  // 건에만 TTS 자동 재생 + 서버가 영어·짧게 응답. 타자 입력은 항상 텍스트만.
+  // 세션 단위 상태 (localStorage 비저장). focus 닫히면 리셋.
+  const [voiceMode, setVoiceMode] = useState(false)
   const [voiceEnabledFromIndex, setVoiceEnabledFromIndex] = useState<number | null>(null)
+  // 직전 메시지가 mic(음성)로 들어왔는지 추적 — 타자 입력은 TTS 자동재생 X
+  const lastInputViaMicRef = useRef(false)
+
+  useEffect(() => {
+    voiceModeRef.current = voiceMode
+  }, [voiceMode])
 
   const { speak, stop: stopSpeech, isSupported: ttsSupported, isSpeaking } = useElevenLabsSpeech()
 
@@ -83,6 +94,7 @@ function DakotaGreetingChat({
     (text: string) => {
       const trimmed = text.trim()
       if (!trimmed) return
+      lastInputViaMicRef.current = true
       sendMessage({ text: trimmed })
     },
     [sendMessage],
@@ -93,12 +105,14 @@ function DakotaGreetingChat({
     interimText,
     start: startListening,
     stop: stopListening,
-  } = useSpeechRecognition({ lang: "ko-KR", onFinalText: handleVoiceFinal })
+  } = useSpeechRecognition({ lang: "en-US", onFinalText: handleVoiceFinal })
 
-  // 새 assistant 메시지 완료되면 자동 읽어주기 — 단, voiceEnabledFromIndex 이후로 추가된 것만.
+  // TTS 자동 재생 조건:
+  //   voiceMode ON + 직전 입력이 mic + voice 토글 시점 이후 메시지
   const lastSpokenIdRef = useRef<string | null>(null)
   useEffect(() => {
-    if (!voiceOutputEnabled || !ttsSupported) return
+    if (!voiceMode || !ttsSupported) return
+    if (!lastInputViaMicRef.current) return // 타자로 보낸 건 재생 X
     if (voiceEnabledFromIndex === null) return
     if (isStreaming) return
     if (messages.length <= voiceEnabledFromIndex) return
@@ -109,17 +123,31 @@ function DakotaGreetingChat({
     if (!text) return
     lastSpokenIdRef.current = last.id
     void speak(text)
-  }, [messages, isStreaming, voiceOutputEnabled, voiceEnabledFromIndex, ttsSupported, speak])
+  }, [messages, isStreaming, voiceMode, voiceEnabledFromIndex, ttsSupported, speak])
 
-  // Focus overlay 닫히면 voice 세션 완전 리셋 (default OFF 복귀)
+  // Focus overlay 닫히면 음성대화모드 완전 리셋
   useEffect(() => {
     if (!focused) {
       stopSpeech()
       stopListening()
-      setVoiceOutputEnabled(false)
+      setVoiceMode(false)
       setVoiceEnabledFromIndex(null)
+      lastInputViaMicRef.current = false
     }
   }, [focused, stopSpeech, stopListening])
+
+  const toggleVoiceMode = useCallback(() => {
+    if (voiceMode) {
+      stopSpeech()
+      stopListening()
+      setVoiceMode(false)
+      setVoiceEnabledFromIndex(null)
+      lastInputViaMicRef.current = false
+    } else {
+      setVoiceMode(true)
+      setVoiceEnabledFromIndex(messages.length)
+    }
+  }, [voiceMode, messages.length, stopSpeech, stopListening])
 
   // 1) localStorage 복원 (1회) — 비어 있으면 서버 archive에서 hydration
   useEffect(() => {
@@ -363,17 +391,12 @@ function DakotaGreetingChat({
           style={{ fontSize: "16px" }}
           className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-600 resize-none overflow-y-auto leading-snug"
         />
-        {sttSupported && (
+        {voiceMode && sttSupported && (
           <button
             type="button"
             onClick={() => {
               if (isListening) stopListening()
               else {
-                // mic 시작 시 TTS도 함께 켬 — 이후 추가되는 메시지부터 낭독
-                if (ttsSupported && !voiceOutputEnabled) {
-                  setVoiceOutputEnabled(true)
-                  setVoiceEnabledFromIndex(messages.length)
-                }
                 stopSpeech()
                 startListening()
               }
@@ -433,31 +456,24 @@ function DakotaGreetingChat({
             <div className="shrink-0 flex flex-col gap-1.5">
               {inputForm}
               <div className="flex items-center justify-end gap-3">
-                {ttsSupported && (
+                {(ttsSupported || sttSupported) && (
                   <button
                     type="button"
-                    onClick={() => {
-                      if (voiceOutputEnabled) {
-                        stopSpeech()
-                        setVoiceOutputEnabled(false)
-                        setVoiceEnabledFromIndex(null)
-                      } else {
-                        setVoiceOutputEnabled(true)
-                        setVoiceEnabledFromIndex(messages.length)
-                      }
-                    }}
-                    className={`text-[10px] transition-colors ${
-                      voiceOutputEnabled
-                        ? "text-blue-500 hover:text-blue-400"
-                        : "text-muted-foreground/60 hover:text-muted-foreground"
+                    onClick={toggleVoiceMode}
+                    className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                      voiceMode
+                        ? "bg-blue-500/15 border-blue-500/40 text-blue-500"
+                        : "bg-muted/40 border-border text-muted-foreground hover:text-foreground"
                     }`}
-                    title={voiceOutputEnabled ? "음성 답변 끄기" : "음성 답변 켜기"}
+                    title={voiceMode ? "음성대화모드 끄기 (텍스트 채팅으로)" : "음성대화모드 켜기 (운전 중 대화)"}
                   >
-                    {voiceOutputEnabled
+                    {voiceMode
                       ? isSpeaking
-                        ? "🔊 말하는 중… (클릭해서 끄기)"
-                        : "🔊 음성 답변 켜짐"
-                      : "🔇 음성 답변 꺼짐"}
+                        ? "🎧 음성대화모드 · 말하는 중…"
+                        : isListening
+                          ? "🎧 음성대화모드 · 듣는 중…"
+                          : "🎧 음성대화모드 ON"
+                      : "💬 음성대화모드 OFF"}
                   </button>
                 )}
                 {messages.length > 0 && (

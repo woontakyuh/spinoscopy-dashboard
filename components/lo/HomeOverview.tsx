@@ -60,7 +60,7 @@ const SESSION_TYPE_COLORS: Record<string, string> = {
 
 const NAV_LINKS: { id: string; label: string; icon: string; desc: string }[] = [
   { id: "character", label: "Character", icon: "🥋", desc: "radar · OVR · archetype" },
-  { id: "navmap", label: "NavMap", icon: "🗺️", desc: "61 positions · 94 transitions" },
+  { id: "navmap", label: "Skills", icon: "🗺️", desc: "61 positions · 94 transitions" },
   { id: "training", label: "Training", icon: "📓", desc: "달력 · 세션 기록" },
   { id: "competitions", label: "Competitions", icon: "🏆", desc: "timeline · targets" },
   { id: "concepts", label: "Concepts", icon: "💡", desc: "notes · type filter" },

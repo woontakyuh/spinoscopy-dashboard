@@ -993,11 +993,19 @@ export async function POST(req: Request) {
     )
   }
 
-  const { messages, agentId, userContext } = await req.json()
+  const { messages, agentId, userContext, voiceMode } = await req.json()
+
+  const VOICE_MODE_DIRECTIVE = `\n\n[음성대화모드 ACTIVE — Tak은 지금 운전 중 음성으로 대화합니다. 다음 규칙 엄수]
+- Respond in English ONLY, even if Tak speaks Korean. 영어로만 답변.
+- Keep responses to 2-3 short sentences. 음성으로 들을 것이라 길면 부담.
+- State specific info (times, numbers, names) clearly at the start.
+- No markdown, no emojis, no special characters (TTS reads them literally).
+- Sound natural and conversational — 친근한 비서 톤 유지.`
 
   let systemPrompt: string
   if (agentId === "dakota") {
     systemPrompt = (await buildDakotaPrompt(userContext)) + ORCHESTRATOR_BLOCK
+    if (voiceMode) systemPrompt += VOICE_MODE_DIRECTIVE
   } else if (agentId === "lo") {
     systemPrompt = await buildLoPrompt()
   } else if (agentId === "elon") {

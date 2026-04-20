@@ -19,7 +19,7 @@ type LoTab = "home" | "character" | "navmap" | "training" | "competitions" | "co
 const TABS: { id: LoTab; label: string; icon: string }[] = [
   { id: "home", label: "Home", icon: "🏠" },
   { id: "character", label: "Character", icon: "🥋" },
-  { id: "navmap", label: "NavMap", icon: "🗺️" },
+  { id: "navmap", label: "Skills", icon: "🗺️" },
   { id: "training", label: "Training", icon: "📓" },
   { id: "competitions", label: "Competitions", icon: "🏆" },
   { id: "concepts", label: "Concepts", icon: "💡" },
