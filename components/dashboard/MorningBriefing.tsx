@@ -81,7 +81,7 @@ function DakotaGreetingChat({
   // 세션 단위 상태 (localStorage 비저장). focus 닫히면 리셋.
   const [voiceMode, setVoiceMode] = useState(false)
   const [voiceEnabledFromIndex, setVoiceEnabledFromIndex] = useState<number | null>(null)
-  const [sttLang, setSttLang] = useState<"ko-KR" | "en-US">("ko-KR")
+  const [sttLang, setSttLang] = useState<"ko-KR" | "en-US">("en-US")
   // 직전 메시지가 mic(음성)로 들어왔는지 추적 — 타자 입력은 TTS 자동재생 X
   const lastInputViaMicRef = useRef(false)
 
@@ -89,7 +89,7 @@ function DakotaGreetingChat({
     voiceModeRef.current = voiceMode
   }, [voiceMode])
 
-  const { speak, stop: stopSpeech, isSupported: ttsSupported, isSpeaking } = useElevenLabsSpeech()
+  const { speak, stop: stopSpeech, isSupported: ttsSupported, isSpeaking, prime: primeAudio } = useElevenLabsSpeech()
 
   const handleVoiceFinal = useCallback(
     (text: string) => {
@@ -147,10 +147,23 @@ function DakotaGreetingChat({
     } else {
       setVoiceMode(true)
       setVoiceEnabledFromIndex(messages.length)
+      // iOS 오디오 unlock — user gesture 안에서 짧은 무음 재생
+      primeAudio()
       // 원터치 UX: 토글 켜자마자 listening 시작 (user gesture 안에서 호출)
       startListening()
     }
-  }, [voiceMode, messages.length, stopSpeech, stopListening, startListening])
+  }, [voiceMode, messages.length, stopSpeech, stopListening, startListening, primeAudio])
+
+  // TTS 끝나면 자동으로 다시 listening (ChatGPT 음성모드 스타일 대화 루프)
+  const prevSpeakingRef = useRef(false)
+  useEffect(() => {
+    const wasSpeaking = prevSpeakingRef.current
+    prevSpeakingRef.current = isSpeaking
+    if (!wasSpeaking || isSpeaking) return // speaking → idle 전환만 감지
+    if (!voiceMode || isListening || isStreaming) return
+    // Dakota 말 끝남, 다시 Tak 들을 차례
+    startListening()
+  }, [isSpeaking, voiceMode, isListening, isStreaming, startListening])
 
   // 1) localStorage 복원 (1회) — 비어 있으면 서버 archive에서 hydration
   useEffect(() => {
@@ -427,8 +440,102 @@ function DakotaGreetingChat({
     </>
   )
 
+  // ─── Voice immersive view (ChatGPT 스타일) — 채팅 숨김, Dakota 사진만 ──
+  const voiceImmersive = (focused && voiceMode) ? (
+    <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-center p-6">
+      <button
+        type="button"
+        onClick={toggleVoiceMode}
+        className="relative focus:outline-none"
+        aria-label="음성모드 종료"
+      >
+        {/* Glitter halo — listening/speaking 상태별 색상·애니메이션 */}
+        <div
+          className={`absolute inset-0 -m-10 rounded-full blur-3xl transition-colors duration-500 ${
+            isSpeaking
+              ? "bg-emerald-500/40 animate-pulse"
+              : isListening
+                ? "bg-blue-500/40 animate-pulse"
+                : "bg-foreground/10"
+          }`}
+        />
+        <div
+          className={`absolute inset-0 -m-4 rounded-full border-2 transition-colors ${
+            isSpeaking
+              ? "border-emerald-400/40 animate-ping"
+              : isListening
+                ? "border-blue-400/50 animate-ping"
+                : "border-transparent"
+          }`}
+        />
+        <div
+          className={`absolute inset-0 -m-1 rounded-full border transition-colors ${
+            isSpeaking ? "border-emerald-400/30" : isListening ? "border-blue-400/40" : "border-border"
+          }`}
+        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={image}
+          alt="Dakota"
+          className="relative w-64 h-64 md:w-80 md:h-80 rounded-full object-cover object-top border-2 border-border shadow-2xl select-none"
+          draggable={false}
+        />
+      </button>
+
+      <div className="mt-10 text-center space-y-1">
+        <div className="text-sm text-foreground/80 font-medium">
+          {isSpeaking
+            ? "🔊 Dakota is speaking"
+            : isListening
+              ? "🎙 Listening…"
+              : isStreaming
+                ? "… thinking"
+                : "Tap photo to exit"}
+        </div>
+        <div className="text-[10px] text-muted-foreground">
+          {voiceMode ? `STT: ${sttLang === "ko-KR" ? "한국어" : "English"} · 응답은 English` : ""}
+        </div>
+      </div>
+
+      {/* 하단: lang toggle + exit hint */}
+      <div className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-3">
+        {sttSupported && (
+          <div className="flex items-center gap-0.5 text-[11px] border border-border rounded-full overflow-hidden bg-card/60 backdrop-blur-sm">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setSttLang("ko-KR")
+                if (isListening) { stopListening(); setTimeout(() => startListening(), 100) }
+              }}
+              className={`px-3 py-1 transition-colors ${
+                sttLang === "ko-KR" ? "bg-blue-500/25 text-blue-400" : "text-muted-foreground"
+              }`}
+            >
+              KO
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setSttLang("en-US")
+                if (isListening) { stopListening(); setTimeout(() => startListening(), 100) }
+              }}
+              className={`px-3 py-1 transition-colors ${
+                sttLang === "en-US" ? "bg-blue-500/25 text-blue-400" : "text-muted-foreground"
+              }`}
+            >
+              EN
+            </button>
+          </div>
+        )}
+        <div className="text-[10px] text-muted-foreground/60">사진 탭 → 채팅 모드</div>
+      </div>
+    </div>
+  ) : null
+
   // ─── Focused overlay (portal to body to escape transformed ancestors) ──
-  const focusedOverlay = focused ? (
+  const focusedOverlay = (focused && !voiceMode) ? (
     <div className="fixed inset-0 z-50 bg-background backdrop-blur-sm overflow-hidden flex items-stretch md:items-center justify-center md:p-6">
         <div className="w-full h-full md:max-w-5xl md:h-[80vh] flex flex-col md:flex-row md:gap-6 overflow-hidden">
           {/* Dakota 캐릭터 — 모바일: 상단 가운데, 데스크탑: 좌측 채팅창 바깥 */}
@@ -533,6 +640,7 @@ function DakotaGreetingChat({
   // ─── Normal inline mode ────────────────────────────────────
   return (
     <div className="pt-2 md:pt-4 flex items-start gap-3 md:gap-4">
+      {typeof document !== "undefined" && voiceImmersive && createPortal(voiceImmersive, document.body)}
       {typeof document !== "undefined" && focusedOverlay && createPortal(focusedOverlay, document.body)}
 
       {/* 좌측: 캐릭터 — 상체만 크롭, 클릭하면 전신 보기 */}

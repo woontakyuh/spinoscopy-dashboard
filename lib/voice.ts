@@ -186,11 +186,47 @@ export function useSpeechSynthesis(lang = "ko-KR") {
 
 // ─── ElevenLabs TTS hook ──────────────────────────────────────────
 // 서버 /api/voice/tts로 텍스트 POST → MP3 blob fetch → HTMLAudioElement 재생.
-// 실패 시 fallback 옵션으로 useSpeechSynthesis 사용 가능.
+//
+// iOS Safari 대응: new Audio() 매번 생성하면 user gesture 컨텍스트 밖에서
+// .play() 가 차단됨. 대신 **한 element 재사용** + 초기 gesture 안에서
+// prime() 호출로 unlock. 이후 speak()는 같은 element의 src만 교체.
+const SILENT_MP3 =
+  "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjYxLjcuMTAwAAAAAAAAAAAAAAD/+0DAAAAAAAAAAAAAAAAAAAAAAABJbmZvAAAADwAAAAIAAAHsAFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFCvr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+vr6+v////////////////////////////////////////////////////////////////8AAAAATGF2YzYxLjE5AAAAAAAAAAAAAAAAJAUAAAAAAAAAAAHsmY2JMAAAAAAAAAAAAAAAAAAAAAD/++DEAAAIXAVxtBGAIf2SbnczEAABAjAhAIIBAkkQiZGgAAQIIEEAAcMqAQADn8CAfWD4fFz5+XB9/EHIEAQd3//8Hz4Pn//iDuD4Ph/+UHz//E7+DmIJk+H4MRn9GH/BDnMQfB8P/E7/+JwcB8Hz4uAQT8QcAAIBAwEYBBaMRRG6Xz2y1DEJSB4HEzw1B0z5aTFAMN3dWiISBIOpqAQHK9Ez2mPlUxMmrOBOONNOLpXTCwAYDz0lpg"
+
 export function useElevenLabsSpeech() {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const blobUrlRef = useRef<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const primedRef = useRef(false)
+
+  const ensureAudio = useCallback((): HTMLAudioElement => {
+    if (!audioRef.current) {
+      const a = new Audio()
+      a.preload = "auto"
+      a.onplay = () => setIsSpeaking(true)
+      a.onended = () => setIsSpeaking(false)
+      a.onerror = () => setIsSpeaking(false)
+      a.onpause = () => {
+        // 사용자가 명시적으로 중단한 경우
+      }
+      audioRef.current = a
+    }
+    return audioRef.current
+  }, [])
+
+  // iOS Safari의 autoplay 정책 우회: user gesture 안에서 1회 호출.
+  // 짧은 무음 mp3를 재생해서 element를 "활성화"시킴.
+  const prime = useCallback(() => {
+    if (primedRef.current) return
+    const a = ensureAudio()
+    try {
+      a.src = SILENT_MP3
+      const p = a.play()
+      if (p && typeof p.catch === "function") p.catch(() => {})
+      primedRef.current = true
+    } catch {}
+  }, [ensureAudio])
 
   const stop = useCallback(() => {
     if (abortRef.current) {
@@ -200,9 +236,11 @@ export function useElevenLabsSpeech() {
     if (audioRef.current) {
       try {
         audioRef.current.pause()
-        audioRef.current.src = ""
       } catch {}
-      audioRef.current = null
+    }
+    if (blobUrlRef.current) {
+      URL.revokeObjectURL(blobUrlRef.current)
+      blobUrlRef.current = null
     }
     setIsSpeaking(false)
   }, [])
@@ -212,8 +250,18 @@ export function useElevenLabsSpeech() {
       const trimmed = text.trim()
       if (!trimmed) return false
 
-      // 이전 재생 중단
-      stop()
+      // 이전 재생 중단 (element는 유지)
+      if (abortRef.current) {
+        abortRef.current.abort()
+        abortRef.current = null
+      }
+      if (audioRef.current) {
+        try { audioRef.current.pause() } catch {}
+      }
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current)
+        blobUrlRef.current = null
+      }
 
       const ctrl = new AbortController()
       abortRef.current = ctrl
@@ -232,20 +280,11 @@ export function useElevenLabsSpeech() {
         const blob = await res.blob()
         if (ctrl.signal.aborted) return false
         const url = URL.createObjectURL(blob)
-        const audio = new Audio(url)
-        audioRef.current = audio
-        audio.onplay = () => setIsSpeaking(true)
-        audio.onended = () => {
-          setIsSpeaking(false)
-          URL.revokeObjectURL(url)
-          audioRef.current = null
-        }
-        audio.onerror = () => {
-          setIsSpeaking(false)
-          URL.revokeObjectURL(url)
-          audioRef.current = null
-        }
-        await audio.play()
+        blobUrlRef.current = url
+
+        const a = ensureAudio()
+        a.src = url
+        await a.play()
         return true
       } catch (e) {
         if ((e as Error)?.name === "AbortError") return false
@@ -256,15 +295,21 @@ export function useElevenLabsSpeech() {
         if (abortRef.current === ctrl) abortRef.current = null
       }
     },
-    [stop],
+    [ensureAudio],
   )
 
   useEffect(() => {
     return () => {
       stop()
+      if (audioRef.current) {
+        try {
+          audioRef.current.src = ""
+        } catch {}
+        audioRef.current = null
+      }
     }
   }, [stop])
 
-  return { isSupported: true, isSpeaking, speak, stop }
+  return { isSupported: true, isSpeaking, speak, stop, prime }
 }
 
