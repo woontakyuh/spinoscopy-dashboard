@@ -144,8 +144,10 @@ function DakotaGreetingChat({
       stopListening()
       setVoiceMode(false)
       setVoiceEnabledFromIndex(null)
+      voiceModeRef.current = false  // ref 동기 세팅 — useEffect race 방지
       lastInputViaMicRef.current = false
     } else {
+      voiceModeRef.current = true   // ref 먼저 세팅 — 첫 발화 body 시 true 보장
       setVoiceMode(true)
       setVoiceEnabledFromIndex(messages.length)
       // iOS 오디오 unlock — user gesture 안에서 짧은 무음 재생
@@ -162,9 +164,32 @@ function DakotaGreetingChat({
     prevSpeakingRef.current = isSpeaking
     if (!wasSpeaking || isSpeaking) return // speaking → idle 전환만 감지
     if (!voiceMode || isListening || isStreaming) return
-    // Dakota 말 끝남, 다시 Tak 들을 차례
     startListening()
   }, [isSpeaking, voiceMode, isListening, isStreaming, startListening])
+
+  // KO/EN 언어 바꿨을 때 인식 재시작 — setTimeout 클로저는 oldLang 캡처하므로
+  // pendingRestart flag + useEffect로 새 렌더 후 startListening 호출.
+  const langSwitchPendingRef = useRef(false)
+  useEffect(() => {
+    if (!langSwitchPendingRef.current) return
+    langSwitchPendingRef.current = false
+    if (voiceMode && !isListening && !isStreaming && !isSpeaking) {
+      startListening()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sttLang])
+
+  const switchLang = useCallback(
+    (next: "ko-KR" | "en-US") => {
+      if (sttLang === next) return
+      if (isListening) {
+        stopListening()
+        langSwitchPendingRef.current = true
+      }
+      setSttLang(next)
+    },
+    [sttLang, isListening, stopListening],
+  )
 
   // 1) localStorage 복원 (1회) — 비어 있으면 서버 archive에서 hydration
   useEffect(() => {
@@ -430,9 +455,9 @@ function DakotaGreetingChat({
         className="relative focus:outline-none"
         aria-label="음성모드 종료"
       >
-        {/* Glitter halo — listening/busy 상태별 색상·애니메이션 */}
+        {/* Glitter halo — pointer-events-none 으로 탭 방해 안 함 */}
         <div
-          className={`absolute inset-0 -m-12 rounded-full blur-3xl transition-colors duration-500 ${
+          className={`pointer-events-none absolute inset-0 -m-12 rounded-full blur-3xl transition-colors duration-500 ${
             dakotaBusy
               ? "bg-emerald-500/40 animate-pulse"
               : isListening
@@ -441,7 +466,7 @@ function DakotaGreetingChat({
           }`}
         />
         <div
-          className={`absolute inset-0 -m-4 rounded-full border-2 transition-colors ${
+          className={`pointer-events-none absolute inset-0 -m-4 rounded-full border-2 transition-colors ${
             dakotaBusy
               ? "border-emerald-400/40 animate-ping"
               : isListening
@@ -450,7 +475,7 @@ function DakotaGreetingChat({
           }`}
         />
         <div
-          className={`absolute inset-0 -m-1 rounded-full border transition-colors ${
+          className={`pointer-events-none absolute inset-0 -m-1 rounded-full border transition-colors ${
             dakotaBusy ? "border-emerald-400/30" : isListening ? "border-blue-400/40" : "border-border"
           }`}
         />
@@ -463,22 +488,24 @@ function DakotaGreetingChat({
         />
       </button>
 
-      {/* 사진 바로 밑: "Dakota 차례로" 즉시 넘기기 버튼 */}
+      {/* 정지 아이콘 — Tak 발화 중에만 활성, 즉시 Dakota 응답으로 넘김 */}
       <button
         type="button"
         onClick={(e) => {
           e.stopPropagation()
+          e.preventDefault()
           if (isListening) commitVoiceInput()
         }}
         disabled={!isListening}
-        className={`mt-8 px-5 py-2.5 rounded-full text-[13px] font-medium transition-all ${
+        aria-label="내 차례 종료"
+        title="내 차례 종료"
+        className={`mt-10 w-14 h-14 rounded-full flex items-center justify-center transition-all ${
           isListening
-            ? "bg-blue-500 text-white hover:bg-blue-500/90 shadow-lg"
-            : "bg-muted/40 text-muted-foreground/50 cursor-not-allowed"
+            ? "bg-blue-500 text-white shadow-xl active:scale-95"
+            : "bg-muted/30 text-muted-foreground/40 pointer-events-none"
         }`}
-        title="내 말 끝, Dakota 차례로"
       >
-        {isListening ? "↓ 내 말 끝, Dakota 차례" : dakotaBusy ? "Dakota 응답 중…" : "— 대기 —"}
+        <span className="block w-4 h-4 bg-current rounded-sm" />
       </button>
 
       <div className="mt-4 text-center space-y-1">
@@ -499,11 +526,7 @@ function DakotaGreetingChat({
           <div className="flex items-center gap-0.5 text-[11px] border border-border rounded-full overflow-hidden bg-card/60 backdrop-blur-sm">
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                setSttLang("ko-KR")
-                if (isListening) { stopListening(); setTimeout(() => startListening(), 100) }
-              }}
+              onClick={(e) => { e.stopPropagation(); switchLang("ko-KR") }}
               className={`px-3 py-1 transition-colors ${
                 sttLang === "ko-KR" ? "bg-blue-500/25 text-blue-400" : "text-muted-foreground"
               }`}
@@ -512,11 +535,7 @@ function DakotaGreetingChat({
             </button>
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                setSttLang("en-US")
-                if (isListening) { stopListening(); setTimeout(() => startListening(), 100) }
-              }}
+              onClick={(e) => { e.stopPropagation(); switchLang("en-US") }}
               className={`px-3 py-1 transition-colors ${
                 sttLang === "en-US" ? "bg-blue-500/25 text-blue-400" : "text-muted-foreground"
               }`}

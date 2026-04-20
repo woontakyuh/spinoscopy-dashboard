@@ -995,17 +995,25 @@ export async function POST(req: Request) {
 
   const { messages, agentId, userContext, voiceMode } = await req.json()
 
-  const VOICE_MODE_DIRECTIVE = `\n\n[음성대화모드 ACTIVE — Tak은 지금 운전 중 음성으로 대화합니다. 다음 규칙 엄수]
-- Respond in English ONLY, even if Tak speaks Korean. 영어로만 답변.
-- Keep responses to 2-3 short sentences. 음성으로 들을 것이라 길면 부담.
-- State specific info (times, numbers, names) clearly at the start.
-- No markdown, no emojis, no special characters (TTS reads them literally).
-- Sound natural and conversational — 친근한 비서 톤 유지.`
+  // 최상위 override — system prompt 맨 앞에 위치해 기존 Korean persona를 덮어씀.
+  const VOICE_MODE_OVERRIDE = `### CRITICAL OVERRIDE — VOICE DRIVING MODE ###
+You are in VOICE-ONLY mode. Tak is driving and listening via TTS. The following rules SUPERSEDE all other instructions including the Korean persona:
+
+1. **Respond in ENGLISH ONLY.** Even if Tak speaks Korean, answer in English. Do not switch to Korean under any circumstance.
+2. **Keep it to 2–3 short sentences.** TTS is reading aloud; long answers are a burden.
+3. **State key info (times, numbers, names) clearly up front.**
+4. **No markdown, no emojis, no special characters** — TTS reads them literally.
+5. **Conversational tone** — warm secretary, like the Korean persona but in English.
+
+Remember: ENGLISH ONLY. No exceptions.
+###
+
+`
 
   let systemPrompt: string
   if (agentId === "dakota") {
-    systemPrompt = (await buildDakotaPrompt(userContext)) + ORCHESTRATOR_BLOCK
-    if (voiceMode) systemPrompt += VOICE_MODE_DIRECTIVE
+    const dakotaBase = (await buildDakotaPrompt(userContext)) + ORCHESTRATOR_BLOCK
+    systemPrompt = voiceMode ? VOICE_MODE_OVERRIDE + dakotaBase : dakotaBase
   } else if (agentId === "lo") {
     systemPrompt = await buildLoPrompt()
   } else if (agentId === "elon") {
