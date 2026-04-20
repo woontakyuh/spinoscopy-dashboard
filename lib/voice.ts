@@ -90,13 +90,7 @@ export function useAudioRecording(opts: {
   }, [minUtteranceMs, teardown])
 
   const start = useCallback(async () => {
-    // 이미 정상 녹음 중이면 skip. 그러나 state/ref 불일치(좀비)면 강제 teardown 후 재시작.
-    if (isRecording && recorderRef.current?.state === "recording") return
-    if (isRecording || recorderRef.current || streamRef.current) {
-      teardown()
-      // 다음 프레임에 다시 시작 (리소스 해제 시간 확보)
-      await new Promise((r) => setTimeout(r, 50))
-    }
+    if (isRecording) return
     silentCommitRef.current = false
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -143,13 +137,9 @@ export function useAudioRecording(opts: {
         chunksRef.current = []
         const wasSilent = silentCommitRef.current
         silentCommitRef.current = false
-        const dur = Date.now() - startTimeRef.current
-
-        // 오디오 리소스 정리 — 다음 녹음 시작 가능하게 (turn-2 freeze 방지)
-        teardown()
-
         if (wasSilent) return
         if (chunks.length === 0) return
+        const dur = Date.now() - startTimeRef.current
         if (dur < minUtteranceMs) return
         const blob = new Blob(chunks, { type: mimeTypeRef.current })
         onAudioReadyRef.current(blob)
