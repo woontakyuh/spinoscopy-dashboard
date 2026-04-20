@@ -95,7 +95,9 @@ export function useSpeechRecognition(opts: {
     }
     const r = new SR()
     r.lang = lang
-    r.continuous = false
+    // continuous=true: 침묵 자동 종료 안 함. 사용자가 정지 버튼으로 명시 종료.
+    // 말 도중 엔진이 제멋대로 멈춰버려 버퍼 유실되는 이슈 방지.
+    r.continuous = true
     r.interimResults = interim
     finalRef.current = ""
     interimRef.current = ""
