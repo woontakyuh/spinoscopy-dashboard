@@ -183,3 +183,88 @@ export function useSpeechSynthesis(lang = "ko-KR") {
 
   return { isSupported, isSpeaking, speak, stop, voice: pickVoice() }
 }
+
+// ─── ElevenLabs TTS hook ──────────────────────────────────────────
+// 서버 /api/voice/tts로 텍스트 POST → MP3 blob fetch → HTMLAudioElement 재생.
+// 실패 시 fallback 옵션으로 useSpeechSynthesis 사용 가능.
+export function useElevenLabsSpeech() {
+  const [isSpeaking, setIsSpeaking] = useState(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+
+  const stop = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort()
+      abortRef.current = null
+    }
+    if (audioRef.current) {
+      try {
+        audioRef.current.pause()
+        audioRef.current.src = ""
+      } catch {}
+      audioRef.current = null
+    }
+    setIsSpeaking(false)
+  }, [])
+
+  const speak = useCallback(
+    async (text: string): Promise<boolean> => {
+      const trimmed = text.trim()
+      if (!trimmed) return false
+
+      // 이전 재생 중단
+      stop()
+
+      const ctrl = new AbortController()
+      abortRef.current = ctrl
+
+      try {
+        const res = await fetch("/api/voice/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: trimmed }),
+          signal: ctrl.signal,
+        })
+        if (!res.ok) {
+          console.warn("[elevenlabs] http", res.status)
+          return false
+        }
+        const blob = await res.blob()
+        if (ctrl.signal.aborted) return false
+        const url = URL.createObjectURL(blob)
+        const audio = new Audio(url)
+        audioRef.current = audio
+        audio.onplay = () => setIsSpeaking(true)
+        audio.onended = () => {
+          setIsSpeaking(false)
+          URL.revokeObjectURL(url)
+          audioRef.current = null
+        }
+        audio.onerror = () => {
+          setIsSpeaking(false)
+          URL.revokeObjectURL(url)
+          audioRef.current = null
+        }
+        await audio.play()
+        return true
+      } catch (e) {
+        if ((e as Error)?.name === "AbortError") return false
+        console.warn("[elevenlabs] speak error:", e)
+        setIsSpeaking(false)
+        return false
+      } finally {
+        if (abortRef.current === ctrl) abortRef.current = null
+      }
+    },
+    [stop],
+  )
+
+  useEffect(() => {
+    return () => {
+      stop()
+    }
+  }, [stop])
+
+  return { isSupported: true, isSpeaking, speak, stop }
+}
+

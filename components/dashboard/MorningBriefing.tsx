@@ -7,7 +7,7 @@ import { useChat } from "@ai-sdk/react"
 import { TextStreamChatTransport } from "ai"
 import { WeatherInline, useWeatherLocation } from "@/components/dashboard/WeatherInline"
 import { pickDakotaGreeting } from "@/lib/dakotaGreetings"
-import { useSpeechRecognition, useSpeechSynthesis } from "@/lib/voice"
+import { useSpeechRecognition, useElevenLabsSpeech } from "@/lib/voice"
 import {
   getSlot,
   dateKeySeoul,
@@ -71,21 +71,13 @@ function DakotaGreetingChat({
   const [focused, setFocused] = useState(false)
   const sessionStartRef = useRef<{ time: string; messageCount: number } | null>(null)
 
-  // ─── Voice (Z안: 브라우저 내장 API) ──────────────────────────
+  // ─── Voice (ElevenLabs TTS + Web Speech STT) ─────────────────
+  // 세션 단위 상태 — localStorage 비저장. 페이지 재진입·새로고침 시 default OFF.
+  // 토글 켜진 시점 이후 추가되는 메시지만 읽어줌 (기존 로그/hydration 자동 낭독 방지).
   const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(false)
-  useEffect(() => {
-    try {
-      const v = localStorage.getItem("dakota-voice-enabled")
-      if (v === "true") setVoiceOutputEnabled(true)
-    } catch {}
-  }, [])
-  useEffect(() => {
-    try {
-      localStorage.setItem("dakota-voice-enabled", String(voiceOutputEnabled))
-    } catch {}
-  }, [voiceOutputEnabled])
+  const [voiceEnabledFromIndex, setVoiceEnabledFromIndex] = useState<number | null>(null)
 
-  const { speak, stop: stopSpeech, isSupported: ttsSupported, isSpeaking } = useSpeechSynthesis("ko-KR")
+  const { speak, stop: stopSpeech, isSupported: ttsSupported, isSpeaking } = useElevenLabsSpeech()
 
   const handleVoiceFinal = useCallback(
     (text: string) => {
@@ -103,26 +95,29 @@ function DakotaGreetingChat({
     stop: stopListening,
   } = useSpeechRecognition({ lang: "ko-KR", onFinalText: handleVoiceFinal })
 
-  // 새 assistant 메시지 완료되면 자동 읽어주기 (voice mode 켜진 경우)
+  // 새 assistant 메시지 완료되면 자동 읽어주기 — 단, voiceEnabledFromIndex 이후로 추가된 것만.
   const lastSpokenIdRef = useRef<string | null>(null)
   useEffect(() => {
     if (!voiceOutputEnabled || !ttsSupported) return
+    if (voiceEnabledFromIndex === null) return
     if (isStreaming) return
-    if (messages.length === 0) return
+    if (messages.length <= voiceEnabledFromIndex) return
     const last = messages[messages.length - 1]
     if (last.role !== "assistant") return
     if (lastSpokenIdRef.current === last.id) return
     const text = getChatText(last.parts).replace(/\{\{OUTFIT:\w+:\w+\}\}/g, "").trim()
     if (!text) return
     lastSpokenIdRef.current = last.id
-    speak(text)
-  }, [messages, isStreaming, voiceOutputEnabled, ttsSupported, speak])
+    void speak(text)
+  }, [messages, isStreaming, voiceOutputEnabled, voiceEnabledFromIndex, ttsSupported, speak])
 
-  // Focus overlay 닫히거나 unmount 시 음성 중단
+  // Focus overlay 닫히면 voice 세션 완전 리셋 (default OFF 복귀)
   useEffect(() => {
     if (!focused) {
       stopSpeech()
       stopListening()
+      setVoiceOutputEnabled(false)
+      setVoiceEnabledFromIndex(null)
     }
   }, [focused, stopSpeech, stopListening])
 
@@ -374,8 +369,11 @@ function DakotaGreetingChat({
             onClick={() => {
               if (isListening) stopListening()
               else {
-                // 음성 모드 꺼져있으면 같이 켜기 (말한 뒤 답 들으려면 TTS 필요)
-                if (ttsSupported && !voiceOutputEnabled) setVoiceOutputEnabled(true)
+                // mic 시작 시 TTS도 함께 켬 — 이후 추가되는 메시지부터 낭독
+                if (ttsSupported && !voiceOutputEnabled) {
+                  setVoiceOutputEnabled(true)
+                  setVoiceEnabledFromIndex(messages.length)
+                }
                 stopSpeech()
                 startListening()
               }
@@ -442,8 +440,10 @@ function DakotaGreetingChat({
                       if (voiceOutputEnabled) {
                         stopSpeech()
                         setVoiceOutputEnabled(false)
+                        setVoiceEnabledFromIndex(null)
                       } else {
                         setVoiceOutputEnabled(true)
+                        setVoiceEnabledFromIndex(messages.length)
                       }
                     }}
                     className={`text-[10px] transition-colors ${
