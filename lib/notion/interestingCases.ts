@@ -41,6 +41,10 @@ export interface InterestingCase {
   sex: string
   preop_dx: string
   note: string
+  ai_insight: string
+  cx: string
+  op_name: string
+  op_date: string | null
   hospital: string[]
   db_tags: string[]
   last_edited_time: string
@@ -57,6 +61,10 @@ function toCase(page: NotionPage): InterestingCase {
     sex: p.Sex?.select?.name?.trim() ?? "",
     preop_dx: getText(p["Preop Dx"]),
     note: getText(p.Note),
+    ai_insight: getText(p.AI_Insight),
+    cx: getText(p.Cx),
+    op_name: getText(p["Op Name"]),
+    op_date: p["Op Date"]?.date?.start ?? null,
     hospital: getMultiSelect(p.Hospital),
     db_tags: getMultiSelect(p.DB),
     last_edited_time: page.last_edited_time,
