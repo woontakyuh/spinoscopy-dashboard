@@ -67,6 +67,20 @@ export function useSpeechRecognition(opts: {
     } catch {}
   }, [])
 
+  // 언어 전환·모드 전환 등 컨텍스트 변경 시 사용:
+  // 인식 즉시 중단하고 버퍼 텍스트 **전송 안 함**. submittedRef=true로
+  // onend의 자동 send 경로 차단.
+  const stopSilent = useCallback(() => {
+    submittedRef.current = true
+    try {
+      recogRef.current?.abort()
+    } catch {}
+    setIsListening(false)
+    setInterimText("")
+    interimRef.current = ""
+    finalRef.current = ""
+  }, [])
+
   // 사용자가 "이제 내 차례 끝" 명시적으로 누를 때:
   // 현재까지 쌓인 final + interim을 즉시 onFinalText로 flush하고 인식 중단.
   // onend가 중복 호출 시 재전송 방지 위해 submittedRef flag 사용.
@@ -148,7 +162,7 @@ export function useSpeechRecognition(opts: {
     }
   }, [])
 
-  return { isListening, isSupported, interimText, start, stop, commitNow }
+  return { isListening, isSupported, interimText, start, stop, stopSilent, commitNow }
 }
 
 // ─── TTS hook ─────────────────────────────────────────────────────

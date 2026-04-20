@@ -106,6 +106,7 @@ function DakotaGreetingChat({
     interimText,
     start: startListening,
     stop: stopListening,
+    stopSilent: stopListeningSilent,
     commitNow: commitVoiceInput,
   } = useSpeechRecognition({ lang: sttLang, onFinalText: handleVoiceFinal })
 
@@ -182,13 +183,12 @@ function DakotaGreetingChat({
   const switchLang = useCallback(
     (next: "ko-KR" | "en-US") => {
       if (sttLang === next) return
-      if (isListening) {
-        stopListening()
-        langSwitchPendingRef.current = true
-      }
+      // silent stop: 버퍼 텍스트 Dakota에 전송 안 함 (그냥 언어만 바뀌는 상황)
+      stopListeningSilent()
+      langSwitchPendingRef.current = true
       setSttLang(next)
     },
-    [sttLang, isListening, stopListening],
+    [sttLang, stopListeningSilent],
   )
 
   // 1) localStorage 복원 (1회) — 비어 있으면 서버 archive에서 hydration
