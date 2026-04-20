@@ -7,7 +7,7 @@ import { useChat } from "@ai-sdk/react"
 import { TextStreamChatTransport } from "ai"
 import { WeatherInline, useWeatherLocation } from "@/components/dashboard/WeatherInline"
 import { pickDakotaGreeting } from "@/lib/dakotaGreetings"
-import { useSpeechRecognition, useElevenLabsSpeech } from "@/lib/voice"
+import { useAudioRecording, useElevenLabsSpeech } from "@/lib/voice"
 import {
   getSlot,
   dateKeySeoul,
@@ -75,14 +75,12 @@ function DakotaGreetingChat({
   const [focused, setFocused] = useState(false)
   const sessionStartRef = useRef<{ time: string; messageCount: number } | null>(null)
 
-  // ─── 음성대화모드 (단일 토글, 원터치) ─────────────────────
-  // 모바일 전용 UX: 토글 탭 → 즉시 listening 시작. Dakota는 영어 전용 답변.
-  // STT 언어는 한국어·영어 중 선택 (브라우저 한계상 자동감지 불가).
-  // 세션 단위 상태 (localStorage 비저장). focus 닫히면 리셋.
+  // ─── 음성모드 (MediaRecorder + Groq Whisper) ─────────────────
+  // Web Speech API 완전 제거. 오디오 녹음 → 서버 /api/voice/stt → Whisper.
+  // 한·영 auto-detect. 브라우저별 버그(Safari InvalidStateError 등) 없음.
   const [voiceMode, setVoiceMode] = useState(false)
   const [voiceEnabledFromIndex, setVoiceEnabledFromIndex] = useState<number | null>(null)
-  const [sttLang, setSttLang] = useState<"ko-KR" | "en-US">("en-US")
-  // 직전 메시지가 mic(음성)로 들어왔는지 추적 — 타자 입력은 TTS 자동재생 X
+  const [isTranscribing, setIsTranscribing] = useState(false)
   const lastInputViaMicRef = useRef(false)
 
   useEffect(() => {
@@ -91,24 +89,47 @@ function DakotaGreetingChat({
 
   const { speak, stop: stopSpeech, isSupported: ttsSupported, isSpeaking, prime: primeAudio } = useElevenLabsSpeech()
 
-  const handleVoiceFinal = useCallback(
-    (text: string) => {
-      const trimmed = text.trim()
-      if (!trimmed) return
-      lastInputViaMicRef.current = true
-      sendMessage({ text: trimmed })
+  // 오디오 blob → Whisper 전사 → Dakota에 전송
+  const handleAudioReady = useCallback(
+    async (blob: Blob) => {
+      setIsTranscribing(true)
+      try {
+        const form = new FormData()
+        form.append("audio", blob, "audio.webm")
+        const res = await fetch("/api/voice/stt", { method: "POST", body: form })
+        if (!res.ok) {
+          console.warn("[voice] STT http", res.status)
+          return
+        }
+        const data = (await res.json()) as { text?: string }
+        const text = (data.text ?? "").trim()
+        if (!text) {
+          console.warn("[voice] empty transcription")
+          return
+        }
+        lastInputViaMicRef.current = true
+        sendMessage({ text })
+      } catch (e) {
+        console.warn("[voice] STT error:", e)
+      } finally {
+        setIsTranscribing(false)
+      }
     },
     [sendMessage],
   )
+
   const {
-    isListening,
+    isRecording,
     isSupported: sttSupported,
-    interimText,
-    start: startListening,
-    stop: stopListening,
-    stopSilent: stopListeningSilent,
-    commitNow: commitVoiceInput,
-  } = useSpeechRecognition({ lang: sttLang, onFinalText: handleVoiceFinal })
+    start: startRecording,
+    stopSilent: stopRecordingSilent,
+    commitNow: commitRecording,
+  } = useAudioRecording({ onAudioReady: handleAudioReady })
+
+  // 호환용 alias
+  const isListening = isRecording
+  const startListening = startRecording
+  const commitVoiceInput = commitRecording
 
   // TTS 자동 재생 조건:
   //   voiceMode ON + 직전 입력이 mic + voice 토글 시점 이후 메시지
@@ -132,17 +153,17 @@ function DakotaGreetingChat({
   useEffect(() => {
     if (!focused) {
       stopSpeech()
-      stopListening()
+      stopRecordingSilent()
       setVoiceMode(false)
       setVoiceEnabledFromIndex(null)
       lastInputViaMicRef.current = false
     }
-  }, [focused, stopSpeech, stopListening])
+  }, [focused, stopSpeech, stopRecordingSilent])
 
   const toggleVoiceMode = useCallback(() => {
     if (voiceMode) {
       stopSpeech()
-      stopListening()
+      stopRecordingSilent()
       setVoiceMode(false)
       setVoiceEnabledFromIndex(null)
       voiceModeRef.current = false  // ref 동기 세팅 — useEffect race 방지
@@ -156,7 +177,7 @@ function DakotaGreetingChat({
       // 원터치 UX: 토글 켜자마자 listening 시작 (user gesture 안에서 호출)
       startListening()
     }
-  }, [voiceMode, messages.length, stopSpeech, stopListening, startListening, primeAudio])
+  }, [voiceMode, messages.length, stopSpeech, stopRecordingSilent, startListening, primeAudio])
 
   // TTS 끝나면 자동으로 다시 listening (ChatGPT 음성모드 스타일 대화 루프)
   // 첫 시도 실패할 수 있어 300ms 뒤 재시도 + 1.5s 안전망도 둠.
@@ -180,28 +201,7 @@ function DakotaGreetingChat({
     }
   }, [isSpeaking, voiceMode, isListening, isStreaming, startListening])
 
-  // KO/EN 언어 바꿨을 때 인식 재시작 — setTimeout 클로저는 oldLang 캡처하므로
-  // pendingRestart flag + useEffect로 새 렌더 후 startListening 호출.
-  const langSwitchPendingRef = useRef(false)
-  useEffect(() => {
-    if (!langSwitchPendingRef.current) return
-    langSwitchPendingRef.current = false
-    if (voiceMode && !isListening && !isStreaming && !isSpeaking) {
-      startListening()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sttLang])
-
-  const switchLang = useCallback(
-    (next: "ko-KR" | "en-US") => {
-      if (sttLang === next) return
-      // silent stop: 버퍼 텍스트 Dakota에 전송 안 함 (그냥 언어만 바뀌는 상황)
-      stopListeningSilent()
-      langSwitchPendingRef.current = true
-      setSttLang(next)
-    },
-    [sttLang, stopListeningSilent],
-  )
+  // Whisper는 한·영 auto-detect — KO/EN 토글 · langSwitch 로직 제거됨.
 
   // 1) localStorage 복원 (1회) — 비어 있으면 서버 archive에서 hydration
   useEffect(() => {
@@ -406,9 +406,7 @@ function DakotaGreetingChat({
         </div>
       )}
       {isListening && (
-        <div className="text-[11px] text-muted-foreground italic px-1">
-          🎙️ 듣고 있어요{interimText ? ` — "${interimText}"` : "…"}
-        </div>
+        <div className="text-[11px] text-muted-foreground italic px-1">🎙️ 듣고 있어요…</div>
       )}
       <form onSubmit={handleSubmit} className="flex gap-2 items-end">
         <textarea
@@ -553,30 +551,11 @@ function DakotaGreetingChat({
         </div>
       </div>
 
-      {/* 하단: lang toggle + exit hint */}
-      <div className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-3">
-        {sttSupported && (
-          <div className="flex items-center gap-0.5 text-[11px] border border-border rounded-full overflow-hidden bg-card/60 backdrop-blur-sm">
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); switchLang("ko-KR") }}
-              className={`px-3 py-1 transition-colors ${
-                sttLang === "ko-KR" ? "bg-blue-500/25 text-blue-400" : "text-muted-foreground"
-              }`}
-            >
-              KO
-            </button>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); switchLang("en-US") }}
-              className={`px-3 py-1 transition-colors ${
-                sttLang === "en-US" ? "bg-blue-500/25 text-blue-400" : "text-muted-foreground"
-              }`}
-            >
-              EN
-            </button>
-          </div>
-        )}
+      {/* 하단 exit hint */}
+      <div className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-2">
+        <div className="text-[10px] text-muted-foreground/70">
+          {isTranscribing ? "transcribing…" : "Whisper · 한국어·English 자동 감지"}
+        </div>
         <div className="text-[10px] text-muted-foreground/60">사진 탭 → 채팅 모드</div>
       </div>
     </div>
