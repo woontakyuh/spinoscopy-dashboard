@@ -255,14 +255,21 @@ export function SenseiNavMap() {
   const [isPanning, setIsPanning] = useState(false)
   const panStart = useRef({ x: 0, y: 0, vx: 0, vy: 0 })
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault()
-    const factor = e.deltaY > 0 ? 1.1 : 0.9
-    setViewBox((v) => {
-      const nw = v.w * factor
-      const nh = v.h * factor
-      return { x: v.x + (v.w - nw) / 2, y: v.y + (v.h - nh) / 2, w: nw, h: nh }
-    })
+  // Zoom via explicit controls only (no wheel — page scroll 방해 방지)
+  const MIN_ZOOM = 0.5
+  const MAX_ZOOM = 3
+  const zoomLevel = SVG_W / viewBox.w
+
+  const setZoomLevel = useCallback((next: number) => {
+    const clamped = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, next))
+    const newW = SVG_W / clamped
+    const newH = SVG_H / clamped
+    setViewBox((v) => ({
+      x: v.x + (v.w - newW) / 2,
+      y: v.y + (v.h - newH) / 2,
+      w: newW,
+      h: newH,
+    }))
   }, [])
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
@@ -406,7 +413,42 @@ export function SenseiNavMap() {
               Skill
             </button>
           </div>
-          <button type="button" onClick={resetZoom} className="text-[10px] text-muted-foreground hover:text-foreground">Reset</button>
+          {/* Zoom controls — wheel zoom 제거, 명시 버튼·슬라이더로 대체 */}
+          <div className="flex items-center gap-1 border border-border rounded-md px-1.5 py-0.5">
+            <button
+              type="button"
+              onClick={() => setZoomLevel(zoomLevel / 1.2)}
+              className="px-1.5 text-foreground/80 hover:text-foreground disabled:opacity-40"
+              disabled={zoomLevel <= MIN_ZOOM + 0.01}
+              aria-label="Zoom out"
+            >−</button>
+            <input
+              type="range"
+              min={MIN_ZOOM}
+              max={MAX_ZOOM}
+              step={0.1}
+              value={zoomLevel}
+              onChange={(e) => setZoomLevel(parseFloat(e.target.value))}
+              className="w-20 accent-orange-500"
+              aria-label="Zoom level"
+            />
+            <button
+              type="button"
+              onClick={() => setZoomLevel(zoomLevel * 1.2)}
+              className="px-1.5 text-foreground/80 hover:text-foreground disabled:opacity-40"
+              disabled={zoomLevel >= MAX_ZOOM - 0.01}
+              aria-label="Zoom in"
+            >+</button>
+            <span className="text-[9px] text-muted-foreground w-8 text-right tabular-nums">
+              {Math.round(zoomLevel * 100)}%
+            </span>
+            <button
+              type="button"
+              onClick={resetZoom}
+              className="text-[9px] text-muted-foreground hover:text-foreground ml-1"
+              aria-label="Reset zoom"
+            >Reset</button>
+          </div>
           <div className="flex gap-1">
             {(["all", "gi", "nogi"] as const).map((rs) => (
               <button
@@ -444,15 +486,14 @@ export function SenseiNavMap() {
         </div>
       )}
 
-      <div className="flex gap-4 items-start">
-        {/* SVG Map */}
-        <div className="flex-1 overflow-hidden border border-border rounded-xl bg-card p-1">
+      <div className="flex gap-4 items-start max-w-[1100px] mx-auto w-full">
+        {/* SVG Map — 고정 너비 기반, 마우스 휠 줌 제거 (페이지 스크롤 방해 방지) */}
+        <div className="flex-1 min-w-0 overflow-hidden border border-border rounded-xl bg-card p-1">
           <svg
             ref={svgRef}
             viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
             className="w-full touch-none"
             style={{ minHeight: 500, cursor: isPanning ? "grabbing" : "grab" }}
-            onWheel={handleWheel}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
