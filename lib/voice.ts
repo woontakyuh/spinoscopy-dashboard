@@ -54,6 +54,8 @@ export function useSpeechRecognition(opts: {
   const [interimText, setInterimText] = useState("")
   const recogRef = useRef<WebSpeechRecognition | null>(null)
   const finalRef = useRef("")
+  const interimRef = useRef("")
+  const submittedRef = useRef(false)
 
   useEffect(() => {
     setIsSupported(!!getSRConstructor())
@@ -64,6 +66,22 @@ export function useSpeechRecognition(opts: {
       recogRef.current?.stop()
     } catch {}
   }, [])
+
+  // 사용자가 "이제 내 차례 끝" 명시적으로 누를 때:
+  // 현재까지 쌓인 final + interim을 즉시 onFinalText로 flush하고 인식 중단.
+  // onend가 중복 호출 시 재전송 방지 위해 submittedRef flag 사용.
+  const commitNow = useCallback(() => {
+    const combined = (finalRef.current + " " + interimRef.current).trim()
+    submittedRef.current = true
+    try {
+      recogRef.current?.abort()
+    } catch {}
+    setIsListening(false)
+    setInterimText("")
+    interimRef.current = ""
+    finalRef.current = ""
+    if (combined) onFinalText(combined)
+  }, [onFinalText])
 
   const start = useCallback(() => {
     const SR = getSRConstructor()
@@ -80,6 +98,8 @@ export function useSpeechRecognition(opts: {
     r.continuous = false
     r.interimResults = interim
     finalRef.current = ""
+    interimRef.current = ""
+    submittedRef.current = false
 
     r.onresult = (e) => {
       let interimStr = ""
@@ -89,15 +109,22 @@ export function useSpeechRecognition(opts: {
         if (res.isFinal) finalRef.current += transcript
         else interimStr += transcript
       }
+      interimRef.current = interimStr
       setInterimText(interimStr)
     }
     r.onerror = () => {
       setIsListening(false)
       setInterimText("")
+      interimRef.current = ""
     }
     r.onend = () => {
       setIsListening(false)
       setInterimText("")
+      interimRef.current = ""
+      if (submittedRef.current) {
+        submittedRef.current = false
+        return
+      }
       const text = finalRef.current.trim()
       if (text) onFinalText(text)
     }
@@ -119,7 +146,7 @@ export function useSpeechRecognition(opts: {
     }
   }, [])
 
-  return { isListening, isSupported, interimText, start, stop }
+  return { isListening, isSupported, interimText, start, stop, commitNow }
 }
 
 // ─── TTS hook ─────────────────────────────────────────────────────

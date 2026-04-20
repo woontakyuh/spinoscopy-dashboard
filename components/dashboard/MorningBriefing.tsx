@@ -106,6 +106,7 @@ function DakotaGreetingChat({
     interimText,
     start: startListening,
     stop: stopListening,
+    commitNow: commitVoiceInput,
   } = useSpeechRecognition({ lang: sttLang, onFinalText: handleVoiceFinal })
 
   // TTS 자동 재생 조건:
@@ -407,28 +408,6 @@ function DakotaGreetingChat({
           style={{ fontSize: "16px" }}
           className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-600 resize-none overflow-y-auto leading-snug"
         />
-        {voiceMode && sttSupported && (
-          <button
-            type="button"
-            onClick={() => {
-              if (isListening) stopListening()
-              else {
-                stopSpeech()
-                startListening()
-              }
-            }}
-            disabled={isStreaming}
-            className={`px-3 py-2 rounded-lg text-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-              isListening
-                ? "bg-red-500 text-white animate-pulse"
-                : "bg-muted border border-border text-foreground hover:bg-muted/70"
-            }`}
-            title={isListening ? "녹음 중단" : "마이크로 말하기"}
-            aria-label={isListening ? "녹음 중단" : "마이크로 말하기"}
-          >
-            {isListening ? "■" : "🎙"}
-          </button>
-        )}
         <button
           type="submit"
           disabled={isStreaming || !inputValue.trim()}
@@ -440,7 +419,9 @@ function DakotaGreetingChat({
     </>
   )
 
-  // ─── Voice immersive view (ChatGPT 스타일) — 채팅 숨김, Dakota 사진만 ──
+  // ─── Voice immersive view (ChatGPT 스타일) ───────────────────
+  // Listening(Tak 차례) = 파랑. Speaking/Thinking(Dakota 차례) = 녹색.
+  const dakotaBusy = isSpeaking || isStreaming
   const voiceImmersive = (focused && voiceMode) ? (
     <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-center p-6">
       <button
@@ -449,10 +430,10 @@ function DakotaGreetingChat({
         className="relative focus:outline-none"
         aria-label="음성모드 종료"
       >
-        {/* Glitter halo — listening/speaking 상태별 색상·애니메이션 */}
+        {/* Glitter halo — listening/busy 상태별 색상·애니메이션 */}
         <div
-          className={`absolute inset-0 -m-10 rounded-full blur-3xl transition-colors duration-500 ${
-            isSpeaking
+          className={`absolute inset-0 -m-12 rounded-full blur-3xl transition-colors duration-500 ${
+            dakotaBusy
               ? "bg-emerald-500/40 animate-pulse"
               : isListening
                 ? "bg-blue-500/40 animate-pulse"
@@ -461,7 +442,7 @@ function DakotaGreetingChat({
         />
         <div
           className={`absolute inset-0 -m-4 rounded-full border-2 transition-colors ${
-            isSpeaking
+            dakotaBusy
               ? "border-emerald-400/40 animate-ping"
               : isListening
                 ? "border-blue-400/50 animate-ping"
@@ -470,30 +451,45 @@ function DakotaGreetingChat({
         />
         <div
           className={`absolute inset-0 -m-1 rounded-full border transition-colors ${
-            isSpeaking ? "border-emerald-400/30" : isListening ? "border-blue-400/40" : "border-border"
+            dakotaBusy ? "border-emerald-400/30" : isListening ? "border-blue-400/40" : "border-border"
           }`}
         />
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={image}
           alt="Dakota"
-          className="relative w-64 h-64 md:w-80 md:h-80 rounded-full object-cover object-top border-2 border-border shadow-2xl select-none"
+          className="relative w-80 h-80 md:w-[26rem] md:h-[26rem] rounded-full object-cover object-top border-2 border-border shadow-2xl select-none"
           draggable={false}
         />
       </button>
 
-      <div className="mt-10 text-center space-y-1">
-        <div className="text-sm text-foreground/80 font-medium">
+      {/* 사진 바로 밑: "Dakota 차례로" 즉시 넘기기 버튼 */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          if (isListening) commitVoiceInput()
+        }}
+        disabled={!isListening}
+        className={`mt-8 px-5 py-2.5 rounded-full text-[13px] font-medium transition-all ${
+          isListening
+            ? "bg-blue-500 text-white hover:bg-blue-500/90 shadow-lg"
+            : "bg-muted/40 text-muted-foreground/50 cursor-not-allowed"
+        }`}
+        title="내 말 끝, Dakota 차례로"
+      >
+        {isListening ? "↓ 내 말 끝, Dakota 차례" : dakotaBusy ? "Dakota 응답 중…" : "— 대기 —"}
+      </button>
+
+      <div className="mt-4 text-center space-y-1">
+        <div className="text-[12px] text-muted-foreground">
           {isSpeaking
-            ? "🔊 Dakota is speaking"
-            : isListening
-              ? "🎙 Listening…"
-              : isStreaming
-                ? "… thinking"
+            ? "🔊 Speaking"
+            : isStreaming
+              ? "… thinking"
+              : isListening
+                ? "🎙 Listening"
                 : "Tap photo to exit"}
-        </div>
-        <div className="text-[10px] text-muted-foreground">
-          {voiceMode ? `STT: ${sttLang === "ko-KR" ? "한국어" : "English"} · 응답은 English` : ""}
         </div>
       </div>
 
@@ -538,16 +534,15 @@ function DakotaGreetingChat({
   const focusedOverlay = (focused && !voiceMode) ? (
     <div className="fixed inset-0 z-50 bg-background backdrop-blur-sm overflow-hidden flex items-stretch md:items-center justify-center md:p-6">
         <div className="w-full h-full md:max-w-5xl md:h-[80vh] flex flex-col md:flex-row md:gap-6 overflow-hidden">
-          {/* Dakota 캐릭터 — 모바일: 상단 가운데, 데스크탑: 좌측 채팅창 바깥 */}
+          {/* Dakota 캐릭터 — 탭하면 음성모드 진입 (비공개 entry point) */}
           <div className="shrink-0 flex justify-center md:items-center pt-3 md:pt-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={image}
               alt="Dakota"
-              onClick={() => setFocused(false)}
+              onClick={toggleVoiceMode}
               className="h-[28vh] md:h-full w-auto max-w-[50vw] md:max-w-[280px] object-contain select-none cursor-pointer hover:opacity-90 transition-opacity"
               draggable={false}
-              title="클릭해서 원래 크기로"
             />
           </div>
 
@@ -565,62 +560,16 @@ function DakotaGreetingChat({
             {/* 입력창 + 비우기 버튼 */}
             <div className="shrink-0 flex flex-col gap-1.5">
               {inputForm}
-              <div className="flex items-center justify-end gap-3">
-                {voiceMode && sttSupported && (
-                  <div className="flex items-center gap-0.5 text-[10px] border border-border rounded-full overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => setSttLang("ko-KR")}
-                      className={`px-2 py-0.5 transition-colors ${
-                        sttLang === "ko-KR" ? "bg-blue-500/20 text-blue-400" : "text-muted-foreground hover:text-foreground"
-                      }`}
-                      title="한국어로 듣기"
-                    >
-                      KO
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSttLang("en-US")}
-                      className={`px-2 py-0.5 transition-colors ${
-                        sttLang === "en-US" ? "bg-blue-500/20 text-blue-400" : "text-muted-foreground hover:text-foreground"
-                      }`}
-                      title="영어로 듣기"
-                    >
-                      EN
-                    </button>
-                  </div>
-                )}
-                {(ttsSupported || sttSupported) && (
-                  <button
-                    type="button"
-                    onClick={toggleVoiceMode}
-                    className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
-                      voiceMode
-                        ? "bg-blue-500/15 border-blue-500/40 text-blue-500"
-                        : "bg-muted/40 border-border text-muted-foreground hover:text-foreground"
-                    }`}
-                    title={voiceMode ? "음성모드 끄기 (텍스트 채팅으로)" : "음성모드 켜기 (한 번 탭 → 즉시 대화 시작)"}
-                  >
-                    {voiceMode
-                      ? isSpeaking
-                        ? "🎧 음성모드 · 말하는 중…"
-                        : isListening
-                          ? "🎧 음성모드 · 듣는 중…"
-                          : "🎧 음성모드 ON"
-                      : "💬 음성모드 OFF"}
-                  </button>
-                )}
-                {messages.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={clearConversation}
-                    className="text-[10px] text-muted-foreground/60 hover:text-muted-foreground"
-                    title="채팅창 비우기 (기억은 유지)"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
+              {messages.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearConversation}
+                  className="text-[10px] text-muted-foreground/60 hover:text-muted-foreground self-end"
+                  title="채팅창 비우기 (기억은 유지)"
+                >
+                  Clear
+                </button>
+              )}
             </div>
           </div>
         </div>
