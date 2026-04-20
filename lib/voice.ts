@@ -84,7 +84,8 @@ export function useSpeechRecognition(opts: {
   // 사용자가 "이제 내 차례 끝" 명시적으로 누를 때:
   // 현재까지 쌓인 final + interim을 즉시 onFinalText로 flush하고 인식 중단.
   // onend가 중복 호출 시 재전송 방지 위해 submittedRef flag 사용.
-  const commitNow = useCallback(() => {
+  // 반환값: 실제로 텍스트를 보냈는지 여부 (empty면 false → 호출측이 재시도 결정)
+  const commitNow = useCallback((): boolean => {
     const combined = (finalRef.current + " " + interimRef.current).trim()
     submittedRef.current = true
     try {
@@ -94,7 +95,11 @@ export function useSpeechRecognition(opts: {
     setInterimText("")
     interimRef.current = ""
     finalRef.current = ""
-    if (combined) onFinalText(combined)
+    if (combined) {
+      onFinalText(combined)
+      return true
+    }
+    return false
   }, [onFinalText])
 
   const start = useCallback(() => {

@@ -493,24 +493,37 @@ function DakotaGreetingChat({
         />
       </button>
 
-      {/* 정지 아이콘 — Tak 발화 중에만 활성, 즉시 Dakota 응답으로 넘김 */}
+      {/* 차례 스위치 버튼 — 파랑(내 말 중) → 녹색으로, 녹색(Dakota 중) → 파랑으로 인터럽트 */}
       <button
         type="button"
         onClick={(e) => {
           e.stopPropagation()
           e.preventDefault()
           if (isListening) {
-            setExpectingResponse(true)  // 즉시 녹색 전환
-            commitVoiceInput()
+            // 내 차례 종료 → Dakota 차례로
+            const sent = commitVoiceInput()
+            if (sent) {
+              setExpectingResponse(true)
+            } else {
+              // 인식 못 함 → 다시 들을게
+              startListening()
+            }
+          } else if (dakotaBusy) {
+            // Dakota 인터럽트 → 내 차례 가져오기
+            stopSpeech()
+            setExpectingResponse(false)
+            startListening()
           }
         }}
-        disabled={!isListening}
-        aria-label="내 차례 종료"
-        title="내 차례 종료"
+        disabled={!voiceMode || (!isListening && !dakotaBusy)}
+        aria-label={isListening ? "내 차례 종료" : "Dakota 끊고 내가 말하기"}
+        title={isListening ? "내 차례 종료" : "Dakota 끊기"}
         className={`mt-10 w-14 h-14 rounded-full flex items-center justify-center transition-all ${
           isListening
             ? "bg-blue-500 text-white shadow-xl active:scale-95"
-            : "bg-muted/30 text-muted-foreground/40 pointer-events-none"
+            : dakotaBusy
+              ? "bg-emerald-500 text-white shadow-xl active:scale-95"
+              : "bg-muted/30 text-muted-foreground/40 pointer-events-none"
         }`}
       >
         <span className="block w-4 h-4 bg-current rounded-sm" />
