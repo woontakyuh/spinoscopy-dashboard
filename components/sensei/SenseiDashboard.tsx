@@ -155,7 +155,7 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
           {/* 좌: 이미지 (모바일 숨김) */}
           <div className="hidden md:flex bg-muted items-end justify-center">
             {!imgError ? (
-              <img src="/images/character_full.png" alt="" className="w-full max-w-[240px] max-h-[520px] object-contain object-bottom" onError={() => setImgError(true)} />
+              <img src="/images/character_full.png?v=2" alt="" className="w-full max-w-[240px] max-h-[520px] object-contain object-bottom" onError={() => setImgError(true)} />
             ) : (
               <svg viewBox="0 0 120 160" className="w-28 mb-4"><circle cx="60" cy="30" r="20" fill="#52525b"/><path d="M32 58 Q32 48 42 46 L60 52 L78 46 Q88 48 88 58 L88 118 L32 118 Z" fill="#d4d4d8"/><rect x="32" y="86" width="56" height="7" rx="1" fill={beltHex}/><path d="M32 118 L36 152 L54 152 L60 122 L66 152 L84 152 L88 118 Z" fill="#3f3f46"/></svg>
             )}
