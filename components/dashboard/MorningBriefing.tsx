@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useRef, useEffect, type FormEvent } from "react"
+import { useState, useRef, useEffect, useCallback, type FormEvent } from "react"
 import { createPortal } from "react-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import { useChat } from "@ai-sdk/react"
 import { TextStreamChatTransport } from "ai"
 import { WeatherInline, useWeatherLocation } from "@/components/dashboard/WeatherInline"
 import { pickDakotaGreeting } from "@/lib/dakotaGreetings"
+import { useSpeechRecognition, useSpeechSynthesis } from "@/lib/voice"
 import {
   getSlot,
   dateKeySeoul,
@@ -69,6 +70,61 @@ function DakotaGreetingChat({
   const hydratedRef = useRef(false)
   const [focused, setFocused] = useState(false)
   const sessionStartRef = useRef<{ time: string; messageCount: number } | null>(null)
+
+  // ─── Voice (Z안: 브라우저 내장 API) ──────────────────────────
+  const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(false)
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("dakota-voice-enabled")
+      if (v === "true") setVoiceOutputEnabled(true)
+    } catch {}
+  }, [])
+  useEffect(() => {
+    try {
+      localStorage.setItem("dakota-voice-enabled", String(voiceOutputEnabled))
+    } catch {}
+  }, [voiceOutputEnabled])
+
+  const { speak, stop: stopSpeech, isSupported: ttsSupported, isSpeaking } = useSpeechSynthesis("ko-KR")
+
+  const handleVoiceFinal = useCallback(
+    (text: string) => {
+      const trimmed = text.trim()
+      if (!trimmed) return
+      sendMessage({ text: trimmed })
+    },
+    [sendMessage],
+  )
+  const {
+    isListening,
+    isSupported: sttSupported,
+    interimText,
+    start: startListening,
+    stop: stopListening,
+  } = useSpeechRecognition({ lang: "ko-KR", onFinalText: handleVoiceFinal })
+
+  // 새 assistant 메시지 완료되면 자동 읽어주기 (voice mode 켜진 경우)
+  const lastSpokenIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!voiceOutputEnabled || !ttsSupported) return
+    if (isStreaming) return
+    if (messages.length === 0) return
+    const last = messages[messages.length - 1]
+    if (last.role !== "assistant") return
+    if (lastSpokenIdRef.current === last.id) return
+    const text = getChatText(last.parts).replace(/\{\{OUTFIT:\w+:\w+\}\}/g, "").trim()
+    if (!text) return
+    lastSpokenIdRef.current = last.id
+    speak(text)
+  }, [messages, isStreaming, voiceOutputEnabled, ttsSupported, speak])
+
+  // Focus overlay 닫히거나 unmount 시 음성 중단
+  useEffect(() => {
+    if (!focused) {
+      stopSpeech()
+      stopListening()
+    }
+  }, [focused, stopSpeech, stopListening])
 
   // 1) localStorage 복원 (1회) — 비어 있으면 서버 archive에서 hydration
   useEffect(() => {
@@ -272,6 +328,11 @@ function DakotaGreetingChat({
           오류: {error.message || "응답을 가져오지 못했습니다."}
         </div>
       )}
+      {isListening && (
+        <div className="text-[11px] text-muted-foreground italic px-1">
+          🎙️ 듣고 있어요{interimText ? ` — "${interimText}"` : "…"}
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="flex gap-2 items-end">
         <textarea
           value={inputValue}
@@ -307,6 +368,30 @@ function DakotaGreetingChat({
           style={{ fontSize: "16px" }}
           className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-600 resize-none overflow-y-auto leading-snug"
         />
+        {sttSupported && (
+          <button
+            type="button"
+            onClick={() => {
+              if (isListening) stopListening()
+              else {
+                // 음성 모드 꺼져있으면 같이 켜기 (말한 뒤 답 들으려면 TTS 필요)
+                if (ttsSupported && !voiceOutputEnabled) setVoiceOutputEnabled(true)
+                stopSpeech()
+                startListening()
+              }
+            }}
+            disabled={isStreaming}
+            className={`px-3 py-2 rounded-lg text-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+              isListening
+                ? "bg-red-500 text-white animate-pulse"
+                : "bg-muted border border-border text-foreground hover:bg-muted/70"
+            }`}
+            title={isListening ? "녹음 중단" : "마이크로 말하기"}
+            aria-label={isListening ? "녹음 중단" : "마이크로 말하기"}
+          >
+            {isListening ? "■" : "🎙"}
+          </button>
+        )}
         <button
           type="submit"
           disabled={isStreaming || !inputValue.trim()}
@@ -349,16 +434,43 @@ function DakotaGreetingChat({
             {/* 입력창 + 비우기 버튼 */}
             <div className="shrink-0 flex flex-col gap-1.5">
               {inputForm}
-              {messages.length > 0 && (
-                <button
-                  type="button"
-                  onClick={clearConversation}
-                  className="text-[10px] text-muted-foreground/60 hover:text-muted-foreground self-end"
-                  title="채팅창 비우기 (기억은 유지)"
-                >
-                  Clear
-                </button>
-              )}
+              <div className="flex items-center justify-end gap-3">
+                {ttsSupported && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (voiceOutputEnabled) {
+                        stopSpeech()
+                        setVoiceOutputEnabled(false)
+                      } else {
+                        setVoiceOutputEnabled(true)
+                      }
+                    }}
+                    className={`text-[10px] transition-colors ${
+                      voiceOutputEnabled
+                        ? "text-blue-500 hover:text-blue-400"
+                        : "text-muted-foreground/60 hover:text-muted-foreground"
+                    }`}
+                    title={voiceOutputEnabled ? "음성 답변 끄기" : "음성 답변 켜기"}
+                  >
+                    {voiceOutputEnabled
+                      ? isSpeaking
+                        ? "🔊 말하는 중… (클릭해서 끄기)"
+                        : "🔊 음성 답변 켜짐"
+                      : "🔇 음성 답변 꺼짐"}
+                  </button>
+                )}
+                {messages.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearConversation}
+                    className="text-[10px] text-muted-foreground/60 hover:text-muted-foreground"
+                    title="채팅창 비우기 (기억은 유지)"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
