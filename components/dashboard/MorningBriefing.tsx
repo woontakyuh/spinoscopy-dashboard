@@ -92,19 +92,21 @@ function DakotaGreetingChat({
   // 오디오 blob → Whisper 전사 → Dakota에 전송
   const handleAudioReady = useCallback(
     async (blob: Blob) => {
+      console.log("[voice] audio ready, size:", blob.size, "type:", blob.type)
       setIsTranscribing(true)
       try {
         const form = new FormData()
         form.append("audio", blob, "audio.webm")
         const res = await fetch("/api/voice/stt", { method: "POST", body: form })
         if (!res.ok) {
-          console.warn("[voice] STT http", res.status)
+          console.warn("[voice] STT http", res.status, await res.text().catch(() => ""))
           return
         }
         const data = (await res.json()) as { text?: string }
         const text = (data.text ?? "").trim()
+        console.log("[voice] transcribed:", text)
         if (!text) {
-          console.warn("[voice] empty transcription")
+          console.warn("[voice] empty transcription — skipping")
           return
         }
         lastInputViaMicRef.current = true
@@ -180,18 +182,22 @@ function DakotaGreetingChat({
   }, [voiceMode, messages.length, stopSpeech, stopRecordingSilent, startListening, primeAudio])
 
   // TTS 끝나면 자동으로 다시 listening (ChatGPT 음성모드 스타일 대화 루프)
-  // 첫 시도 실패할 수 있어 300ms 뒤 재시도 + 1.5s 안전망도 둠.
   const prevSpeakingRef = useRef(false)
   useEffect(() => {
     const wasSpeaking = prevSpeakingRef.current
     prevSpeakingRef.current = isSpeaking
     if (!wasSpeaking || isSpeaking) return
     if (!voiceMode || isListening || isStreaming) return
+    console.log("[voice] auto-restart scheduled (TTS ended)")
     const t1 = setTimeout(() => {
-      if (voiceMode && !isStreaming && !isSpeaking) startListening()
+      if (voiceMode && !isStreaming && !isSpeaking) {
+        console.log("[voice] t1 300ms → startListening")
+        startListening()
+      }
     }, 300)
     const t2 = setTimeout(() => {
       if (voiceMode && !isListening && !isStreaming && !isSpeaking) {
+        console.log("[voice] t2 1500ms safety → startListening")
         startListening()
       }
     }, 1500)
@@ -200,6 +206,20 @@ function DakotaGreetingChat({
       clearTimeout(t2)
     }
   }, [isSpeaking, voiceMode, isListening, isStreaming, startListening])
+
+  // 추가 safety: Dakota 응답 끝나고 TTS 없이 곧바로 다음 턴 (TTS fail 등) 커버
+  useEffect(() => {
+    if (!voiceMode) return
+    if (isListening || isStreaming || isSpeaking || expectingResponse || isTranscribing) return
+    // 모든 작업 끝난 상태 + 녹음 X → 재시작
+    const t = setTimeout(() => {
+      if (voiceMode && !isListening && !isStreaming && !isSpeaking && !expectingResponse && !isTranscribing) {
+        console.log("[voice] idle-safety → startListening")
+        startListening()
+      }
+    }, 800)
+    return () => clearTimeout(t)
+  }, [voiceMode, isListening, isStreaming, isSpeaking, expectingResponse, isTranscribing, startListening])
 
   // Whisper는 한·영 auto-detect — KO/EN 토글 · langSwitch 로직 제거됨.
 
@@ -551,10 +571,13 @@ function DakotaGreetingChat({
         </div>
       </div>
 
-      {/* 하단 exit hint */}
+      {/* 하단 exit hint + 디버그 state */}
       <div className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-2">
         <div className="text-[10px] text-muted-foreground/70">
-          {isTranscribing ? "transcribing…" : "Whisper · 한국어·English 자동 감지"}
+          {isTranscribing ? "transcribing…" : "Whisper · 한·영 자동 감지"}
+        </div>
+        <div className="text-[9px] font-mono text-muted-foreground/50 bg-muted/30 px-2 py-0.5 rounded">
+          rec:{isRecording ? "Y" : "n"} · trans:{isTranscribing ? "Y" : "n"} · stream:{isStreaming ? "Y" : "n"} · speak:{isSpeaking ? "Y" : "n"} · wait:{expectingResponse ? "Y" : "n"}
         </div>
         <div className="text-[10px] text-muted-foreground/60">사진 탭 → 채팅 모드</div>
       </div>
