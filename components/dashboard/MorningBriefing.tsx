@@ -472,21 +472,20 @@ function DakotaGreetingChat({
         className="relative focus:outline-none"
         aria-label="음성모드 종료"
       >
-        {/* Subtle outline glow — 사진 윤곽선 따라 은은한 단일 그림자 */}
-        <div
-          className={`pointer-events-none absolute inset-0 rounded-full transition-[box-shadow,border-color] duration-500 ${
-            dakotaBusy
-              ? "border border-emerald-400/40 shadow-[0_0_28px_6px_rgba(16,185,129,0.35)]"
-              : isListening
-                ? "border border-blue-400/40 shadow-[0_0_28px_6px_rgba(59,130,246,0.35)]"
-                : "border border-border/40"
-          }`}
-        />
+        {/* 실루엣 글로잉 — 누끼 PNG 의 투명 픽셀 무시하고 사진 실루엣만 따라 drop-shadow */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={image}
           alt="Dakota"
-          className="relative w-[90vw] h-[90vw] max-w-[28rem] max-h-[28rem] md:w-[30rem] md:h-[30rem] rounded-full object-cover object-top border-2 border-border shadow-2xl select-none"
+          className="relative h-[65vh] w-auto max-h-[36rem] object-contain select-none"
+          style={{
+            filter: dakotaBusy
+              ? "drop-shadow(0 0 10px rgba(16,185,129,0.7)) drop-shadow(0 0 24px rgba(16,185,129,0.35))"
+              : isListening
+                ? "drop-shadow(0 0 10px rgba(59,130,246,0.7)) drop-shadow(0 0 24px rgba(59,130,246,0.35))"
+                : "drop-shadow(0 0 6px rgba(255,255,255,0.15))",
+            transition: "filter 500ms ease",
+          }}
           draggable={false}
         />
       </button>
