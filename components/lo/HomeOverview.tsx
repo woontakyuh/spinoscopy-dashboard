@@ -258,15 +258,34 @@ export function HomeOverview({ goTo }: { goTo?: (tab: string) => void }) {
           </div>
         </Card>
 
-        {/* Current Focus */}
-        <Card title="Current Focus" onClick={() => goTo?.("navmap")}>
-          {profile?.currentFocus ? (
-            <p className="text-[12px] text-foreground/80 leading-relaxed line-clamp-4 whitespace-pre-wrap">
-              {profile.currentFocus}
-            </p>
+        {/* Hypothesis & Focus — Player Profile 두 섹션 통합 카드 */}
+        <Card title="Hypothesis & Focus" onClick={() => goTo?.("navmap")}>
+          {profile?.workingHypothesis || profile?.currentFocus ? (
+            <div className="space-y-2">
+              {profile?.workingHypothesis && (
+                <div className="border-l-2 border-[#1D9E75]/60 pl-2 -ml-1">
+                  <p className="text-[10px] font-semibold tracking-wider text-[#1D9E75] uppercase mb-0.5">
+                    Hypothesis
+                  </p>
+                  <p className="text-[11px] text-foreground/80 leading-relaxed line-clamp-2 whitespace-pre-wrap">
+                    {profile.workingHypothesis}
+                  </p>
+                </div>
+              )}
+              {profile?.currentFocus && (
+                <div>
+                  <p className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-0.5">
+                    Current Focus
+                  </p>
+                  <p className="text-[11px] text-foreground/80 leading-relaxed line-clamp-3 whitespace-pre-wrap">
+                    {profile.currentFocus}
+                  </p>
+                </div>
+              )}
+            </div>
           ) : (
             <p className="text-[11px] text-muted-foreground/70">
-              Player Profile `## Current Focus` 섹션 추가 시 표시
+              Player Profile에 `## Working hypothesis` / `## Current Focus` 섹션 추가 시 표시
             </p>
           )}
         </Card>

@@ -9,7 +9,6 @@ import { SenseiCalendar } from "@/components/sensei/SenseiCalendar"
 import { SenseiCapture } from "@/components/sensei/SenseiCapture"
 import { HomeOverview } from "@/components/lo/HomeOverview"
 import { ConceptsFeed } from "@/components/lo/ConceptsFeed"
-import { WorkingHypothesisBanner } from "@/components/lo/WorkingHypothesisBanner"
 import { NavMapWrapper } from "@/components/lo/NavMapWrapper"
 import { CompetitionsView } from "@/components/lo/CompetitionsView"
 import { getTimeContext } from "@/lib/greeterContext"
@@ -148,9 +147,6 @@ export default function LoPage() {
       {/* Content */}
       <div className="flex-1 min-w-0 p-3 md:p-6">
         <AgentChat agentId="lo" image="/lo.png" name="Lo" greeting={isTabLoading ? "..." : message} />
-
-        {/* Persistent Working Hypothesis banner (Phase 2에서 데이터 연결) */}
-        <WorkingHypothesisBanner />
 
         {activeTab === "home" && <HomeOverview goTo={(t) => setActiveTab(t as LoTab)} />}
 
