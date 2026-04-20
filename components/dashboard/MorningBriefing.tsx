@@ -207,6 +207,20 @@ function DakotaGreetingChat({
     }
   }, [isSpeaking, voiceMode, isListening, isStreaming, startListening])
 
+  // 추가 safety: Dakota 응답 끝나고 TTS 없이 곧바로 다음 턴 (TTS fail 등) 커버
+  useEffect(() => {
+    if (!voiceMode) return
+    if (isListening || isStreaming || isSpeaking || expectingResponse || isTranscribing) return
+    // 모든 작업 끝난 상태 + 녹음 X → 재시작
+    const t = setTimeout(() => {
+      if (voiceMode && !isListening && !isStreaming && !isSpeaking && !expectingResponse && !isTranscribing) {
+        console.log("[voice] idle-safety → startListening")
+        startListening()
+      }
+    }, 800)
+    return () => clearTimeout(t)
+  }, [voiceMode, isListening, isStreaming, isSpeaking, expectingResponse, isTranscribing, startListening])
+
   // Whisper는 한·영 auto-detect — KO/EN 토글 · langSwitch 로직 제거됨.
 
   // 1) localStorage 복원 (1회) — 비어 있으면 서버 archive에서 hydration
@@ -468,19 +482,6 @@ function DakotaGreetingChat({
     if (isStreaming || isSpeaking) setExpectingResponse(false)
   }, [isStreaming, isSpeaking])
   const dakotaBusy = isSpeaking || isStreaming || expectingResponse
-
-  // Idle-safety: voiceMode ON인데 모든 게 idle이면 800ms 후 자동 녹음 재시작
-  useEffect(() => {
-    if (!voiceMode) return
-    if (isListening || isStreaming || isSpeaking || expectingResponse || isTranscribing) return
-    const t = setTimeout(() => {
-      if (voiceMode && !isListening && !isStreaming && !isSpeaking && !expectingResponse && !isTranscribing) {
-        console.log("[voice] idle-safety → startListening")
-        startListening()
-      }
-    }, 800)
-    return () => clearTimeout(t)
-  }, [voiceMode, isListening, isStreaming, isSpeaking, expectingResponse, isTranscribing, startListening])
   const voiceImmersive = (focused && voiceMode) ? (
     <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-center p-6">
       <button
