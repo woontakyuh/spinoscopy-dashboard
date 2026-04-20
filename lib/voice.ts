@@ -35,10 +35,6 @@ export function useAudioRecording(opts: {
   const silentCommitRef = useRef(false) // silent stop 시엔 콜백 호출 안 함
   const mimeTypeRef = useRef<string>("audio/webm")
 
-  const log = (...args: unknown[]) => {
-    console.log("[voice.rec]", ...args)
-  }
-
   useEffect(() => { onAudioReadyRef.current = onAudioReady }, [onAudioReady])
 
   useEffect(() => {
@@ -52,104 +48,64 @@ export function useAudioRecording(opts: {
   }, [])
 
   const teardown = useCallback(() => {
-    log("teardown called, state:", {
-      hasRaf: rafRef.current != null,
-      recorderState: recorderRef.current?.state,
-      hasStream: !!streamRef.current,
-      hasAudioCtx: !!audioCtxRef.current,
-    })
     if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
     rafRef.current = null
     if (recorderRef.current && recorderRef.current.state !== "inactive") {
-      try { recorderRef.current.stop() } catch (e) { log("recorder.stop err:", e) }
+      try { recorderRef.current.stop() } catch {}
     }
     recorderRef.current = null
-    // Stream은 유지 (Safari 이슈 — 반복 getUserMedia 대신 재사용)
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop())
+    }
+    streamRef.current = null
     if (audioCtxRef.current) {
-      try { audioCtxRef.current.close() } catch (e) { log("ctx.close err:", e) }
+      try { audioCtxRef.current.close() } catch {}
     }
     audioCtxRef.current = null
     analyserRef.current = null
     setIsRecording(false)
     setVolume(0)
-    log("teardown done")
   }, [])
 
-  // voice mode OFF 등 완전 종료 시 호출 — stream 포함 전체 릴리즈
-  const releaseStream = useCallback(() => {
-    log("releaseStream called")
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop())
-      streamRef.current = null
-    }
-  }, [])
-
-  // 오디오 폐기 없이 그냥 종료 — stream까지 완전 해제 (voice mode OFF 용도)
+  // 오디오 폐기 없이 그냥 종료 (lang 변경·voice mode off 시)
   const stopSilent = useCallback(() => {
-    log("stopSilent")
     silentCommitRef.current = true
     chunksRef.current = []
     teardown()
-    releaseStream()
-  }, [teardown, releaseStream])
+  }, [teardown])
 
   // 명시적 commit — 지금까지 녹음된 거 서버로 보내기
   const commitNow = useCallback((): boolean => {
-    log("commitNow called, state:", {
-      recorderState: recorderRef.current?.state,
-      dur: Date.now() - startTimeRef.current,
-      chunks: chunksRef.current.length,
-    })
     silentCommitRef.current = false
     const dur = Date.now() - startTimeRef.current
     const recorder = recorderRef.current
     if (!recorder || recorder.state === "inactive") {
-      log("commitNow: no active recorder")
       teardown()
       return false
     }
     // onstop에서 블롭 조립 + 콜백 호출됨
-    try { recorder.stop() } catch (e) { log("commitNow stop err:", e) }
+    try { recorder.stop() } catch {}
+    // Stop 후 실제 콜백은 recorder.onstop에서
     return dur >= minUtteranceMs
   }, [minUtteranceMs, teardown])
 
   const start = useCallback(async () => {
-    log("start() called", {
-      isRecording,
-      hasRecorder: !!recorderRef.current,
-      recorderState: recorderRef.current?.state,
-      hasStream: !!streamRef.current,
-      hasAudioCtx: !!audioCtxRef.current,
-    })
     // 이미 정상 녹음 중이면 skip. 그러나 state/ref 불일치(좀비)면 강제 teardown 후 재시작.
-    if (isRecording && recorderRef.current?.state === "recording") {
-      log("start: already recording, skip")
-      return
-    }
-    // 녹음 관련 리소스만 teardown, stream은 유지
-    if (recorderRef.current || audioCtxRef.current) {
-      log("start: cleaning up previous recorder/audioctx")
+    if (isRecording && recorderRef.current?.state === "recording") return
+    if (isRecording || recorderRef.current || streamRef.current) {
       teardown()
-      await new Promise((r) => setTimeout(r, 80))
+      // 다음 프레임에 다시 시작 (리소스 해제 시간 확보)
+      await new Promise((r) => setTimeout(r, 50))
     }
     silentCommitRef.current = false
     try {
-      // Stream 재사용 — 이미 있으면 그대로, track이 ended면 새로 받기
-      let stream = streamRef.current
-      const tracksAlive = stream?.getTracks().every((t) => t.readyState === "live")
-      if (!stream || !tracksAlive) {
-        log("start: requesting fresh getUserMedia")
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
-        })
-        log("start: got stream, tracks:", stream.getTracks().length)
-      } else {
-        log("start: reusing existing stream")
-      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      })
       streamRef.current = stream
 
       // 볼륨 감지용 AudioContext
@@ -158,12 +114,6 @@ export function useAudioRecording(opts: {
         (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
       if (!AudioCtor) throw new Error("AudioContext not supported")
       const ctx = new AudioCtor()
-      log("start: audioCtx state=", ctx.state)
-      // Safari에서 suspended 상태로 생성될 수 있음 — resume 시도
-      if (ctx.state === "suspended") {
-        try { await ctx.resume() } catch (e) { log("ctx.resume err:", e) }
-        log("start: audioCtx after resume=", ctx.state)
-      }
       audioCtxRef.current = ctx
       const source = ctx.createMediaStreamSource(stream)
       const analyser = ctx.createAnalyser()
@@ -206,7 +156,6 @@ export function useAudioRecording(opts: {
       }
       recorder.start(250)
       recorderRef.current = recorder
-      log("start: MediaRecorder started, mime=", mime)
 
       startTimeRef.current = Date.now()
       lastVoiceTimeRef.current = Date.now()
@@ -240,23 +189,14 @@ export function useAudioRecording(opts: {
       }
       rafRef.current = requestAnimationFrame(monitor)
     } catch (err) {
-      log("start FAILED:", err)
+      console.warn("[audio] start failed:", err)
       teardown()
-      releaseStream()
     }
-  }, [isRecording, rmsThreshold, silenceMs, minUtteranceMs, commitNow, teardown, releaseStream])
+  }, [isRecording, rmsThreshold, silenceMs, minUtteranceMs, commitNow, teardown])
 
   useEffect(() => {
     return () => teardown()
   }, [teardown])
-
-  useEffect(() => {
-    return () => {
-      log("hook unmount — full release")
-      teardown()
-      releaseStream()
-    }
-  }, [teardown, releaseStream])
 
   return { isRecording, isSupported, volume, start, stopSilent, commitNow }
 }
