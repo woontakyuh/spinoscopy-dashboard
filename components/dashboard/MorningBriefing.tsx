@@ -75,12 +75,13 @@ function DakotaGreetingChat({
   const [focused, setFocused] = useState(false)
   const sessionStartRef = useRef<{ time: string; messageCount: number } | null>(null)
 
-  // ─── 음성대화모드 (단일 토글) ─────────────────────────────
-  // 운전 중 Dakota와 음성으로 대화. 토글 ON → 마이크 버튼 등장 + 음성 입력
-  // 건에만 TTS 자동 재생 + 서버가 영어·짧게 응답. 타자 입력은 항상 텍스트만.
+  // ─── 음성대화모드 (단일 토글, 원터치) ─────────────────────
+  // 모바일 전용 UX: 토글 탭 → 즉시 listening 시작. Dakota는 영어 전용 답변.
+  // STT 언어는 한국어·영어 중 선택 (브라우저 한계상 자동감지 불가).
   // 세션 단위 상태 (localStorage 비저장). focus 닫히면 리셋.
   const [voiceMode, setVoiceMode] = useState(false)
   const [voiceEnabledFromIndex, setVoiceEnabledFromIndex] = useState<number | null>(null)
+  const [sttLang, setSttLang] = useState<"ko-KR" | "en-US">("ko-KR")
   // 직전 메시지가 mic(음성)로 들어왔는지 추적 — 타자 입력은 TTS 자동재생 X
   const lastInputViaMicRef = useRef(false)
 
@@ -105,7 +106,7 @@ function DakotaGreetingChat({
     interimText,
     start: startListening,
     stop: stopListening,
-  } = useSpeechRecognition({ lang: "en-US", onFinalText: handleVoiceFinal })
+  } = useSpeechRecognition({ lang: sttLang, onFinalText: handleVoiceFinal })
 
   // TTS 자동 재생 조건:
   //   voiceMode ON + 직전 입력이 mic + voice 토글 시점 이후 메시지
@@ -146,8 +147,10 @@ function DakotaGreetingChat({
     } else {
       setVoiceMode(true)
       setVoiceEnabledFromIndex(messages.length)
+      // 원터치 UX: 토글 켜자마자 listening 시작 (user gesture 안에서 호출)
+      startListening()
     }
-  }, [voiceMode, messages.length, stopSpeech, stopListening])
+  }, [voiceMode, messages.length, stopSpeech, stopListening, startListening])
 
   // 1) localStorage 복원 (1회) — 비어 있으면 서버 archive에서 hydration
   useEffect(() => {
@@ -456,6 +459,30 @@ function DakotaGreetingChat({
             <div className="shrink-0 flex flex-col gap-1.5">
               {inputForm}
               <div className="flex items-center justify-end gap-3">
+                {voiceMode && sttSupported && (
+                  <div className="flex items-center gap-0.5 text-[10px] border border-border rounded-full overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setSttLang("ko-KR")}
+                      className={`px-2 py-0.5 transition-colors ${
+                        sttLang === "ko-KR" ? "bg-blue-500/20 text-blue-400" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      title="한국어로 듣기"
+                    >
+                      KO
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSttLang("en-US")}
+                      className={`px-2 py-0.5 transition-colors ${
+                        sttLang === "en-US" ? "bg-blue-500/20 text-blue-400" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      title="영어로 듣기"
+                    >
+                      EN
+                    </button>
+                  </div>
+                )}
                 {(ttsSupported || sttSupported) && (
                   <button
                     type="button"
@@ -465,15 +492,15 @@ function DakotaGreetingChat({
                         ? "bg-blue-500/15 border-blue-500/40 text-blue-500"
                         : "bg-muted/40 border-border text-muted-foreground hover:text-foreground"
                     }`}
-                    title={voiceMode ? "음성대화모드 끄기 (텍스트 채팅으로)" : "음성대화모드 켜기 (운전 중 대화)"}
+                    title={voiceMode ? "음성모드 끄기 (텍스트 채팅으로)" : "음성모드 켜기 (한 번 탭 → 즉시 대화 시작)"}
                   >
                     {voiceMode
                       ? isSpeaking
-                        ? "🎧 음성대화모드 · 말하는 중…"
+                        ? "🎧 음성모드 · 말하는 중…"
                         : isListening
-                          ? "🎧 음성대화모드 · 듣는 중…"
-                          : "🎧 음성대화모드 ON"
-                      : "💬 음성대화모드 OFF"}
+                          ? "🎧 음성모드 · 듣는 중…"
+                          : "🎧 음성모드 ON"
+                      : "💬 음성모드 OFF"}
                   </button>
                 )}
                 {messages.length > 0 && (
