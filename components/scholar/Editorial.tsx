@@ -4,7 +4,10 @@ import { useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { EditorialItem, EditorialRole } from "@/lib/types/editorial"
+import type {
+  EditorialItem,
+  EditorialRole,
+} from "@/lib/types/editorial"
 import { isTerminal } from "@/lib/editorial/status"
 
 // ── Helpers ──────────────────────────────────────────────
@@ -29,6 +32,13 @@ function deadlineInfo(deadline: string | null): { text: string; color: string; u
 function formatDate(d: string | null): string {
   if (!d) return "—"
   return d.slice(5) // "MM-DD"
+}
+
+function thisMonthStart(): string {
+  const now = new Date()
+  const seoul = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Seoul" }))
+  seoul.setDate(1)
+  return seoul.toLocaleDateString("en-CA")
 }
 
 // ── Colors ──────────────────────────────────────────────
@@ -56,12 +66,48 @@ const ROLE_STYLE: Record<string, { badge: string; accent: string }> = {
   "Reviewer": { badge: "bg-green-500/15 text-green-300 border-green-500/30", accent: "border-l-green-500" },
 }
 
+const JOURNAL_BADGE: Record<string, string> = {
+  "Neurospine": "bg-yellow-500/15 text-yellow-300 border-yellow-500/30",
+  "JMISST": "bg-purple-500/15 text-purple-300 border-purple-500/30",
+  "KJNT": "bg-green-500/15 text-green-300 border-green-500/30",
+  "Scientific Reports": "bg-orange-500/15 text-orange-300 border-orange-500/30",
+  "PLOS ONE": "bg-amber-500/15 text-amber-300 border-amber-500/30",
+  "World Neurosurgery": "bg-red-500/15 text-red-300 border-red-500/30",
+  "Other": "bg-zinc-500/15 text-zinc-300 border-zinc-500/30",
+}
+
+// Compact labels for Methodology (19 options — 풀네임은 카드에 비좁음)
+const METHOD_SHORT: Record<string, string> = {
+  "Insurance Claims Big Data": "Insurance",
+  "Single-Center Retrospective": "Single-Ctr",
+  "Multicenter Retrospective": "Multi-Ctr",
+  "Prospective Cohort": "Prospective",
+  "RCT": "RCT",
+  "Propensity Score Matching": "PSM",
+  "Systematic Review": "SysRev",
+  "Meta-Analysis": "Meta",
+  "Case Series": "Series",
+  "Case Report": "Case",
+  "AI/Machine Learning": "AI/ML",
+  "Deep Learning": "DL",
+  "Biomechanical Study": "Biomech",
+  "Cadaveric Study": "Cadaveric",
+  "Survey Study": "Survey",
+  "Technical Note": "Tech",
+  "Narrative Review": "NarrRev",
+  "Cross-Sectional Study": "XSect",
+  "Registry Study": "Registry",
+}
+
 // ── Main ────────────────────────────────────────────────
 
 export function Editorial() {
   const [roleFilter, setRoleFilter] = useState<EditorialRole | "all">("all")
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [showCompleted, setShowCompleted] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [journalFilter, setJournalFilter] = useState<Set<string>>(new Set())
+  const [methodFilter, setMethodFilter] = useState<Set<string>>(new Set())
 
   const { data: items, isLoading } = useQuery<EditorialItem[]>({
     queryKey: ["editorial"],
@@ -73,11 +119,43 @@ export function Editorial() {
     staleTime: 5 * 60 * 1000,
   })
 
-  const filtered = useMemo(() => {
+  // Role filter 먼저 적용 (후속 요약/필터 전부 역할 기준)
+  const roleFiltered = useMemo(() => {
     if (!items) return []
     if (roleFilter === "all") return items
     return items.filter(i => i.role === roleFilter)
   }, [items, roleFilter])
+
+  // journals/methodologies 옵션 (role 필터 적용한 후의 데이터 기준)
+  const availableJournals = useMemo(() => {
+    const set = new Set<string>()
+    for (const i of roleFiltered) if (i.journal) set.add(i.journal)
+    return Array.from(set)
+  }, [roleFiltered])
+
+  const availableMethods = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const i of roleFiltered) {
+      for (const m of i.methodology) counts.set(m, (counts.get(m) ?? 0) + 1)
+    }
+    return Array.from(counts.entries()).sort((a, b) => b[1] - a[1])
+  }, [roleFiltered])
+
+  // Apply journal + methodology + search
+  const filtered = useMemo(() => {
+    let out = roleFiltered
+    if (journalFilter.size > 0) out = out.filter(i => i.journal && journalFilter.has(i.journal))
+    if (methodFilter.size > 0) out = out.filter(i => i.methodology.some(m => methodFilter.has(m)))
+    const q = searchQuery.trim().toLowerCase()
+    if (q) {
+      out = out.filter(i =>
+        i.name.toLowerCase().includes(q) ||
+        i.manuscript_id.toLowerCase().includes(q) ||
+        i.journal.toLowerCase().includes(q),
+      )
+    }
+    return out
+  }, [roleFiltered, journalFilter, methodFilter, searchQuery])
 
   // Group by urgency
   const { overdue, soon, inProgress, completed } = useMemo(() => {
@@ -97,7 +175,6 @@ export function Editorial() {
       else inProgress.push(item)
     }
 
-    // Sort by deadline (earliest first)
     const byDeadline = (a: EditorialItem, b: EditorialItem) =>
       (a.deadline ?? "9999").localeCompare(b.deadline ?? "9999")
     overdue.sort(byDeadline)
@@ -108,7 +185,51 @@ export function Editorial() {
     return { overdue, soon, inProgress, completed }
   }, [filtered])
 
+  // 이번달 완료 카운트 — terminal 상태이면서 date_submitted 가 이번달
+  const thisMonthCompleted = useMemo(() => {
+    const start = thisMonthStart()
+    return completed.filter(i => {
+      const d = i.date_submitted ?? i.date_received
+      return d && d >= start
+    }).length
+  }, [completed])
+
+  // Role 별 전체 카운트 (role 필터 무관, 원본 기준)
+  const roleCounts = useMemo(() => {
+    if (!items) return { editor: 0, reviewer: 0 }
+    return {
+      editor: items.filter(i => i.role === "Editor").length,
+      reviewer: items.filter(i => i.role === "Reviewer").length,
+    }
+  }, [items])
+
   const activeCount = overdue.length + soon.length + inProgress.length
+
+  function toggleJournal(j: string) {
+    setJournalFilter(prev => {
+      const next = new Set(prev)
+      if (next.has(j)) next.delete(j)
+      else next.add(j)
+      return next
+    })
+  }
+
+  function toggleMethod(m: string) {
+    setMethodFilter(prev => {
+      const next = new Set(prev)
+      if (next.has(m)) next.delete(m)
+      else next.add(m)
+      return next
+    })
+  }
+
+  function clearFilters() {
+    setJournalFilter(new Set())
+    setMethodFilter(new Set())
+    setSearchQuery("")
+  }
+
+  const hasFilter = journalFilter.size > 0 || methodFilter.size > 0 || searchQuery.trim().length > 0
 
   if (isLoading) {
     return (
@@ -119,98 +240,166 @@ export function Editorial() {
   }
 
   return (
-    <div className="animate-fade-in-up space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex gap-1 bg-muted border border-border rounded-lg p-0.5">
-            {(["all", "Editor", "Reviewer"] as const).map(r => (
-              <button
-                key={r}
-                onClick={() => setRoleFilter(r)}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                  roleFilter === r ? "bg-indigo-600 text-white" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {r === "all" ? "All" : r}
-              </button>
-            ))}
-          </div>
+    <div className="animate-fade-in-up space-y-4">
+      {/* ─── Summary strip ───────────────────────── */}
+      <div className="rounded-xl border border-border bg-card/40 px-3 py-2.5">
+        <div className="flex items-center gap-x-4 gap-y-1.5 flex-wrap text-xs">
+          <Pill color="red" label="Overdue" count={overdue.length} />
+          <Pill color="amber" label="Due Soon" count={soon.length} />
+          <Pill color="zinc" label="In Progress" count={inProgress.length} />
+          <Pill color="emerald" label="This Month" count={thisMonthCompleted} icon="✅" />
+          <span className="text-muted-foreground/40">|</span>
+          <Pill color="blue" label="Editor" count={roleCounts.editor} icon="👤" />
+          <Pill color="green" label="Reviewer" count={roleCounts.reviewer} icon="📝" />
         </div>
-        <span className="text-muted-foreground text-xs">
-          진행 <span className="text-foreground font-semibold num">{activeCount}</span>건
-          {completed.length > 0 && <> · 완료 <span className="num">{completed.length}</span>건</>}
-        </span>
+        {availableMethods.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap mt-2 pt-2 border-t border-border/50">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Methodology</span>
+            {availableMethods.slice(0, 6).map(([m, c]) => (
+              <span key={m} className="text-[10px] text-muted-foreground">
+                {METHOD_SHORT[m] ?? m} <span className="text-foreground/80 num">×{c}</span>
+              </span>
+            ))}
+            {availableMethods.length > 6 && (
+              <span className="text-[10px] text-muted-foreground/60">+{availableMethods.length - 6} more</span>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Overdue */}
+      {/* ─── Role tabs + search ─────────────────── */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex gap-1 bg-muted border border-border rounded-lg p-0.5">
+          {(["all", "Editor", "Reviewer"] as const).map(r => (
+            <button
+              key={r}
+              onClick={() => setRoleFilter(r)}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                roleFilter === r ? "bg-indigo-600 text-white" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {r === "all" ? "All" : r}
+            </button>
+          ))}
+        </div>
+        <div className="flex-1 min-w-[180px] relative">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="🔍 제목 · manuscript ID · journal"
+            className="w-full bg-muted/40 border border-border rounded-lg px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-indigo-500/60"
+          />
+        </div>
+        {hasFilter && (
+          <button
+            onClick={clearFilters}
+            className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+          >
+            필터 초기화
+          </button>
+        )}
+      </div>
+
+      {/* ─── Journal filter chips ───────────────── */}
+      {availableJournals.length > 1 && (
+        <div className="flex gap-1.5 flex-wrap">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 self-center">Journal</span>
+          {availableJournals.map(j => {
+            const active = journalFilter.has(j)
+            return (
+              <button
+                key={j}
+                onClick={() => toggleJournal(j)}
+                className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
+                  active ? `${JOURNAL_BADGE[j] ?? ""} ring-1 ring-indigo-400/50` : "border-border/60 text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {j}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ─── Methodology filter chips ───────────── */}
+      {availableMethods.length > 0 && (
+        <div className="flex gap-1.5 flex-wrap">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 self-center">Method</span>
+          {availableMethods.map(([m, c]) => {
+            const active = methodFilter.has(m)
+            return (
+              <button
+                key={m}
+                onClick={() => toggleMethod(m)}
+                className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
+                  active
+                    ? "bg-indigo-500/20 text-indigo-300 border-indigo-400/50 ring-1 ring-indigo-400/40"
+                    : "border-border/60 text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {METHOD_SHORT[m] ?? m} <span className="text-muted-foreground/60 num ml-0.5">{c}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      <div className="text-[11px] text-muted-foreground">
+        {activeCount === 0 && completed.length === 0
+          ? "조건에 맞는 원고가 없습니다."
+          : <>표시 중: <span className="text-foreground num">{activeCount}</span>건 진행 {completed.length > 0 && <>· 완료 <span className="num">{completed.length}</span>건</>}</>}
+      </div>
+
+      {/* ─── Overdue ──────────────────────────── */}
       {overdue.length > 0 && (
-        <Section
-          label="OVERDUE"
-          count={overdue.length}
-          icon="🔴"
-          borderColor="border-red-500/30"
-          bgColor="bg-red-500/[0.03]"
-        >
+        <Section label="OVERDUE" count={overdue.length} icon="🔴" borderColor="border-red-500/30" bgColor="bg-red-500/[0.03]">
           {overdue.map(item => (
             <ManuscriptCard
               key={item.page_id}
               item={item}
               expanded={expandedId === item.page_id}
               onToggle={() => setExpandedId(expandedId === item.page_id ? null : item.page_id)}
+              onJournalClick={toggleJournal}
+              onMethodClick={toggleMethod}
             />
           ))}
         </Section>
       )}
 
-      {/* Due Soon */}
+      {/* ─── Due Soon ─────────────────────────── */}
       {soon.length > 0 && (
-        <Section
-          label="DUE SOON"
-          count={soon.length}
-          icon="🟡"
-          borderColor="border-amber-500/30"
-          bgColor="bg-amber-500/[0.03]"
-        >
+        <Section label="DUE SOON" count={soon.length} icon="🟡" borderColor="border-amber-500/30" bgColor="bg-amber-500/[0.03]">
           {soon.map(item => (
             <ManuscriptCard
               key={item.page_id}
               item={item}
               expanded={expandedId === item.page_id}
               onToggle={() => setExpandedId(expandedId === item.page_id ? null : item.page_id)}
+              onJournalClick={toggleJournal}
+              onMethodClick={toggleMethod}
             />
           ))}
         </Section>
       )}
 
-      {/* In Progress */}
+      {/* ─── In Progress ──────────────────────── */}
       {inProgress.length > 0 && (
-        <Section
-          label="IN PROGRESS"
-          count={inProgress.length}
-          icon="⚪"
-          borderColor="border-border"
-          bgColor="bg-transparent"
-        >
+        <Section label="IN PROGRESS" count={inProgress.length} icon="⚪" borderColor="border-border" bgColor="bg-transparent">
           {inProgress.map(item => (
             <ManuscriptCard
               key={item.page_id}
               item={item}
               expanded={expandedId === item.page_id}
               onToggle={() => setExpandedId(expandedId === item.page_id ? null : item.page_id)}
+              onJournalClick={toggleJournal}
+              onMethodClick={toggleMethod}
             />
           ))}
         </Section>
       )}
 
-      {/* Empty */}
-      {activeCount === 0 && (
-        <div className="text-center py-12 text-muted-foreground text-sm">
-          진행 중인 원고가 없습니다.
-        </div>
-      )}
-
-      {/* Completed */}
+      {/* ─── Completed ────────────────────────── */}
       {completed.length > 0 && (
         <div>
           <button
@@ -238,6 +427,8 @@ export function Editorial() {
                   item={item}
                   expanded={expandedId === item.page_id}
                   onToggle={() => setExpandedId(expandedId === item.page_id ? null : item.page_id)}
+                  onJournalClick={toggleJournal}
+                  onMethodClick={toggleMethod}
                   isCompleted
                 />
               ))}
@@ -246,6 +437,26 @@ export function Editorial() {
         </div>
       )}
     </div>
+  )
+}
+
+// ── Pill ────────────────────────────────────────────────
+
+function Pill({ color, label, count, icon }: { color: "red" | "amber" | "zinc" | "emerald" | "blue" | "green"; label: string; count: number; icon?: string }) {
+  const ring: Record<string, string> = {
+    red: "text-red-400",
+    amber: "text-amber-400",
+    zinc: "text-foreground/80",
+    emerald: "text-emerald-400",
+    blue: "text-blue-400",
+    green: "text-green-400",
+  }
+  return (
+    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+      {icon && <span>{icon}</span>}
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`font-semibold num ${ring[color]}`}>{count}</span>
+    </span>
   )
 }
 
@@ -274,17 +485,32 @@ function Section({
 // ── ManuscriptCard ──────────────────────────────────────
 
 function ManuscriptCard({
-  item, expanded, onToggle, isCompleted,
+  item, expanded, onToggle, onJournalClick, onMethodClick, isCompleted,
 }: {
-  item: EditorialItem; expanded: boolean; onToggle: () => void; isCompleted?: boolean
+  item: EditorialItem
+  expanded: boolean
+  onToggle: () => void
+  onJournalClick: (j: string) => void
+  onMethodClick: (m: string) => void
+  isCompleted?: boolean
 }) {
   const dl = deadlineInfo(item.deadline)
   const role = ROLE_STYLE[item.role] ?? ROLE_STYLE.Reviewer
   const decision = item.recommendation
 
+  // role 별로 하단 메타 정보 강조를 다르게
+  const isEditor = item.role === "Editor"
+  const metaSummary = isEditor
+    ? (item.reviewers ? `Reviewers · ${item.reviewers}` : null)
+    : (item.date_submitted ? `Submitted · ${formatDate(item.date_submitted)}` : null)
+
+  // Methodology 뱃지 (최대 3개 + "+N")
+  const methShown = item.methodology.slice(0, 3)
+  const methMore = item.methodology.length - methShown.length
+
   return (
     <div className={`rounded-lg border border-border/80 bg-card overflow-hidden border-l-2 ${role.accent}`}>
-      {/* Card Header — always visible */}
+      {/* Card Header */}
       <div
         role="button"
         tabIndex={0}
@@ -294,21 +520,58 @@ function ManuscriptCard({
       >
         {/* Left: info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
+          <div className="flex items-center gap-1.5 flex-wrap mb-1">
             <Badge variant="outline" className={`text-[9px] px-1.5 py-0 h-[18px] font-medium ${role.badge}`}>
               {item.role}
             </Badge>
-            <span className="text-[11px] text-muted-foreground">{item.journal || "—"}</span>
+            {item.journal && (
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); onJournalClick(item.journal) }}
+                className={`text-[10px] px-1.5 py-0 h-[18px] rounded-full border transition-colors ${JOURNAL_BADGE[item.journal] ?? ""} hover:ring-1 hover:ring-indigo-400/50`}
+                title="저널 필터"
+              >
+                {item.journal}
+              </button>
+            )}
             <Badge variant="outline" className={`text-[9px] px-1.5 py-0 h-[18px] font-medium ${STATUS_BADGE[item.status] ?? ""}`}>
               {item.status}
             </Badge>
             {item.review_round && (
               <span className="text-[10px] text-muted-foreground/70 bg-muted px-1.5 py-0.5 rounded num">R{item.review_round}</span>
             )}
+            {/* Editor 에서는 Recommendation 을 카드 상단에 노출 (의사결정 맥락) */}
+            {isEditor && decision && !isCompleted && (
+              <Badge variant="outline" className={`text-[9px] px-1.5 py-0 h-[18px] font-medium ${REC_BADGE[decision] ?? ""}`}>
+                → {decision}
+              </Badge>
+            )}
           </div>
           <p className={`text-sm leading-snug ${isCompleted ? "text-muted-foreground" : "text-foreground"} ${expanded ? "" : "line-clamp-1"}`}>
-            {item.name}
+            {item.name || "(제목 없음)"}
           </p>
+          {/* Methodology 뱃지 + role-specific meta */}
+          {(methShown.length > 0 || metaSummary) && (
+            <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+              {methShown.map(m => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={e => { e.stopPropagation(); onMethodClick(m) }}
+                  className="text-[9px] px-1.5 py-0 h-[17px] rounded-full border border-indigo-400/30 bg-indigo-500/10 text-indigo-300/90 hover:bg-indigo-500/20 transition-colors"
+                  title="Methodology 필터"
+                >
+                  {METHOD_SHORT[m] ?? m}
+                </button>
+              ))}
+              {methMore > 0 && (
+                <span className="text-[9px] text-muted-foreground/60">+{methMore}</span>
+              )}
+              {metaSummary && (
+                <span className="text-[10px] text-muted-foreground/70 ml-1">{metaSummary}</span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right: deadline + notion */}
@@ -338,12 +601,19 @@ function ManuscriptCard({
       {/* Expanded Detail */}
       {expanded && (
         <div className="px-4 pb-3 pt-0 border-t border-border/50 bg-muted/20 animate-fade-in-up">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 py-3">
+          {/* Timeline */}
+          <div className="py-3 flex items-center gap-2 text-[11px] text-muted-foreground/90 flex-wrap">
+            {item.review_round && <span className="num px-1.5 py-0.5 rounded bg-muted text-foreground/80">R{item.review_round}</span>}
+            <TimelineStep label="Received" date={item.date_received} />
+            <span className="text-muted-foreground/40">→</span>
+            <TimelineStep label="Submitted" date={item.date_submitted} placeholder="—" />
+            <span className="text-muted-foreground/40">→</span>
+            <TimelineStep label="Deadline" date={item.deadline} placeholder="—" />
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 py-3 border-t border-border/30">
             <DetailField label="Manuscript ID" value={item.manuscript_id} />
             <DetailField label="Type" value={item.manuscript_type} />
-            <DetailField label="Received" value={formatDate(item.date_received)} />
-            <DetailField label="Deadline" value={formatDate(item.deadline)} />
-            {item.date_submitted && <DetailField label="Submitted" value={formatDate(item.date_submitted)} />}
             {item.recommendation && (
               <DetailField label="Recommendation">
                 <Badge variant="outline" className={`text-[10px] ${REC_BADGE[item.recommendation] ?? ""}`}>
@@ -352,6 +622,17 @@ function ManuscriptCard({
               </DetailField>
             )}
             {item.reviewers && <DetailField label="Reviewers" value={item.reviewers} />}
+            {item.methodology.length > 0 && (
+              <DetailField label="Methodology">
+                <div className="flex gap-1 flex-wrap">
+                  {item.methodology.map(m => (
+                    <span key={m} className="text-[9px] px-1.5 py-0 rounded-full border border-indigo-400/30 bg-indigo-500/10 text-indigo-300/90">
+                      {m}
+                    </span>
+                  ))}
+                </div>
+              </DetailField>
+            )}
           </div>
           {item.notes && (
             <div className="pt-2 border-t border-border/30">
@@ -362,6 +643,19 @@ function ManuscriptCard({
         </div>
       )}
     </div>
+  )
+}
+
+// ── TimelineStep ────────────────────────────────────────
+
+function TimelineStep({ label, date, placeholder }: { label: string; date: string | null; placeholder?: string }) {
+  return (
+    <span className="inline-flex items-baseline gap-1">
+      <span className="text-[9px] uppercase tracking-wider text-muted-foreground/60">{label}</span>
+      <span className={`text-[11px] num ${date ? "text-foreground/85" : "text-muted-foreground/50"}`}>
+        {date ? formatDate(date) : placeholder ?? "—"}
+      </span>
+    </span>
   )
 }
 
