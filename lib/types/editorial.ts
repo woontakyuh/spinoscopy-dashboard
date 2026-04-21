@@ -2,14 +2,10 @@ export type EditorialRole = "Editor" | "Reviewer"
 
 export type EditorialStatus =
   | "Received"
-  | "Editorial Review"
-  | "Desk Reject"
-  | "Reviewer Assignment"
-  | "Under Peer Review"
-  | "Reviews Collected"
-  | "Decision Made"
-  | "Revision Received"
-  | "Complete"
+  | "Under Review"
+  | "Under Revision"
+  | "Accepted"
+  | "Rejected"
 
 export type Recommendation =
   | "Accept"
@@ -18,8 +14,7 @@ export type Recommendation =
   | "Reject"
   | "Peer Review"
   | "Desk Reject"
-
-export type FinalDecision = "Accept" | "Reject" | "Desk Reject" | "Pending"
+  | "Pending"
 
 export type ManuscriptType =
   | "Original Article"
@@ -27,6 +22,38 @@ export type ManuscriptType =
   | "Case Report"
   | "Letter"
   | "Technical Note"
+  | "Commentary"
+  | "Editorial"
+  | "Other"
+
+export type Methodology =
+  | "Insurance Claims Big Data"
+  | "Single-Center Retrospective"
+  | "Multicenter Retrospective"
+  | "Prospective Cohort"
+  | "RCT"
+  | "Propensity Score Matching"
+  | "Systematic Review"
+  | "Meta-Analysis"
+  | "Case Series"
+  | "Case Report"
+  | "AI/Machine Learning"
+  | "Deep Learning"
+  | "Biomechanical Study"
+  | "Cadaveric Study"
+  | "Survey Study"
+  | "Technical Note"
+  | "Narrative Review"
+  | "Cross-Sectional Study"
+  | "Registry Study"
+
+export type Journal =
+  | "Neurospine"
+  | "JMISST"
+  | "KJNT"
+  | "Scientific Reports"
+  | "PLOS ONE"
+  | "World Neurosurgery"
   | "Other"
 
 export interface EditorialItem {
@@ -34,17 +61,15 @@ export interface EditorialItem {
   url: string
   name: string
   role: EditorialRole
-  journal: string
+  journal: Journal | ""
   manuscript_id: string
   manuscript_type: ManuscriptType
+  methodology: Methodology[]
   status: EditorialStatus
-  first_recommendation: Recommendation | null
-  last_recommendation: Recommendation | null
-  final_decision: FinalDecision | null
+  recommendation: Recommendation | null
   date_received: string | null
   date_submitted: string | null
   deadline: string | null
-  decision_date: string | null
   review_round: number | null
   reviewers: string
   notes: string

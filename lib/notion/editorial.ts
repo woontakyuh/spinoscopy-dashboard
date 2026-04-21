@@ -4,8 +4,9 @@ import type {
   EditorialRole,
   EditorialStatus,
   Recommendation,
-  FinalDecision,
   ManuscriptType,
+  Methodology,
+  Journal,
 } from "../types/editorial"
 
 interface NotionPage {
@@ -19,6 +20,7 @@ interface NotionProperty {
   title?: Array<{ plain_text?: string }>
   rich_text?: Array<{ plain_text?: string }>
   select?: { name: string } | null
+  multi_select?: Array<{ name: string }>
   date?: { start: string | null } | null
   number?: number | null
   checkbox?: boolean
@@ -41,22 +43,25 @@ const DB_ID = process.env.NOTION_EDITORIAL_DB_ID ?? ""
 
 function mapPage(page: NotionPage): EditorialItem {
   const p = page.properties
+  const methodology = (p.Methodology?.multi_select ?? []).map(
+    (m) => m.name,
+  ) as Methodology[]
   return {
     page_id: page.id,
     url: page.url,
     name: getText(p.Name),
     role: (p.Role?.select?.name as EditorialRole) ?? "Reviewer",
-    journal: p.Journal?.select?.name ?? "",
+    journal: (p.Journal?.select?.name as Journal) ?? "",
     manuscript_id: getText(p["Manuscript ID"]),
-    manuscript_type: (p["Manuscript Type"]?.select?.name as ManuscriptType) ?? "Other",
+    manuscript_type:
+      (p["Manuscript Type"]?.select?.name as ManuscriptType) ?? "Other",
+    methodology,
     status: (p.Status?.select?.name as EditorialStatus) ?? "Received",
-    first_recommendation: (p["First Recommendation"]?.select?.name as Recommendation) ?? null,
-    last_recommendation: (p["Last Recommendation"]?.select?.name as Recommendation) ?? null,
-    final_decision: (p["Final Decision"]?.select?.name as FinalDecision) ?? null,
+    recommendation:
+      (p.Recommendation?.select?.name as Recommendation) ?? null,
     date_received: p["Date Received"]?.date?.start ?? null,
     date_submitted: p["Date Submitted"]?.date?.start ?? null,
     deadline: p.Deadline?.date?.start ?? null,
-    decision_date: p["Decision Date"]?.date?.start ?? null,
     review_round: p["Review Round"]?.number ?? null,
     reviewers: getText(p.Reviewers),
     notes: getText(p.Notes),
@@ -77,7 +82,7 @@ export async function listEditorialItems(): Promise<EditorialItem[]> {
 
     const response = await notionRequest<NotionQueryResponse>(
       `/databases/${DB_ID}/query`,
-      { method: "POST", body: JSON.stringify(body) }
+      { method: "POST", body: JSON.stringify(body) },
     )
 
     for (const page of response.results) {

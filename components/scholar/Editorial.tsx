@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { EditorialItem, EditorialRole } from "@/lib/types/editorial"
+import { isTerminal } from "@/lib/editorial/status"
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -34,17 +35,13 @@ function formatDate(d: string | null): string {
 
 const STATUS_BADGE: Record<string, string> = {
   "Received": "bg-zinc-500/15 text-zinc-300 border-zinc-500/30",
-  "Editorial Review": "bg-blue-500/15 text-blue-300 border-blue-500/30",
-  "Desk Reject": "bg-red-500/15 text-red-300 border-red-500/30",
-  "Reviewer Assignment": "bg-purple-500/15 text-purple-300 border-purple-500/30",
-  "Under Peer Review": "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  "Reviews Collected": "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
-  "Decision Made": "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-  "Revision Received": "bg-orange-500/15 text-orange-300 border-orange-500/30",
-  "Complete": "bg-green-500/15 text-green-300 border-green-500/30",
+  "Under Review": "bg-amber-500/15 text-amber-300 border-amber-500/30",
+  "Under Revision": "bg-orange-500/15 text-orange-300 border-orange-500/30",
+  "Accepted": "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  "Rejected": "bg-red-500/15 text-red-300 border-red-500/30",
 }
 
-const DECISION_BADGE: Record<string, string> = {
+const REC_BADGE: Record<string, string> = {
   "Accept": "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
   "Minor Revision": "bg-amber-500/15 text-amber-300 border-amber-500/30",
   "Major Revision": "bg-orange-500/15 text-orange-300 border-orange-500/30",
@@ -58,8 +55,6 @@ const ROLE_STYLE: Record<string, { badge: string; accent: string }> = {
   "Editor": { badge: "bg-blue-500/15 text-blue-300 border-blue-500/30", accent: "border-l-blue-500" },
   "Reviewer": { badge: "bg-green-500/15 text-green-300 border-green-500/30", accent: "border-l-green-500" },
 }
-
-const TERMINAL = new Set(["Complete", "Desk Reject"])
 
 // ── Main ────────────────────────────────────────────────
 
@@ -92,7 +87,7 @@ export function Editorial() {
     const completed: EditorialItem[] = []
 
     for (const item of filtered) {
-      if (TERMINAL.has(item.status)) {
+      if (isTerminal(item.status)) {
         completed.push(item)
         continue
       }
@@ -108,7 +103,7 @@ export function Editorial() {
     overdue.sort(byDeadline)
     soon.sort(byDeadline)
     inProgress.sort(byDeadline)
-    completed.sort((a, b) => (b.decision_date ?? b.date_received ?? "").localeCompare(a.decision_date ?? a.date_received ?? ""))
+    completed.sort((a, b) => (b.date_submitted ?? b.date_received ?? "").localeCompare(a.date_submitted ?? a.date_received ?? ""))
 
     return { overdue, soon, inProgress, completed }
   }, [filtered])
@@ -285,7 +280,7 @@ function ManuscriptCard({
 }) {
   const dl = deadlineInfo(item.deadline)
   const role = ROLE_STYLE[item.role] ?? ROLE_STYLE.Reviewer
-  const decision = item.final_decision || item.last_recommendation || item.first_recommendation
+  const decision = item.recommendation
 
   return (
     <div className={`rounded-lg border border-border/80 bg-card overflow-hidden border-l-2 ${role.accent}`}>
@@ -319,7 +314,7 @@ function ManuscriptCard({
         {/* Right: deadline + notion */}
         <div className="flex items-center gap-2 shrink-0">
           {isCompleted && decision ? (
-            <Badge variant="outline" className={`text-[10px] px-2 py-0.5 font-medium ${DECISION_BADGE[decision] ?? ""}`}>
+            <Badge variant="outline" className={`text-[10px] px-2 py-0.5 font-medium ${REC_BADGE[decision] ?? ""}`}>
               {decision}
             </Badge>
           ) : (
@@ -348,29 +343,14 @@ function ManuscriptCard({
             <DetailField label="Type" value={item.manuscript_type} />
             <DetailField label="Received" value={formatDate(item.date_received)} />
             <DetailField label="Deadline" value={formatDate(item.deadline)} />
-            {item.first_recommendation && (
-              <DetailField label="1st Recommendation">
-                <Badge variant="outline" className={`text-[10px] ${DECISION_BADGE[item.first_recommendation] ?? ""}`}>
-                  {item.first_recommendation}
-                </Badge>
-              </DetailField>
-            )}
-            {item.last_recommendation && (
-              <DetailField label="Last Recommendation">
-                <Badge variant="outline" className={`text-[10px] ${DECISION_BADGE[item.last_recommendation] ?? ""}`}>
-                  {item.last_recommendation}
-                </Badge>
-              </DetailField>
-            )}
-            {item.final_decision && (
-              <DetailField label="Final Decision">
-                <Badge variant="outline" className={`text-[10px] ${DECISION_BADGE[item.final_decision] ?? ""}`}>
-                  {item.final_decision}
-                </Badge>
-              </DetailField>
-            )}
-            <DetailField label="Decision Date" value={formatDate(item.decision_date)} />
             {item.date_submitted && <DetailField label="Submitted" value={formatDate(item.date_submitted)} />}
+            {item.recommendation && (
+              <DetailField label="Recommendation">
+                <Badge variant="outline" className={`text-[10px] ${REC_BADGE[item.recommendation] ?? ""}`}>
+                  {item.recommendation}
+                </Badge>
+              </DetailField>
+            )}
             {item.reviewers && <DetailField label="Reviewers" value={item.reviewers} />}
           </div>
           {item.notes && (
