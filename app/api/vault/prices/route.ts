@@ -33,7 +33,7 @@ function sortOhlcAscending(data: OHLCBar[]): OHLCBar[] {
 }
 
 async function fetchCryptoOhlc(geckoId: string): Promise<OHLCBar[]> {
-  const url = `https://api.coingecko.com/api/v3/coins/${geckoId}/ohlc?vs_currency=krw&days=30`
+  const url = `https://api.coingecko.com/api/v3/coins/${geckoId}/ohlc?vs_currency=usd&days=30`
   const res = await fetch(url, { next: { revalidate: 120 } })
   if (!res.ok) return []
   const data = (await res.json()) as GeckoOhlcEntry[]
@@ -94,7 +94,7 @@ async function fetchCryptoPrices(): Promise<AssetPrice[]> {
         category: asset.category,
         price: latestBar.close,
         change24h,
-        currency: "KRW",
+        currency: "USD",
         sparkline,
       } satisfies AssetPrice
     })

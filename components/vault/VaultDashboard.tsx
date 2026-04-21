@@ -5,10 +5,8 @@ import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AssetCard } from "./AssetCard"
 import { AssetDailyChart } from "./AssetDailyChart"
 import type {
-  AssetPrice,
   MarketIndicator,
   PricesResponse,
   VaultNewsItem,
@@ -17,8 +15,6 @@ import type {
 import { TRACKED_ASSETS } from "@/lib/vault/assets"
 
 type NewsFilter = "all" | string
-
-const STOCK_SYMBOLS = new Set(["TSLA", "GOOGL", "AAPL"])
 
 interface VaultDashboardProps {
   view: "charts" | "news"
@@ -47,10 +43,8 @@ export function VaultDashboard({ view }: VaultDashboardProps) {
     staleTime: 10 * 60 * 1000,
   })
 
-  const prices: AssetPrice[] = pricesQuery.data?.prices ?? []
   const indicators: MarketIndicator[] = pricesQuery.data?.indicators ?? []
   const newsItems: VaultNewsItem[] = newsQuery.data?.items ?? []
-  const stockPrices = prices.filter((p) => STOCK_SYMBOLS.has(p.symbol))
 
   const filteredNews = newsFilter === "all"
     ? newsItems
