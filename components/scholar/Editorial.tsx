@@ -8,7 +8,7 @@ import type {
   EditorialItem,
   EditorialRole,
 } from "@/lib/types/editorial"
-import { isTerminal } from "@/lib/editorial/status"
+import { isEffectivelyTerminal, outcomeCategory, type OutcomeCategory } from "@/lib/editorial/status"
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -66,6 +66,13 @@ const ROLE_STYLE: Record<string, { badge: string; accent: string }> = {
   "Reviewer": { badge: "bg-green-500/15 text-green-300 border-green-500/30", accent: "border-l-green-500" },
 }
 
+const OUTCOME_ORDER: readonly OutcomeCategory[] = ["Accept", "Reject", "Desk Reject"] as const
+const OUTCOME_ICON: Record<OutcomeCategory, string> = {
+  "Accept": "✓",
+  "Reject": "✕",
+  "Desk Reject": "⊘",
+}
+
 const JOURNAL_BADGE: Record<string, string> = {
   "Neurospine": "bg-yellow-500/15 text-yellow-300 border-yellow-500/30",
   "JMISST": "bg-purple-500/15 text-purple-300 border-purple-500/30",
@@ -104,10 +111,11 @@ const METHOD_SHORT: Record<string, string> = {
 export function Editorial() {
   const [roleFilter, setRoleFilter] = useState<EditorialRole | "all">("all")
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [showCompleted, setShowCompleted] = useState(false)
+  const [showCompleted, setShowCompleted] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [journalFilter, setJournalFilter] = useState<Set<string>>(new Set())
   const [methodFilter, setMethodFilter] = useState<Set<string>>(new Set())
+  const [outcomeFilter, setOutcomeFilter] = useState<Set<OutcomeCategory>>(new Set())
 
   const { data: items, isLoading } = useQuery<EditorialItem[]>({
     queryKey: ["editorial"],
@@ -165,7 +173,7 @@ export function Editorial() {
     const completed: EditorialItem[] = []
 
     for (const item of filtered) {
-      if (isTerminal(item.status)) {
+      if (isEffectivelyTerminal(item)) {
         completed.push(item)
         continue
       }
@@ -193,6 +201,25 @@ export function Editorial() {
       return d && d >= start
     }).length
   }, [completed])
+
+  // Completed 의 outcome 별 카운트
+  const outcomeCounts = useMemo(() => {
+    const m = new Map<OutcomeCategory, number>()
+    for (const i of completed) {
+      const c = outcomeCategory(i)
+      if (c) m.set(c, (m.get(c) ?? 0) + 1)
+    }
+    return m
+  }, [completed])
+
+  // outcome 필터 적용한 완료 리스트
+  const completedFiltered = useMemo(() => {
+    if (outcomeFilter.size === 0) return completed
+    return completed.filter(i => {
+      const c = outcomeCategory(i)
+      return c !== null && outcomeFilter.has(c)
+    })
+  }, [completed, outcomeFilter])
 
   // Role 별 전체 카운트 (role 필터 무관, 원본 기준)
   const roleCounts = useMemo(() => {
@@ -223,13 +250,23 @@ export function Editorial() {
     })
   }
 
+  function toggleOutcome(o: OutcomeCategory) {
+    setOutcomeFilter(prev => {
+      const next = new Set(prev)
+      if (next.has(o)) next.delete(o)
+      else next.add(o)
+      return next
+    })
+  }
+
   function clearFilters() {
     setJournalFilter(new Set())
     setMethodFilter(new Set())
+    setOutcomeFilter(new Set())
     setSearchQuery("")
   }
 
-  const hasFilter = journalFilter.size > 0 || methodFilter.size > 0 || searchQuery.trim().length > 0
+  const hasFilter = journalFilter.size > 0 || methodFilter.size > 0 || outcomeFilter.size > 0 || searchQuery.trim().length > 0
 
   if (isLoading) {
     return (
@@ -408,7 +445,9 @@ export function Editorial() {
           >
             <div className="h-px flex-1 bg-border" />
             <span className="text-muted-foreground text-xs font-medium flex items-center gap-1.5 shrink-0">
-              ✅ COMPLETED ({completed.length})
+              ✅ COMPLETED {outcomeFilter.size > 0
+                ? <>(<span className="num text-foreground">{completedFiltered.length}</span> / <span className="num">{completed.length}</span>)</>
+                : <>(<span className="num">{completed.length}</span>)</>}
               <svg
                 className={`size-3 transition-transform ${showCompleted ? "rotate-180" : ""}`}
                 fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
@@ -420,18 +459,56 @@ export function Editorial() {
           </button>
 
           {showCompleted && (
-            <div className="mt-3 space-y-2">
-              {completed.map(item => (
-                <ManuscriptCard
-                  key={item.page_id}
-                  item={item}
-                  expanded={expandedId === item.page_id}
-                  onToggle={() => setExpandedId(expandedId === item.page_id ? null : item.page_id)}
-                  onJournalClick={toggleJournal}
-                  onMethodClick={toggleMethod}
-                  isCompleted
-                />
-              ))}
+            <div className="mt-3 space-y-3">
+              {/* Outcome sub-filter chips */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 self-center">Outcome</span>
+                {OUTCOME_ORDER.map(o => {
+                  const count = outcomeCounts.get(o) ?? 0
+                  if (count === 0) return null
+                  const active = outcomeFilter.has(o)
+                  return (
+                    <button
+                      key={o}
+                      onClick={() => toggleOutcome(o)}
+                      className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
+                        active
+                          ? `${REC_BADGE[o] ?? ""} ring-1 ring-indigo-400/50`
+                          : "border-border/60 text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {OUTCOME_ICON[o]} {o} <span className="num ml-0.5">{count}</span>
+                    </button>
+                  )
+                })}
+                {outcomeFilter.size > 0 && (
+                  <button
+                    onClick={() => setOutcomeFilter(new Set())}
+                    className="text-[10px] text-muted-foreground hover:text-foreground ml-1"
+                  >
+                    × 전체
+                  </button>
+                )}
+              </div>
+
+              {/* Cards */}
+              {completedFiltered.length > 0 ? (
+                <div className="space-y-2">
+                  {completedFiltered.map(item => (
+                    <ManuscriptCard
+                      key={item.page_id}
+                      item={item}
+                      expanded={expandedId === item.page_id}
+                      onToggle={() => setExpandedId(expandedId === item.page_id ? null : item.page_id)}
+                      onJournalClick={toggleJournal}
+                      onMethodClick={toggleMethod}
+                      isCompleted
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground py-4 text-center">선택한 outcome 에 해당하는 완료 원고가 없습니다.</p>
+              )}
             </div>
           )}
         </div>
