@@ -454,6 +454,7 @@ async function sendEmailAlert(
   const host = process.env.JOURNAL_ALERT_SMTP_HOST ?? "smtp.gmail.com"
   const port = Number(process.env.JOURNAL_ALERT_SMTP_PORT ?? "587")
   const to = process.env.JOURNAL_ALERT_RECIPIENT ?? user
+  const cc = process.env.JOURNAL_ALERT_CC?.trim() || undefined
 
   const allPageIds = insertedWithIds.map(({ pageId }) => pageId)
 
@@ -477,6 +478,7 @@ async function sendEmailAlert(
   await transporter.sendMail({
     from: user,
     to,
+    cc,
     subject,
     html,
   })
