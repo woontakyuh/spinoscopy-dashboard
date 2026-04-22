@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { TopBar } from "@/components/layout/TopBar"
-import { AgentGreeter } from "@/components/layout/AgentGreeter"
+import { AgentChat } from "@/components/layout/AgentChat"
 import { RadarFeed } from "@/components/radar/RadarFeed"
 import { getTimeContext } from "@/lib/greeterContext"
 import type { FeedResponse } from "@/lib/types/radar"
@@ -56,7 +56,7 @@ export default function RadarPage() {
     <div className="flex flex-col min-h-screen">
       <TopBar title="" />
       <div className="p-3 md:p-6 w-full">
-        <AgentGreeter image="/andrej.png" name="Andrej" message={message} loading={isLoading} />
+        <AgentChat agentId="andrej" image="/andrej.png" name="Andrej" greeting={isLoading ? "..." : message} />
         <RadarFeed />
       </div>
     </div>

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { TopBar } from "@/components/layout/TopBar"
-import { AgentGreeter } from "@/components/layout/AgentGreeter"
+import { AgentChat } from "@/components/layout/AgentChat"
 import { VaultDashboard } from "@/components/vault/VaultDashboard"
 import type { PricesResponse, AssetPrice, VaultNewsResponse } from "@/lib/types/vault"
 
@@ -126,7 +126,7 @@ export default function VaultPage() {
 
       {/* Content */}
       <div className="flex-1 min-w-0 p-3 md:p-6 max-w-4xl w-full">
-        <AgentGreeter image="/warren.png" name="Warren" message={message} loading={isTabLoading} />
+        <AgentChat agentId="warren" image="/warren.png" name="Warren" greeting={isTabLoading ? "..." : message} />
         <div className="border border-border rounded-xl p-4 bg-card mb-4">
           <p className="text-foreground/90 text-sm">
             주요 자산 시세와 시장 지표를 실시간으로 추적하고, 관련 뉴스를 확인합니다.

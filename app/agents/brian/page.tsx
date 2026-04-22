@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { TopBar } from "@/components/layout/TopBar"
-import { AgentGreeter } from "@/components/layout/AgentGreeter"
+import { AgentChat } from "@/components/layout/AgentChat"
 import { MyPapers } from "@/components/scholar/MyPapers"
 import { PaperDB } from "@/components/scholar/PaperDB"
 import { ResearchPipeline } from "@/components/scholar/ResearchPipeline"
@@ -173,7 +173,7 @@ export default function ScholarPage() {
 
       {/* Content */}
       <div className="flex-1 min-w-0 p-3 md:p-6">
-        <AgentGreeter image="/brian.png" name="Brian" message={message} loading={isTabLoading} />
+        <AgentChat agentId="brian" image="/brian.png" name="Brian" greeting={isTabLoading ? "..." : message} />
 
         {activeTab === "browse" && <PaperDB />}
         {activeTab === "research" && <ResearchPipeline />}
