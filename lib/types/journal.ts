@@ -27,7 +27,8 @@ export interface JournalFilter {
   journal?: string | "all"
   category?: string | "all"
   read?: boolean | "all"
-  search?: string
+  search?: string              // 단일 키워드 — Title + Abstract OR 매칭
+  queries?: string[]           // 다중 키워드 (유의어·약자) — 각각 Title + Abstract OR 매칭
   sort?: "date_desc" | "date_asc"
   cursor?: string
 }

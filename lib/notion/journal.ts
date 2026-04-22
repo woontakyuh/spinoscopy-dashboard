@@ -119,11 +119,18 @@ function buildFilter(filter: JournalFilter) {
     })
   }
 
-  if (filter.search) {
-    conditions.push({
-      property: "Title",
-      title: { contains: filter.search },
-    })
+  // 키워드: queries 가 우선, 없으면 search 단일 키워드로. 각 키워드를 Title OR Abstract 둘 다에서 매칭.
+  const queries = filter.queries && filter.queries.length > 0
+    ? filter.queries.filter((q) => q.trim().length > 0)
+    : filter.search
+      ? [filter.search]
+      : []
+  if (queries.length > 0) {
+    const orConditions = queries.flatMap((q) => [
+      { property: "Title", title: { contains: q } },
+      { property: "Abstract", rich_text: { contains: q } },
+    ])
+    conditions.push({ or: orConditions })
   }
 
   if (conditions.length === 0) return undefined

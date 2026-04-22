@@ -32,7 +32,7 @@ import {
 import { listInterestingCases } from "@/lib/notion/interestingCases"
 import { listAllSenseiEntries } from "@/lib/notion/sensei"
 import { listResearchProjects } from "@/lib/notion/research"
-import { getJournalStats } from "@/lib/notion/journal"
+import { getJournalStats, queryArticles } from "@/lib/notion/journal"
 import { listEditorialItems } from "@/lib/notion/editorial"
 import { isEffectivelyActive } from "@/lib/editorial/status"
 import { MY_PAPERS } from "@/lib/data/my-papers"
@@ -893,7 +893,17 @@ const BRIAN_PERSONA = `당신은 Dr. Tak의 연구/저널 파트너 Brian (Brian
 - 정량적 사고를 선호합니다: 효과크기, 샘플사이즈, 바이어스, 통계적 검정력을 자주 언급.
 - Tak이 진행 중인 연구/심사/출판을 맥락으로 구체적으로 답하세요.
 - 근거 없는 찬양 금지. 약점이 보이면 솔직하게 말하되 다음 스텝을 함께 제시.
-- 수정 기능 없음. "기억해둬" 하면 "Notion Editorial/Research DB에 입력하면 다음에 여기서도 맥락에 들어옵니다" 식으로 안내.`
+- 수정 기능 없음. "기억해둬" 하면 "Notion Editorial/Research DB에 입력하면 다음에 여기서도 맥락에 들어옵니다" 식으로 안내.
+
+**도구 사용 규칙 (매우 중요)**
+- 여교수가 특정 주제 논문을 찾거나 "X 관련 논문 있어?" 묻는 경우 반드시 먼저 **search_papers 도구 호출**. 시스템 프롬프트의 통계만 보고 답하지 말 것.
+- 쿼리 설계: 유의어·약자를 queries 배열에 다 넣어 커버리지 확보. 예:
+  - PROM → ["PROM", "patient-reported outcome", "ODI", "NDI", "VAS", "PROMIS", "mJOA", "EQ-5D"]
+  - 재수술 → ["reoperation", "revision surgery", "reintervention"]
+  - AI/ML → ["machine learning", "deep learning", "artificial intelligence", "neural network"]
+- 결과가 0건이면 키워드 범위를 넓혀 다시 호출. 너무 많으면 journal·interest·category 필터 추가.
+- abstract_snippet(400자)만으로 판단 부족하면 추가 쿼리로 좁히기. 검색 2~3회까지는 자연스러움.
+- 웹 검색(web_search)은 최신 가이드라인·외부 데이터가 필요할 때만. Notion DB가 1차.`
 
 async function buildBrianPrompt(): Promise<string> {
   let context = `\n\n[현재 시각]\n${fmtKoreaTime()}`
@@ -935,6 +945,68 @@ async function buildBrianPrompt(): Promise<string> {
     // 컨텍스트 로딩 실패 — 페르소나만
   }
   return BRIAN_PERSONA + context
+}
+
+function buildBrianTools() {
+  return {
+    search_papers: tool({
+      description:
+        "Notion 저널 DB(현재 구독된 척추 저널 논문들)에서 논문 검색. queries 배열의 각 키워드를 Title 또는 Abstract 에서 찾아 OR 매칭. 주제 탐색/문헌조사의 1차 도구. 유의어·약자 여러 개 넣어 커버리지 확보.",
+      inputSchema: z.object({
+        queries: z
+          .array(z.string().min(1))
+          .min(1)
+          .describe(
+            "검색 키워드 배열 (OR 매칭). 한 단어씩 정확히. 예: ['PROM', 'patient-reported outcome', 'ODI', 'NDI', 'VAS']",
+          ),
+        journal: z
+          .string()
+          .optional()
+          .describe(
+            "저널 정확 매칭 (Notion select 값). 약칭: Neurospine, TSJ, ESJ, GSJ, JNS Spine, Spine",
+          ),
+        category: z.string().optional().describe("카테고리(Category) multi-select 내 포함"),
+        interest: z.enum(["🔴 필독", "🟡 관심", "⚪ 참고"]).optional(),
+        read: z.boolean().optional().describe("읽음 상태 필터"),
+        sort: z.enum(["date_desc", "date_asc"]).optional().describe("기본 date_desc (최신순)"),
+        limit: z.number().int().min(1).max(30).optional().describe("응답 개수 제한 (기본 15)"),
+      }),
+      execute: async ({ queries, journal, category, interest, read, sort, limit }) => {
+        const result = await queryArticles({
+          queries,
+          journal,
+          category,
+          interest,
+          read,
+          sort: sort ?? "date_desc",
+        })
+        const n = Math.min(result.articles.length, limit ?? 15)
+        return {
+          matched: result.articles.length,
+          shown: n,
+          has_more: result.has_more,
+          articles: result.articles.slice(0, n).map((a) => ({
+            page_id: a.page_id,
+            title: a.title,
+            authors: a.authors,
+            journal: a.journal_name,
+            pub_date: a.pub_date,
+            interest: a.interest,
+            read: a.read,
+            keywords: a.keywords.slice(0, 8),
+            categories: a.categories,
+            abstract_snippet: a.abstract ? a.abstract.slice(0, 400) : null,
+            summary: a.summary || null,
+            doi_url: a.doi_url,
+            url: a.url,
+            pmid: a.pmid,
+          })),
+        }
+      },
+    }),
+
+    web_search: anthropic.tools.webSearch_20250305({ maxUses: 5 }),
+  }
 }
 
 // ─── Warren (market/finance mentor) ────────────────────────────
@@ -1250,6 +1322,7 @@ Same Dakota. English only. Quiet confidence, sly smile, gentle tutoring.
       agentId === "dakota" ? buildDakotaTools(req)
       : agentId === "lo" ? buildLoTools()
       : agentId === "elon" ? buildElonTools()
+      : agentId === "brian" ? buildBrianTools()
       : undefined
 
     const result = streamText({
