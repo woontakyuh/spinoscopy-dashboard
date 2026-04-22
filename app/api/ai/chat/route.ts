@@ -33,6 +33,9 @@ import { listInterestingCases } from "@/lib/notion/interestingCases"
 import { listAllSenseiEntries } from "@/lib/notion/sensei"
 import { listResearchProjects } from "@/lib/notion/research"
 import { getJournalStats } from "@/lib/notion/journal"
+import { listEditorialItems } from "@/lib/notion/editorial"
+import { isEffectivelyActive } from "@/lib/editorial/status"
+import { MY_PAPERS } from "@/lib/data/my-papers"
 import { getAllPatientRows } from "@/lib/notion/analytics"
 import { notionRequest } from "@/lib/notion/client"
 import {
@@ -882,6 +885,167 @@ function buildLoTools() {
   }
 }
 
+// ─── Brian (research/editorial advisor) ───────────────────────
+
+const BRIAN_PERSONA = `당신은 Dr. Tak의 연구/저널 파트너 Brian (Brian Greene 스타일) 입니다.
+- Tak을 "여교수"라 부르며, 학문적이지만 직설적인 톤으로 한국어로 대화합니다.
+- 논문 아이디어 검토, 연구 디자인 제안, 저널 타겟팅, 심사 논평, revision 전략 등을 돕습니다.
+- 정량적 사고를 선호합니다: 효과크기, 샘플사이즈, 바이어스, 통계적 검정력을 자주 언급.
+- Tak이 진행 중인 연구/심사/출판을 맥락으로 구체적으로 답하세요.
+- 근거 없는 찬양 금지. 약점이 보이면 솔직하게 말하되 다음 스텝을 함께 제시.
+- 수정 기능 없음. "기억해둬" 하면 "Notion Editorial/Research DB에 입력하면 다음에 여기서도 맥락에 들어옵니다" 식으로 안내.`
+
+async function buildBrianPrompt(): Promise<string> {
+  let context = `\n\n[현재 시각]\n${fmtKoreaTime()}`
+  try {
+    const [stats, projects, editorial] = await Promise.all([
+      getJournalStats().catch(() => null),
+      listResearchProjects().catch(() => []),
+      listEditorialItems().catch(() => []),
+    ])
+
+    if (stats) {
+      context += `\n\n[저널 구독 현황]\n누적 ${stats.total}편 · 최근 1주 ${stats.recent_week}편`
+    }
+
+    if (projects.length > 0) {
+      const byStatus: Record<string, number> = {}
+      for (const p of projects) byStatus[p.status] = (byStatus[p.status] ?? 0) + 1
+      const statusLine = Object.entries(byStatus).map(([s, n]) => `${s} ${n}`).join(" · ")
+      const projLines = projects.slice(0, 12).map((p) => {
+        const journal = p.target_journal ? ` → ${p.target_journal}` : ""
+        return `- [${p.status}] ${p.title}${journal}`
+      }).join("\n")
+      context += `\n\n[진행 연구 ${projects.length}개: ${statusLine}]\n${projLines}`
+    }
+
+    const activeEd = editorial.filter(isEffectivelyActive)
+    if (activeEd.length > 0) {
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
+      const edLines = activeEd.slice(0, 10).map((e) => {
+        const dl = e.deadline ? ` (마감 ${e.deadline}${e.deadline < today ? " ⚠overdue" : ""})` : ""
+        return `- [${e.role}] ${e.journal || "?"} · ${e.status} · ${e.name || e.manuscript_id}${dl}`
+      }).join("\n")
+      context += `\n\n[진행 중 심사/편집 ${activeEd.length}건]\n${edLines}`
+    }
+
+    const recentMine = MY_PAPERS.slice(0, 8).map((p) => `- [${p.year}, ${p.role}] ${p.title} — ${p.journal}`).join("\n")
+    context += `\n\n[Tak의 출판 논문 총 ${MY_PAPERS.length}편 — 최근 8편]\n${recentMine}`
+  } catch {
+    // 컨텍스트 로딩 실패 — 페르소나만
+  }
+  return BRIAN_PERSONA + context
+}
+
+// ─── Warren (market/finance mentor) ────────────────────────────
+
+const WARREN_PERSONA = `당신은 Tak의 자산 파트너 Warren (Warren Buffett 스타일) 입니다.
+- Tak을 "여선생"이라 부르며, 차분하고 장기적 관점으로 한국어로 대화합니다.
+- 가치투자·인내·시장 소음 구별이 핵심 가치. 단타·FOMO·공포 매도는 경계합니다.
+- 현재 시세와 지표를 맥락으로 활용하되, 과잉 예측 금지. "모르는 건 모른다"를 명확히.
+- 짧고 간결하게. 여선생이 숫자보다 판단 맥락을 원할 수도 있음을 항상 인지.
+- 투자 권유 아님을 명시 필요 시 삽입.`
+
+async function fetchInternalJson<T>(req: Request, pathname: string): Promise<T | null> {
+  try {
+    const baseUrl = await getInternalBaseUrl(req)
+    const res = await fetch(`${baseUrl}${pathname}`, { cache: "no-store" })
+    if (!res.ok) return null
+    return (await res.json()) as T
+  } catch {
+    return null
+  }
+}
+
+interface VaultPricesShape {
+  prices: Array<{ symbol: string; label: string; price: number; change24h: number | null; currency: string }>
+  indicators: Array<{ key: string; label: string; value: number; change: number | null; unit: string }>
+}
+interface VaultNewsShape {
+  items: Array<{ title: string; source: string; date: string; asset: string }>
+}
+
+async function buildWarrenPrompt(req: Request): Promise<string> {
+  let context = `\n\n[현재 시각]\n${fmtKoreaTime()}`
+  try {
+    const [prices, news] = await Promise.all([
+      fetchInternalJson<VaultPricesShape>(req, "/api/vault/prices"),
+      fetchInternalJson<VaultNewsShape>(req, "/api/vault/news"),
+    ])
+
+    if (prices?.prices && prices.prices.length > 0) {
+      const priceLines = prices.prices.map((p) => {
+        const ch = p.change24h !== null ? `${p.change24h >= 0 ? "+" : ""}${p.change24h.toFixed(2)}%` : "—"
+        const symbol = p.currency === "KRW" ? "₩" : "$"
+        const val = `${symbol}${Math.round(p.price).toLocaleString("en-US")}`
+        return `- ${p.label} (${p.symbol}): ${val} ${ch}`
+      }).join("\n")
+      context += `\n\n[현재 자산 시세]\n${priceLines}`
+    }
+
+    if (prices?.indicators && prices.indicators.length > 0) {
+      const indLines = prices.indicators.map((i) => {
+        const v = i.key === "btc-dom" ? `${i.value.toFixed(1)}%` : i.value.toLocaleString("ko-KR", { maximumFractionDigits: 2 })
+        const ch = i.change !== null ? ` (${i.change >= 0 ? "+" : ""}${i.change.toFixed(2)}%)` : ""
+        return `- ${i.label}: ${v}${ch} ${i.unit ?? ""}`.trim()
+      }).join("\n")
+      context += `\n\n[시장 지표]\n${indLines}`
+    }
+
+    if (news?.items && news.items.length > 0) {
+      const newsLines = news.items.slice(0, 8).map((n) => `- [${n.asset}] ${n.title} (${n.source}, ${n.date})`).join("\n")
+      context += `\n\n[최근 뉴스 ${news.items.length}건 중 8건]\n${newsLines}`
+    }
+  } catch {
+    // 컨텍스트 로딩 실패
+  }
+  return WARREN_PERSONA + context
+}
+
+// ─── Andrej (AI news commentator) ──────────────────────────────
+
+const ANDREJ_PERSONA = `당신은 Tak의 AI 뉴스 파트너 Andrej (Andrej Karpathy 스타일) 입니다.
+- Tak을 "운탁씨"라 부르며, friendly-technical 톤으로 한국어로 대화합니다 (영어 용어는 그대로).
+- AI 모델 릴리즈, 연구 논문, 툴링, medical AI 동향을 해설합니다.
+- 의료AI 접점은 특히 구체적으로 연결 (척추/수술/진단 적용 가능성 등 Tak 관심사).
+- 과잉 열광이나 과잉 회의 모두 경계. "이건 진짜 의미있음" vs "이건 marketing" 구분해서.
+- 하이프 대신 실제 기술 변화를 짚는 평범한 톤. 필요하면 "이건 내 추측" 명시.`
+
+interface AiFeedShape {
+  items: Array<{
+    title: string
+    source: string
+    sourceLabel: string
+    date: string
+    author: string | null
+    categories: string[]
+    importanceScore: number
+    summary: string | null
+    notes: string | null
+  }>
+}
+
+async function buildAndrejPrompt(req: Request): Promise<string> {
+  let context = `\n\n[현재 시각]\n${fmtKoreaTime()}`
+  try {
+    const feed = await fetchInternalJson<AiFeedShape>(req, "/api/ai-feed")
+    if (feed?.items && feed.items.length > 0) {
+      // 중요도 순으로 상위 15건
+      const sorted = [...feed.items].sort((a, b) => b.importanceScore - a.importanceScore).slice(0, 15)
+      const feedLines = sorted.map((it) => {
+        const cats = it.categories.length > 0 ? ` [${it.categories.join(", ")}]` : ""
+        const imp = `★${it.importanceScore}`
+        const sum = it.summary ? `\n    ${it.summary}` : ""
+        return `- ${imp}${cats} ${it.title} — ${it.sourceLabel} (${it.date.slice(0, 10)})${sum}`
+      }).join("\n")
+      context += `\n\n[최근 AI 뉴스 ${feed.items.length}건 중 중요도 상위 15]\n${feedLines}`
+    }
+  } catch {
+    // 컨텍스트 로딩 실패
+  }
+  return ANDREJ_PERSONA + context
+}
+
 // ─── Elon (read-only clinical coworker) ────────────────────────
 
 const ELON_PERSONA = `당신은 Tak의 임상 데이터 파트너 Elon입니다.
@@ -1051,9 +1215,26 @@ Same Dakota. English only. Quiet confidence, sly smile, gentle tutoring.
     systemPrompt = await buildLoPrompt()
   } else if (agentId === "elon") {
     systemPrompt = await buildElonPrompt()
+  } else if (agentId === "brian") {
+    systemPrompt = await buildBrianPrompt()
+  } else if (agentId === "warren") {
+    systemPrompt = await buildWarrenPrompt(req)
+  } else if (agentId === "andrej") {
+    systemPrompt = await buildAndrejPrompt(req)
   } else {
     systemPrompt = STATIC_PROMPTS[agentId as string] ?? STATIC_PROMPTS.default
   }
+
+  // 모델 선택: 오케스트레이션/심층 토론은 Sonnet, 요약·브리핑 위주는 Haiku
+  const modelForAgent: Record<string, string> = {
+    dakota: "claude-sonnet-4-6",
+    lo: "claude-sonnet-4-6",
+    elon: "claude-sonnet-4-6",
+    brian: "claude-sonnet-4-6",
+    warren: "claude-haiku-4-5-20251001",
+    andrej: "claude-haiku-4-5-20251001",
+  }
+  const modelId = modelForAgent[agentId as string] ?? "claude-sonnet-4-6"
 
   try {
     const modelMessages = toModelMessages((messages ?? []) as UIMessage[])
@@ -1072,7 +1253,7 @@ Same Dakota. English only. Quiet confidence, sly smile, gentle tutoring.
       : undefined
 
     const result = streamText({
-      model: anthropic("claude-sonnet-4-6"),
+      model: anthropic(modelId),
       system: systemPrompt,
       messages: modelMessages,
       tools: activeTools,
