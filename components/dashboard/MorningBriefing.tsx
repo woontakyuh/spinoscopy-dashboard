@@ -365,7 +365,13 @@ function DakotaGreetingChat({
           </div>
         )
       })}
-      {isStreaming && messages[messages.length - 1]?.role === "user" && (
+      {isStreaming && (() => {
+        const last = messages[messages.length - 1]
+        if (!last) return false
+        // user 가 방금 보냈거나, assistant 가 아직 텍스트 못 낸 상태 (툴 호출 중 등)
+        if (last.role === "user") return true
+        return getChatText(last.parts).length === 0
+      })() && (
         <div className="flex justify-start">
           <div className="bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-2.5">
             <div className="flex gap-1">

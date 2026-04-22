@@ -213,7 +213,28 @@ export function AgentChat({ agentId, image, name, greeting }: AgentChatProps) {
           <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto space-y-2 px-1">
             {messages.length === 0 ? (
               <p className="text-muted-foreground/70 text-xs text-center py-4">…</p>
-            ) : messageList}
+            ) : (
+              <>
+                {messageList}
+                {isStreaming && (() => {
+                  const last = messages[messages.length - 1]
+                  if (!last) return false
+                  // user 가 방금 보냈거나, assistant 가 아직 텍스트 못 낸 상태 (툴 호출 중 등)
+                  if (last.role === "user") return true
+                  return getChatText(last.parts).length === 0
+                })() && (
+                  <div className="flex justify-start">
+                    <div className="bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-2.5">
+                      <div className="flex gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "0ms" }} />
+                        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "150ms" }} />
+                        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "300ms" }} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
           <div className="shrink-0 flex flex-col gap-1.5">
             {error && <div className="text-xs text-red-400 px-1">{error.message}</div>}
