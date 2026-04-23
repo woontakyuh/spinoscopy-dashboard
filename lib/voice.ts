@@ -3,227 +3,173 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { pushVoiceLog } from "./voiceDebugLog"
 
-// 브라우저 내장 Web Speech API 기반 음성 훅 (STT + TTS).
-// API key·서버 라운드트립 없음. Chrome/Safari/모바일 iOS Safari 지원.
-// Firefox는 SpeechRecognition 미지원이라 mic 버튼 자동 숨김.
+// STT: MediaRecorder 로 오디오 blob 녹음 → /api/voice/stt (서버 Whisper) 에 POST → 텍스트.
+// iOS Safari 의 Web Speech API 조용한 실패 회피. MediaRecorder 는 iOS 14.3+ 안정 지원.
+//
+// TTS: 아래 useSpeechSynthesis (브라우저 내장) / useElevenLabsSpeech (서버) 그대로 유지.
 
-// ─── SpeechRecognition 타입 shim (standard Web API, 일부 TS 버전에서 미정의) ──
-interface WebSpeechRecognitionResult {
-  isFinal: boolean
-  readonly length: number
-  [index: number]: { transcript: string; confidence: number }
-}
-interface WebSpeechRecognitionResultList {
-  readonly length: number
-  [index: number]: WebSpeechRecognitionResult
-}
-interface WebSpeechRecognitionEvent {
-  resultIndex: number
-  results: WebSpeechRecognitionResultList
-}
-interface WebSpeechRecognition {
-  lang: string
-  continuous: boolean
-  interimResults: boolean
-  onresult: ((e: WebSpeechRecognitionEvent) => void) | null
-  onend: (() => void) | null
-  onerror: ((e: { error: string }) => void) | null
-  start: () => void
-  stop: () => void
-  abort: () => void
-}
-type SRConstructor = new () => WebSpeechRecognition
-
-function getSRConstructor(): SRConstructor | null {
-  if (typeof window === "undefined") return null
-  const w = window as unknown as {
-    SpeechRecognition?: SRConstructor
-    webkitSpeechRecognition?: SRConstructor
-  }
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null
-}
-
-// ─── STT hook (Push-to-Talk) ─────────────────────────────────────
-// 사용자가 명시적으로 start / commitNow / stop 호출할 때만 상태 전환.
-// 자동 silence commit 없음. TTS 끝나도 자동 재시작 안 됨.
-// continuous=true 는 엔진이 침묵에 제멋대로 꺼지지 않도록 유지.
+// ─── STT hook (Push-to-Talk, server Whisper) ─────────────────────
+// 기존 외부 인터페이스 유지: { isListening, isSupported, interimText, start, stop, stopSilent, commitNow }
+// - interimText 는 서버 전사 특성상 항상 빈 문자열 (호환용).
+// - onFinalText("") 호출 시 "전사 실패 or 빈 결과" 를 의미 → 호출측은 reset 처리 권장.
+// - opts.lang / opts.interim 은 인터페이스 호환용, 실제 동작엔 영향 없음.
 
 export function useSpeechRecognition(opts: {
   lang?: string
   onFinalText: (text: string) => void
   interim?: boolean
 }) {
-  const { lang = "ko-KR", onFinalText, interim = true } = opts
+  const { onFinalText } = opts
   const [isListening, setIsListening] = useState(false)
   const [isSupported, setIsSupported] = useState(false)
-  const [interimText, setInterimText] = useState("")
-  const recogRef = useRef<WebSpeechRecognition | null>(null)
-  const finalRef = useRef("")
-  const interimRef = useRef("")
+  const interimText = ""
+  const recorderRef = useRef<MediaRecorder | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const chunksRef = useRef<Blob[]>([])
   const submittedRef = useRef(false)
+  const seqRef = useRef(0) // 늦게 도착한 transcribe 응답 무시
 
   useEffect(() => {
-    setIsSupported(!!getSRConstructor())
+    const ok =
+      typeof window !== "undefined" &&
+      typeof navigator !== "undefined" &&
+      !!navigator.mediaDevices?.getUserMedia &&
+      typeof MediaRecorder !== "undefined"
+    setIsSupported(ok)
+  }, [])
+
+  const teardown = useCallback(() => {
+    if (recorderRef.current) {
+      const rec = recorderRef.current
+      try { rec.ondataavailable = null as unknown as (e: BlobEvent) => void } catch {}
+      try { rec.onerror = null as unknown as (e: Event) => void } catch {}
+      try { rec.onstop = null as unknown as () => void } catch {}
+      try { if (rec.state !== "inactive") rec.stop() } catch {}
+      recorderRef.current = null
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => { try { t.stop() } catch {} })
+      streamRef.current = null
+    }
+    chunksRef.current = []
   }, [])
 
   const stop = useCallback(() => {
-    try {
-      recogRef.current?.stop()
-    } catch {}
-  }, [])
+    teardown()
+    setIsListening(false)
+  }, [teardown])
 
-  // 언어 전환·모드 전환 등 컨텍스트 변경 시 사용:
-  // 인식 즉시 중단하고 버퍼 텍스트 **전송 안 함**. submittedRef=true로
-  // onend의 자동 send 경로 차단.
+  // 컨텍스트 변경·취소 시: 현재 녹음 폐기, 서버에 전송 안 함.
   const stopSilent = useCallback(() => {
-    submittedRef.current = true
-    if (recogRef.current) {
-      // stale event 차단 + 참조 해제 (iOS Safari: 다음 start() 를 setTimeout 없이 동기 경로로)
-      recogRef.current.onresult = null
-      recogRef.current.onerror = null
-      recogRef.current.onend = null
-      try { recogRef.current.abort() } catch {}
-      recogRef.current = null
-    }
+    submittedRef.current = true // onstop 이 떠도 transcribe 안 하도록 세팅
+    teardown()
     setIsListening(false)
-    setInterimText("")
-    interimRef.current = ""
-    finalRef.current = ""
     pushVoiceLog(`stopSilent`)
-  }, [])
+  }, [teardown])
 
-  // 사용자가 "이제 내 차례 끝" 명시적으로 누를 때:
-  // 현재까지 쌓인 final + interim을 즉시 onFinalText로 flush하고 인식 중단.
-  // onend가 중복 호출 시 재전송 방지 위해 submittedRef flag 사용.
-  // 반환값: 실제로 텍스트를 보냈는지 여부 (empty면 false → 호출측이 재시도 결정)
-  const commitNow = useCallback((): boolean => {
-    pushVoiceLog(`commitNow ENTER · final="${finalRef.current.slice(0,30)}" interim="${interimRef.current.slice(0,30)}" ref=${!!recogRef.current}`)
-    const combined = (finalRef.current + " " + interimRef.current).trim()
-    submittedRef.current = true
-    if (recogRef.current) {
-      recogRef.current.onresult = null
-      recogRef.current.onerror = null
-      recogRef.current.onend = null
-      try { recogRef.current.abort() } catch {}
-      recogRef.current = null
-    }
-    setIsListening(false)
-    setInterimText("")
-    interimRef.current = ""
-    finalRef.current = ""
-    pushVoiceLog(`commitNow EXIT · sent=${!!combined} text="${combined.slice(0, 50)}"`)
-    if (combined) {
-      onFinalText(combined)
-      return true
-    }
-    return false
-  }, [onFinalText])
-
-  const start = useCallback(() => {
-    const SR = getSRConstructor()
-    if (!SR) return
-    const hadPrevious = !!recogRef.current
-    pushVoiceLog(`start() entry · hadPrevious=${hadPrevious}`)
-    if (recogRef.current) {
-      recogRef.current.onresult = null
-      recogRef.current.onerror = null
-      recogRef.current.onend = null
+  const transcribe = useCallback(
+    async (blob: Blob, seq: number) => {
+      pushVoiceLog(`transcribe start · ${blob.size}B seq=${seq} type=${blob.type || "(none)"}`)
       try {
-        recogRef.current.abort()
-      } catch {}
-      recogRef.current = null
-    }
-    // 이전 instance 있었으면 브라우저가 audio resource 해제할 시간 확보
-    // (Safari가 즉시 start() 호출 시 InvalidStateError 내는 경향)
-    if (hadPrevious) {
-      pushVoiceLog(`start() deferred 250ms (had previous)`)
-      setTimeout(() => startInternal(), 250)
-      return
-    }
-    startInternal()
-
-    function startInternal() {
-      const SRCtor = getSRConstructor()
-      if (!SRCtor) return
-      const r = new SRCtor()
-      r.lang = lang
-      // continuous=true: 사용자가 stop/commit 누를 때까지 유지.
-      r.continuous = true
-      r.interimResults = interim
-      finalRef.current = ""
-      interimRef.current = ""
-      submittedRef.current = false
-
-      let onresultCount = 0
-      r.onresult = (e) => {
-        let interimStr = ""
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-          const res = e.results[i]
-          const transcript = res[0]?.transcript ?? ""
-          if (res.isFinal) finalRef.current += transcript
-          else interimStr += transcript
-        }
-        interimRef.current = interimStr
-        setInterimText(interimStr)
-        onresultCount++
-        if (onresultCount <= 3 || onresultCount % 10 === 0) {
-          pushVoiceLog(`onresult #${onresultCount} · final="${finalRef.current.slice(0,30)}" interim="${interimStr.slice(0,30)}"`)
-        }
-      }
-      r.onerror = (e) => {
-        pushVoiceLog(`onerror · ${(e as { error?: string } | undefined)?.error ?? "unknown"}`)
-        setIsListening(false)
-        setInterimText("")
-        interimRef.current = ""
-      }
-      r.onend = () => {
-        pushVoiceLog(`onend · submitted=${submittedRef.current} final="${finalRef.current.slice(0, 40)}"`)
-        setIsListening(false)
-        setInterimText("")
-        interimRef.current = ""
-        if (submittedRef.current) {
-          submittedRef.current = false
+        const form = new FormData()
+        form.append("audio", blob, "audio.webm")
+        const res = await fetch("/api/voice/stt", { method: "POST", body: form })
+        if (seq !== seqRef.current) {
+          pushVoiceLog(`transcribe stale (seq ${seq} vs ${seqRef.current})`)
           return
         }
-        const text = finalRef.current.trim()
-        if (text) onFinalText(text)
+        if (!res.ok) {
+          const errText = await res.text().catch(() => "")
+          pushVoiceLog(`STT http ${res.status} · ${errText.slice(0, 100)}`)
+          onFinalText("")
+          return
+        }
+        const data = (await res.json()) as { text?: string; error?: string }
+        const text = (data.text ?? "").trim()
+        pushVoiceLog(`transcribed · "${text.slice(0, 60)}"`)
+        onFinalText(text)
+      } catch (e) {
+        pushVoiceLog(`transcribe threw · ${(e as Error)?.message}`)
+        onFinalText("")
+      }
+    },
+    [onFinalText],
+  )
+
+  const start = useCallback(async () => {
+    pushVoiceLog(`start() entry`)
+    if (recorderRef.current || streamRef.current) teardown()
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
+      const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"]
+      const mime = candidates.find((m) => {
+        try { return MediaRecorder.isTypeSupported(m) } catch { return false }
+      })
+      const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream)
+      chunksRef.current = []
+      submittedRef.current = false
+
+      rec.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunksRef.current.push(e.data)
+      }
+      rec.onerror = (e) => {
+        const msg = (e as unknown as { error?: { message?: string } })?.error?.message ?? "unknown"
+        pushVoiceLog(`recorder.onerror · ${msg}`)
+      }
+      rec.onstop = () => {
+        const wasSubmitted = submittedRef.current
+        submittedRef.current = false
+        const blob = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" })
+        chunksRef.current = []
+        pushVoiceLog(`recorder.onstop · submitted=${wasSubmitted} blob=${blob.size}B`)
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((t) => { try { t.stop() } catch {} })
+          streamRef.current = null
+        }
+        recorderRef.current = null
+        setIsListening(false)
+        if (wasSubmitted && blob.size > 0) {
+          const seq = ++seqRef.current
+          void transcribe(blob, seq)
+        } else if (wasSubmitted) {
+          pushVoiceLog(`submitted but empty blob · skipping transcribe`)
+          onFinalText("")
+        }
       }
 
-      try {
-        r.start()
-        recogRef.current = r
-        setIsListening(true)
-        pushVoiceLog(`r.start() OK → isListening=true`)
-      } catch (e) {
-        pushVoiceLog(`r.start() threw · ${(e as Error)?.message}`)
-        // InvalidStateError 등 일시 실패 — 1회 재시도
-        setTimeout(() => {
-          try {
-            const r2 = new SRCtor()
-            Object.assign(r2, { lang: r.lang, continuous: r.continuous, interimResults: r.interimResults })
-            r2.onresult = r.onresult
-            r2.onerror = r.onerror
-            r2.onend = r.onend
-            r2.start()
-            recogRef.current = r2
-            setIsListening(true)
-            pushVoiceLog(`retry start OK`)
-          } catch (e2) {
-            pushVoiceLog(`retry start failed · ${(e2 as Error)?.message}`)
-            setIsListening(false)
-          }
-        }, 500)
-      }
+      rec.start()
+      recorderRef.current = rec
+      setIsListening(true)
+      pushVoiceLog(`recorder.start() OK · mime=${mime ?? "(default)"}`)
+    } catch (e) {
+      pushVoiceLog(`getUserMedia failed · ${(e as Error)?.message}`)
+      setIsListening(false)
     }
-  }, [lang, interim, onFinalText])
+  }, [teardown, transcribe, onFinalText])
+
+  const commitNow = useCallback((): boolean => {
+    const rec = recorderRef.current
+    pushVoiceLog(`commitNow ENTER · state=${rec?.state ?? "null"} chunks=${chunksRef.current.length}`)
+    if (!rec || rec.state !== "recording") {
+      return false
+    }
+    submittedRef.current = true
+    try {
+      rec.stop() // → onstop → transcribe (async)
+    } catch (e) {
+      pushVoiceLog(`commitNow rec.stop threw · ${(e as Error)?.message}`)
+      submittedRef.current = false
+      return false
+    }
+    return true
+  }, [])
 
   useEffect(() => {
     return () => {
-      try {
-        recogRef.current?.abort()
-      } catch {}
+      teardown()
     }
-  }, [])
+  }, [teardown])
 
   return { isListening, isSupported, interimText, start, stop, stopSilent, commitNow }
 }

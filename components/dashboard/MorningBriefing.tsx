@@ -108,7 +108,12 @@ function DakotaGreetingChat({
   const handleVoiceFinal = useCallback(
     (text: string) => {
       const trimmed = text.trim()
-      if (!trimmed) return
+      if (!trimmed) {
+        // 전사 실패 or 빈 결과 — 대기 상태 리셋해서 사용자가 다시 말할 수 있게
+        pushVoiceLog(`transcribe empty · reset expectingResponse`)
+        setExpectingResponse(false)
+        return
+      }
       lastInputViaMicRef.current = true
       pushVoiceLog(`sendMessage → "${trimmed.slice(0, 40)}"`)
       sendMessage({ text: trimmed })
