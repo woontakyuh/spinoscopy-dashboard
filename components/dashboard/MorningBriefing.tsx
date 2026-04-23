@@ -68,8 +68,21 @@ function DakotaGreetingChat({
     }),
     onError: (err) => {
       console.error("[DakotaChat] error:", err)
+      pushVoiceLog(`chat ERROR · ${err?.message ?? String(err)}`)
+    },
+    onFinish: () => {
+      pushVoiceLog(`chat onFinish`)
     },
   })
+
+  // 채팅 status 전이 추적
+  const prevStatusRef = useRef<string>("idle")
+  useEffect(() => {
+    if (prevStatusRef.current !== status) {
+      pushVoiceLog(`chat status · ${prevStatusRef.current} → ${status}`)
+      prevStatusRef.current = status
+    }
+  }, [status])
 
   const isStreaming = status === "streaming" || status === "submitted"
   const hydratedRef = useRef(false)
@@ -97,6 +110,7 @@ function DakotaGreetingChat({
       const trimmed = text.trim()
       if (!trimmed) return
       lastInputViaMicRef.current = true
+      pushVoiceLog(`sendMessage → "${trimmed.slice(0, 40)}"`)
       sendMessage({ text: trimmed })
     },
     [sendMessage],
