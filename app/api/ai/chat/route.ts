@@ -1325,10 +1325,20 @@ Same Dakota. English only. Quiet confidence, sly smile, gentle tutoring.
       : agentId === "brian" ? buildBrianTools()
       : undefined
 
+    // Anthropic prompt caching: system prompt(Dakota persona + memory digest + context)
+    // 을 cache-eligible 로 마킹. 첫 턴에 캐시 생성 후 5분 TTL 내 후속 턴은 캐시 히트
+    // → Claude 처리 시간 ~85% 단축 기대. "ephemeral" 타입이 기본 5분 TTL.
+    const systemMessage = {
+      role: "system" as const,
+      content: systemPrompt,
+      providerOptions: {
+        anthropic: { cacheControl: { type: "ephemeral" as const } },
+      },
+    }
+
     const result = streamText({
       model: anthropic(modelId),
-      system: systemPrompt,
-      messages: modelMessages,
+      messages: [systemMessage, ...modelMessages],
       tools: activeTools,
       stopWhen: activeTools ? stepCountIs(5) : undefined,
       onError: ({ error }) => {
