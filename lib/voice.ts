@@ -96,6 +96,7 @@ export function useSpeechRecognition(opts: {
   // onend가 중복 호출 시 재전송 방지 위해 submittedRef flag 사용.
   // 반환값: 실제로 텍스트를 보냈는지 여부 (empty면 false → 호출측이 재시도 결정)
   const commitNow = useCallback((): boolean => {
+    console.log("[voice] commitNow ENTER, final:", finalRef.current.slice(0,30), "interim:", interimRef.current.slice(0,30), "ref?", !!recogRef.current)
     const combined = (finalRef.current + " " + interimRef.current).trim()
     submittedRef.current = true
     if (recogRef.current) {
@@ -152,6 +153,7 @@ export function useSpeechRecognition(opts: {
       interimRef.current = ""
       submittedRef.current = false
 
+      let onresultCount = 0
       r.onresult = (e) => {
         let interimStr = ""
         for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -162,6 +164,10 @@ export function useSpeechRecognition(opts: {
         }
         interimRef.current = interimStr
         setInterimText(interimStr)
+        onresultCount++
+        if (onresultCount <= 3 || onresultCount % 10 === 0) {
+          console.log("[voice] onresult #" + onresultCount, "final:", finalRef.current.slice(0,30), "interim:", interimStr.slice(0,30))
+        }
       }
       r.onerror = (e) => {
         console.log("[voice] onerror:", (e as { error?: string } | undefined)?.error)

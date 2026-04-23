@@ -459,10 +459,12 @@ function DakotaGreetingChat({
           onClick={(e) => {
             e.stopPropagation()
             e.preventDefault()
+            console.log("[voice-ui] PTT click — isListening:", isListening, "dakotaBusy:", dakotaBusy, "voiceMode:", voiceMode, "isStreaming:", isStreaming, "isSpeaking:", isSpeaking)
             if (isListening) {
               const sent = commitVoiceInput()
+              console.log("[voice-ui] commit sent:", sent)
               if (sent) setExpectingResponse(true)
-              else startListening()
+              // 빈 버퍼면 아무것도 하지 않음 — 사용자가 다시 말할 수 있도록 idle 복귀
             } else if (dakotaBusy) {
               stopSpeech()
               setExpectingResponse(false)
