@@ -18,9 +18,10 @@ export async function POST(req: NextRequest) {
 
     const form = new FormData()
     form.append("file", audio, "audio.webm")
-    form.append("model", "whisper-large-v3-turbo")
+    // distil-whisper-large-v3-en: 영어 전용, turbo 대비 ~2배 빠름. Dakota 음성모드는 영어 고정.
+    form.append("model", "distil-whisper-large-v3-en")
     form.append("response_format", "json")
-    // language 는 auto-detect (Dakota 는 영어지만 Tak 이 한국어로 말할 수도 있음)
+    form.append("language", "en")
 
     const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
       method: "POST",

@@ -100,13 +100,26 @@ export function useSpeechRecognition(opts: {
     pushVoiceLog(`start() entry`)
     if (recorderRef.current || streamRef.current) teardown()
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      // Whisper 는 16kHz mono 가 native. 업로드 크기도 줄임 (~5x).
+      // iOS Safari 는 일부 제약을 무시할 수 있으나 try/catch 없이 기본값 fallback.
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          sampleRate: 16000,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      })
       streamRef.current = stream
       const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"]
       const mime = candidates.find((m) => {
         try { return MediaRecorder.isTypeSupported(m) } catch { return false }
       })
-      const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream)
+      // 음성 전용 24kbps — 기본 128kbps 대비 ~5x 작음. 음성 인식 품질엔 충분.
+      const recorderOpts: MediaRecorderOptions = { audioBitsPerSecond: 24000 }
+      if (mime) recorderOpts.mimeType = mime
+      const rec = new MediaRecorder(stream, recorderOpts)
       chunksRef.current = []
       submittedRef.current = false
 
