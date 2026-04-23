@@ -138,6 +138,10 @@ export function useSpeechRecognition(opts: {
     // 이미 listening 중이면 중단
     const hadPrevious = !!recogRef.current
     if (recogRef.current) {
+      // 이전 instance 이벤트가 늦게 도착해 새 턴 상태를 덮어쓰지 않게 차단
+      recogRef.current.onresult = null
+      recogRef.current.onerror = null
+      recogRef.current.onend = null
       try {
         recogRef.current.abort()
       } catch {}
@@ -425,4 +429,3 @@ export function useElevenLabsSpeech() {
 
   return { isSupported: true, isSpeaking, speak, stop, prime }
 }
-
