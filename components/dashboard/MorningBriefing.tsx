@@ -156,33 +156,7 @@ function DakotaGreetingChat({
     }
   }, [voiceMode, messages.length, stopSpeech, stopListening, startListening, primeAudio])
 
-  // TTS 끝나면 자동으로 다시 listening (ChatGPT 음성모드 스타일 대화 루프)
-  // 첫 시도 실패할 수 있어 300ms 뒤 재시도 + 1.5s 안전망도 둠.
-  // skipAutoRestartRef: 쉬어가기 버튼으로 TTS 수동 중단 시 자동 재시작 억제
-  const prevSpeakingRef = useRef(false)
-  const skipAutoRestartRef = useRef(false)
-  useEffect(() => {
-    const wasSpeaking = prevSpeakingRef.current
-    prevSpeakingRef.current = isSpeaking
-    if (!wasSpeaking || isSpeaking) return
-    if (skipAutoRestartRef.current) {
-      skipAutoRestartRef.current = false
-      return
-    }
-    if (!voiceMode || isListening || isStreaming) return
-    const t1 = setTimeout(() => {
-      if (voiceMode && !isStreaming && !isSpeaking) startListening()
-    }, 300)
-    const t2 = setTimeout(() => {
-      if (voiceMode && !isListening && !isStreaming && !isSpeaking) {
-        startListening()
-      }
-    }, 1500)
-    return () => {
-      clearTimeout(t1)
-      clearTimeout(t2)
-    }
-  }, [isSpeaking, voiceMode, isListening, isStreaming, startListening])
+  // PTT 모드: TTS 끝나도 자동 재시작 안 함. 사용자가 메인 버튼 탭해서 다시 listening 시작.
 
   // 1) localStorage 복원 (1회) — 비어 있으면 서버 archive에서 hydration
   useEffect(() => {
@@ -524,10 +498,7 @@ function DakotaGreetingChat({
             e.stopPropagation()
             e.preventDefault()
             if (isListening) stopListeningSilent()
-            if (isSpeaking) {
-              skipAutoRestartRef.current = true
-              stopSpeech()
-            }
+            if (isSpeaking) stopSpeech()
           }}
           disabled={!isListening && !isSpeaking}
           aria-label="쉬어가기"
@@ -553,7 +524,7 @@ function DakotaGreetingChat({
               ? "… thinking"
               : isListening
                 ? "🎙 Listening"
-                : "🎙 Tap to resume"}
+                : "🎙 Tap to speak"}
         </div>
       </div>
 

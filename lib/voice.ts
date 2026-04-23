@@ -42,12 +42,10 @@ function getSRConstructor(): SRConstructor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null
 }
 
-// ─── STT hook ────────────────────────────────────────────────────
-// continuous=true 유지(침묵 1초에 엔진이 꺼져서 한국어 유실되는 문제 방지).
-// 대신 직접 silence timer로 말 끝 감지 → 자동 commit.
-// 강제 즉시 종료는 사용자 정지 버튼(commitNow) 사용.
-const AUTO_COMMIT_SILENCE_MS = 1800  // 1.8초 침묵 → 자동 커밋
-const INITIAL_SILENCE_MS = 10_000    // 말 시작 전 최대 10초까지 대기
+// ─── STT hook (Push-to-Talk) ─────────────────────────────────────
+// 사용자가 명시적으로 start / commitNow / stop 호출할 때만 상태 전환.
+// 자동 silence commit 없음. TTS 끝나도 자동 재시작 안 됨.
+// continuous=true 는 엔진이 침묵에 제멋대로 꺼지지 않도록 유지.
 
 export function useSpeechRecognition(opts: {
   lang?: string
@@ -62,26 +60,9 @@ export function useSpeechRecognition(opts: {
   const finalRef = useRef("")
   const interimRef = useRef("")
   const submittedRef = useRef(false)
-  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const commitNowRef = useRef<() => boolean>(() => false)
-
-  const clearSilenceTimer = () => {
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current)
-      silenceTimerRef.current = null
-    }
-  }
-  const resetSilenceTimer = (ms: number) => {
-    clearSilenceTimer()
-    silenceTimerRef.current = setTimeout(() => {
-      silenceTimerRef.current = null
-      commitNowRef.current()
-    }, ms)
-  }
 
   useEffect(() => {
     setIsSupported(!!getSRConstructor())
-    return () => clearSilenceTimer()
   }, [])
 
   const stop = useCallback(() => {
@@ -94,7 +75,6 @@ export function useSpeechRecognition(opts: {
   // 인식 즉시 중단하고 버퍼 텍스트 **전송 안 함**. submittedRef=true로
   // onend의 자동 send 경로 차단.
   const stopSilent = useCallback(() => {
-    clearSilenceTimer()
     submittedRef.current = true
     try {
       recogRef.current?.abort()
@@ -110,7 +90,6 @@ export function useSpeechRecognition(opts: {
   // onend가 중복 호출 시 재전송 방지 위해 submittedRef flag 사용.
   // 반환값: 실제로 텍스트를 보냈는지 여부 (empty면 false → 호출측이 재시도 결정)
   const commitNow = useCallback((): boolean => {
-    clearSilenceTimer()
     const combined = (finalRef.current + " " + interimRef.current).trim()
     submittedRef.current = true
     try {
@@ -126,11 +105,6 @@ export function useSpeechRecognition(opts: {
     }
     return false
   }, [onFinalText])
-
-  // commitNowRef 동기화 — silence timer에서 최신 commitNow 호출하기 위함
-  useEffect(() => {
-    commitNowRef.current = commitNow
-  }, [commitNow])
 
   const start = useCallback(() => {
     const SR = getSRConstructor()
@@ -159,54 +133,46 @@ export function useSpeechRecognition(opts: {
       const SRCtor = getSRConstructor()
       if (!SRCtor) return
       const r = new SRCtor()
-    r.lang = lang
-    // continuous=true: 침묵 자동 종료 안 함. 사용자가 정지 버튼으로 명시 종료.
-    // 말 도중 엔진이 제멋대로 멈춰버려 버퍼 유실되는 이슈 방지.
-    r.continuous = true
-    r.interimResults = interim
-    finalRef.current = ""
-    interimRef.current = ""
-    submittedRef.current = false
+      r.lang = lang
+      // continuous=true: 사용자가 stop/commit 누를 때까지 유지.
+      r.continuous = true
+      r.interimResults = interim
+      finalRef.current = ""
+      interimRef.current = ""
+      submittedRef.current = false
 
-    r.onresult = (e) => {
-      let interimStr = ""
-      let hasNewText = false
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const res = e.results[i]
-        const transcript = res[0]?.transcript ?? ""
-        if (transcript) hasNewText = true
-        if (res.isFinal) finalRef.current += transcript
-        else interimStr += transcript
+      r.onresult = (e) => {
+        let interimStr = ""
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const res = e.results[i]
+          const transcript = res[0]?.transcript ?? ""
+          if (res.isFinal) finalRef.current += transcript
+          else interimStr += transcript
+        }
+        interimRef.current = interimStr
+        setInterimText(interimStr)
       }
-      interimRef.current = interimStr
-      setInterimText(interimStr)
-      // 새 발화 감지 시 silence timer 재시작 (말 중엔 자동 commit X)
-      if (hasNewText) resetSilenceTimer(AUTO_COMMIT_SILENCE_MS)
-    }
-    r.onerror = () => {
-      clearSilenceTimer()
-      setIsListening(false)
-      setInterimText("")
-      interimRef.current = ""
-    }
-    r.onend = () => {
-      clearSilenceTimer()
-      setIsListening(false)
-      setInterimText("")
-      interimRef.current = ""
-      if (submittedRef.current) {
-        submittedRef.current = false
-        return
+      r.onerror = () => {
+        setIsListening(false)
+        setInterimText("")
+        interimRef.current = ""
       }
-      const text = finalRef.current.trim()
-      if (text) onFinalText(text)
-    }
+      r.onend = () => {
+        setIsListening(false)
+        setInterimText("")
+        interimRef.current = ""
+        if (submittedRef.current) {
+          submittedRef.current = false
+          return
+        }
+        const text = finalRef.current.trim()
+        if (text) onFinalText(text)
+      }
 
       try {
         r.start()
         recogRef.current = r
         setIsListening(true)
-        resetSilenceTimer(INITIAL_SILENCE_MS)
       } catch {
         // InvalidStateError 등 일시 실패 — 1회 재시도
         setTimeout(() => {
@@ -219,7 +185,6 @@ export function useSpeechRecognition(opts: {
             r2.start()
             recogRef.current = r2
             setIsListening(true)
-            resetSilenceTimer(INITIAL_SILENCE_MS)
           } catch {
             setIsListening(false)
           }
