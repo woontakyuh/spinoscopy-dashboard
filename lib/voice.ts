@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { pushVoiceLog } from "./voiceDebugLog"
 
 // 브라우저 내장 Web Speech API 기반 음성 훅 (STT + TTS).
 // API key·서버 라운드트립 없음. Chrome/Safari/모바일 iOS Safari 지원.
@@ -88,7 +89,7 @@ export function useSpeechRecognition(opts: {
     setInterimText("")
     interimRef.current = ""
     finalRef.current = ""
-    console.log("[voice] stopSilent")
+    pushVoiceLog(`stopSilent`)
   }, [])
 
   // 사용자가 "이제 내 차례 끝" 명시적으로 누를 때:
@@ -96,7 +97,7 @@ export function useSpeechRecognition(opts: {
   // onend가 중복 호출 시 재전송 방지 위해 submittedRef flag 사용.
   // 반환값: 실제로 텍스트를 보냈는지 여부 (empty면 false → 호출측이 재시도 결정)
   const commitNow = useCallback((): boolean => {
-    console.log("[voice] commitNow ENTER, final:", finalRef.current.slice(0,30), "interim:", interimRef.current.slice(0,30), "ref?", !!recogRef.current)
+    pushVoiceLog(`commitNow ENTER · final="${finalRef.current.slice(0,30)}" interim="${interimRef.current.slice(0,30)}" ref=${!!recogRef.current}`)
     const combined = (finalRef.current + " " + interimRef.current).trim()
     submittedRef.current = true
     if (recogRef.current) {
@@ -110,7 +111,7 @@ export function useSpeechRecognition(opts: {
     setInterimText("")
     interimRef.current = ""
     finalRef.current = ""
-    console.log("[voice] commitNow → sent:", !!combined, "text:", combined.slice(0, 50))
+    pushVoiceLog(`commitNow EXIT · sent=${!!combined} text="${combined.slice(0, 50)}"`)
     if (combined) {
       onFinalText(combined)
       return true
@@ -122,7 +123,7 @@ export function useSpeechRecognition(opts: {
     const SR = getSRConstructor()
     if (!SR) return
     const hadPrevious = !!recogRef.current
-    console.log("[voice] start() entry, hadPrevious:", hadPrevious)
+    pushVoiceLog(`start() entry · hadPrevious=${hadPrevious}`)
     if (recogRef.current) {
       recogRef.current.onresult = null
       recogRef.current.onerror = null
@@ -135,7 +136,7 @@ export function useSpeechRecognition(opts: {
     // 이전 instance 있었으면 브라우저가 audio resource 해제할 시간 확보
     // (Safari가 즉시 start() 호출 시 InvalidStateError 내는 경향)
     if (hadPrevious) {
-      console.log("[voice] start() deferred 250ms (had previous)")
+      pushVoiceLog(`start() deferred 250ms (had previous)`)
       setTimeout(() => startInternal(), 250)
       return
     }
@@ -166,17 +167,17 @@ export function useSpeechRecognition(opts: {
         setInterimText(interimStr)
         onresultCount++
         if (onresultCount <= 3 || onresultCount % 10 === 0) {
-          console.log("[voice] onresult #" + onresultCount, "final:", finalRef.current.slice(0,30), "interim:", interimStr.slice(0,30))
+          pushVoiceLog(`onresult #${onresultCount} · final="${finalRef.current.slice(0,30)}" interim="${interimStr.slice(0,30)}"`)
         }
       }
       r.onerror = (e) => {
-        console.log("[voice] onerror:", (e as { error?: string } | undefined)?.error)
+        pushVoiceLog(`onerror · ${(e as { error?: string } | undefined)?.error ?? "unknown"}`)
         setIsListening(false)
         setInterimText("")
         interimRef.current = ""
       }
       r.onend = () => {
-        console.log("[voice] onend, submitted:", submittedRef.current, "final:", finalRef.current.slice(0, 40))
+        pushVoiceLog(`onend · submitted=${submittedRef.current} final="${finalRef.current.slice(0, 40)}"`)
         setIsListening(false)
         setInterimText("")
         interimRef.current = ""
@@ -192,9 +193,9 @@ export function useSpeechRecognition(opts: {
         r.start()
         recogRef.current = r
         setIsListening(true)
-        console.log("[voice] r.start() OK → isListening=true")
+        pushVoiceLog(`r.start() OK → isListening=true`)
       } catch (e) {
-        console.log("[voice] r.start() threw:", (e as Error)?.message)
+        pushVoiceLog(`r.start() threw · ${(e as Error)?.message}`)
         // InvalidStateError 등 일시 실패 — 1회 재시도
         setTimeout(() => {
           try {
@@ -206,9 +207,9 @@ export function useSpeechRecognition(opts: {
             r2.start()
             recogRef.current = r2
             setIsListening(true)
-            console.log("[voice] retry start OK")
+            pushVoiceLog(`retry start OK`)
           } catch (e2) {
-            console.log("[voice] retry start failed:", (e2 as Error)?.message)
+            pushVoiceLog(`retry start failed · ${(e2 as Error)?.message}`)
             setIsListening(false)
           }
         }, 500)
