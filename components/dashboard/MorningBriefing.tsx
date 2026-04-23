@@ -104,7 +104,6 @@ function DakotaGreetingChat({
     interimText,
     start: startListening,
     stop: stopListening,
-    stopSilent: stopListeningSilent,
     commitNow: commitVoiceInput,
   } = useSpeechRecognition({ lang: sttLang, onFinalText: handleVoiceFinal })
 
@@ -151,10 +150,9 @@ function DakotaGreetingChat({
       setVoiceEnabledFromIndex(messages.length)
       // iOS 오디오 unlock — user gesture 안에서 짧은 무음 재생
       primeAudio()
-      // 원터치 UX: 토글 켜자마자 listening 시작 (user gesture 안에서 호출)
-      startListening()
+      // PTT: 자동 listening 시작 안 함. 사용자가 idle 버튼 탭으로 시작.
     }
-  }, [voiceMode, messages.length, stopSpeech, stopListening, startListening, primeAudio])
+  }, [voiceMode, messages.length, stopSpeech, stopListening, primeAudio])
 
   // PTT 모드: TTS 끝나도 자동 재시작 안 함. 사용자가 메인 버튼 탭해서 다시 listening 시작.
 
@@ -451,68 +449,48 @@ function DakotaGreetingChat({
         />
       </button>
 
-      <div className="mt-10 flex items-center gap-4">
-        {/* 차례 스위치 버튼 — 파랑(내 말 중) → 녹색으로, 녹색(Dakota 중) → 파랑으로 인터럽트 */}
+      <div className="mt-10 flex justify-center">
+        {/* 단일 PTT 버튼 — 상태별 아이콘 변형
+            idle     : ▶ 파랑 재생 (탭 → listening 시작)
+            listening: ⏹ 파랑 + 펄스 글로우 (탭 → commit)
+            busy     : ⏹ 녹색 (탭 → 인터럽트 + 내가 말하기) */}
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation()
             e.preventDefault()
             if (isListening) {
-              // 내 차례 종료 → Dakota 차례로
               const sent = commitVoiceInput()
-              if (sent) {
-                setExpectingResponse(true)
-              } else {
-                // 인식 못 함 → 다시 들을게
-                startListening()
-              }
+              if (sent) setExpectingResponse(true)
+              else startListening()
             } else if (dakotaBusy) {
-              // Dakota 인터럽트 → 내 차례 가져오기
               stopSpeech()
               setExpectingResponse(false)
               startListening()
             } else if (voiceMode) {
-              // 자동 중단 상태 → 다시 듣기 재개
               startListening()
             }
           }}
           disabled={!voiceMode}
-          aria-label={isListening ? "내 차례 종료" : dakotaBusy ? "Dakota 끊고 내가 말하기" : "다시 듣기"}
-          title={isListening ? "내 차례 종료" : dakotaBusy ? "Dakota 끊기" : "다시 듣기"}
-          className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
+          aria-label={isListening ? "내 차례 종료" : dakotaBusy ? "Dakota 끊고 내가 말하기" : "말하기 시작"}
+          title={isListening ? "내 차례 종료" : dakotaBusy ? "Dakota 끊기" : "말하기 시작"}
+          className={`relative w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-95 ${
             isListening
-              ? "bg-blue-500 text-white shadow-xl active:scale-95"
+              ? "bg-blue-500 text-white shadow-[0_0_0_6px_rgba(59,130,246,0.25)] animate-pulse"
               : dakotaBusy
-                ? "bg-emerald-500 text-white shadow-xl active:scale-95"
-                : "bg-blue-500/15 text-blue-300 border border-blue-400/40 shadow-lg active:scale-95"
+                ? "bg-emerald-500 text-white shadow-xl"
+                : "bg-blue-500 text-white shadow-xl hover:bg-blue-400"
           }`}
         >
-          <span className="block w-4 h-4 bg-current rounded-sm" />
-        </button>
-
-        {/* 쉬어가기 버튼 — listening/speaking 중 탭하면 idle 상태로 (대화 계속, 잠시 쉼) */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            e.preventDefault()
-            if (isListening) stopListeningSilent()
-            if (isSpeaking) stopSpeech()
-          }}
-          disabled={!isListening && !isSpeaking}
-          aria-label="쉬어가기"
-          title="쉬어가기"
-          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-            isListening || isSpeaking
-              ? "bg-muted/60 text-foreground shadow-lg active:scale-95"
-              : "bg-muted/20 text-muted-foreground/25 pointer-events-none"
-          }`}
-        >
-          <span className="flex gap-1">
-            <span className="block w-1 h-4 bg-current rounded-sm" />
-            <span className="block w-1 h-4 bg-current rounded-sm" />
-          </span>
+          {isListening || dakotaBusy ? (
+            /* stop square */
+            <span className="block w-5 h-5 bg-current rounded-sm" />
+          ) : (
+            /* play triangle — 살짝 오른쪽 offset */
+            <svg viewBox="0 0 24 24" className="w-7 h-7 fill-current ml-1" aria-hidden>
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          )}
         </button>
       </div>
 

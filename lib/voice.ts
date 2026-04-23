@@ -76,13 +76,19 @@ export function useSpeechRecognition(opts: {
   // onend의 자동 send 경로 차단.
   const stopSilent = useCallback(() => {
     submittedRef.current = true
-    try {
-      recogRef.current?.abort()
-    } catch {}
+    if (recogRef.current) {
+      // stale event 차단 + 참조 해제 (iOS Safari: 다음 start() 를 setTimeout 없이 동기 경로로)
+      recogRef.current.onresult = null
+      recogRef.current.onerror = null
+      recogRef.current.onend = null
+      try { recogRef.current.abort() } catch {}
+      recogRef.current = null
+    }
     setIsListening(false)
     setInterimText("")
     interimRef.current = ""
     finalRef.current = ""
+    console.log("[voice] stopSilent")
   }, [])
 
   // 사용자가 "이제 내 차례 끝" 명시적으로 누를 때:
@@ -92,13 +98,18 @@ export function useSpeechRecognition(opts: {
   const commitNow = useCallback((): boolean => {
     const combined = (finalRef.current + " " + interimRef.current).trim()
     submittedRef.current = true
-    try {
-      recogRef.current?.abort()
-    } catch {}
+    if (recogRef.current) {
+      recogRef.current.onresult = null
+      recogRef.current.onerror = null
+      recogRef.current.onend = null
+      try { recogRef.current.abort() } catch {}
+      recogRef.current = null
+    }
     setIsListening(false)
     setInterimText("")
     interimRef.current = ""
     finalRef.current = ""
+    console.log("[voice] commitNow → sent:", !!combined, "text:", combined.slice(0, 50))
     if (combined) {
       onFinalText(combined)
       return true
@@ -109,10 +120,9 @@ export function useSpeechRecognition(opts: {
   const start = useCallback(() => {
     const SR = getSRConstructor()
     if (!SR) return
-    // 이미 listening 중이면 중단
     const hadPrevious = !!recogRef.current
+    console.log("[voice] start() entry, hadPrevious:", hadPrevious)
     if (recogRef.current) {
-      // 이전 instance 이벤트가 늦게 도착해 새 턴 상태를 덮어쓰지 않게 차단
       recogRef.current.onresult = null
       recogRef.current.onerror = null
       recogRef.current.onend = null
@@ -124,6 +134,7 @@ export function useSpeechRecognition(opts: {
     // 이전 instance 있었으면 브라우저가 audio resource 해제할 시간 확보
     // (Safari가 즉시 start() 호출 시 InvalidStateError 내는 경향)
     if (hadPrevious) {
+      console.log("[voice] start() deferred 250ms (had previous)")
       setTimeout(() => startInternal(), 250)
       return
     }
@@ -152,12 +163,14 @@ export function useSpeechRecognition(opts: {
         interimRef.current = interimStr
         setInterimText(interimStr)
       }
-      r.onerror = () => {
+      r.onerror = (e) => {
+        console.log("[voice] onerror:", (e as { error?: string } | undefined)?.error)
         setIsListening(false)
         setInterimText("")
         interimRef.current = ""
       }
       r.onend = () => {
+        console.log("[voice] onend, submitted:", submittedRef.current, "final:", finalRef.current.slice(0, 40))
         setIsListening(false)
         setInterimText("")
         interimRef.current = ""
@@ -173,7 +186,9 @@ export function useSpeechRecognition(opts: {
         r.start()
         recogRef.current = r
         setIsListening(true)
-      } catch {
+        console.log("[voice] r.start() OK → isListening=true")
+      } catch (e) {
+        console.log("[voice] r.start() threw:", (e as Error)?.message)
         // InvalidStateError 등 일시 실패 — 1회 재시도
         setTimeout(() => {
           try {
@@ -185,7 +200,9 @@ export function useSpeechRecognition(opts: {
             r2.start()
             recogRef.current = r2
             setIsListening(true)
-          } catch {
+            console.log("[voice] retry start OK")
+          } catch (e2) {
+            console.log("[voice] retry start failed:", (e2 as Error)?.message)
             setIsListening(false)
           }
         }, 500)
