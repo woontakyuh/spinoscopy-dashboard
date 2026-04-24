@@ -226,7 +226,9 @@ async function fetchTodaySurgeries(today: string): Promise<SurgeryItem[]> {
 }
 
 
-async function buildDakotaPrompt(userContext?: UserContext): Promise<string> {
+// Dakota prompt 를 stable (persona) + dynamic (time/context/memory) 로 분리 반환.
+// Anthropic prompt caching 에 stable 블록만 cache_control 을 찍어 재사용.
+async function buildDakotaPrompt(userContext?: UserContext): Promise<{ stable: string; dynamic: string }> {
   const persona = loadDakotaPersona() || `당신은 척추신경외과 전문의 Dr. Woon Tak Yuh의 개인 비서 Dakota입니다. 센터장님이라 부르고, 다정하고 신뢰감 있는 비서 톤으로 한국어로 대화합니다.`
 
   let context = ""
@@ -296,7 +298,10 @@ async function buildDakotaPrompt(userContext?: UserContext): Promise<string> {
     context = `\n\n[현재 시각]\n${fmtKoreaTime()}\n(데이터 조회 실패 — 일반 상식 기반으로 답변)`
   }
 
-  return persona + memoryBlock + context
+  return {
+    stable: persona,
+    dynamic: memoryBlock + context,
+  }
 }
 
 const ORCHESTRATOR_BLOCK = `
@@ -1279,22 +1284,42 @@ Same Dakota. English only. Quiet confidence, sly smile, gentle tutoring.
 
 `
 
-  let systemPrompt: string
+  // Dakota 는 두 개의 system 메시지로 분할:
+  // - 첫 번째: stable prefix (persona + orchestrator + voice override) — cache_control 찍음
+  // - 두 번째: dynamic suffix (time + memory + todos + schedules) — 매 턴 달라짐
+  // Anthropic 은 두 system 블록을 순서대로 조립하면서 첫 블록만 prefix 캐시로 재사용.
+  // 다른 에이전트는 단일 system 메시지 + cache_control (cache miss 일 수 있으나 무해).
+  const ANTHROPIC_CACHE: { type: "ephemeral" } = { type: "ephemeral" }
+  type SystemMsg = {
+    role: "system"
+    content: string
+    providerOptions?: unknown
+  }
+  const systemMessages: SystemMsg[] = []
   if (agentId === "dakota") {
-    const dakotaBase = (await buildDakotaPrompt(userContext)) + ORCHESTRATOR_BLOCK
-    systemPrompt = voiceMode ? VOICE_MODE_OVERRIDE + dakotaBase : dakotaBase
-  } else if (agentId === "lo") {
-    systemPrompt = await buildLoPrompt()
-  } else if (agentId === "elon") {
-    systemPrompt = await buildElonPrompt()
-  } else if (agentId === "brian") {
-    systemPrompt = await buildBrianPrompt()
-  } else if (agentId === "warren") {
-    systemPrompt = await buildWarrenPrompt(req)
-  } else if (agentId === "andrej") {
-    systemPrompt = await buildAndrejPrompt(req)
+    const { stable: dakotaStable, dynamic: dakotaDynamic } = await buildDakotaPrompt(userContext)
+    const stablePrefix = (voiceMode ? VOICE_MODE_OVERRIDE : "") + dakotaStable + ORCHESTRATOR_BLOCK
+    systemMessages.push({
+      role: "system",
+      content: stablePrefix,
+      providerOptions: { anthropic: { cacheControl: ANTHROPIC_CACHE } },
+    })
+    if (dakotaDynamic) {
+      systemMessages.push({ role: "system", content: dakotaDynamic })
+    }
   } else {
-    systemPrompt = STATIC_PROMPTS[agentId as string] ?? STATIC_PROMPTS.default
+    let promptStr: string
+    if (agentId === "lo") promptStr = await buildLoPrompt()
+    else if (agentId === "elon") promptStr = await buildElonPrompt()
+    else if (agentId === "brian") promptStr = await buildBrianPrompt()
+    else if (agentId === "warren") promptStr = await buildWarrenPrompt(req)
+    else if (agentId === "andrej") promptStr = await buildAndrejPrompt(req)
+    else promptStr = STATIC_PROMPTS[agentId as string] ?? STATIC_PROMPTS.default
+    systemMessages.push({
+      role: "system",
+      content: promptStr,
+      providerOptions: { anthropic: { cacheControl: ANTHROPIC_CACHE } },
+    })
   }
 
   // 모델 선택: 오케스트레이션/심층 토론은 Sonnet, 요약·브리핑 위주는 Haiku
@@ -1325,20 +1350,9 @@ Same Dakota. English only. Quiet confidence, sly smile, gentle tutoring.
       : agentId === "brian" ? buildBrianTools()
       : undefined
 
-    // Anthropic prompt caching: system prompt(Dakota persona + memory digest + context)
-    // 을 cache-eligible 로 마킹. 첫 턴에 캐시 생성 후 5분 TTL 내 후속 턴은 캐시 히트
-    // → Claude 처리 시간 ~85% 단축 기대. "ephemeral" 타입이 기본 5분 TTL.
-    const systemMessage = {
-      role: "system" as const,
-      content: systemPrompt,
-      providerOptions: {
-        anthropic: { cacheControl: { type: "ephemeral" as const } },
-      },
-    }
-
     const result = streamText({
       model: anthropic(modelId),
-      messages: [systemMessage, ...modelMessages],
+      messages: [...systemMessages, ...modelMessages],
       tools: activeTools,
       stopWhen: activeTools ? stepCountIs(5) : undefined,
       onError: ({ error }) => {
