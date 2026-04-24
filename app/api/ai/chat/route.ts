@@ -1,6 +1,7 @@
 import { anthropic } from "@ai-sdk/anthropic"
 import { streamText, stepCountIs, tool } from "ai"
 import { z } from "zod"
+import { logUsage } from "@/lib/ai/usageLog"
 import { readFileSync } from "node:fs"
 import path from "node:path"
 import { getAllTodos, createTodo, updateTodo, deleteTodo } from "@/lib/notion/todo"
@@ -1365,6 +1366,8 @@ Same Dakota. English only. Quiet confidence, sly smile, gentle tutoring.
       : agentId === "brian" ? buildBrianTools()
       : undefined
 
+    const startTime = Date.now()
+
     const result = streamText({
       model: anthropic(modelId),
       messages: [...systemMessages, ...modelMessages],
@@ -1372,6 +1375,42 @@ Same Dakota. English only. Quiet confidence, sly smile, gentle tutoring.
       stopWhen: activeTools ? stepCountIs(5) : undefined,
       onError: ({ error }) => {
         console.error("[ai/chat] streamText error:", error)
+      },
+      onFinish: (finishEvent) => {
+        const { usage, steps } = finishEvent
+        // Anthropic cache 통계는 providerMetadata.anthropic 에서 옴.
+        // 키 이름은 AI SDK 버전에 따라 다를 수 있어 둘 다 체크.
+        const providerMetadata = (finishEvent as {
+          providerMetadata?: {
+            anthropic?: {
+              cacheCreationInputTokens?: number
+              cacheReadInputTokens?: number
+            }
+          }
+        }).providerMetadata
+        const am = providerMetadata?.anthropic
+        const cacheReadTokens =
+          am?.cacheReadInputTokens ??
+          (usage as { cachedInputTokens?: number } | undefined)?.cachedInputTokens ??
+          0
+        const cacheWriteTokens = am?.cacheCreationInputTokens ?? 0
+        const toolNames: string[] = []
+        for (const step of steps ?? []) {
+          for (const call of (step as { toolCalls?: Array<{ toolName?: string }> }).toolCalls ?? []) {
+            if (call.toolName) toolNames.push(call.toolName)
+          }
+        }
+        logUsage({
+          agent: String(agentId ?? "unknown"),
+          model: modelId,
+          inputTokens: usage?.inputTokens ?? 0,
+          outputTokens: usage?.outputTokens ?? 0,
+          cacheReadTokens,
+          cacheWriteTokens,
+          stepCount: steps?.length ?? 1,
+          latencyMs: Date.now() - startTime,
+          toolNames,
+        })
       },
     })
 
