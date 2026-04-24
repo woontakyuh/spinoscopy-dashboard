@@ -226,6 +226,21 @@ async function fetchTodaySurgeries(today: string): Promise<SurgeryItem[]> {
 }
 
 
+// ─── Notion/GCal fetch 결과를 모듈 스코프 in-memory 캐시 (per-instance)
+// 음성 모드 후속 턴에서 같은 fetch 를 재수행하는 비용 (~1s) 을 ~5ms 로 단축.
+// 짧은 TTL 이라 사용자가 다른 클라이언트에서 todo 추가해도 최대 60초 내 반영.
+interface FetchCacheEntry<T> { data: T; expiry: number }
+const fetchCache = new Map<string, FetchCacheEntry<unknown>>()
+
+function cachedFetch<T>(key: string, ttlMs: number, fetcher: () => Promise<T>): Promise<T> {
+  const entry = fetchCache.get(key) as FetchCacheEntry<T> | undefined
+  if (entry && entry.expiry > Date.now()) return Promise.resolve(entry.data)
+  return fetcher().then((data) => {
+    fetchCache.set(key, { data, expiry: Date.now() + ttlMs })
+    return data
+  })
+}
+
 // Dakota prompt 를 stable (persona) + dynamic (time/context/memory) 로 분리 반환.
 // Anthropic prompt caching 에 stable 블록만 cache_control 을 찍어 재사용.
 async function buildDakotaPrompt(userContext?: UserContext): Promise<{ stable: string; dynamic: string }> {
@@ -240,11 +255,11 @@ async function buildDakotaPrompt(userContext?: UserContext): Promise<{ stable: s
     const in14Str = in14.toLocaleDateString("en-CA")
 
     const [todos, notionSchedules, gcalEvents, memoryDigest, todaySurgeries] = await Promise.all([
-      getAllTodos({ status: "active" }).catch(() => []),
-      getUpcomingSchedules(14).catch(() => []),
-      listGoogleCalendarEventsForRange(today, in14Str).catch(() => []),
-      getMemoryDigest(40).catch(() => ""),
-      fetchTodaySurgeries(today).catch(() => []),
+      cachedFetch("dakota:todos", 60_000, () => getAllTodos({ status: "active" })).catch(() => []),
+      cachedFetch("dakota:schedules", 120_000, () => getUpcomingSchedules(14)).catch(() => []),
+      cachedFetch(`dakota:gcal:${today}:${in14Str}`, 120_000, () => listGoogleCalendarEventsForRange(today, in14Str)).catch(() => []),
+      cachedFetch("dakota:memory", 300_000, () => getMemoryDigest(40)).catch(() => ""),
+      cachedFetch(`dakota:surgeries:${today}`, 600_000, () => fetchTodaySurgeries(today)).catch(() => []),
     ])
 
     // 클라이언트가 보내준 날씨 한 줄 (이미 대시보드 위젯에 있는 데이터)
