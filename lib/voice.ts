@@ -1,7 +1,6 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { pushVoiceLog } from "./voiceDebugLog"
 
 // STT: MediaRecorder 로 오디오 blob 녹음 → /api/voice/stt (서버 Whisper) 에 POST → 텍스트.
 // iOS Safari 의 Web Speech API 조용한 실패 회피. MediaRecorder 는 iOS 14.3+ 안정 지원.
@@ -64,32 +63,25 @@ export function useSpeechRecognition(opts: {
     submittedRef.current = true // onstop 이 떠도 transcribe 안 하도록 세팅
     teardown()
     setIsListening(false)
-    pushVoiceLog(`stopSilent`)
   }, [teardown])
 
   const transcribe = useCallback(
     async (blob: Blob, seq: number) => {
-      pushVoiceLog(`transcribe start · ${blob.size}B seq=${seq} type=${blob.type || "(none)"}`)
       try {
         const form = new FormData()
         form.append("audio", blob, "audio.webm")
         const res = await fetch("/api/voice/stt", { method: "POST", body: form })
         if (seq !== seqRef.current) {
-          pushVoiceLog(`transcribe stale (seq ${seq} vs ${seqRef.current})`)
           return
         }
         if (!res.ok) {
-          const errText = await res.text().catch(() => "")
-          pushVoiceLog(`STT http ${res.status} · ${errText.slice(0, 100)}`)
           onFinalText("")
           return
         }
         const data = (await res.json()) as { text?: string; error?: string }
         const text = (data.text ?? "").trim()
-        pushVoiceLog(`transcribed · "${text.slice(0, 60)}"`)
         onFinalText(text)
-      } catch (e) {
-        pushVoiceLog(`transcribe threw · ${(e as Error)?.message}`)
+      } catch {
         onFinalText("")
       }
     },
@@ -97,7 +89,6 @@ export function useSpeechRecognition(opts: {
   )
 
   const start = useCallback(async () => {
-    pushVoiceLog(`start() entry`)
     if (recorderRef.current || streamRef.current) teardown()
     try {
       // Whisper 는 16kHz mono 가 native. 업로드 크기도 ~5x 작아짐.
@@ -126,16 +117,12 @@ export function useSpeechRecognition(opts: {
       rec.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) chunksRef.current.push(e.data)
       }
-      rec.onerror = (e) => {
-        const msg = (e as unknown as { error?: { message?: string } })?.error?.message ?? "unknown"
-        pushVoiceLog(`recorder.onerror · ${msg}`)
-      }
+      rec.onerror = () => {}
       rec.onstop = () => {
         const wasSubmitted = submittedRef.current
         submittedRef.current = false
         const blob = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" })
         chunksRef.current = []
-        pushVoiceLog(`recorder.onstop · submitted=${wasSubmitted} blob=${blob.size}B`)
         if (streamRef.current) {
           streamRef.current.getTracks().forEach((t) => { try { t.stop() } catch {} })
           streamRef.current = null
@@ -146,7 +133,6 @@ export function useSpeechRecognition(opts: {
           const seq = ++seqRef.current
           void transcribe(blob, seq)
         } else if (wasSubmitted) {
-          pushVoiceLog(`submitted but empty blob · skipping transcribe`)
           onFinalText("")
         }
       }
@@ -154,24 +140,20 @@ export function useSpeechRecognition(opts: {
       rec.start()
       recorderRef.current = rec
       setIsListening(true)
-      pushVoiceLog(`recorder.start() OK · mime=${mime ?? "(default)"}`)
-    } catch (e) {
-      pushVoiceLog(`getUserMedia failed · ${(e as Error)?.message}`)
+    } catch {
       setIsListening(false)
     }
   }, [teardown, transcribe, onFinalText])
 
   const commitNow = useCallback((): boolean => {
     const rec = recorderRef.current
-    pushVoiceLog(`commitNow ENTER · state=${rec?.state ?? "null"} chunks=${chunksRef.current.length}`)
     if (!rec || rec.state !== "recording") {
       return false
     }
     submittedRef.current = true
     try {
       rec.stop() // → onstop → transcribe (async)
-    } catch (e) {
-      pushVoiceLog(`commitNow rec.stop threw · ${(e as Error)?.message}`)
+    } catch {
       submittedRef.current = false
       return false
     }

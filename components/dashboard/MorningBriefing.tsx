@@ -8,7 +8,6 @@ import { TextStreamChatTransport } from "ai"
 import { WeatherInline, useWeatherLocation } from "@/components/dashboard/WeatherInline"
 import { pickDakotaGreeting } from "@/lib/dakotaGreetings"
 import { useSpeechRecognition, useElevenLabsSpeech } from "@/lib/voice"
-import { pushVoiceLog, subscribeVoiceLog, clearVoiceLog } from "@/lib/voiceDebugLog"
 import {
   getSlot,
   dateKeySeoul,
@@ -68,21 +67,8 @@ function DakotaGreetingChat({
     }),
     onError: (err) => {
       console.error("[DakotaChat] error:", err)
-      pushVoiceLog(`chat ERROR · ${err?.message ?? String(err)}`)
-    },
-    onFinish: () => {
-      pushVoiceLog(`chat onFinish`)
     },
   })
-
-  // 채팅 status 전이 추적
-  const prevStatusRef = useRef<string>("idle")
-  useEffect(() => {
-    if (prevStatusRef.current !== status) {
-      pushVoiceLog(`chat status · ${prevStatusRef.current} → ${status}`)
-      prevStatusRef.current = status
-    }
-  }, [status])
 
   const isStreaming = status === "streaming" || status === "submitted"
   const hydratedRef = useRef(false)
@@ -92,8 +78,6 @@ function DakotaGreetingChat({
   // ─── 음성대화모드 (PTT, 단일 버튼) ─────────────────────
   // 모바일 전용 UX. 사용자가 탭으로 시작/commit/재시작. 자동 silence/restart 없음.
   const [voiceMode, setVoiceMode] = useState(false)
-  const [voiceLogs, setVoiceLogs] = useState<string[]>([])
-  useEffect(() => subscribeVoiceLog(setVoiceLogs), [])
   const [voiceEnabledFromIndex, setVoiceEnabledFromIndex] = useState<number | null>(null)
   const sttLang = "en-US" as const
   // 직전 메시지가 mic(음성)로 들어왔는지 추적 — 타자 입력은 TTS 자동재생 X
@@ -110,12 +94,10 @@ function DakotaGreetingChat({
       const trimmed = text.trim()
       if (!trimmed) {
         // 전사 실패 or 빈 결과 — 대기 상태 리셋해서 사용자가 다시 말할 수 있게
-        pushVoiceLog(`transcribe empty · reset expectingResponse`)
         setExpectingResponse(false)
         return
       }
       lastInputViaMicRef.current = true
-      pushVoiceLog(`sendMessage → "${trimmed.slice(0, 40)}"`)
       sendMessage({ text: trimmed })
     },
     [sendMessage],
@@ -446,27 +428,6 @@ function DakotaGreetingChat({
   const dakotaBusy = isSpeaking || isStreaming || expectingResponse
   const voiceImmersive = (focused && voiceMode) ? (
     <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-center p-6">
-      {/* Debug 패널 — 버그 해결 후 제거 예정 */}
-      <div
-        className="absolute top-2 left-2 right-2 max-h-44 overflow-y-auto bg-black/85 text-green-300 text-[9px] font-mono leading-tight p-2 rounded border border-green-900 z-20"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-1 text-green-400">
-          <span>VOICE DEBUG ({voiceLogs.length})</span>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); clearVoiceLog() }}
-            className="text-green-600 hover:text-green-400 px-1"
-          >
-            clear
-          </button>
-        </div>
-        {voiceLogs.length === 0 ? (
-          <div className="text-green-700">(empty)</div>
-        ) : (
-          voiceLogs.slice(0, 12).map((l, i) => <div key={`${i}-${l.slice(0, 10)}`}>{l}</div>)
-        )}
-      </div>
       <button
         type="button"
         onClick={toggleVoiceMode}
@@ -501,10 +462,8 @@ function DakotaGreetingChat({
           onClick={(e) => {
             e.stopPropagation()
             e.preventDefault()
-            pushVoiceLog(`PTT click · listening=${isListening} busy=${dakotaBusy} mode=${voiceMode} stream=${isStreaming} speak=${isSpeaking}`)
             if (isListening) {
               const sent = commitVoiceInput()
-              pushVoiceLog(`PTT click → commit result sent=${sent}`)
               if (sent) setExpectingResponse(true)
               // 빈 버퍼면 아무것도 하지 않음 — 사용자가 다시 말할 수 있도록 idle 복귀
             } else if (dakotaBusy) {
