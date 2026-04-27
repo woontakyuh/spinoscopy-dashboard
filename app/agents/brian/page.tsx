@@ -17,8 +17,8 @@ import { isEffectivelyActive } from "@/lib/editorial/status"
 
 const TABS = [
   { id: "browse", label: "UpToDate", icon: "📚" },
-  { id: "research", label: "My Research", icon: "🔬" },
   { id: "my-papers", label: "My Papers", icon: "📄" },
+  { id: "research", label: "My Research", icon: "🔬" },
   { id: "editorial", label: "Editorial", icon: "✏️" },
 ] as const
 
