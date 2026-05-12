@@ -20,7 +20,17 @@ export function AgentChat({ agentId, image, name, greeting }: AgentChatProps) {
   const [inputValue, setInputValue] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
   const [focused, setFocused] = useState(false)
+  const [isTouchDevice, setIsTouchDevice] = useState(false)
   const sessionStartRef = useRef<{ time: string; messageCount: number } | null>(null)
+
+  // 터치 기기 감지 — 여러 신호로 견고하게. 일부 기기는 pointer:coarse 단독으론 잡히지 않음.
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const coarse = window.matchMedia("(pointer: coarse)").matches
+    const noHover = window.matchMedia("(hover: none)").matches
+    const hasTouch = (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0) || "ontouchstart" in window
+    setIsTouchDevice(coarse || noHover || hasTouch)
+  }, [])
 
   const { messages, sendMessage, status, error, setMessages } = useChat({
     transport: new TextStreamChatTransport({
@@ -163,9 +173,7 @@ export function AgentChat({ agentId, image, name, greeting }: AgentChatProps) {
         onKeyDown={(e) => {
           if (e.nativeEvent.isComposing) return
           if (e.key !== "Enter") return
-          if (typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches) {
-            return
-          }
+          if (isTouchDevice) return
           if (e.shiftKey) {
             e.preventDefault()
             const ta = e.currentTarget
