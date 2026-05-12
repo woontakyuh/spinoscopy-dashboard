@@ -163,6 +163,9 @@ export function AgentChat({ agentId, image, name, greeting }: AgentChatProps) {
         onKeyDown={(e) => {
           if (e.nativeEvent.isComposing) return
           if (e.key !== "Enter") return
+          if (typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches) {
+            return
+          }
           if (e.shiftKey) {
             e.preventDefault()
             const ta = e.currentTarget
