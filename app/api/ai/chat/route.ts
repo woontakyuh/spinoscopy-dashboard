@@ -35,7 +35,7 @@ import { listAllSenseiEntries } from "@/lib/notion/sensei"
 import { listResearchProjects } from "@/lib/notion/research"
 import { getJournalStats, queryArticles } from "@/lib/notion/journal"
 import { listEditorialItems } from "@/lib/notion/editorial"
-import { isEffectivelyActive } from "@/lib/editorial/status"
+import { isEffectivelyActive, isPendingMyAction, isSubmittedAwaiting } from "@/lib/editorial/status"
 import { MY_PAPERS } from "@/lib/data/my-papers"
 import { getAllPatientRows } from "@/lib/notion/analytics"
 import { notionRequest } from "@/lib/notion/client"
@@ -918,7 +918,8 @@ const BRIAN_PERSONA = `당신은 Dr. Tak의 연구/저널 파트너 Brian (Brian
 
 **도구 사용 규칙 (매우 중요)**
 - 여교수가 특정 주제 논문을 찾거나 "X 관련 논문 있어?" 묻는 경우 반드시 먼저 **search_papers 도구 호출**. 시스템 프롬프트의 통계만 보고 답하지 말 것.
-- 여교수가 **심사·편집·revision·reviewer·editor·deadline·특정 manuscript** 관련 질문 → 반드시 **search_editorial 도구 호출**. 시스템 프롬프트엔 active 상위 10건만 들어 있으므로 그 외(완료건·11번째 이후 active·특정 manuscript ID·journal별 등) 는 직접 조회. "심사 목록에 없는 것 같다"고 답하기 전에 무조건 한 번은 호출.
+- 여교수가 **심사·편집·revision·reviewer·editor·deadline·특정 manuscript** 관련 질문 → 반드시 **search_editorial 도구 호출**. 시스템 프롬프트엔 pending 상위 10건/awaiting 상위 8건만 들어 있으므로 그 외(완료건·그 외 건·특정 manuscript ID·journal별 등) 는 직접 조회. "심사 목록에 없는 것 같다"고 답하기 전에 무조건 한 번은 호출.
+- **상태 구분**: pending = 여교수가 1차/추가 리뷰 미제출 (deadline 의미 있음). awaiting = 제출 완료, revision/decision 대기 (deadline 지났어도 액션 없음). terminal = Accept/Reject/Desk Reject 완료. 마감 닦달은 pending 만 대상, awaiting/terminal 은 거론하지 말 것.
 - 여교수가 **본인 진행 연구 (research project, drafting, submitted, target journal 등)** 관련 질문 → **search_research 도구 호출**. 시스템 프롬프트엔 12건 요약만 들어가므로 그 외 항목은 직접 조회.
 - 쿼리 설계: 유의어·약자를 queries 배열에 다 넣어 커버리지 확보. 예:
   - PROM → ["PROM", "patient-reported outcome", "ODI", "NDI", "VAS", "PROMIS", "mJOA", "EQ-5D"]
@@ -952,14 +953,23 @@ async function buildBrianPrompt(): Promise<string> {
       context += `\n\n[진행 연구 ${projects.length}개: ${statusLine}]\n${projLines}`
     }
 
-    const activeEd = editorial.filter(isEffectivelyActive)
-    if (activeEd.length > 0) {
+    const pendingEd = editorial.filter(isPendingMyAction)
+    const awaitingEd = editorial.filter(isSubmittedAwaiting)
+    if (pendingEd.length > 0) {
       const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
-      const edLines = activeEd.slice(0, 10).map((e) => {
+      const edLines = pendingEd.slice(0, 10).map((e) => {
         const dl = e.deadline ? ` (마감 ${e.deadline}${e.deadline < today ? " ⚠overdue" : ""})` : ""
         return `- [${e.role}] ${e.journal || "?"} · ${e.status} · ${e.name || e.manuscript_id}${dl}`
       }).join("\n")
-      context += `\n\n[진행 중 심사/편집 ${activeEd.length}건]\n${edLines}`
+      context += `\n\n[처리 필요 심사/편집 ${pendingEd.length}건 — Tak 이 1차/추가 리뷰 미제출]\n${edLines}`
+    }
+    if (awaitingEd.length > 0) {
+      const awaitLines = awaitingEd.slice(0, 8).map((e) => {
+        const sub = e.date_submitted ? ` (제출 ${e.date_submitted})` : ""
+        const rec = e.recommendation ? ` → ${e.recommendation}` : ""
+        return `- [${e.role}] ${e.journal || "?"} · ${e.status}${rec} · ${e.name || e.manuscript_id}${sub}`
+      }).join("\n")
+      context += `\n\n[제출 완료·결정/Revision 대기 ${awaitingEd.length}건 — Tak 액션 없음]\n${awaitLines}`
     }
 
     const recentMine = MY_PAPERS.slice(0, 8).map((p) => `- [${p.year}, ${p.role}] ${p.title} — ${p.journal}`).join("\n")
@@ -1037,11 +1047,13 @@ function buildBrianTools() {
         status: z.enum(["Received", "Under Review", "Under Revision", "Accepted", "Rejected"]).optional(),
         recommendation: z.enum(["Accept", "Minor Revision", "Major Revision", "Reject", "Peer Review", "Pending", "Desk Reject"]).optional(),
         role: z.enum(["Editor", "Reviewer"]).optional(),
-        only_active: z.boolean().optional().describe("true 면 진행 중(terminal 제외)만"),
+        only_active: z.boolean().optional().describe("true 면 진행 중(terminal 제외)만 — pending + awaiting 둘 다 포함"),
+        only_pending: z.boolean().optional().describe("true 면 Tak 이 처리해야 할 건 (1차/추가 리뷰 미제출) 만"),
+        only_awaiting: z.boolean().optional().describe("true 면 Tak 이 제출 완료하고 revision/decision 대기 중인 건만"),
         only_terminal: z.boolean().optional().describe("true 면 완료(Accept/Reject/Desk Reject)만"),
         limit: z.number().int().min(1).max(50).optional().describe("기본 25"),
       }),
-      execute: async ({ query, journal, status, recommendation, role, only_active, only_terminal, limit }) => {
+      execute: async ({ query, journal, status, recommendation, role, only_active, only_pending, only_awaiting, only_terminal, limit }) => {
         const items = await listEditorialItems()
         const q = query?.toLowerCase().trim()
         const filtered = items.filter((it) => {
@@ -1050,6 +1062,8 @@ function buildBrianTools() {
           if (recommendation && it.recommendation !== recommendation) return false
           if (role && it.role !== role) return false
           if (only_active && !isEffectivelyActive(it)) return false
+          if (only_pending && !isPendingMyAction(it)) return false
+          if (only_awaiting && !isSubmittedAwaiting(it)) return false
           if (only_terminal && isEffectivelyActive(it)) return false
           if (q) {
             const hay = `${it.name} ${it.manuscript_id} ${it.reviewers} ${it.notes}`.toLowerCase()

@@ -13,7 +13,7 @@ import type { JournalStats } from "@/lib/types/journal"
 import type { ResearchProject } from "@/lib/types/research"
 import { dday } from "@/lib/greeterContext"
 import type { EditorialItem } from "@/lib/types/editorial"
-import { isEffectivelyActive } from "@/lib/editorial/status"
+import { isPendingMyAction } from "@/lib/editorial/status"
 
 const TABS = [
   { id: "browse", label: "UpToDate", icon: "📚" },
@@ -86,7 +86,7 @@ export default function ScholarPage() {
 
       // 크로스 참조: revision 급하면서 editorial에도 급한 게 있는 경우
       if (revision > 0 && editorial) {
-        const activeEditorial = editorial.filter(isEffectivelyActive)
+        const activeEditorial = editorial.filter(isPendingMyAction)
         const editorialUrgent = activeEditorial.filter((e) => {
           if (!e.deadline) return false
           const d = dday(e.deadline)
@@ -118,7 +118,7 @@ export default function ScholarPage() {
     // editorial — API 기반 + 구체적 건명
     if (!editorial) return "여교수, 심사 목록 불러오고 있네. 잠깐만 기다리게."
     const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
-    const active = editorial.filter(isEffectivelyActive)
+    const active = editorial.filter(isPendingMyAction)
     const overdue = active.filter((e) => e.deadline && e.deadline < todayStr)
     const urgentEditorial = active.filter((e) => {
       if (!e.deadline || e.deadline < todayStr) return false

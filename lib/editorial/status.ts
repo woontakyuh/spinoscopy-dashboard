@@ -45,6 +45,22 @@ export function isEffectivelyActive(item: TerminalInput): boolean {
   return !isEffectivelyTerminal(item)
 }
 
+// "내가 처리할 일이 남아 있는가" — date_submitted 가 비었거나 새 deadline 이 그 이후에 잡혔으면 다음 라운드 액션 대상.
+// 1차 리뷰 제출하고 author/editor 응답 기다리는 상태는 false (Awaiting).
+type ActionInput = Pick<EditorialItem, "status" | "recommendation" | "date_submitted" | "deadline">
+export function isPendingMyAction(item: ActionInput): boolean {
+  if (isEffectivelyTerminal(item)) return false
+  if (!item.date_submitted) return true
+  if (!item.deadline) return false
+  return item.deadline > item.date_submitted
+}
+
+// 제출은 했지만 파이프라인은 아직 열려 있음 (revision/decision 대기).
+export function isSubmittedAwaiting(item: ActionInput): boolean {
+  if (isEffectivelyTerminal(item)) return false
+  return !isPendingMyAction(item)
+}
+
 export type OutcomeCategory = "Accept" | "Reject" | "Desk Reject"
 
 // 완료 원고의 결론 분류. status 우선, 이후 recommendation 로 판정.

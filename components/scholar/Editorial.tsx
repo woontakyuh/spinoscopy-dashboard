@@ -8,7 +8,7 @@ import type {
   EditorialItem,
   EditorialRole,
 } from "@/lib/types/editorial"
-import { isEffectivelyTerminal, outcomeCategory, type OutcomeCategory } from "@/lib/editorial/status"
+import { isEffectivelyTerminal, isSubmittedAwaiting, outcomeCategory, type OutcomeCategory } from "@/lib/editorial/status"
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -167,15 +167,23 @@ export function Editorial() {
   }, [roleFiltered, journalFilter, methodFilter, searchQuery])
 
   // Group by urgency
-  const { overdue, soon, inProgress, completed } = useMemo(() => {
+  // - terminal → completed
+  // - submitted, waiting for revision/decision → awaiting (내 액션 없음, 파이프라인은 열림)
+  // - 그 외 (내가 처리해야 함) → deadline 따라 overdue/soon/inProgress
+  const { overdue, soon, inProgress, awaiting, completed } = useMemo(() => {
     const overdue: EditorialItem[] = []
     const soon: EditorialItem[] = []
     const inProgress: EditorialItem[] = []
+    const awaiting: EditorialItem[] = []
     const completed: EditorialItem[] = []
 
     for (const item of filtered) {
       if (isEffectivelyTerminal(item)) {
         completed.push(item)
+        continue
+      }
+      if (isSubmittedAwaiting(item)) {
+        awaiting.push(item)
         continue
       }
       const dl = deadlineInfo(item.deadline)
@@ -189,9 +197,11 @@ export function Editorial() {
     overdue.sort(byDeadline)
     soon.sort(byDeadline)
     inProgress.sort(byDeadline)
+    // awaiting 은 가장 최근 제출 순
+    awaiting.sort((a, b) => (b.date_submitted ?? "").localeCompare(a.date_submitted ?? ""))
     completed.sort((a, b) => (b.date_submitted ?? b.date_received ?? "").localeCompare(a.date_submitted ?? a.date_received ?? ""))
 
-    return { overdue, soon, inProgress, completed }
+    return { overdue, soon, inProgress, awaiting, completed }
   }, [filtered])
 
   // 이번달 완료 카운트 — terminal 상태이면서 date_submitted 가 이번달
@@ -285,6 +295,7 @@ export function Editorial() {
           <Pill color="red" label="Overdue" count={overdue.length} />
           <Pill color="amber" label="Due Soon" count={soon.length} />
           <Pill color="zinc" label="In Progress" count={inProgress.length} />
+          <Pill color="purple" label="Awaiting" count={awaiting.length} icon="⏳" />
           <Pill color="emerald" label="This Month" count={thisMonthCompleted} icon="✅" />
           <span className="text-muted-foreground/40">|</span>
           <Pill color="blue" label="Editor" count={roleCounts.editor} icon="👤" />
@@ -437,6 +448,23 @@ export function Editorial() {
         </Section>
       )}
 
+      {/* ─── Awaiting (제출 완료, revision/decision 대기) ─── */}
+      {awaiting.length > 0 && (
+        <Section label="AWAITING" count={awaiting.length} icon="⏳" borderColor="border-purple-500/30" bgColor="bg-purple-500/[0.03]">
+          {awaiting.map(item => (
+            <ManuscriptCard
+              key={item.page_id}
+              item={item}
+              expanded={expandedId === item.page_id}
+              onToggle={() => setExpandedId(expandedId === item.page_id ? null : item.page_id)}
+              onJournalClick={toggleJournal}
+              onMethodClick={toggleMethod}
+              isAwaiting
+            />
+          ))}
+        </Section>
+      )}
+
       {/* ─── Completed ────────────────────────── */}
       {completed.length > 0 && (
         <div>
@@ -520,7 +548,7 @@ export function Editorial() {
 
 // ── Pill ────────────────────────────────────────────────
 
-function Pill({ color, label, count, icon }: { color: "red" | "amber" | "zinc" | "emerald" | "blue" | "green"; label: string; count: number; icon?: string }) {
+function Pill({ color, label, count, icon }: { color: "red" | "amber" | "zinc" | "emerald" | "blue" | "green" | "purple"; label: string; count: number; icon?: string }) {
   const ring: Record<string, string> = {
     red: "text-red-400",
     amber: "text-amber-400",
@@ -528,6 +556,7 @@ function Pill({ color, label, count, icon }: { color: "red" | "amber" | "zinc" |
     emerald: "text-emerald-400",
     blue: "text-blue-400",
     green: "text-green-400",
+    purple: "text-purple-400",
   }
   return (
     <span className="inline-flex items-center gap-1 whitespace-nowrap">
@@ -563,7 +592,7 @@ function Section({
 // ── ManuscriptCard ──────────────────────────────────────
 
 function ManuscriptCard({
-  item, expanded, onToggle, onJournalClick, onMethodClick, isCompleted,
+  item, expanded, onToggle, onJournalClick, onMethodClick, isCompleted, isAwaiting,
 }: {
   item: EditorialItem
   expanded: boolean
@@ -571,6 +600,7 @@ function ManuscriptCard({
   onJournalClick: (j: string) => void
   onMethodClick: (m: string) => void
   isCompleted?: boolean
+  isAwaiting?: boolean
 }) {
   const dl = deadlineInfo(item.deadline)
   const role = ROLE_STYLE[item.role] ?? ROLE_STYLE.Reviewer
@@ -658,6 +688,10 @@ function ManuscriptCard({
             <Badge variant="outline" className={`text-[10px] px-2 py-0.5 font-medium ${REC_BADGE[decision] ?? ""}`}>
               {decision}
             </Badge>
+          ) : isAwaiting && item.date_submitted ? (
+            <span className="text-xs num whitespace-nowrap text-purple-300/90">
+              Submitted {formatDate(item.date_submitted)}
+            </span>
           ) : (
             <span className={`text-xs num whitespace-nowrap ${dl.color}`}>{dl.text}</span>
           )}
