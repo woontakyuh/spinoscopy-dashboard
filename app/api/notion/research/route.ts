@@ -6,10 +6,15 @@ import {
 } from "@/lib/notion/research"
 import type { ResearchCreateInput, ResearchUpdateInput } from "@/lib/types/research"
 
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 export async function GET() {
   try {
     const projects = await listResearchProjects()
-    return NextResponse.json(projects)
+    return NextResponse.json(projects, {
+      headers: { "Cache-Control": "no-store, max-age=0" },
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error"
     return NextResponse.json({ error: message }, { status: 500 })

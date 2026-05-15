@@ -9,6 +9,9 @@ import {
 } from "@/lib/notion/journal"
 import type { InterestLevel, JournalFilter } from "@/lib/types/journal"
 
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const action = searchParams.get("action")
