@@ -124,7 +124,8 @@ export function Editorial() {
       if (!res.ok) throw new Error("Editorial 데이터 로딩 실패")
       return res.json()
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
   })
 
   // Role filter 먼저 적용 (후속 요약/필터 전부 역할 기준)

@@ -36,7 +36,8 @@ export default function ScholarPage() {
       if (!res.ok) throw new Error("통계 조회 실패")
       return res.json()
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
   })
 
   const { data: research, isLoading: isResearchLoading } = useQuery<ResearchProject[]>({
@@ -46,7 +47,8 @@ export default function ScholarPage() {
       if (!res.ok) throw new Error("연구 조회 실패")
       return res.json()
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
   })
 
   const { data: editorial, isLoading: isEditorialLoading } = useQuery<EditorialItem[]>({
@@ -56,7 +58,8 @@ export default function ScholarPage() {
       if (!res.ok) throw new Error("심사 조회 실패")
       return res.json()
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
   })
 
   // ─── 탭별 메시지 ───

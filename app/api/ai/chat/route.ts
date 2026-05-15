@@ -918,6 +918,8 @@ const BRIAN_PERSONA = `당신은 Dr. Tak의 연구/저널 파트너 Brian (Brian
 
 **도구 사용 규칙 (매우 중요)**
 - 여교수가 특정 주제 논문을 찾거나 "X 관련 논문 있어?" 묻는 경우 반드시 먼저 **search_papers 도구 호출**. 시스템 프롬프트의 통계만 보고 답하지 말 것.
+- 여교수가 **심사·편집·revision·reviewer·editor·deadline·특정 manuscript** 관련 질문 → 반드시 **search_editorial 도구 호출**. 시스템 프롬프트엔 active 상위 10건만 들어 있으므로 그 외(완료건·11번째 이후 active·특정 manuscript ID·journal별 등) 는 직접 조회. "심사 목록에 없는 것 같다"고 답하기 전에 무조건 한 번은 호출.
+- 여교수가 **본인 진행 연구 (research project, drafting, submitted, target journal 등)** 관련 질문 → **search_research 도구 호출**. 시스템 프롬프트엔 12건 요약만 들어가므로 그 외 항목은 직접 조회.
 - 쿼리 설계: 유의어·약자를 queries 배열에 다 넣어 커버리지 확보. 예:
   - PROM → ["PROM", "patient-reported outcome", "ODI", "NDI", "VAS", "PROMIS", "mJOA", "EQ-5D"]
   - 재수술 → ["reoperation", "revision surgery", "reintervention"]
@@ -1021,6 +1023,95 @@ function buildBrianTools() {
             doi_url: a.doi_url,
             url: a.url,
             pmid: a.pmid,
+          })),
+        }
+      },
+    }),
+
+    search_editorial: tool({
+      description:
+        "Notion Editorial DB (Tak 이 reviewer/editor 로 처리 중·완료한 심사 건) 전체를 조회 후 필터링해서 반환합니다. 시스템 프롬프트에는 active 10건만 들어가므로, 특정 manuscript·journal·status·recommendation·과거 완료건을 묻거나 top 10 외 항목이 의심될 때 호출. 모든 상태 포함, 필터로 좁히세요.",
+      inputSchema: z.object({
+        query: z.string().optional().describe("Name/Manuscript ID/Reviewers/Notes 에서 부분 매칭"),
+        journal: z.string().optional().describe("저널 정확 매칭 (예: Neurospine, JMISST)"),
+        status: z.enum(["Received", "Under Review", "Under Revision", "Accepted", "Rejected"]).optional(),
+        recommendation: z.enum(["Accept", "Minor Revision", "Major Revision", "Reject", "Peer Review", "Pending", "Desk Reject"]).optional(),
+        role: z.enum(["Editor", "Reviewer"]).optional(),
+        only_active: z.boolean().optional().describe("true 면 진행 중(terminal 제외)만"),
+        only_terminal: z.boolean().optional().describe("true 면 완료(Accept/Reject/Desk Reject)만"),
+        limit: z.number().int().min(1).max(50).optional().describe("기본 25"),
+      }),
+      execute: async ({ query, journal, status, recommendation, role, only_active, only_terminal, limit }) => {
+        const items = await listEditorialItems()
+        const q = query?.toLowerCase().trim()
+        const filtered = items.filter((it) => {
+          if (journal && it.journal !== journal) return false
+          if (status && it.status !== status) return false
+          if (recommendation && it.recommendation !== recommendation) return false
+          if (role && it.role !== role) return false
+          if (only_active && !isEffectivelyActive(it)) return false
+          if (only_terminal && isEffectivelyActive(it)) return false
+          if (q) {
+            const hay = `${it.name} ${it.manuscript_id} ${it.reviewers} ${it.notes}`.toLowerCase()
+            if (!hay.includes(q)) return false
+          }
+          return true
+        })
+        const n = Math.min(filtered.length, limit ?? 25)
+        return {
+          matched: filtered.length,
+          shown: n,
+          items: filtered.slice(0, n).map((it) => ({
+            page_id: it.page_id,
+            name: it.name,
+            role: it.role,
+            journal: it.journal,
+            manuscript_id: it.manuscript_id,
+            manuscript_type: it.manuscript_type,
+            status: it.status,
+            recommendation: it.recommendation,
+            date_received: it.date_received,
+            date_submitted: it.date_submitted,
+            deadline: it.deadline,
+            review_round: it.review_round,
+            notes: it.notes ? it.notes.slice(0, 300) : "",
+          })),
+        }
+      },
+    }),
+
+    search_research: tool({
+      description:
+        "Notion Research DB (Tak 이 진행 중인 본인 연구 프로젝트) 전체를 조회 후 필터링해서 반환합니다. 시스템 프롬프트는 12건으로 잘려 있으므로 특정 프로젝트·status·target journal·published 건을 묻거나 12건 외 항목이 의심될 때 호출.",
+      inputSchema: z.object({
+        query: z.string().optional().describe("Title 에서 부분 매칭"),
+        status: z.enum(["WNS", "Manuscript drafting", "Editing", "Submitted", "Published", "Hold"]).optional(),
+        target_journal: z.string().optional().describe("Target Journal 부분 매칭"),
+        limit: z.number().int().min(1).max(50).optional().describe("기본 25"),
+      }),
+      execute: async ({ query, status, target_journal, limit }) => {
+        const all = await listResearchProjects()
+        const q = query?.toLowerCase().trim()
+        const tj = target_journal?.toLowerCase().trim()
+        const filtered = all.filter((p) => {
+          if (status && p.status !== status) return false
+          if (q && !p.title.toLowerCase().includes(q)) return false
+          if (tj && !(p.target_journal ?? "").toLowerCase().includes(tj)) return false
+          return true
+        })
+        const n = Math.min(filtered.length, limit ?? 25)
+        return {
+          matched: filtered.length,
+          shown: n,
+          projects: filtered.slice(0, n).map((p) => ({
+            page_id: p.page_id,
+            title: p.title,
+            status: p.status,
+            target_journal: p.target_journal,
+            first_author: p.first_author,
+            corresponding: p.corresponding,
+            start_date: p.start_date,
+            publish_date: p.publish_date,
           })),
         }
       },
