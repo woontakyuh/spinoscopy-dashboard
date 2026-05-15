@@ -4,10 +4,22 @@ import type {
   Recommendation,
 } from "@/lib/types/editorial"
 
-export const ACTIVE_STATUSES: readonly EditorialStatus[] = [
+// ─── 카테고리 정의 ────────────────────────────────────────────
+// "내가 처리해야 하는 상태" — Status 가 *Review 거나 Received
+export const REVIEW_STATUSES: readonly EditorialStatus[] = [
   "Received",
-  "Under Review",
-  "Under Revision",
+  "1st Review",
+  "2nd Review",
+  "3rd Review",
+  "Under Review", // 레거시
+] as const
+
+// "저자/편집자 응답 대기" — Status 가 *Revision
+export const REVISION_STATUSES: readonly EditorialStatus[] = [
+  "1st Revision",
+  "2nd Revision",
+  "3rd Revision",
+  "Under Revision", // 레거시
 ] as const
 
 export const TERMINAL_STATUSES: readonly EditorialStatus[] = [
@@ -15,56 +27,57 @@ export const TERMINAL_STATUSES: readonly EditorialStatus[] = [
   "Rejected",
 ] as const
 
-// Recommendation 만으로도 결론이 난 케이스. Minor/Major Revision 은 진행중 (저자 수정 대기),
-// Peer Review/Pending/null 은 진행중. Accept/Reject/Desk Reject 는 terminal.
+// Recommendation 만으로도 결론이 난 케이스. Status 가 아직 review/revision 라도
+// recommendation 이 Accept/Reject/Desk Reject 면 사실상 완료로 본다.
 export const TERMINAL_RECOMMENDATIONS: readonly Recommendation[] = [
   "Accept",
   "Reject",
   "Desk Reject",
 ] as const
 
-export function isActive(status: EditorialStatus): boolean {
-  return (ACTIVE_STATUSES as readonly string[]).includes(status)
+// ─── 단일 검사 ────────────────────────────────────────────────
+type StateInput = Pick<EditorialItem, "status" | "recommendation">
+
+function inList<T extends string>(list: readonly T[], v: string): boolean {
+  return (list as readonly string[]).includes(v)
 }
 
 export function isTerminal(status: EditorialStatus): boolean {
-  return (TERMINAL_STATUSES as readonly string[]).includes(status)
+  return inList(TERMINAL_STATUSES, status)
 }
 
-type TerminalInput = Pick<EditorialItem, "status" | "recommendation">
-
-// status 만으로는 진행중이지만 recommendation 이 terminal 이면 실질 완료로 간주.
-// 예: status="Under Review" + recommendation="Desk Reject" → 완료(거절).
-export function isEffectivelyTerminal(item: TerminalInput): boolean {
+export function isEffectivelyTerminal(item: StateInput): boolean {
   if (isTerminal(item.status)) return true
   if (item.recommendation === null) return false
-  return (TERMINAL_RECOMMENDATIONS as readonly string[]).includes(item.recommendation)
+  return inList(TERMINAL_RECOMMENDATIONS, item.recommendation)
 }
 
-export function isEffectivelyActive(item: TerminalInput): boolean {
+export function isEffectivelyActive(item: StateInput): boolean {
   return !isEffectivelyTerminal(item)
 }
 
-// "내가 처리할 일이 남아 있는가" — date_submitted 가 비었거나 새 deadline 이 그 이후에 잡혔으면 다음 라운드 액션 대상.
-// 1차 리뷰 제출하고 author/editor 응답 기다리는 상태는 false (Awaiting).
-type ActionInput = Pick<EditorialItem, "status" | "recommendation" | "date_submitted" | "deadline">
-export function isPendingMyAction(item: ActionInput): boolean {
+// ─── 메인 분류 ────────────────────────────────────────────────
+// Status 가 1차 신호. Tak 이 직접 status 를 운영하므로 가장 신뢰할 수 있음.
+
+// 1st/2nd/3rd Review (또는 Received) — Tak 이 지금 리뷰를 작성해야 함.
+export function isPendingMyAction(item: StateInput): boolean {
   if (isEffectivelyTerminal(item)) return false
-  if (!item.date_submitted) return true
-  if (!item.deadline) return false
-  return item.deadline > item.date_submitted
+  return inList(REVIEW_STATUSES, item.status)
 }
 
-// 제출은 했지만 파이프라인은 아직 열려 있음 (revision/decision 대기).
-export function isSubmittedAwaiting(item: ActionInput): boolean {
+// 1st/2nd/3rd Revision — 저자가 수정 중, Tak 액션 없음.
+export function isWaitingOnAuthor(item: StateInput): boolean {
   if (isEffectivelyTerminal(item)) return false
-  return !isPendingMyAction(item)
+  return inList(REVISION_STATUSES, item.status)
 }
 
+// 호환용 alias — 기존 코드가 "awaiting" 명칭으로 부르고 있어서 유지.
+export const isSubmittedAwaiting = isWaitingOnAuthor
+
+// ─── 완료된 원고의 결론 분류 ─────────────────────────────────
 export type OutcomeCategory = "Accept" | "Reject" | "Desk Reject"
 
-// 완료 원고의 결론 분류. status 우선, 이후 recommendation 로 판정.
-export function outcomeCategory(item: TerminalInput): OutcomeCategory | null {
+export function outcomeCategory(item: StateInput): OutcomeCategory | null {
   if (!isEffectivelyTerminal(item)) return null
   if (item.status === "Accepted") return "Accept"
   if (item.recommendation === "Desk Reject") return "Desk Reject"

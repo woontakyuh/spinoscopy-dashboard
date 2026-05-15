@@ -1,6 +1,6 @@
 export type ResearchStatus =
   | "Idea" | "Lit Review" | "Drafting" | "Editing" | "Submitted"
-  | "Revision" | "2nd Review" | "Accepted" | "Published"
+  | "Under Review" | "Revision" | "2nd Review" | "Accepted" | "Published"
   | "Rejected" | "Hold"
   // 레거시 호환
   | "WNS" | "Manuscript drafting" | "\bManscript drafting"
@@ -43,16 +43,33 @@ export const KNOWN_JOURNALS = [
   "JMISST", "KJS", "JMIR Med Inform", "Int J Pain", "KJNT", "IJSS", "JNA",
 ]
 
+export type ResearchDecision =
+  | "Pending"
+  | "Under Review"
+  | "Minor Revision"
+  | "Major Revision"
+  | "Accept"
+  | "Reject"
+
 export interface ResearchProject {
   page_id: string
   url: string
   title: string
   status: ResearchStatus
   first_author: string[]
+  co_author: string[]
   corresponding: string[]
   target_journal: string
   start_date: string | null
   publish_date: string | null
+  // 확장 필드 — Notion 스키마 변경 (2026-05) 반영
+  manuscript_id: string | null
+  manuscript_type: string | null
+  methodology: string[]
+  decision: ResearchDecision | null
+  review_round: number | null
+  deadline: string | null
+  doi: string | null
 }
 
 export interface ResearchCreateInput {

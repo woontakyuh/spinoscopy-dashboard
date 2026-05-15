@@ -13,7 +13,8 @@ import type { JournalStats } from "@/lib/types/journal"
 import type { ResearchProject } from "@/lib/types/research"
 import { dday } from "@/lib/greeterContext"
 import type { EditorialItem } from "@/lib/types/editorial"
-import { isPendingMyAction } from "@/lib/editorial/status"
+import { isPendingMyAction, isSubmittedAwaiting } from "@/lib/editorial/status"
+import { isTakWorking, isWaitingOnJournal, isResearchTerminal } from "@/lib/research/status"
 
 const TABS = [
   { id: "browse", label: "UpToDate", icon: "📚" },
@@ -77,32 +78,47 @@ export default function ScholarPage() {
 
     if (tab === "research") {
       if (!research || research.length === 0) return "여교수, 연구 프로젝트 불러오고 있네. 잠깐만."
-      const revisionList = research.filter((r) => r.status === "Revision")
-      const revision = revisionList.length
-      const submitted = research.filter((r) => r.status === "Submitted" || r.status === "2nd Review").length
-      const accepted = research.filter((r) => r.status === "Accepted").length
-      const drafting = research.filter((r) => r.status === "Drafting" || r.status === "Editing").length
-      const idea = research.filter((r) => r.status === "Idea" || r.status === "Lit Review").length
 
-      // 크로스 참조: revision 급하면서 editorial에도 급한 게 있는 경우
-      if (revision > 0 && editorial) {
-        const activeEditorial = editorial.filter(isPendingMyAction)
-        const editorialUrgent = activeEditorial.filter((e) => {
-          if (!e.deadline) return false
-          const d = dday(e.deadline)
-          return d >= 0 && d <= 7
-        }).length
-        if (editorialUrgent > 0) {
-          const revTitle = revisionList[0].title ?? "Revision"
-          return `여교수, "${revTitle}" Revision이 급하고, 심사 원고도 ${editorialUrgent}편 밀려 있네. Revision부터 치우게.`
+      // ── 내가 펜을 들고 있는 작업 ──
+      const working = research.filter(isTakWorking)
+      const revisionList = working.filter((r) => r.status === "Revision")
+      const draftingList = working.filter((r) => r.status === "Drafting" || r.status === "Editing")
+      const ideaList = working.filter((r) => r.status === "Idea" || r.status === "Lit Review")
+
+      // ── 저널 응답 대기 ──
+      const waiting = research.filter(isWaitingOnJournal)
+
+      // 우선순위: Revision (마감 있을 가능성) → Drafting → Idea → Waiting → Terminal
+      if (revisionList.length > 0) {
+        const r = revisionList[0]
+        // editorial 급한 게 함께 있으면 cross-reference
+        if (editorial) {
+          const editorialUrgent = editorial.filter(isPendingMyAction).filter((e) => {
+            if (!e.deadline) return false
+            const d = dday(e.deadline)
+            return d >= 0 && d <= 7
+          }).length
+          if (editorialUrgent > 0) {
+            return `여교수, "${r.title}" Revision 받으셨고, 심사 원고도 ${editorialUrgent}편 밀려 있네. Revision부터 치우게.`
+          }
         }
-        return `여교수, Revision 중인 논문 ${revision}편 있던데, 마감 챙기게. 리뷰어 코멘트 한번 같이 보겠나?`
+        return `여교수, "${r.title}" Revision 받으셨네. 리뷰어 코멘트 정리부터 같이 볼까.`
       }
-      if (revision > 0) return `여교수, Revision 중인 논문 ${revision}편 있던데, 마감 챙기게. 리뷰어 코멘트 한번 같이 보겠나?`
-      if (submitted > 0) return `여교수, Submitted 상태가 ${submitted}편이군. 결과 기다리는 게 제일 길지. 그동안 다음 거 준비해두세.`
-      if (accepted > 0) return `여교수, Accepted ${accepted}편 — 축하하네. 잘하고 있어.`
-      if (drafting > 0) return `여교수, Drafting 단계 ${drafting}편 있네. 막히는 부분 있으면 같이 보세.`
-      if (idea > 0) return `여교수, Idea·Lit Review 단계가 ${idea}편이군. 그중 하나 골라서 본격적으로 굴려보는 건 어떤가.`
+      if (draftingList.length > 0) {
+        const d = draftingList[0]
+        return `여교수, "${d.title}" ${d.status} 단계군. 한 번에 다 끝내려 하지 말고 섹션 하나씩 가세.`
+      }
+      if (waiting.length > 0 && working.length === 0) {
+        // 내 손에 있는 작업 없이 전부 저널 대기만 있을 때
+        return `여교수, 펜에 든 게 없군. 저널 답 기다리는 ${waiting.length}편, 그동안 다음 주제 굴려보세.`
+      }
+      if (ideaList.length > 0) {
+        return `여교수, Idea·Lit Review 단계 ${ideaList.length}편 있네. 그중 하나 골라서 본격적으로 굴려보세.`
+      }
+      const recentTerminal = research.filter(isResearchTerminal).length
+      if (recentTerminal > 0) {
+        return `여교수, 완료된 ${recentTerminal}편 외에 진행 중인 게 없군. 새 주제 잡아볼 때야.`
+      }
       return `여교수, 진행 중인 논문이 ${research.length}편이군. 새 주제 하나 잡아볼 때도 됐네.`
     }
 
@@ -115,27 +131,38 @@ export default function ScholarPage() {
       return `여교수, 지금까지 ${MY_PAPERS.length}편 출판했네. 1저자 ${firstAuthor}편이야. 다음 거 준비해볼까.`
     }
 
-    // editorial — API 기반 + 구체적 건명
+    // editorial — pending (내 액션) vs awaiting (저자 응답 대기) 분리
     if (!editorial) return "여교수, 심사 목록 불러오고 있네. 잠깐만 기다리게."
     const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
-    const active = editorial.filter(isPendingMyAction)
-    const overdue = active.filter((e) => e.deadline && e.deadline < todayStr)
-    const urgentEditorial = active.filter((e) => {
+    const pending = editorial.filter(isPendingMyAction)
+    const awaiting = editorial.filter(isSubmittedAwaiting)
+    const overdue = pending.filter((e) => e.deadline && e.deadline < todayStr)
+    const urgentEditorial = pending.filter((e) => {
       if (!e.deadline || e.deadline < todayStr) return false
       const d = dday(e.deadline)
       return d <= 7
     })
+
+    // 1) 마감 지난 pending 이 최우선
     if (overdue.length > 0) {
       const first = overdue[0]
       const d = first.deadline ? Math.abs(dday(first.deadline)) : 0
       return `여교수, "${first.name}" 심사 마감이 ${d}일 지났네. 이건 빨리 처리하세.`
     }
+    // 2) 일주일 내 마감
     if (urgentEditorial.length > 0) {
       const first = urgentEditorial[0]
       const d = first.deadline ? dday(first.deadline) : 0
       return `여교수, "${first.name}" 심사가 D-${d}일이야. 이번 주 안에 끝내게.`
     }
-    if (active.length > 0) return `여교수, 심사 중인 원고 ${active.length}편이야. 여유 있을 때 한번 보게.`
+    // 3) 처리할 pending 이 있긴 한데 여유 있을 때
+    if (pending.length > 0) {
+      return `여교수, 처리할 심사 ${pending.length}편 있네. 여유 있을 때 보세${awaiting.length > 0 ? `. 따로 ${awaiting.length}편은 저자 답 기다리는 중이고.` : "."}`
+    }
+    // 4) pending 없고 awaiting 만 있는 경우 — 닦달 X, 정보 전달만
+    if (awaiting.length > 0) {
+      return `여교수, 처리할 심사는 없고 저자 답 기다리는 게 ${awaiting.length}편이네. 손 비었으니 다른 거 하세.`
+    }
     return "여교수, 지금은 심사 요청 들어온 게 없군. 한가할 때 즐기게."
   }
 

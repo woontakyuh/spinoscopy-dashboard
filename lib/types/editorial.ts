@@ -2,10 +2,17 @@ export type EditorialRole = "Editor" | "Reviewer"
 
 export type EditorialStatus =
   | "Received"
-  | "Under Review"
-  | "Under Revision"
+  | "1st Review"
+  | "1st Revision"
+  | "2nd Review"
+  | "2nd Revision"
+  | "3rd Review"
+  | "3rd Revision"
   | "Accepted"
   | "Rejected"
+  // 레거시 호환 (옛 row 에 남아 있을 수 있음)
+  | "Under Review"
+  | "Under Revision"
 
 export type Recommendation =
   | "Accept"

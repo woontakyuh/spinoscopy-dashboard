@@ -45,8 +45,14 @@ function thisMonthStart(): string {
 
 const STATUS_BADGE: Record<string, string> = {
   "Received": "bg-zinc-500/15 text-zinc-300 border-zinc-500/30",
-  "Under Review": "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  "Under Revision": "bg-orange-500/15 text-orange-300 border-orange-500/30",
+  "1st Review": "bg-amber-500/15 text-amber-300 border-amber-500/30",
+  "2nd Review": "bg-amber-500/15 text-amber-300 border-amber-500/30",
+  "3rd Review": "bg-amber-500/15 text-amber-300 border-amber-500/30",
+  "1st Revision": "bg-orange-500/15 text-orange-300 border-orange-500/30",
+  "2nd Revision": "bg-orange-500/15 text-orange-300 border-orange-500/30",
+  "3rd Revision": "bg-orange-500/15 text-orange-300 border-orange-500/30",
+  "Under Review": "bg-amber-500/15 text-amber-300 border-amber-500/30",   // legacy
+  "Under Revision": "bg-orange-500/15 text-orange-300 border-orange-500/30", // legacy
   "Accepted": "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
   "Rejected": "bg-red-500/15 text-red-300 border-red-500/30",
 }

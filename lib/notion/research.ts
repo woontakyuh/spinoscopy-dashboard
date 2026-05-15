@@ -2,6 +2,7 @@ import { notionRequest } from "./client"
 import type {
   ResearchProject,
   ResearchStatus,
+  ResearchDecision,
   ResearchCreateInput,
   ResearchUpdateInput,
 } from "../types/research"
@@ -19,6 +20,8 @@ interface NotionProperty {
   date?: { start: string; end: string | null } | null
   select?: { name: string } | null
   multi_select?: Array<{ name: string }>
+  number?: number | null
+  url?: string | null
 }
 
 interface NotionQueryResponse {
@@ -57,26 +60,48 @@ function getDate(prop: NotionProperty | undefined): string | null {
 }
 
 const STATUS_ORDER: Record<string, number> = {
-  "WNS": 0,
-  "Manuscript drafting": 1,
-  "Editing": 2,
-  "Submitted": 3,
-  "Published": 4,
-  "Hold": 5,
+  // Tak 작업 단계 (펜이 그의 손에)
+  "Idea": 0,
+  "Lit Review": 1,
+  "WNS": 1,                       // 레거시 alias
+  "Drafting": 2,
+  "Manuscript drafting": 2,        // 레거시 alias
+  "\bManscript drafting": 2,       // 레거시 alias
+  "Editing": 3,
+  "Revision": 4,
+  // 저널 대기
+  "Submitted": 5,
+  "Under Review": 6,
+  "2nd Review": 7,
+  // 종료
+  "Accepted": 8,
+  "Published": 9,
+  "Rejected": 10,
+  // 보류
+  "Hold": 99,
 }
 
 function toResearchProject(page: NotionPage): ResearchProject {
   const p = page.properties
+  const decisionRaw = getSelect(p.Decision)
   return {
     page_id: page.id,
     url: page.url,
     title: getText(p.Title),
-    status: (getSelect(p.Status) as ResearchStatus) || "WNS",
+    status: (getSelect(p.Status) as ResearchStatus) || "Idea",
     first_author: getMultiSelect(p["1st Author"]),
+    co_author: getMultiSelect(p["Co-author"]),
     corresponding: getMultiSelect(p.Corresponding),
     target_journal: getSelect(p["Target J"]),
     start_date: getDate(p.Start),
     publish_date: getDate(p["출판"]),
+    manuscript_id: getText(p["Manuscript ID"]) || null,
+    manuscript_type: getSelect(p["Manuscript Type"]) || null,
+    methodology: getMultiSelect(p.Methodology),
+    decision: decisionRaw ? (decisionRaw as ResearchDecision) : null,
+    review_round: p["Review Round"]?.number ?? null,
+    deadline: getDate(p.Deadline),
+    doi: getText(p.doi) || null,
   }
 }
 

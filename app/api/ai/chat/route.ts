@@ -36,6 +36,7 @@ import { listResearchProjects } from "@/lib/notion/research"
 import { getJournalStats, queryArticles } from "@/lib/notion/journal"
 import { listEditorialItems } from "@/lib/notion/editorial"
 import { isEffectivelyActive, isPendingMyAction, isSubmittedAwaiting } from "@/lib/editorial/status"
+import { isTakWorking, isWaitingOnJournal, isResearchTerminal } from "@/lib/research/status"
 import { MY_PAPERS } from "@/lib/data/my-papers"
 import { getAllPatientRows } from "@/lib/notion/analytics"
 import { notionRequest } from "@/lib/notion/client"
@@ -920,7 +921,8 @@ const BRIAN_PERSONA = `당신은 Dr. Tak의 연구/저널 파트너 Brian (Brian
 - 여교수가 특정 주제 논문을 찾거나 "X 관련 논문 있어?" 묻는 경우 반드시 먼저 **search_papers 도구 호출**. 시스템 프롬프트의 통계만 보고 답하지 말 것.
 - 여교수가 **심사·편집·revision·reviewer·editor·deadline·특정 manuscript** 관련 질문 → 반드시 **search_editorial 도구 호출**. 시스템 프롬프트엔 pending 상위 10건/awaiting 상위 8건만 들어 있으므로 그 외(완료건·그 외 건·특정 manuscript ID·journal별 등) 는 직접 조회. "심사 목록에 없는 것 같다"고 답하기 전에 무조건 한 번은 호출.
 - **상태 구분**: pending = 여교수가 1차/추가 리뷰 미제출 (deadline 의미 있음). awaiting = 제출 완료, revision/decision 대기 (deadline 지났어도 액션 없음). terminal = Accept/Reject/Desk Reject 완료. 마감 닦달은 pending 만 대상, awaiting/terminal 은 거론하지 말 것.
-- 여교수가 **본인 진행 연구 (research project, drafting, submitted, target journal 등)** 관련 질문 → **search_research 도구 호출**. 시스템 프롬프트엔 12건 요약만 들어가므로 그 외 항목은 직접 조회.
+- 여교수가 **본인 진행 연구 (research project, drafting, submitted, target journal 등)** 관련 질문 → **search_research 도구 호출**. 시스템 프롬프트엔 working 10건/waiting 8건만 들어가므로 그 외 항목은 직접 조회.
+- **연구 상태 구분**: working = Tak 이 직접 작업 중 (Idea/Lit Review/Drafting/Editing/Revision — 펜이 손에). waiting = 저널 답 대기 (Submitted/Under Review/2nd Review — Tak 액션 없음). terminal = Accepted/Published/Rejected. Hold = 보류. 진척 닦달은 working 만 대상, waiting/terminal/hold 는 "결과 기다리는 중"으로만 언급.
 - 쿼리 설계: 유의어·약자를 queries 배열에 다 넣어 커버리지 확보. 예:
   - PROM → ["PROM", "patient-reported outcome", "ODI", "NDI", "VAS", "PROMIS", "mJOA", "EQ-5D"]
   - 재수술 → ["reoperation", "revision surgery", "reintervention"]
@@ -943,14 +945,34 @@ async function buildBrianPrompt(): Promise<string> {
     }
 
     if (projects.length > 0) {
-      const byStatus: Record<string, number> = {}
-      for (const p of projects) byStatus[p.status] = (byStatus[p.status] ?? 0) + 1
-      const statusLine = Object.entries(byStatus).map(([s, n]) => `${s} ${n}`).join(" · ")
-      const projLines = projects.slice(0, 12).map((p) => {
+      const working = projects.filter(isTakWorking)
+      const waiting = projects.filter(isWaitingOnJournal)
+      const terminal = projects.filter(isResearchTerminal)
+      const onHold = projects.filter((p) => p.status === "Hold")
+
+      const fmt = (p: typeof projects[number]) => {
         const journal = p.target_journal ? ` → ${p.target_journal}` : ""
-        return `- [${p.status}] ${p.title}${journal}`
-      }).join("\n")
-      context += `\n\n[진행 연구 ${projects.length}개: ${statusLine}]\n${projLines}`
+        const dl = p.deadline ? ` (마감 ${p.deadline})` : ""
+        return `- [${p.status}] ${p.title}${journal}${dl}`
+      }
+
+      if (working.length > 0) {
+        const lines = working.slice(0, 10).map(fmt).join("\n")
+        context += `\n\n[Tak 작업 중 연구 ${working.length}편 — Idea/Lit Review/Drafting/Editing/Revision (펜이 Tak 손에)]\n${lines}`
+      }
+      if (waiting.length > 0) {
+        const lines = waiting.slice(0, 8).map(fmt).join("\n")
+        context += `\n\n[저널 응답 대기 ${waiting.length}편 — Submitted/Under Review/2nd Review (Tak 액션 없음)]\n${lines}`
+      }
+      if (terminal.length > 0) {
+        const summary: Record<string, number> = {}
+        for (const p of terminal) summary[p.status] = (summary[p.status] ?? 0) + 1
+        const sumLine = Object.entries(summary).map(([s, n]) => `${s} ${n}`).join(" · ")
+        context += `\n\n[완료된 연구 ${terminal.length}편: ${sumLine}]`
+      }
+      if (onHold.length > 0) {
+        context += `\n\n[Hold ${onHold.length}편]\n${onHold.slice(0, 5).map(fmt).join("\n")}`
+      }
     }
 
     const pendingEd = editorial.filter(isPendingMyAction)
@@ -1096,19 +1118,29 @@ function buildBrianTools() {
 
     search_research: tool({
       description:
-        "Notion Research DB (Tak 이 진행 중인 본인 연구 프로젝트) 전체를 조회 후 필터링해서 반환합니다. 시스템 프롬프트는 12건으로 잘려 있으므로 특정 프로젝트·status·target journal·published 건을 묻거나 12건 외 항목이 의심될 때 호출.",
+        "Notion Research DB (Tak 본인 연구 프로젝트) 전체를 조회 후 필터링해서 반환. 시스템 프롬프트는 working 10/waiting 8건만 들어가니, 그 외 항목·특정 프로젝트·terminal·hold 건 조회 시 호출. only_working/only_waiting/only_terminal 로 빠르게 좁힐 수 있음.",
       inputSchema: z.object({
-        query: z.string().optional().describe("Title 에서 부분 매칭"),
-        status: z.enum(["WNS", "Manuscript drafting", "Editing", "Submitted", "Published", "Hold"]).optional(),
+        query: z.string().optional().describe("Title 부분 매칭"),
+        status: z.enum([
+          "Idea", "Lit Review", "Drafting", "Editing", "Submitted",
+          "Under Review", "Revision", "2nd Review",
+          "Accepted", "Published", "Rejected", "Hold",
+        ]).optional(),
         target_journal: z.string().optional().describe("Target Journal 부분 매칭"),
+        only_working: z.boolean().optional().describe("Tak 작업 중 (Idea/Lit Review/Drafting/Editing/Revision)"),
+        only_waiting: z.boolean().optional().describe("저널 응답 대기 (Submitted/Under Review/2nd Review)"),
+        only_terminal: z.boolean().optional().describe("종료 (Accepted/Published/Rejected)"),
         limit: z.number().int().min(1).max(50).optional().describe("기본 25"),
       }),
-      execute: async ({ query, status, target_journal, limit }) => {
+      execute: async ({ query, status, target_journal, only_working, only_waiting, only_terminal, limit }) => {
         const all = await listResearchProjects()
         const q = query?.toLowerCase().trim()
         const tj = target_journal?.toLowerCase().trim()
         const filtered = all.filter((p) => {
           if (status && p.status !== status) return false
+          if (only_working && !isTakWorking(p)) return false
+          if (only_waiting && !isWaitingOnJournal(p)) return false
+          if (only_terminal && !isResearchTerminal(p)) return false
           if (q && !p.title.toLowerCase().includes(q)) return false
           if (tj && !(p.target_journal ?? "").toLowerCase().includes(tj)) return false
           return true
@@ -1123,9 +1155,17 @@ function buildBrianTools() {
             status: p.status,
             target_journal: p.target_journal,
             first_author: p.first_author,
+            co_author: p.co_author,
             corresponding: p.corresponding,
             start_date: p.start_date,
             publish_date: p.publish_date,
+            manuscript_id: p.manuscript_id,
+            manuscript_type: p.manuscript_type,
+            methodology: p.methodology,
+            decision: p.decision,
+            review_round: p.review_round,
+            deadline: p.deadline,
+            doi: p.doi,
           })),
         }
       },
