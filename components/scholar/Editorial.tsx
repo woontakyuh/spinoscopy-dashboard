@@ -8,7 +8,9 @@ import type {
   EditorialItem,
   EditorialRole,
 } from "@/lib/types/editorial"
-import { isEffectivelyTerminal, isSubmittedAwaiting, outcomeCategory, type OutcomeCategory } from "@/lib/editorial/status"
+import { ChevronDown } from "lucide-react"
+import { REVISION_STATUSES } from "@/lib/editorial/status"
+import type { EditorialStatus } from "@/lib/types/editorial"
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -72,12 +74,26 @@ const ROLE_STYLE: Record<string, { badge: string; accent: string }> = {
   "Reviewer": { badge: "bg-green-500/15 text-green-300 border-green-500/30", accent: "border-l-green-500" },
 }
 
-const OUTCOME_ORDER: readonly OutcomeCategory[] = ["Accept", "Reject", "Desk Reject"] as const
-const OUTCOME_ICON: Record<OutcomeCategory, string> = {
-  "Accept": "✓",
-  "Reject": "✕",
-  "Desk Reject": "⊘",
+// ── Lanes ──────────────────────────────────────────────
+// 4개 레인 — 1st/2nd/3rd 는 R1/R2/R3 뱃지로 카드 안에 흡수
+
+interface LaneConfig {
+  id: "review" | "revision" | "accepted" | "rejected"
+  label: string
+  sublabel: string  // 한 줄 부가설명 ("내 액션" / "저자 대기" 등)
+  bg: string
+  border: string
+  headerBg: string
+  dot: string
+  text: string
 }
+
+const LANES: LaneConfig[] = [
+  { id: "review",   label: "Under Review",   sublabel: "내 액션",   bg: "bg-amber-950/20",  border: "border-amber-800/40",  headerBg: "bg-amber-900/40",  dot: "bg-amber-400",  text: "text-amber-300" },
+  { id: "revision", label: "Under Revision", sublabel: "저자 대기", bg: "bg-blue-950/20",   border: "border-blue-800/40",   headerBg: "bg-blue-900/40",   dot: "bg-blue-400",   text: "text-blue-300" },
+  { id: "accepted", label: "Accepted",       sublabel: "완료",      bg: "bg-emerald-950/20",border: "border-emerald-800/40",headerBg: "bg-emerald-900/40",dot: "bg-emerald-400",text: "text-emerald-300" },
+  { id: "rejected", label: "Rejected",       sublabel: "완료",      bg: "bg-zinc-950/40",   border: "border-zinc-700/40",   headerBg: "bg-zinc-800/60",   dot: "bg-red-400",    text: "text-zinc-300" },
+]
 
 const JOURNAL_BADGE: Record<string, string> = {
   "Neurospine": "bg-yellow-500/15 text-yellow-300 border-yellow-500/30",
@@ -117,11 +133,9 @@ const METHOD_SHORT: Record<string, string> = {
 export function Editorial() {
   const [roleFilter, setRoleFilter] = useState<EditorialRole | "all">("all")
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [showCompleted, setShowCompleted] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [journalFilter, setJournalFilter] = useState<Set<string>>(new Set())
   const [methodFilter, setMethodFilter] = useState<Set<string>>(new Set())
-  const [outcomeFilter, setOutcomeFilter] = useState<Set<OutcomeCategory>>(new Set())
 
   const { data: items, isLoading } = useQuery<EditorialItem[]>({
     queryKey: ["editorial"],
@@ -172,71 +186,70 @@ export function Editorial() {
     return out
   }, [roleFiltered, journalFilter, methodFilter, searchQuery])
 
-  // Group by urgency
-  // - terminal → completed
-  // - submitted, waiting for revision/decision → awaiting (내 액션 없음, 파이프라인은 열림)
-  // - 그 외 (내가 처리해야 함) → deadline 따라 overdue/soon/inProgress
-  const { overdue, soon, inProgress, awaiting, completed } = useMemo(() => {
-    const overdue: EditorialItem[] = []
-    const soon: EditorialItem[] = []
-    const inProgress: EditorialItem[] = []
-    const awaiting: EditorialItem[] = []
-    const completed: EditorialItem[] = []
+  // ── Urgent (Overdue + Due Soon) — pending 만 대상 ──
+  // ── Lane buckets — status 기반 4개 ──
+  const { urgent, lanes, awaitingCount, completedCount } = useMemo(() => {
+    const urgent: EditorialItem[] = []
+    const laneItems: Record<LaneConfig["id"], EditorialItem[]> = {
+      review: [], revision: [], accepted: [], rejected: [],
+    }
 
     for (const item of filtered) {
-      if (isEffectivelyTerminal(item)) {
-        completed.push(item)
-        continue
+      // Lane 분류는 status 그대로
+      if (item.status === "Accepted") laneItems.accepted.push(item)
+      else if (item.status === "Rejected") laneItems.rejected.push(item)
+      else if ((REVISION_STATUSES as readonly string[]).includes(item.status)) laneItems.revision.push(item)
+      else laneItems.review.push(item)  // Received + *Review (+ legacy Under Review)
+
+      // Urgent — Under Review 레인 + deadline overdue/soon 인 것만
+      if (laneItems.review.includes(item)) {
+        const dl = deadlineInfo(item.deadline)
+        if (dl.urgency === "overdue" || dl.urgency === "soon") urgent.push(item)
       }
-      if (isSubmittedAwaiting(item)) {
-        awaiting.push(item)
-        continue
-      }
-      const dl = deadlineInfo(item.deadline)
-      if (dl.urgency === "overdue") overdue.push(item)
-      else if (dl.urgency === "soon") soon.push(item)
-      else inProgress.push(item)
     }
 
     const byDeadline = (a: EditorialItem, b: EditorialItem) =>
       (a.deadline ?? "9999").localeCompare(b.deadline ?? "9999")
-    overdue.sort(byDeadline)
-    soon.sort(byDeadline)
-    inProgress.sort(byDeadline)
-    // awaiting 은 가장 최근 제출 순
-    awaiting.sort((a, b) => (b.date_submitted ?? "").localeCompare(a.date_submitted ?? ""))
-    completed.sort((a, b) => (b.date_submitted ?? b.date_received ?? "").localeCompare(a.date_submitted ?? a.date_received ?? ""))
+    const byRecent = (a: EditorialItem, b: EditorialItem) =>
+      (b.date_submitted ?? b.date_received ?? "").localeCompare(a.date_submitted ?? a.date_received ?? "")
 
-    return { overdue, soon, inProgress, awaiting, completed }
+    urgent.sort(byDeadline)
+    laneItems.review.sort(byDeadline)
+    laneItems.revision.sort(byRecent)
+    laneItems.accepted.sort(byRecent)
+    laneItems.rejected.sort(byRecent)
+
+    return {
+      urgent,
+      lanes: laneItems,
+      awaitingCount: laneItems.revision.length,
+      completedCount: laneItems.accepted.length + laneItems.rejected.length,
+    }
   }, [filtered])
+
+  const overdue = useMemo(() => urgent.filter(i => {
+    const dl = deadlineInfo(i.deadline)
+    return dl.urgency === "overdue"
+  }), [urgent])
+  const soon = useMemo(() => urgent.filter(i => {
+    const dl = deadlineInfo(i.deadline)
+    return dl.urgency === "soon"
+  }), [urgent])
+  const completedItems = useMemo(
+    () => [...lanes.accepted, ...lanes.rejected].sort((a, b) =>
+      (b.date_submitted ?? b.date_received ?? "").localeCompare(a.date_submitted ?? a.date_received ?? "")
+    ),
+    [lanes.accepted, lanes.rejected],
+  )
 
   // 이번달 완료 카운트 — terminal 상태이면서 date_submitted 가 이번달
   const thisMonthCompleted = useMemo(() => {
     const start = thisMonthStart()
-    return completed.filter(i => {
+    return completedItems.filter(i => {
       const d = i.date_submitted ?? i.date_received
       return d && d >= start
     }).length
-  }, [completed])
-
-  // Completed 의 outcome 별 카운트
-  const outcomeCounts = useMemo(() => {
-    const m = new Map<OutcomeCategory, number>()
-    for (const i of completed) {
-      const c = outcomeCategory(i)
-      if (c) m.set(c, (m.get(c) ?? 0) + 1)
-    }
-    return m
-  }, [completed])
-
-  // outcome 필터 적용한 완료 리스트
-  const completedFiltered = useMemo(() => {
-    if (outcomeFilter.size === 0) return completed
-    return completed.filter(i => {
-      const c = outcomeCategory(i)
-      return c !== null && outcomeFilter.has(c)
-    })
-  }, [completed, outcomeFilter])
+  }, [completedItems])
 
   // Role 별 전체 카운트 (role 필터 무관, 원본 기준)
   const roleCounts = useMemo(() => {
@@ -247,7 +260,8 @@ export function Editorial() {
     }
   }, [items])
 
-  const activeCount = overdue.length + soon.length + inProgress.length
+  const pendingCount = lanes.review.length
+  const totalShown = pendingCount + awaitingCount + completedCount
 
   function toggleJournal(j: string) {
     setJournalFilter(prev => {
@@ -267,23 +281,13 @@ export function Editorial() {
     })
   }
 
-  function toggleOutcome(o: OutcomeCategory) {
-    setOutcomeFilter(prev => {
-      const next = new Set(prev)
-      if (next.has(o)) next.delete(o)
-      else next.add(o)
-      return next
-    })
-  }
-
   function clearFilters() {
     setJournalFilter(new Set())
     setMethodFilter(new Set())
-    setOutcomeFilter(new Set())
     setSearchQuery("")
   }
 
-  const hasFilter = journalFilter.size > 0 || methodFilter.size > 0 || outcomeFilter.size > 0 || searchQuery.trim().length > 0
+  const hasFilter = journalFilter.size > 0 || methodFilter.size > 0 || searchQuery.trim().length > 0
 
   if (isLoading) {
     return (
@@ -300,8 +304,8 @@ export function Editorial() {
         <div className="flex items-center gap-x-4 gap-y-1.5 flex-wrap text-xs">
           <Pill color="red" label="Overdue" count={overdue.length} />
           <Pill color="amber" label="Due Soon" count={soon.length} />
-          <Pill color="zinc" label="In Progress" count={inProgress.length} />
-          <Pill color="purple" label="Awaiting" count={awaiting.length} icon="⏳" />
+          <Pill color="zinc" label="Pending" count={pendingCount} />
+          <Pill color="blue" label="Awaiting" count={awaitingCount} icon="⏳" />
           <Pill color="emerald" label="This Month" count={thisMonthCompleted} icon="✅" />
           <span className="text-muted-foreground/40">|</span>
           <Pill color="blue" label="Editor" count={roleCounts.editor} icon="👤" />
@@ -401,9 +405,9 @@ export function Editorial() {
       )}
 
       <div className="text-[11px] text-muted-foreground">
-        {activeCount === 0 && completed.length === 0
+        {totalShown === 0
           ? "조건에 맞는 원고가 없습니다."
-          : <>표시 중: <span className="text-foreground num">{activeCount}</span>건 진행 {completed.length > 0 && <>· 완료 <span className="num">{completed.length}</span>건</>}</>}
+          : <>표시 중: <span className="text-foreground num">{pendingCount}</span>건 처리 필요 · <span className="num">{awaitingCount}</span>건 저자 대기 · <span className="num">{completedCount}</span>건 완료</>}
       </div>
 
       {/* ─── Overdue ──────────────────────────── */}
@@ -438,114 +442,200 @@ export function Editorial() {
         </Section>
       )}
 
-      {/* ─── In Progress ──────────────────────── */}
-      {inProgress.length > 0 && (
-        <Section label="IN PROGRESS" count={inProgress.length} icon="⚪" borderColor="border-border" bgColor="bg-transparent">
-          {inProgress.map(item => (
-            <ManuscriptCard
+      {/* ─── Lane View (4 lanes: Under Review / Under Revision / Accepted / Rejected) ─── */}
+      <div className="overflow-x-auto scrollbar-hide -mx-3 px-3 md:mx-0 md:px-0">
+        <div className="flex gap-3 min-w-[800px] md:min-w-0 md:grid md:grid-cols-4">
+          {LANES.map((lane) => {
+            const items = lane.id === "review" ? lanes.review
+              : lane.id === "revision" ? lanes.revision
+              : lane.id === "accepted" ? lanes.accepted
+              : lanes.rejected
+            return (
+              <EditorialLane
+                key={lane.id}
+                lane={lane}
+                items={items}
+                expandedId={expandedId}
+                onToggleExpand={(id) => setExpandedId(expandedId === id ? null : id)}
+                onJournalClick={toggleJournal}
+                onMethodClick={toggleMethod}
+              />
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── EditorialLane ───────────────────────────────────────
+function EditorialLane({
+  lane, items, expandedId, onToggleExpand, onJournalClick, onMethodClick,
+}: {
+  lane: LaneConfig
+  items: EditorialItem[]
+  expandedId: string | null
+  onToggleExpand: (id: string) => void
+  onJournalClick: (j: string) => void
+  onMethodClick: (m: string) => void
+}) {
+  const [mobileOpen, setMobileOpen] = useState(false)
+  return (
+    <div className={`flex flex-col rounded-xl border ${lane.border} ${lane.bg} min-w-[200px] md:min-w-0`}>
+      <button
+        onClick={() => setMobileOpen(!mobileOpen)}
+        className={`flex items-center justify-between px-3 py-2.5 rounded-t-xl ${lane.headerBg} md:cursor-default`}
+      >
+        <div className="flex items-baseline gap-2">
+          <span className={`size-2 rounded-full ${lane.dot}`} />
+          <span className={`text-sm font-semibold ${lane.text}`}>{lane.label}</span>
+          <span className="text-[10px] text-muted-foreground/70">{lane.sublabel}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground font-medium bg-card/60 px-1.5 py-0.5 rounded-full num">
+            {items.length}
+          </span>
+          <ChevronDown className={`size-4 text-muted-foreground md:hidden transition-transform ${mobileOpen ? "rotate-180" : ""}`} />
+        </div>
+      </button>
+      <div className={`flex flex-col gap-2 p-2 ${mobileOpen ? "" : "hidden md:flex"} max-h-[70vh] overflow-y-auto scrollbar-hide`}>
+        {items.length === 0 ? (
+          <div className="text-xs text-muted-foreground/60 text-center py-4">항목 없음</div>
+        ) : (
+          items.map((item) => (
+            <LaneCard
               key={item.page_id}
               item={item}
+              laneId={lane.id}
               expanded={expandedId === item.page_id}
-              onToggle={() => setExpandedId(expandedId === item.page_id ? null : item.page_id)}
-              onJournalClick={toggleJournal}
-              onMethodClick={toggleMethod}
+              onToggle={() => onToggleExpand(item.page_id)}
+              onJournalClick={onJournalClick}
+              onMethodClick={onMethodClick}
             />
-          ))}
-        </Section>
-      )}
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
 
-      {/* ─── Awaiting (제출 완료, revision/decision 대기) ─── */}
-      {awaiting.length > 0 && (
-        <Section label="AWAITING" count={awaiting.length} icon="⏳" borderColor="border-purple-500/30" bgColor="bg-purple-500/[0.03]">
-          {awaiting.map(item => (
-            <ManuscriptCard
-              key={item.page_id}
-              item={item}
-              expanded={expandedId === item.page_id}
-              onToggle={() => setExpandedId(expandedId === item.page_id ? null : item.page_id)}
-              onJournalClick={toggleJournal}
-              onMethodClick={toggleMethod}
-              isAwaiting
-            />
-          ))}
-        </Section>
-      )}
+// ── LaneCard (compact, lane 내부용) ────────────────────
+function LaneCard({
+  item, laneId, expanded, onToggle, onJournalClick, onMethodClick,
+}: {
+  item: EditorialItem
+  laneId: LaneConfig["id"]
+  expanded: boolean
+  onToggle: () => void
+  onJournalClick: (j: string) => void
+  onMethodClick: (m: string) => void
+}) {
+  const dl = deadlineInfo(item.deadline)
+  const role = ROLE_STYLE[item.role] ?? ROLE_STYLE.Reviewer
+  const decision = item.recommendation
+  const methShown = item.methodology.slice(0, 2)
+  const methMore = item.methodology.length - methShown.length
 
-      {/* ─── Completed ────────────────────────── */}
-      {completed.length > 0 && (
-        <div>
-          <button
-            onClick={() => setShowCompleted(!showCompleted)}
-            className="flex items-center gap-2 w-full text-left group"
-          >
-            <div className="h-px flex-1 bg-border" />
-            <span className="text-muted-foreground text-xs font-medium flex items-center gap-1.5 shrink-0">
-              ✅ COMPLETED {outcomeFilter.size > 0
-                ? <>(<span className="num text-foreground">{completedFiltered.length}</span> / <span className="num">{completed.length}</span>)</>
-                : <>(<span className="num">{completed.length}</span>)</>}
-              <svg
-                className={`size-3 transition-transform ${showCompleted ? "rotate-180" : ""}`}
-                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </span>
-            <div className="h-px flex-1 bg-border" />
-          </button>
+  // 우측 상태 표시 — 레인별로 달라짐
+  let rightSide: React.ReactNode
+  if (laneId === "review") {
+    rightSide = <span className={`text-[11px] num whitespace-nowrap ${dl.color}`}>{dl.text}</span>
+  } else if (laneId === "revision") {
+    rightSide = (
+      <span className="text-[11px] num whitespace-nowrap text-blue-300/90">
+        {item.date_submitted ? `Sub ${formatDate(item.date_submitted)}` : "—"}
+      </span>
+    )
+  } else {
+    // accepted / rejected — recommendation 강조
+    rightSide = decision ? (
+      <Badge variant="outline" className={`text-[9px] px-1.5 py-0 h-[18px] font-medium ${REC_BADGE[decision] ?? ""}`}>
+        {decision}
+      </Badge>
+    ) : null
+  }
 
-          {showCompleted && (
-            <div className="mt-3 space-y-3">
-              {/* Outcome sub-filter chips */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 self-center">Outcome</span>
-                {OUTCOME_ORDER.map(o => {
-                  const count = outcomeCounts.get(o) ?? 0
-                  if (count === 0) return null
-                  const active = outcomeFilter.has(o)
-                  return (
-                    <button
-                      key={o}
-                      onClick={() => toggleOutcome(o)}
-                      className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
-                        active
-                          ? `${REC_BADGE[o] ?? ""} ring-1 ring-indigo-400/50`
-                          : "border-border/60 text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {OUTCOME_ICON[o]} {o} <span className="num ml-0.5">{count}</span>
-                    </button>
-                  )
-                })}
-                {outcomeFilter.size > 0 && (
-                  <button
-                    onClick={() => setOutcomeFilter(new Set())}
-                    className="text-[10px] text-muted-foreground hover:text-foreground ml-1"
-                  >
-                    × 전체
-                  </button>
-                )}
-              </div>
-
-              {/* Cards */}
-              {completedFiltered.length > 0 ? (
-                <div className="space-y-2">
-                  {completedFiltered.map(item => (
-                    <ManuscriptCard
-                      key={item.page_id}
-                      item={item}
-                      expanded={expandedId === item.page_id}
-                      onToggle={() => setExpandedId(expandedId === item.page_id ? null : item.page_id)}
-                      onJournalClick={toggleJournal}
-                      onMethodClick={toggleMethod}
-                      isCompleted
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground py-4 text-center">선택한 outcome 에 해당하는 완료 원고가 없습니다.</p>
-              )}
-            </div>
+  return (
+    <div className={`rounded-lg border border-border/80 bg-card overflow-hidden border-l-2 ${role.accent}`}>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onToggle}
+        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle() } }}
+        className="px-2.5 py-2 cursor-pointer hover:bg-muted/40 transition-colors"
+      >
+        {/* Row 1: Role · Journal · R뱃지 · 우측 상태 */}
+        <div className="flex items-center gap-1.5 mb-1">
+          <Badge variant="outline" className={`text-[9px] px-1 py-0 h-[16px] font-medium ${role.badge}`}>
+            {item.role[0]}
+          </Badge>
+          {item.journal && (
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onJournalClick(item.journal) }}
+              className={`text-[9px] px-1.5 py-0 h-[16px] rounded-full border transition-colors ${JOURNAL_BADGE[item.journal] ?? ""}`}
+              title="저널 필터"
+            >
+              {item.journal}
+            </button>
           )}
+          <Badge variant="outline" className={`text-[9px] px-1 py-0 h-[16px] font-medium ${STATUS_BADGE[item.status] ?? ""}`}>
+            {item.status}
+          </Badge>
+          {item.review_round && (
+            <span className="text-[9px] text-muted-foreground/80 bg-muted px-1 rounded num">R{item.review_round}</span>
+          )}
+          <span className="flex-1" />
+          {rightSide}
+        </div>
+        {/* Row 2: Title */}
+        <p className={`text-xs leading-snug ${laneId === "accepted" || laneId === "rejected" ? "text-muted-foreground" : "text-foreground"} ${expanded ? "" : "line-clamp-2"}`}>
+          {item.name || "(제목 없음)"}
+        </p>
+        {/* Row 3: Methodology + meta */}
+        {methShown.length > 0 && (
+          <div className="flex items-center gap-1 flex-wrap mt-1">
+            {methShown.map(m => (
+              <button
+                key={m}
+                type="button"
+                onClick={e => { e.stopPropagation(); onMethodClick(m) }}
+                className="text-[8px] px-1 py-0 h-[14px] rounded-full border border-indigo-400/30 bg-indigo-500/10 text-indigo-300/90"
+                title="Methodology 필터"
+              >
+                {METHOD_SHORT[m] ?? m}
+              </button>
+            ))}
+            {methMore > 0 && <span className="text-[8px] text-muted-foreground/60">+{methMore}</span>}
+          </div>
+        )}
+      </div>
+
+      {/* Expanded detail (inline) */}
+      {expanded && (
+        <div className="px-2.5 pb-2.5 pt-0 border-t border-border/50 bg-muted/20">
+          <div className="py-2 flex items-center gap-1.5 text-[10px] text-muted-foreground/90 flex-wrap">
+            <TimelineStep label="Rec" date={item.date_received} />
+            <span className="text-muted-foreground/40">→</span>
+            <TimelineStep label="Sub" date={item.date_submitted} />
+            <span className="text-muted-foreground/40">→</span>
+            <TimelineStep label="DL" date={item.deadline} />
+          </div>
+          {item.manuscript_id && (
+            <div className="text-[10px] text-muted-foreground/80 mb-1 num">ID: {item.manuscript_id}</div>
+          )}
+          {item.notes && (
+            <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-3 mt-1">{item.notes}</p>
+          )}
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noreferrer"
+            onClick={e => e.stopPropagation()}
+            className="inline-flex items-center gap-1 mt-2 text-[10px] text-indigo-300 hover:text-indigo-200"
+          >
+            Notion에서 열기 →
+          </a>
         </div>
       )}
     </div>
