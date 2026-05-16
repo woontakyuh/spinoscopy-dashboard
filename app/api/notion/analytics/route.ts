@@ -13,8 +13,12 @@ export async function GET(req: NextRequest) {
         if (values.length > 0) filters[dim] = values
       }
     }
+    const q = req.nextUrl.searchParams.get("q")?.trim() || undefined
 
-    const data = await getAllPatientRows(Object.keys(filters).length > 0 ? filters : undefined)
+    const data = await getAllPatientRows(
+      Object.keys(filters).length > 0 ? filters : undefined,
+      q,
+    )
     return NextResponse.json(data, {
       headers: { "Cache-Control": "s-maxage=300, stale-while-revalidate=60" },
     })

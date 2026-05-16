@@ -104,7 +104,7 @@ export async function getOpCategoryOptions(): Promise<{ name: string; color: str
 
 export type DimensionFilters = Partial<Record<Dimension, string[]>>
 
-async function fetchAllPatients(filters?: DimensionFilters): Promise<NotionPage[]> {
+async function fetchAllPatients(filters?: DimensionFilters, query?: string): Promise<NotionPage[]> {
   const dbId = process.env.NOTION_PATIENT_DB_ID
   const all: NotionPage[] = []
   let cursor: string | undefined = undefined
@@ -127,6 +127,19 @@ async function fetchAllPatients(filters?: DimensionFilters): Promise<NotionPage[
         })
       }
     }
+  }
+  // 자유 텍스트 검색 — Name/Pt No/Op Name/Preop Dx/Level OR
+  const q = query?.trim()
+  if (q) {
+    andClauses.push({
+      or: [
+        { property: "Name", title: { contains: q } },
+        { property: "Pt No", rich_text: { contains: q } },
+        { property: "Op Name", rich_text: { contains: q } },
+        { property: "Preop Dx", rich_text: { contains: q } },
+        { property: "Level", rich_text: { contains: q } },
+      ],
+    })
   }
 
   do {
@@ -190,7 +203,10 @@ function parseRow(page: NotionPage): PatientRow {
   }
 }
 
-export async function getAllPatientRows(filters?: DimensionFilters): Promise<AnalyticsData> {
-  const pages = await fetchAllPatients(filters)
+export async function getAllPatientRows(
+  filters?: DimensionFilters,
+  query?: string,
+): Promise<AnalyticsData> {
+  const pages = await fetchAllPatients(filters, query)
   return { patients: pages.map(parseRow), fetchedAt: new Date().toISOString() }
 }

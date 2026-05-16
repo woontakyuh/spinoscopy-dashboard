@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -156,13 +156,15 @@ function activeFilterCount(filters: ActiveFilters): number {
   return count
 }
 
-function buildQueryString(filters: ActiveFilters): string {
+function buildQueryString(filters: ActiveFilters, search: string): string {
   const params = new URLSearchParams()
   for (const [key, valueSet] of Object.entries(filters) as [Dimension, Set<string> | undefined][]) {
     if (valueSet && valueSet.size > 0) {
       params.set(key, Array.from(valueSet).join(","))
     }
   }
+  const s = search.trim()
+  if (s) params.set("q", s)
   return params.toString()
 }
 
@@ -519,8 +521,8 @@ function PromTrendCharts({ patients, groupBy }: { patients: PatientRow[]; groupB
         key: "vas",
         title: "VAS (통증)",
         lines: [
-          { metric: "vas_prox", label: "VAS neck/back", color: "#60a5fa" },
           { metric: "vas_dist", label: "VAS arm/leg", color: "#f87171" },
+          { metric: "vas_prox", label: "VAS neck/back", color: "#60a5fa" },
         ],
         domain: [0, 10],
       },
@@ -913,9 +915,18 @@ function GroupBySelector({
 export function ClinicsAnalytics() {
   const [filters, setFilters] = useState<ActiveFilters>({})
   const [groupBy, setGroupBy] = useState<Dimension | null>(null)
+  const [searchInput, setSearchInput] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
 
-  const filtersActive = hasActiveFilters(filters)
-  const filterCount = activeFilterCount(filters)
+  // search 입력 디바운스 — 400ms 후에야 서버 호출
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 400)
+    return () => clearTimeout(t)
+  }, [searchInput])
+
+  const searchActive = debouncedSearch.length > 0
+  const filtersActive = hasActiveFilters(filters) || searchActive
+  const filterCount = activeFilterCount(filters) + (searchActive ? 1 : 0)
 
   // 1) Fetch categories (fast, cached 1hr) — always loaded
   const categoriesQuery = useQuery<DimensionSchema>({
@@ -928,8 +939,8 @@ export function ClinicsAnalytics() {
     staleTime: 60 * 60 * 1000,
   })
 
-  // 2) Fetch patients only when filters are active
-  const queryString = useMemo(() => buildQueryString(filters), [filters])
+  // 2) Fetch patients when dim 필터 또는 검색어가 활성화된 경우만
+  const queryString = useMemo(() => buildQueryString(filters, debouncedSearch), [filters, debouncedSearch])
 
   const patientsQuery = useQuery<AnalyticsData>({
     queryKey: ["clinicus-analytics-patients", queryString],
@@ -975,6 +986,7 @@ export function ClinicsAnalytics() {
   const clearFilters = useCallback(() => {
     setFilters({})
     setGroupBy(null)
+    setSearchInput("")
   }, [])
 
   // 집도의 허용 목록만 통과시키고, 환자의 surgeon 배열도 허용 집도의만 남긴다.
@@ -1049,6 +1061,27 @@ export function ClinicsAnalytics() {
   return (
     <div className="space-y-4">
 
+      {/* ═══════ Free-text Search ═══════ */}
+      <div className="relative animate-fade-in-up">
+        <input
+          type="text"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="이름 · 차트번호 · 수술명 · 진단명 · 레벨로 검색…"
+          className="w-full bg-muted/60 border border-border rounded-lg px-3.5 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-violet-500/60"
+        />
+        {searchInput && (
+          <button
+            type="button"
+            onClick={() => setSearchInput("")}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs px-2 py-0.5 rounded hover:bg-muted"
+            aria-label="검색어 지우기"
+          >
+            ×
+          </button>
+        )}
+      </div>
+
       {/* ═══════ Stat Cards ═══════ */}
       <div className="grid grid-cols-3 gap-3 animate-fade-in-up">
         <div className="card-hover rounded-xl border border-border/80 bg-card px-4 py-3">
@@ -1076,6 +1109,16 @@ export function ClinicsAnalytics() {
       {filterCount > 0 && (
         <div className="flex items-center gap-2 flex-wrap px-3 py-2.5 rounded-xl bg-indigo-950/40 border border-indigo-500/20 animate-fade-in-up">
           <span className="text-[11px] text-indigo-400 uppercase tracking-wider font-semibold">필터</span>
+          {searchActive && (
+            <button
+              onClick={() => setSearchInput("")}
+              className="inline-flex items-center gap-1.5 pl-2.5 pr-2 py-1 rounded-full bg-violet-500/15 text-violet-200 text-xs border border-violet-500/30 hover:bg-violet-500/25 transition-all duration-150 group"
+            >
+              <span className="text-violet-300/70 text-[10px]">검색</span>
+              <span className="font-medium">{debouncedSearch}</span>
+              <span className="text-violet-300/70 group-hover:text-violet-200 ml-0.5 transition-colors">x</span>
+            </button>
+          )}
           {(Object.entries(filters) as [FilterKey, Set<string> | undefined][]).map(([key, valueSet]) => {
             if (!valueSet || valueSet.size === 0) return null
             const dimLabel = DIMENSIONS.find(d => d.key === key)?.label ?? key

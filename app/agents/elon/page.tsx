@@ -4,19 +4,14 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { TopBar } from "@/components/layout/TopBar"
 import { AgentChat } from "@/components/layout/AgentChat"
-import { PatientSearch } from "@/components/clinicus/PatientSearch"
-import { PatientDetail } from "@/components/clinicus/PatientDetail"
 import { ClinicsAnalytics } from "@/components/clinicus/ClinicsAnalytics"
 import { IdeaMemo } from "@/components/clinicus/IdeaMemo"
-import { PatientProfileView } from "@/components/clinicus/PatientProfileView"
 import { InterestingCaseList } from "@/components/elon/InterestingCaseList"
-import type { PatientSearchResult } from "@/lib/types/patient"
 import { getTimeContext } from "@/lib/greeterContext"
 import type { MemoDraft } from "@/lib/types/draft"
 
 const TABS = [
-  { id: "analytics", label: "통계", icon: "📊" },
-  { id: "search", label: "환자 조회", icon: "🔍" },
+  { id: "analytics", label: "통계·환자", icon: "📊" },
   { id: "interesting", label: "Interesting", icon: "⭐" },
   { id: "memo", label: "메모", icon: "💡" },
 ] as const
@@ -28,7 +23,6 @@ interface AnalyticsData { patients: AnalyticsRow[] }
 
 export default function ClinicusPage() {
   const [activeTab, setActiveTab] = useState<ClinicusTab>("analytics")
-  const [searchPatient, setSearchPatient] = useState<PatientSearchResult | null>(null)
 
   const { data, isLoading: isAnalyticsLoading } = useQuery<AnalyticsData>({
     queryKey: ["clinicus-greeter"],
@@ -57,13 +51,6 @@ export default function ClinicusPage() {
 
   function getMessageForTab(tab: ClinicusTab): string {
     const tc = getTimeContext()
-
-    if (tab === "search") {
-      if (patients.length > 0) {
-        return `Tak, ${patients.length}명 DB에 있어. 누구 찾아?`
-      }
-      return "Tak, 환자 데이터 불러오고 있어."
-    }
 
     if (tab === "interesting") {
       return "Tak, 태그된 케이스들이야. 하나 클릭해서 같이 파고들어보자."
@@ -96,7 +83,6 @@ export default function ClinicusPage() {
   const message = getMessageForTab(activeTab)
   const isTabLoading =
     (activeTab === "analytics" && isAnalyticsLoading) ||
-    (activeTab === "search" && isAnalyticsLoading) ||
     (activeTab === "memo" && isDraftsLoading)
 
   return (
@@ -133,33 +119,6 @@ export default function ClinicusPage() {
         <AgentChat agentId="elon" image="/elon.png" name="Elon" greeting={isTabLoading ? "..." : message} />
 
         {activeTab === "analytics" && <ClinicsAnalytics />}
-
-        {activeTab === "search" && (
-          <div className="space-y-4">
-            <div>
-              <p className="text-foreground/90 text-sm font-medium mb-2">환자 검색</p>
-              <PatientSearch
-                onSelect={(p) => setSearchPatient(p)}
-                selectedId={searchPatient?.page_id}
-              />
-            </div>
-            {searchPatient ? (
-              <div className="space-y-4">
-                <div className="border border-border rounded-xl p-4 bg-card">
-                  <PatientDetail
-                    patient={searchPatient}
-                    onOpenNotion={() => window.open(searchPatient.url, "_blank")}
-                  />
-                </div>
-                <PatientProfileView pageId={searchPatient.page_id} />
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-sm text-center py-8">
-                환자를 검색하여 선택하면 PROM 요약과 그래프가 표시됩니다.
-              </p>
-            )}
-          </div>
-        )}
 
         {activeTab === "interesting" && <InterestingCaseList />}
 
