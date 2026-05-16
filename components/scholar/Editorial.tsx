@@ -469,6 +469,12 @@ export function Editorial() {
 }
 
 // ── EditorialLane ───────────────────────────────────────
+// Lane 별 기본 노출 개수 — 완료된 건들은 너무 많아 시각적으로 묶여 보이므로 일부만 보여주고 접기.
+const LANE_DEFAULT_LIMIT: Partial<Record<LaneConfig["id"], number>> = {
+  rejected: 5,
+  accepted: 8,
+}
+
 function EditorialLane({
   lane, items, expandedId, onToggleExpand, onJournalClick, onMethodClick,
 }: {
@@ -480,6 +486,12 @@ function EditorialLane({
   onMethodClick: (m: string) => void
 }) {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [showAll, setShowAll] = useState(false)
+  const limit = LANE_DEFAULT_LIMIT[lane.id]
+  const truncated = limit != null && items.length > limit && !showAll
+  const visibleItems = truncated ? items.slice(0, limit) : items
+  const hiddenCount = items.length - visibleItems.length
+
   return (
     <div className={`flex flex-col rounded-xl border ${lane.border} ${lane.bg} min-w-[200px] md:min-w-0`}>
       <button
@@ -502,17 +514,37 @@ function EditorialLane({
         {items.length === 0 ? (
           <div className="text-xs text-muted-foreground/60 text-center py-4">항목 없음</div>
         ) : (
-          items.map((item) => (
-            <LaneCard
-              key={item.page_id}
-              item={item}
-              laneId={lane.id}
-              expanded={expandedId === item.page_id}
-              onToggle={() => onToggleExpand(item.page_id)}
-              onJournalClick={onJournalClick}
-              onMethodClick={onMethodClick}
-            />
-          ))
+          <>
+            {visibleItems.map((item) => (
+              <LaneCard
+                key={item.page_id}
+                item={item}
+                laneId={lane.id}
+                expanded={expandedId === item.page_id}
+                onToggle={() => onToggleExpand(item.page_id)}
+                onJournalClick={onJournalClick}
+                onMethodClick={onMethodClick}
+              />
+            ))}
+            {truncated && (
+              <button
+                type="button"
+                onClick={() => setShowAll(true)}
+                className="text-[11px] text-muted-foreground hover:text-foreground py-1.5 rounded border border-dashed border-border/60 hover:border-border transition-colors"
+              >
+                더보기 ({hiddenCount}건)
+              </button>
+            )}
+            {!truncated && limit != null && items.length > limit && (
+              <button
+                type="button"
+                onClick={() => setShowAll(false)}
+                className="text-[11px] text-muted-foreground/70 hover:text-foreground py-1 transition-colors"
+              >
+                접기
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>
