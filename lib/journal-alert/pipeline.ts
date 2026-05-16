@@ -245,16 +245,17 @@ function interestRank(article: PubmedArticle): number {
 }
 
 function selectEmailArticles(articles: PubmedArticle[]): PubmedArticle[] {
-  const maxItems = Number(process.env.JOURNAL_ALERT_MAX_EMAIL_ITEMS ?? "80")
-  const safeMax = Number.isFinite(maxItems) && maxItems > 0 ? Math.min(Math.floor(maxItems), 200) : 80
+  // 신규 등록 논문 전부를 이메일에 포함. interest 순 → 날짜 순으로만 정렬.
+  // 비상 상한 (Gmail 렌더링 한계 등) 만 환경변수로 둠 — 지정 안 하면 무제한.
+  const maxItemsEnv = process.env.JOURNAL_ALERT_MAX_EMAIL_ITEMS
+  const cap = maxItemsEnv ? Number(maxItemsEnv) : Number.POSITIVE_INFINITY
 
-  return [...articles]
-    .sort((a, b) => {
-      const rankDiff = interestRank(b) - interestRank(a)
-      if (rankDiff !== 0) return rankDiff
-      return pubDateMillis(b.pubDate) - pubDateMillis(a.pubDate)
-    })
-    .slice(0, safeMax)
+  const sorted = [...articles].sort((a, b) => {
+    const rankDiff = interestRank(b) - interestRank(a)
+    if (rankDiff !== 0) return rankDiff
+    return pubDateMillis(b.pubDate) - pubDateMillis(a.pubDate)
+  })
+  return Number.isFinite(cap) && cap > 0 ? sorted.slice(0, Math.floor(cap)) : sorted
 }
 
 async function loadExistingKeys(databaseId: string): Promise<Set<string>> {
@@ -437,12 +438,15 @@ function buildEmailHtml(totalInserted: number, articlesForEmail: PubmedArticle[]
   const section = (title: string, items: PubmedArticle[]) => {
     if (items.length === 0) return ""
     return `<h3 style="color:#fafafa;border-bottom:1px solid #333;padding-bottom:6px;">${title} (${items.length})</h3><table style="width:100%;border-collapse:collapse;">${items
-      .slice(0, 20)
       .map((article, idx) => row(article, idx + 1))
       .join("")}</table>`
   }
 
-  const html = `<!doctype html><html><body style="background:#09090b;color:#e5e7eb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><div style="max-width:680px;margin:0 auto;padding:24px;"><h1 style="margin:0 0 8px;">📚 Journal Alert</h1><p style="margin:0 0 16px;color:#a1a1aa;">${today}</p><p style="margin:0 0 16px;color:#a1a1aa;font-size:12px;">총 신규 ${totalInserted}편 중 상위 ${articlesForEmail.length}편만 표시</p>${section("🔴 필독", grouped.must)}${section("🟡 관심", grouped.interest)}<p style="color:#a1a1aa;font-size:12px;">⚪ 참고 ${grouped.ref.length}편</p></div></body></html>`
+  const totalShown = grouped.must.length + grouped.interest.length + grouped.ref.length
+  const summaryLine = totalInserted === totalShown
+    ? `총 신규 ${totalInserted}편`
+    : `총 신규 ${totalInserted}편 중 ${totalShown}편 표시`
+  const html = `<!doctype html><html><body style="background:#09090b;color:#e5e7eb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><div style="max-width:680px;margin:0 auto;padding:24px;"><h1 style="margin:0 0 8px;">📚 Journal Alert</h1><p style="margin:0 0 16px;color:#a1a1aa;">${today}</p><p style="margin:0 0 16px;color:#a1a1aa;font-size:12px;">${summaryLine}</p>${section("🔴 필독", grouped.must)}${section("🟡 관심", grouped.interest)}${section("⚪ 참고", grouped.ref)}</div></body></html>`
   return { subject, html }
 }
 
