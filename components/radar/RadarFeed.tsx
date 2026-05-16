@@ -125,7 +125,7 @@ function FeedColumn({ tier, items, fetchedAt }: { tier: typeof TIERS[number]; it
 
       {/* Source filter chips */}
       {sourceOptions.length > 1 && (
-        <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide whitespace-nowrap">
+        <div className="flex flex-wrap items-center gap-1">
           <button
             type="button"
             onClick={() => { setSelectedSources(new Set()); setVisibleCount(20) }}
