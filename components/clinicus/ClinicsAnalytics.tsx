@@ -43,11 +43,45 @@ const DIMENSIONS: { key: Dimension; label: string; color: ColorKey }[] = [
   { key: "surgeon",     label: "집도의",        color: "violet" },
 ]
 
+// 분석 화면 표시·집계 대상 집도의. Notion DB 엔 다른 집도의도 있을 수 있으나
+// 이 대시보드는 Tak 본인 (여운탁) + 직접 참여하는 케이스 (최일) 만 본다.
+const ALLOWED_SURGEONS: ReadonlySet<string> = new Set(["여운탁", "최일"])
+
 const AXIS_STYLE  = { fill: "#71717a", fontSize: 11 }
 const GRID_COLOR  = "#27272a"
-const TOOLTIP_STYLE = {
-  backgroundColor: "#18181b", border: "1px solid #3f3f46",
-  borderRadius: 8, color: "#e4e4e7", fontSize: 12,
+
+// PROM 차트 hover — 개월수 라벨 대신 응답률 (응답/전체 %) + 평균을 보여준다.
+type PromTooltipPayloadItem = {
+  name?: string
+  value?: number | string | null
+  color?: string
+  payload?: Record<string, number | string | null>
+}
+function PromTooltip({ active, payload }: { active?: boolean; payload?: PromTooltipPayloadItem[] }) {
+  if (!active || !payload || payload.length === 0) return null
+  const rows = payload.filter(p => p.value !== null && p.value !== undefined && p.name)
+  if (rows.length === 0) return null
+  return (
+    <div className="rounded-lg border border-zinc-700 bg-zinc-900/95 px-3 py-2 shadow-lg text-xs space-y-1">
+      {rows.map(p => {
+        const name = p.name as string
+        const v = p.value
+        const data = p.payload ?? {}
+        const n = (data[`__n_${name}`] as number | undefined) ?? 0
+        const t = (data[`__t_${name}`] as number | undefined) ?? 0
+        const rate = t > 0 ? Math.round((n / t) * 100) : 0
+        const display = typeof v === "number" ? (Number.isInteger(v) ? v : v.toFixed(2)) : v
+        return (
+          <div key={name} className="flex items-baseline gap-2 whitespace-nowrap">
+            <span className="size-1.5 rounded-full shrink-0" style={{ background: p.color ?? "#a1a1aa" }} />
+            <span className="text-zinc-300">{name}</span>
+            <span className="num text-zinc-100 font-medium">{display}</span>
+            <span className="text-zinc-500 num">· {rate}% ({n}/{t})</span>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 /* Subgroup line colors for comparison */
@@ -545,6 +579,8 @@ function PromTrendCharts({ patients, groupBy }: { patients: PatientRow[]; groupB
               .map(p => p.timepoints[tp]?.[primaryMetric.metric])
               .filter((v): v is number => v !== null && v !== undefined)
             row[sgName] = avg(vals)
+            row[`__n_${sgName}`] = vals.length
+            row[`__t_${sgName}`] = sgPatients.length
           }
           return row
         })
@@ -575,6 +611,8 @@ function PromTrendCharts({ patients, groupBy }: { patients: PatientRow[]; groupB
             .map(p => p.timepoints[tp]?.[line.metric])
             .filter((v): v is number => v !== null && v !== undefined)
           row[line.label] = avg(vals)
+          row[`__n_${line.label}`] = vals.length
+          row[`__t_${line.label}`] = patients.length
         }
         return row
       })
@@ -622,7 +660,7 @@ function PromTrendCharts({ patients, groupBy }: { patients: PatientRow[]; groupB
                     width={chart.unit === "%" ? 36 : 28}
                   />
                 )}
-                <Tooltip contentStyle={TOOLTIP_STYLE} />
+                <Tooltip content={<PromTooltip />} />
                 <Legend wrapperStyle={{ fontSize: 10, color: "#a1a1aa" }} />
                 {chart.refLine && (
                   <ReferenceLine
@@ -937,7 +975,14 @@ export function ClinicsAnalytics() {
     setGroupBy(null)
   }, [])
 
-  const allPatients = patientsQuery.data?.patients ?? []
+  // 집도의 허용 목록만 통과시키고, 환자의 surgeon 배열도 허용 집도의만 남긴다.
+  // → 차원/집계/PROM 모두 동일 데이터셋으로 계산되어 일관성 유지.
+  const allPatients = useMemo(() => {
+    const raw = patientsQuery.data?.patients ?? []
+    return raw
+      .filter(p => p.surgeon.some(s => ALLOWED_SURGEONS.has(s)))
+      .map(p => ({ ...p, surgeon: p.surgeon.filter(s => ALLOWED_SURGEONS.has(s)) }))
+  }, [patientsQuery.data])
 
   // 서버에서 이미 필터된 결과를 사용 (이중 필터링 방지)
   const filtered = filtersActive ? allPatients : []
@@ -954,7 +999,10 @@ export function ClinicsAnalytics() {
       const counts = countBy(allPatients, dim.key)
       // schema에 있는 항목은 0이라도 포함 (전체 목록 유지)
       if (categoriesQuery.data?.[dim.key]) {
-        for (const opt of categoriesQuery.data[dim.key]) {
+        const schemaOpts = dim.key === "surgeon"
+          ? categoriesQuery.data[dim.key].filter(opt => ALLOWED_SURGEONS.has(opt.name))
+          : categoriesQuery.data[dim.key]
+        for (const opt of schemaOpts) {
           if (!(opt.name in counts)) counts[opt.name] = 0
         }
       }
