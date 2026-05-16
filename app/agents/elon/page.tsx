@@ -11,7 +11,7 @@ import { getTimeContext } from "@/lib/greeterContext"
 import type { MemoDraft } from "@/lib/types/draft"
 
 const TABS = [
-  { id: "analytics", label: "통계·환자", icon: "📊" },
+  { id: "analytics", label: "Patient DB", icon: "📊" },
   { id: "interesting", label: "Interesting", icon: "⭐" },
   { id: "memo", label: "메모", icon: "💡" },
 ] as const
