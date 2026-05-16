@@ -23,6 +23,7 @@ interface HfDailyPaper {
     url?: string
     summary?: string
     authors?: Array<{ name?: string }>
+    upvotes?: number
   }
 }
 
@@ -105,7 +106,7 @@ function toFeedItem(params: {
   const tier = config?.tier ?? "newsletter"
   const cadence = config?.cadence ?? "24h"
   const categories = inferCategories(params.title, params.sourceId, tier)
-  const importanceScore = scoreImportance(params.title, categories, tier, params.sourceId)
+  const importanceScore = scoreImportance(params.title, categories, tier, params.sourceId, params.points ?? null)
 
   const base: FeedItem = {
     id: params.id,
@@ -214,6 +215,7 @@ async function fetchHfDailyPapers(): Promise<FeedItem[]> {
       url,
       author,
       date,
+      points: paper?.upvotes ?? null,
       summary: paper?.summary ?? null,
     })
   })
@@ -544,7 +546,10 @@ export async function GET() {
         fetchRssItems("import-ai", "https://importai.substack.com/feed").catch(() => []),
         fetchRssItems("latent-space", "https://www.latent.space/feed").catch(() => []),
         fetchRssItems("raschka", "https://magazine.sebastianraschka.com/feed").catch(() => []),
-        fetchRssItems("arxiv", "https://rss.arxiv.org/rss/cs.AI+cs.LG", 20).catch(() => []),
+        // arXiv firehose 는 비활성 (sources.ts active:false). 큐레이션은 HF Daily Papers 가 담당.
+        getSourceConfig("arxiv")?.active
+          ? fetchRssItems("arxiv", "https://rss.arxiv.org/rss/cs.AI+cs.LG", 20).catch(() => [])
+          : Promise.resolve([] as FeedItem[]),
         fetchRssItems("nature-digital-medicine", "https://www.nature.com/npjdigitalmed.rss").catch(() => []),
         fetchRssItems("radiology-ai", "https://pubs.rsna.org/action/showFeed?type=etoc&feed=rss&jc=ai").catch(() => []),
         fetchRssItems("msr-health", "https://www.microsoft.com/en-us/research/blog/feed/").then((items) => {

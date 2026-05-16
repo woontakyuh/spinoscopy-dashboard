@@ -57,7 +57,8 @@ function sortItems(items: FeedItem[], sortMode: SortMode) {
 
 // ─── Single-column feed for one tier ───
 function FeedColumn({ tier, items, fetchedAt }: { tier: typeof TIERS[number]; items: FeedItem[]; fetchedAt?: string }) {
-  const [sortMode, setSortMode] = useState<SortMode>("date")
+  // Papers 컬럼은 커뮤니티 시그널(upvotes/citation)을 1차 신호로 — 화제작이 위로 오도록
+  const [sortMode, setSortMode] = useState<SortMode>(tier.value === "newsletter" ? "importance" : "date")
   const [visibleCount, setVisibleCount] = useState(20)
   const [selectedSources, setSelectedSources] = useState<Set<FeedSource>>(new Set())
 

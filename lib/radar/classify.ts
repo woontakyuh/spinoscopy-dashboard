@@ -96,7 +96,21 @@ export function inferCategories(title: string, source: FeedSource, tier: FeedTie
   return Array.from(new Set(categories))
 }
 
-export function scoreImportance(title: string, categories: FeedCategory[], tier: FeedTier, source?: FeedSource): 1 | 2 | 3 | 4 | 5 {
+// 화제 lab/회사명 — 제목에 등장 시 importance 가중. Paper/News 모두 적용.
+const HOT_LAB_KEYWORDS = [
+  "deepseek", "anthropic", "openai", "google deepmind", "deepmind",
+  "meta ai", "fair", "mistral", "qwen", "alibaba",
+  "moonshot", "kimi", "01.ai", "yi", "allen ai", "allenai",
+  "stability", "cohere", "perplexity", "xai", "nvidia research",
+]
+
+export function scoreImportance(
+  title: string,
+  categories: FeedCategory[],
+  tier: FeedTier,
+  source?: FeedSource,
+  points?: number | null,
+): 1 | 2 | 3 | 4 | 5 {
   const text = title.toLowerCase()
   let score = 2
 
@@ -111,6 +125,23 @@ export function scoreImportance(title: string, categories: FeedCategory[], tier:
   // AI 기업 공식 블로그에서 model-release 언급 시 추가 가중
   if (source && ["anthropic-engineering", "anthropic-research", "openai-blog", "deepmind-blog"].includes(source)) {
     if (categories.includes("model-release")) score += 1
+  }
+
+  // 화제 lab 이름이 제목에 보이면 +1 (DeepSeek, Mistral, Qwen 등)
+  if (includesAny(text, HOT_LAB_KEYWORDS)) score += 1
+
+  // 커뮤니티 시그널 — HF Daily Papers upvotes / HN points 가 핵심 큐레이션 신호
+  // HF Daily Papers: ~5 = mid, ~20 = trending, ~50+ = viral
+  // HN: ~50 = noticeable, ~150 = strong, ~300+ = top
+  if (typeof points === "number") {
+    if (source === "hf-daily-papers") {
+      if (points >= 50) score += 2
+      else if (points >= 20) score += 1
+    } else {
+      // HN 등 일반 점수
+      if (points >= 300) score += 2
+      else if (points >= 100) score += 1
+    }
   }
 
   if (score < 1) return 1

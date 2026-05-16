@@ -174,7 +174,8 @@ export const RADAR_SOURCES: RadarSourceConfig[] = [
     intervalHours: 24,
     mode: "rss",
     endpoint: "https://rss.arxiv.org/rss/cs.AI+cs.LG",
-    active: true,
+    // firehose 라 노이즈 큼 — HF Daily Papers (커뮤니티 큐레이션) 로 대체. 다시 살리려면 true.
+    active: false,
   },
   {
     id: "hf-daily-papers",
