@@ -519,8 +519,8 @@ function PromTrendCharts({ patients, groupBy }: { patients: PatientRow[]; groupB
         key: "vas",
         title: "VAS (통증)",
         lines: [
-          { metric: "vas_prox", label: "VAS Prox (Neck/Back)", color: "#60a5fa" },
-          { metric: "vas_dist", label: "VAS Dist (Arm/Leg)", color: "#f87171" },
+          { metric: "vas_prox", label: "VAS neck/back", color: "#60a5fa" },
+          { metric: "vas_dist", label: "VAS arm/leg", color: "#f87171" },
         ],
         domain: [0, 10],
       },
@@ -736,6 +736,8 @@ function PatientListRow({ patient, isExpanded, onToggle }: {
     sex: patient.sex,
     op_date: patient.op_date,
     op_name: patient.op_name,
+    preop_dx: "",
+    level: "",
     hospital: patient.hospital,
   }
 

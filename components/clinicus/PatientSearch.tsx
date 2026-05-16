@@ -36,7 +36,7 @@ export function PatientSearch({ onSelect, selectedId }: PatientSearchProps) {
   return (
     <div className="space-y-2">
       <Input
-        placeholder="환자명으로 검색..."
+        placeholder="이름 · 차트번호 · 수술명 · 진단명 · 레벨로 검색..."
         value={query}
         onChange={e => handleChange(e.target.value)}
         className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
@@ -60,7 +60,7 @@ export function PatientSearch({ onSelect, selectedId }: PatientSearchProps) {
                 selectedId === patient.page_id ? "bg-blue-600/20 border-blue-500/30" : "bg-muted"
               }`}
             >
-              <div>
+              <div className="min-w-0 flex-1 pr-3">
                 <p className="text-foreground font-medium text-sm">{patient.name}</p>
                 <p className="text-muted-foreground text-xs">
                   {patient.pt_no && `#${patient.pt_no} · `}
@@ -68,15 +68,22 @@ export function PatientSearch({ onSelect, selectedId }: PatientSearchProps) {
                   {patient.sex}
                   {patient.hospital.length > 0 && ` · ${patient.hospital.join(", ")}`}
                 </p>
+                {(patient.preop_dx || patient.level) && (
+                  <p className="text-muted-foreground/80 text-[11px] truncate mt-0.5">
+                    {patient.level && <span className="text-foreground/70">{patient.level}</span>}
+                    {patient.level && patient.preop_dx && " · "}
+                    {patient.preop_dx}
+                  </p>
+                )}
               </div>
-              <div className="text-right">
+              <div className="text-right shrink-0">
                 {patient.op_date && (
                   <p className="text-muted-foreground text-xs">
                     수술: {new Date(patient.op_date).toLocaleDateString("ko-KR", { month: "short", day: "numeric", year: "numeric" })}
                   </p>
                 )}
                 {patient.op_name && (
-                  <p className="text-muted-foreground text-xs truncate max-w-32">{patient.op_name}</p>
+                  <p className="text-muted-foreground text-xs truncate max-w-[180px]">{patient.op_name}</p>
                 )}
               </div>
             </button>

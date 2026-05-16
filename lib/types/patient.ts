@@ -17,6 +17,8 @@ export interface PatientSearchResult {
   sex: string
   op_date: string | null
   op_name: string
+  preop_dx: string
+  level: string
   hospital: string[]
 }
 
@@ -24,10 +26,8 @@ export interface PatientDetail extends PatientSearchResult {
   prom: Record<string, string>
   class_a: string[]
   class_b: string[]
-  level: string
   op_category: string[]
   landmark: string[]
-  preop_dx: string
   surgeon: string[]
 }
 

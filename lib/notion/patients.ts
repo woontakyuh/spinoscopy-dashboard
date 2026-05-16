@@ -44,12 +44,16 @@ function toPatientResult(page: NotionPage): PatientSearchResult {
     sex: p.Sex?.select?.name?.trim() ?? "",
     op_date: p["Op Date"]?.date?.start ?? null,
     op_name: getText(p["Op Name"]),
+    preop_dx: getText(p["Preop Dx"]),
+    level: getText(p.Level),
     hospital: getMultiSelect(p.Hospital),
   }
 }
 
 export async function searchPatients(query: string): Promise<PatientSearchResult[]> {
   const dbId = process.env.NOTION_PATIENT_DB_ID
+  const q = query.trim()
+  if (!q) return []
   const response = await notionRequest<NotionQueryResponse>(
     `/databases/${dbId}/query`,
     {
@@ -57,13 +61,21 @@ export async function searchPatients(query: string): Promise<PatientSearchResult
       body: JSON.stringify({
         filter: {
           and: [
-            { property: "Name", title: { contains: query } },
             { property: "DB", multi_select: { contains: "Op" } },
             { property: "Sch", select: { does_not_equal: "canceled" } },
+            {
+              or: [
+                { property: "Name", title: { contains: q } },
+                { property: "Pt No", rich_text: { contains: q } },
+                { property: "Op Name", rich_text: { contains: q } },
+                { property: "Preop Dx", rich_text: { contains: q } },
+                { property: "Level", rich_text: { contains: q } },
+              ],
+            },
           ],
         },
         sorts: [{ property: "Op Date", direction: "descending" }],
-        page_size: 20,
+        page_size: 30,
       }),
     }
   )
