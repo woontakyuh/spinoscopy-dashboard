@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { ClientLayout } from "@/components/layout/ClientLayout";
 
-const geistSans = Geist({
+// Claude.ai 의 UI 폰트 (Styrene B / Söhne) 는 라이선스 — 가장 가까운 free 대안인 Inter 사용.
+// --font-geist-sans 변수명은 globals.css 에서 참조 중이라 유지.
+const interSans = Inter({
   variable: "--font-geist-sans",
   subsets: ["latin"],
 });
@@ -27,7 +29,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${geistSans.variable} antialiased bg-background text-foreground`}>
+      <body className={`${interSans.variable} antialiased bg-background text-foreground`}>
         <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
