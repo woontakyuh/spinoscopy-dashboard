@@ -560,9 +560,15 @@ async function loadRowsWithFieldStatus(databaseId: string): Promise<ExistingRow[
   return rows
 }
 
-export async function runBackfillFields(): Promise<BackfillResult> {
+export async function runBackfillFields(): Promise<BackfillResult & { emailed: boolean; emailSkippedReason?: string }> {
   const databaseId = process.env.NOTION_JOURNAL_DB_ID?.trim()
   if (!databaseId) throw new Error("NOTION_JOURNAL_DB_ID missing")
+
+  // 필드별 patch 카운트를 따로 트래킹 — 메일 리포트에 어떤 필드가 얼마나 채워졌는지 보여줌
+  const fieldStats: Record<string, number> = {
+    Abstract: 0, Keywords: 0, Affiliations: 0, Vol: 0, Issue: 0, Category: 0, Type: 0,
+  }
+  const typeBreakdown: Record<string, number> = {}
 
   const result: BackfillResult = {
     scanned: 0, patched: 0, skipped_no_pmid: 0, skipped_full: 0, failed: 0,
@@ -604,6 +610,14 @@ export async function runBackfillFields(): Promise<BackfillResult> {
           body: JSON.stringify({ properties: patch }),
         })
         result.patched += 1
+        // 필드별 통계
+        for (const key of Object.keys(patch)) {
+          if (key in fieldStats) fieldStats[key] += 1
+        }
+        if (patch.Type) {
+          const t = (patch.Type as { select: { name: string } }).select.name
+          typeBreakdown[t] = (typeBreakdown[t] ?? 0) + 1
+        }
         await sleep(120)
       } catch {
         result.failed += 1
@@ -612,7 +626,9 @@ export async function runBackfillFields(): Promise<BackfillResult> {
     await sleep(400)
   }
 
-  return result
+  // 결과 메일 리포트 — 사용자가 결과를 메일로 받겠다고 요청.
+  const email = await sendBackfillReport(result, fieldStats, typeBreakdown)
+  return { ...result, emailed: email.sent, emailSkippedReason: email.reason }
 }
 
 function buildBackfillPatch(article: PubmedArticle, row: ExistingRow): Record<string, unknown> {
@@ -731,6 +747,66 @@ function buildEmailHtml(totalInserted: number, articlesForEmail: PubmedArticle[]
     : `총 신규 ${totalInserted}편 중 ${totalShown}편 표시`
   const html = `<!doctype html><html><body style="background:#09090b;color:#e5e7eb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><div style="max-width:680px;margin:0 auto;padding:24px;"><h1 style="margin:0 0 8px;">📚 Journal Alert</h1><p style="margin:0 0 16px;color:#a1a1aa;">${today}</p><p style="margin:0 0 16px;color:#a1a1aa;font-size:12px;">${summaryLine}</p>${section("🔴 필독", grouped.must)}${section("🟡 관심", grouped.interest)}${section("⚪ 참고", grouped.ref)}</div></body></html>`
   return { subject, html }
+}
+
+async function sendBackfillReport(
+  result: BackfillResult,
+  fieldStats: Record<string, number>,
+  typeBreakdown: Record<string, number>,
+): Promise<{ sent: boolean; reason?: string }> {
+  const user = process.env.JOURNAL_ALERT_SMTP_USER
+  const pass = process.env.JOURNAL_ALERT_SMTP_PASS
+  const host = process.env.JOURNAL_ALERT_SMTP_HOST ?? "smtp.gmail.com"
+  const port = Number(process.env.JOURNAL_ALERT_SMTP_PORT ?? "587")
+  const to = process.env.JOURNAL_ALERT_RECIPIENT ?? user
+  const cc = process.env.JOURNAL_ALERT_CC?.trim() || undefined
+  if (!user || !pass || !to) return { sent: false, reason: "email_not_configured" }
+
+  const today = new Date().toISOString().slice(0, 10)
+  const subject = `[Journal Alert] Backfill 완료 — ${result.patched}건 패치`
+
+  const cell = (v: string | number) =>
+    `<td style="padding:6px 10px;border-bottom:1px solid #2a2a2a;">${v}</td>`
+  const fieldRows = Object.entries(fieldStats)
+    .map(([field, count]) => `<tr>${cell(field)}${cell(`<span style="color:#fafafa;">${count}</span>건`)}</tr>`)
+    .join("")
+  const typeRows = Object.entries(typeBreakdown)
+    .sort((a, b) => b[1] - a[1])
+    .map(([type, count]) => `<tr>${cell(type)}${cell(`<span style="color:#fafafa;">${count}</span>건`)}</tr>`)
+    .join("")
+
+  const html = `<!doctype html><html><body style="background:#09090b;color:#e5e7eb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<div style="max-width:680px;margin:0 auto;padding:24px;">
+  <h1 style="margin:0 0 8px;">🔧 Journal Backfill 완료</h1>
+  <p style="margin:0 0 16px;color:#a1a1aa;">${today}</p>
+
+  <h3 style="color:#fafafa;border-bottom:1px solid #333;padding-bottom:6px;margin-top:24px;">전체</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">
+    ${cell("스캔한 row")}${cell(`<span style="color:#fafafa;">${result.scanned}</span>건`)}</tr>
+    <tr>${cell("패치 성공")}${cell(`<span style="color:#34d399;">${result.patched}</span>건`)}</tr>
+    <tr>${cell("이미 풀(스킵)")}${cell(`<span style="color:#a1a1aa;">${result.skipped_full}</span>건`)}</tr>
+    <tr>${cell("PMID 없음(스킵)")}${cell(`<span style="color:#a1a1aa;">${result.skipped_no_pmid}</span>건`)}</tr>
+    <tr>${cell("실패")}${cell(`<span style="color:${result.failed > 0 ? "#f87171" : "#a1a1aa"};">${result.failed}</span>건`)}</tr>
+  </table>
+
+  <h3 style="color:#fafafa;border-bottom:1px solid #333;padding-bottom:6px;margin-top:24px;">필드별 채워진 row 수</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">${fieldRows}</table>
+
+  ${Object.keys(typeBreakdown).length > 0 ? `
+  <h3 style="color:#fafafa;border-bottom:1px solid #333;padding-bottom:6px;margin-top:24px;">Type 재분류 분포 (Clinical Study 떡칠 → 구체 타입)</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">${typeRows}</table>
+  ` : ""}
+</div></body></html>`
+
+  try {
+    const transporter = nodemailer.createTransport({
+      host, port, secure: port === 465, auth: { user, pass },
+    })
+    await transporter.sendMail({ from: user, to, cc, subject, html })
+    return { sent: true }
+  } catch (e) {
+    return { sent: false, reason: `smtp_error: ${e instanceof Error ? e.message : "unknown"}` }
+  }
 }
 
 async function sendEmailAlert(
