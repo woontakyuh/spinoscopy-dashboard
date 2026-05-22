@@ -187,7 +187,11 @@ function classifyInterest(article: PubmedArticle): InterestLevel {
   return "⚪ 참고"
 }
 
-async function searchPubmedIds(query: string, days: number): Promise<string[]> {
+async function searchPubmedIdsByDateType(
+  query: string,
+  days: number,
+  datetype: "edat" | "pdat",
+): Promise<string[]> {
   const now = new Date()
   const start = new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
   const fmt = (date: Date) =>
@@ -197,14 +201,24 @@ async function searchPubmedIds(query: string, days: number): Promise<string[]> {
   const url =
     `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed` +
     `&term=${encodeURIComponent(term)}` +
-    `&datetype=edat&mindate=${fmt(start)}&maxdate=${fmt(now)}` +
+    `&datetype=${datetype}&mindate=${fmt(start)}&maxdate=${fmt(now)}` +
     `&retmax=500&retmode=json`
 
   const res = await fetch(url, { cache: "no-store", headers: { "User-Agent": "SpinoscopyDashboard/1.0" } })
-  if (!res.ok) throw new Error(`PubMed search failed: ${res.status}`)
+  if (!res.ok) throw new Error(`PubMed search (${datetype}) failed: ${res.status}`)
 
   const payload = (await res.json()) as { esearchresult?: { idlist?: string[] } }
   return payload.esearchresult?.idlist ?? []
+}
+
+// edat (Entrez 인덱싱일) 하나만 보면 TSJ 처럼 PubMed 인덱싱 lag 이 긴 저널 (60일 publish → 인덱싱은 며칠~몇주 후)
+// 을 거의 다 놓침. pdat (실제 출판일) 도 함께 조회하고 PMID union — 이후 Notion dedup 으로 중복 제거.
+async function searchPubmedIds(query: string, days: number): Promise<string[]> {
+  const [edatIds, pdatIds] = await Promise.all([
+    searchPubmedIdsByDateType(query, days, "edat"),
+    searchPubmedIdsByDateType(query, days, "pdat"),
+  ])
+  return Array.from(new Set([...edatIds, ...pdatIds]))
 }
 
 async function fetchPubmedArticles(pmids: string[]): Promise<PubmedArticle[]> {
