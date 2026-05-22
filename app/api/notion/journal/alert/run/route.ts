@@ -7,6 +7,13 @@ function parseDays(value: string | null): number {
   return Math.min(Math.floor(parsed), 60)
 }
 
+// email=false / 0 / no 면 메일 안 보냄 (백필 모드).
+function parseSendEmail(value: string | null): boolean {
+  if (value == null) return true
+  const v = value.trim().toLowerCase()
+  return !(v === "false" || v === "0" || v === "no" || v === "off")
+}
+
 function isAuthorized(req: NextRequest): boolean {
   const expected = process.env.JOURNAL_ALERT_RUN_TOKEN
   if (!expected) return false
@@ -27,8 +34,9 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url)
     const days = parseDays(searchParams.get("days"))
-    const result = await runJournalAlertPipeline(days)
-    return NextResponse.json({ ok: true, days, ...result })
+    const sendEmail = parseSendEmail(searchParams.get("email"))
+    const result = await runJournalAlertPipeline(days, { sendEmail })
+    return NextResponse.json({ ok: true, days, sendEmail, ...result })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error"
     return NextResponse.json({ error: message }, { status: 500 })
@@ -52,8 +60,9 @@ export async function POST(req: NextRequest) {
     }
 
     const days = parseDays(searchParams.get("days"))
-    const result = await runJournalAlertPipeline(days)
-    return NextResponse.json({ ok: true, days, ...result })
+    const sendEmail = parseSendEmail(searchParams.get("email"))
+    const result = await runJournalAlertPipeline(days, { sendEmail })
+    return NextResponse.json({ ok: true, days, sendEmail, ...result })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error"
     return NextResponse.json({ error: message }, { status: 500 })

@@ -506,7 +506,13 @@ async function sendEmailAlert(
   return { sent: true, subject, shownCount: articles.length }
 }
 
-export async function runJournalAlertPipeline(days: number): Promise<JournalAlertRunResult> {
+export interface RunOptions {
+  /** false 면 이메일을 보내지 않고 Notion 만 채움 — 백필 용도. */
+  sendEmail?: boolean
+}
+
+export async function runJournalAlertPipeline(days: number, options: RunOptions = {}): Promise<JournalAlertRunResult> {
+  const shouldSendEmail = options.sendEmail !== false
   const databaseId = process.env.NOTION_JOURNAL_DB_ID?.trim()
   if (!databaseId) throw new Error("NOTION_JOURNAL_DB_ID missing")
 
@@ -556,8 +562,12 @@ export async function runJournalAlertPipeline(days: number): Promise<JournalAler
   }
 
   let emailResult: EmailSendResult = { sent: false, shownCount: 0 }
-  if (insertedWithIds.length > 0) {
+  if (insertedWithIds.length > 0 && shouldSendEmail) {
     emailResult = await sendEmailAlert(insertedWithIds)
+  } else if (insertedWithIds.length > 0 && !shouldSendEmail) {
+    // 백필 모드 — 메일 안 보내되, 이미 받은 셈 치도록 Alerted 마크해서 다음 정상 alert 가 중복 전송하지 않도록 함.
+    await markArticlesAsAlerted(insertedWithIds.map(({ pageId }) => pageId))
+    emailResult = { sent: false, reason: "backfill_no_email", shownCount: 0 }
   }
 
   return {
