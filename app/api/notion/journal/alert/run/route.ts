@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { runJournalAlertPipeline, migrateMarkAllAlerted } from "@/lib/journal-alert/pipeline"
+import { runJournalAlertPipeline, migrateMarkAllAlerted, runBackfillFields } from "@/lib/journal-alert/pipeline"
 
 function parseDays(value: string | null): number {
   const parsed = Number(value ?? "7")
@@ -57,6 +57,12 @@ export async function POST(req: NextRequest) {
       if (!databaseId) return NextResponse.json({ error: "NOTION_JOURNAL_DB_ID missing" }, { status: 500 })
       const marked = await migrateMarkAllAlerted(databaseId)
       return NextResponse.json({ ok: true, migrated: marked })
+    }
+
+    // 백필 모드: 기존 row 의 누락 필드(Abstract/Keywords/Affiliations/Vol/Issue/Category/Type) 채움
+    if (searchParams.get("backfill") === "fields") {
+      const result = await runBackfillFields()
+      return NextResponse.json({ ok: true, mode: "backfill_fields", ...result })
     }
 
     const days = parseDays(searchParams.get("days"))

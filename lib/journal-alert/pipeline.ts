@@ -18,6 +18,66 @@ interface PubmedArticle {
   journalName: string
   pubDate: string
   pubTypes: string[]
+  affiliations: string
+  keywords: string[]
+  volume: string
+  issue: string
+}
+
+// PubMed PublicationType → Notion Type select 매핑.
+// 더 구체적인 타입이 우선 (예: Multicenter > Journal Article, Systematic Review > Review).
+const PUBTYPE_PRIORITY: Array<{ match: string; notionType: string }> = [
+  { match: "meta-analysis",                notionType: "Meta-analysis" },
+  { match: "systematic review",            notionType: "Systematic Review" },
+  { match: "randomized controlled trial",  notionType: "RCT" },
+  { match: "multicenter study",            notionType: "Multicenter Study" },
+  { match: "validation study",             notionType: "Validation Study" },
+  { match: "observational study",          notionType: "Observational Study" },
+  { match: "comparative study",            notionType: "Comparative Study" },
+  { match: "case reports",                 notionType: "Case Report" },
+  { match: "review",                       notionType: "Review" },
+  { match: "letter",                       notionType: "Letter to Editor" },
+  { match: "comment",                      notionType: "Letter to Editor" },
+  { match: "editorial",                    notionType: "Editorial" },
+  { match: "published erratum",            notionType: "Erratum" },
+  { match: "erratum",                      notionType: "Erratum" },
+]
+
+function mapNotionType(pubTypes: string[]): string {
+  const lowered = pubTypes.map((t) => t.toLowerCase())
+  for (const { match, notionType } of PUBTYPE_PRIORITY) {
+    if (lowered.some((t) => t.includes(match))) return notionType
+  }
+  return "Clinical Study"
+}
+
+// title + abstract + keywords 에서 Category multi_select 옵션을 추정.
+// Notion DB 의 14개 옵션과 동일하게 유지 — 새 옵션을 만들지 않음.
+const CATEGORY_RULES: Array<{ category: string; matchers: string[] }> = [
+  { category: "AI/ML",         matchers: ["machine learning", "deep learning", "artificial intelligence", "neural network", "large language model", "ai/ml", "convolutional", "transformer"] },
+  { category: "Endoscopy",     matchers: ["endoscop", "biportal", "ube ", "ulbd", "uniportal", "full-endoscopic", "percutaneous endoscopic"] },
+  { category: "MIS",           matchers: ["minimally invasive", " mis ", "miss ", "percutaneous", "tubular retract", "tlif"] },
+  { category: "Deformity",     matchers: ["deformity", "scoliosis", "kyphosis", "spinal alignment", "sagittal balance", "pelvic incidence"] },
+  { category: "Tumor",         matchers: ["tumor", "tumour", "metastasis", "metastatic", "schwannoma", "neoplas", "sarcoma", "hemangioma", "ependymoma", "meningioma"] },
+  { category: "Complication",  matchers: ["complication", "adverse event", "morbidity", "infection", "reoperation", "revision surgery", "pseudarthrosis"] },
+  { category: "Biomechanics",  matchers: ["biomech", "finite element", "fea ", "cadaver", "load", "kinematic", "stress analysis"] },
+  { category: "Education",     matchers: ["education", "training", "curriculum", "learning curve", "simulator", "simulation"] },
+  { category: "Outcome",       matchers: ["patient-reported outcome", "prom", "outcome measure", "quality of life", "odi", "ndi", "vas score", "satisfaction"] },
+  { category: "Meta-analysis", matchers: ["meta-analysis", "systematic review", "pooled analysis"] },
+  { category: "RCT",           matchers: ["randomized controlled trial", "rct ", "randomised controlled"] },
+  { category: "Review",        matchers: ["narrative review", "scoping review", "review of literature"] },
+  { category: "Lumbar",        matchers: ["lumbar", "l1-", "l2-", "l3-", "l4-", "l5-", "tlif", "plif", "alif"] },
+  { category: "Cervical",      matchers: ["cervical", "c1-", "c2-", "c3-", "c4-", "c5-", "c6-", "c7-", "acdf", "acdr", "laminoplasty"] },
+]
+
+function deriveCategories(article: Pick<PubmedArticle, "title" | "abstract" | "keywords">): string[] {
+  const text = `${article.title} ${article.abstract} ${article.keywords.join(" ")}`.toLowerCase()
+  const matched: string[] = []
+  for (const { category, matchers } of CATEGORY_RULES) {
+    if (matchers.some((m) => text.includes(m))) matched.push(category)
+  }
+  // 최대 5개로 제한 — 너무 많이 붙으면 의미 약해짐
+  return matched.slice(0, 5)
 }
 
 interface NotionQueryResponse {
@@ -145,6 +205,42 @@ function parseAuthorList(articleXml: string): string {
   return `${names.slice(0, 3).join(", ")} et al.`
 }
 
+function parseAffiliations(block: string): string {
+  // <Author> 블록마다 <AffiliationInfo><Affiliation>...</Affiliation></AffiliationInfo>
+  const authorBlocks = block.match(/<Author[^>]*>[\s\S]*?<\/Author>/g) ?? []
+  const seen = new Set<string>()
+  const list: string[] = []
+  for (const author of authorBlocks) {
+    const affs = extractAll(author, /<Affiliation[^>]*>([\s\S]*?)<\/Affiliation>/g)
+    for (const a of affs) {
+      const clean = a.replace(/\s+/g, " ").trim()
+      if (clean && !seen.has(clean)) {
+        seen.add(clean)
+        list.push(clean)
+      }
+    }
+  }
+  // 너무 길어지면 잘림 — Notion rich_text 최대 2000자 고려
+  return list.join("; ").slice(0, 1900)
+}
+
+function parseKeywords(block: string): string[] {
+  // <KeywordList><Keyword MajorTopicYN="N">...</Keyword></KeywordList>
+  const raw = extractAll(block, /<Keyword[^>]*>([\s\S]*?)<\/Keyword>/g)
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const k of raw) {
+    const clean = k.replace(/\s+/g, " ").trim().slice(0, 100)
+    if (!clean) continue
+    const key = clean.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    result.push(clean)
+    if (result.length >= 15) break
+  }
+  return result
+}
+
 function parsePubmedXml(xml: string): PubmedArticle[] {
   const blocks = xml.match(/<PubmedArticle>[\s\S]*?<\/PubmedArticle>/g) ?? []
   return blocks
@@ -158,6 +254,8 @@ function parsePubmedXml(xml: string): PubmedArticle[] {
         extractFirst(block, /<ISOAbbreviation>([^<]+)<\/ISOAbbreviation>/) ||
         extractFirst(block, /<Title>([^<]+)<\/Title>/)
       const pubTypes = extractAll(block, /<PublicationType[^>]*>([^<]+)<\/PublicationType>/g)
+      const volume = extractFirst(block, /<JournalIssue[^>]*>[\s\S]*?<Volume>([^<]+)<\/Volume>/)
+      const issue = extractFirst(block, /<JournalIssue[^>]*>[\s\S]*?<Issue>([^<]+)<\/Issue>/)
 
       return {
         pmid,
@@ -168,6 +266,10 @@ function parsePubmedXml(xml: string): PubmedArticle[] {
         journalName,
         pubDate: extractPubDate(block),
         pubTypes,
+        affiliations: parseAffiliations(block),
+        keywords: parseKeywords(block),
+        volume,
+        issue,
       }
     })
     .filter((article) => article.title.length > 0)
@@ -308,9 +410,12 @@ async function loadExistingKeys(databaseId: string): Promise<Set<string>> {
   return existing
 }
 
-async function createJournalPage(databaseId: string, article: PubmedArticle): Promise<string> {
+// PubmedArticle → Notion property payload. createJournalPage 와 백필(PATCH) 둘 다 사용.
+function buildArticleProperties(article: PubmedArticle, opts: { forCreate: boolean } = { forCreate: true }): Record<string, unknown> {
   const interest = classifyInterest(article)
   const summary = article.abstract.slice(0, 150)
+  const notionType = mapNotionType(article.pubTypes)
+  const derivedCategories = deriveCategories(article)
 
   const properties: Record<string, unknown> = {
     Title: {
@@ -325,23 +430,39 @@ async function createJournalPage(databaseId: string, article: PubmedArticle): Pr
     Summary: {
       rich_text: [{ text: { content: summary } }],
     },
+    Abstract: {
+      rich_text: article.abstract
+        ? [{ text: { content: article.abstract.slice(0, 1900) } }]
+        : [],
+    },
     관심도: {
       select: { name: interest },
     },
-    읽음: {
-      checkbox: false,
-    },
-    Alerted: {
-      checkbox: false,
-    },
     Type: {
-      select: { name: "Clinical Study" },
+      select: { name: notionType },
     },
+  }
+
+  // 신규 생성 시에만 기본값 — 패치 시 사용자가 만져놓은 읽음/Alerted 덮어쓰지 않도록.
+  if (opts.forCreate) {
+    properties.읽음 = { checkbox: false }
+    properties.Alerted = { checkbox: false }
   }
 
   if (article.doiUrl) properties.DOI = { url: article.doiUrl }
   if (article.pubDate) properties["Publication Date"] = { date: { start: article.pubDate } }
   if (article.pmid) properties.PMID = { rich_text: [{ text: { content: article.pmid } }] }
+  if (article.volume) properties.Vol = { rich_text: [{ text: { content: article.volume.slice(0, 100) } }] }
+  if (article.issue) properties.Issue = { rich_text: [{ text: { content: article.issue.slice(0, 100) } }] }
+  if (article.affiliations) properties.Affiliations = { rich_text: [{ text: { content: article.affiliations } }] }
+  if (article.keywords.length > 0) properties.Keywords = { multi_select: article.keywords.map((k) => ({ name: k })) }
+  if (derivedCategories.length > 0) properties.Category = { multi_select: derivedCategories.map((c) => ({ name: c })) }
+
+  return properties
+}
+
+async function createJournalPage(databaseId: string, article: PubmedArticle): Promise<string> {
+  const properties = buildArticleProperties(article, { forCreate: true })
 
   const cleanProps = Object.fromEntries(
     Object.entries(properties).filter(([, value]) => value !== null)
@@ -375,6 +496,154 @@ async function createJournalPage(databaseId: string, article: PubmedArticle): Pr
     body: JSON.stringify(body),
   })
   return created.id
+}
+
+// 기존 row 중 PMID 있는 것들을 PubMed 로 재조회해서 누락 필드(Abstract/Keywords/Affiliations/Vol/Issue/Category/Type 미적용 등) 만 PATCH.
+// 사용자가 손댄 필드는 덮어쓰지 않음 — empty 일 때만 채움.
+interface BackfillResult {
+  scanned: number
+  patched: number
+  skipped_no_pmid: number
+  skipped_full: number
+  failed: number
+}
+
+interface ExistingRow {
+  pageId: string
+  pmid: string
+  hasAbstract: boolean
+  hasKeywords: boolean
+  hasAffiliations: boolean
+  hasVol: boolean
+  hasIssue: boolean
+  hasCategory: boolean
+  hasType: boolean
+  currentType: string
+}
+
+async function loadRowsWithFieldStatus(databaseId: string): Promise<ExistingRow[]> {
+  const rows: ExistingRow[] = []
+  let cursor: string | null = null
+  let hasMore = true
+  while (hasMore) {
+    const body: Record<string, unknown> = { page_size: 100 }
+    if (cursor) body.start_cursor = cursor
+    const resp = await notionRequest<NotionQueryResponse>(`/databases/${databaseId}/query`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    })
+    for (const page of resp.results) {
+      const props = page.properties as Record<string, {
+        type: string
+        rich_text?: Array<{ plain_text?: string }>
+        multi_select?: Array<{ name: string }>
+        select?: { name: string } | null
+      }>
+      const pmid = props.PMID?.rich_text?.[0]?.plain_text ?? ""
+      const hasAbstract = (props.Abstract?.rich_text?.length ?? 0) > 0
+      const hasKeywords = (props.Keywords?.multi_select?.length ?? 0) > 0
+      const hasAffiliations = (props.Affiliations?.rich_text?.length ?? 0) > 0
+      const hasVol = (props.Vol?.rich_text?.length ?? 0) > 0
+      const hasIssue = (props.Issue?.rich_text?.length ?? 0) > 0
+      const hasCategory = (props.Category?.multi_select?.length ?? 0) > 0
+      const currentType = props.Type?.select?.name ?? ""
+      // Clinical Study 는 옛 하드코딩 fallback — 더 구체적 타입으로 교체 후보로 간주
+      const hasType = currentType !== "" && currentType !== "Clinical Study"
+      rows.push({
+        pageId: page.id, pmid, hasAbstract, hasKeywords, hasAffiliations,
+        hasVol, hasIssue, hasCategory, hasType, currentType,
+      })
+    }
+    hasMore = resp.has_more
+    cursor = resp.next_cursor
+  }
+  return rows
+}
+
+export async function runBackfillFields(): Promise<BackfillResult> {
+  const databaseId = process.env.NOTION_JOURNAL_DB_ID?.trim()
+  if (!databaseId) throw new Error("NOTION_JOURNAL_DB_ID missing")
+
+  const result: BackfillResult = {
+    scanned: 0, patched: 0, skipped_no_pmid: 0, skipped_full: 0, failed: 0,
+  }
+  const rows = await loadRowsWithFieldStatus(databaseId)
+  result.scanned = rows.length
+
+  // 보강 대상: PMID 있고, 누락된 필드가 1개라도 있는 row.
+  const needsBackfill = rows.filter((r) => {
+    if (!r.pmid) { result.skipped_no_pmid += 1; return false }
+    const allHave = r.hasAbstract && r.hasKeywords && r.hasAffiliations
+      && r.hasVol && r.hasIssue && r.hasCategory && r.hasType
+    if (allHave) { result.skipped_full += 1; return false }
+    return true
+  })
+
+  // PubMed 50개씩 효율적으로 조회 후 PMID → article 매핑
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+  for (let i = 0; i < needsBackfill.length; i += 50) {
+    const batch = needsBackfill.slice(i, i + 50)
+    const pmids = batch.map((r) => r.pmid)
+    let articles: PubmedArticle[] = []
+    try {
+      articles = await fetchPubmedArticles(pmids)
+    } catch {
+      result.failed += batch.length
+      continue
+    }
+    const byPmid = new Map(articles.map((a) => [a.pmid, a]))
+
+    for (const row of batch) {
+      const article = byPmid.get(row.pmid)
+      if (!article) { result.failed += 1; continue }
+      try {
+        const patch = buildBackfillPatch(article, row)
+        if (Object.keys(patch).length === 0) { result.skipped_full += 1; continue }
+        await notionRequest(`/pages/${row.pageId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ properties: patch }),
+        })
+        result.patched += 1
+        await sleep(120)
+      } catch {
+        result.failed += 1
+      }
+    }
+    await sleep(400)
+  }
+
+  return result
+}
+
+function buildBackfillPatch(article: PubmedArticle, row: ExistingRow): Record<string, unknown> {
+  const patch: Record<string, unknown> = {}
+  if (!row.hasAbstract && article.abstract) {
+    patch.Abstract = { rich_text: [{ text: { content: article.abstract.slice(0, 1900) } }] }
+  }
+  if (!row.hasKeywords && article.keywords.length > 0) {
+    patch.Keywords = { multi_select: article.keywords.map((k) => ({ name: k })) }
+  }
+  if (!row.hasAffiliations && article.affiliations) {
+    patch.Affiliations = { rich_text: [{ text: { content: article.affiliations } }] }
+  }
+  if (!row.hasVol && article.volume) {
+    patch.Vol = { rich_text: [{ text: { content: article.volume.slice(0, 100) } }] }
+  }
+  if (!row.hasIssue && article.issue) {
+    patch.Issue = { rich_text: [{ text: { content: article.issue.slice(0, 100) } }] }
+  }
+  if (!row.hasCategory) {
+    const derived = deriveCategories(article)
+    if (derived.length > 0) patch.Category = { multi_select: derived.map((c) => ({ name: c })) }
+  }
+  if (!row.hasType) {
+    const mapped = mapNotionType(article.pubTypes)
+    // 기존이 빈 값이거나 하드코딩 "Clinical Study" 였고, 새로 매핑한 타입이 더 구체적이면 교체.
+    if (mapped !== "Clinical Study" || row.currentType === "") {
+      patch.Type = { select: { name: mapped } }
+    }
+  }
+  return patch
 }
 
 // 이메일 발송된 논문들을 Alerted=true로 마크 (파일시스템 레저 대체)
