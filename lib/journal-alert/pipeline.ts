@@ -631,6 +631,217 @@ export async function runBackfillFields(): Promise<BackfillResult & { emailed: b
   return { ...result, emailed: email.sent, emailSkippedReason: email.reason }
 }
 
+// DOI 만 있고 PMID 없는 row 대상으로 PubMed esearch (doi → pmid) 후 패치까지 한 방에.
+export interface DoiBackfillResult {
+  scanned_no_pmid: number
+  has_doi: number
+  pmid_resolved: number
+  patched: number
+  failed_pmid_lookup: number
+  failed_patch: number
+  emailed: boolean
+  emailSkippedReason?: string
+}
+
+interface DoiRow extends ExistingRow {
+  doi: string
+}
+
+async function loadRowsForDoiBackfill(databaseId: string): Promise<DoiRow[]> {
+  const rows: DoiRow[] = []
+  let cursor: string | null = null
+  let hasMore = true
+  while (hasMore) {
+    const body: Record<string, unknown> = { page_size: 100 }
+    if (cursor) body.start_cursor = cursor
+    const resp = await notionRequest<NotionQueryResponse>(`/databases/${databaseId}/query`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    })
+    for (const page of resp.results) {
+      const props = page.properties as Record<string, {
+        type: string
+        rich_text?: Array<{ plain_text?: string }>
+        multi_select?: Array<{ name: string }>
+        select?: { name: string } | null
+        url?: string | null
+      }>
+      const pmid = props.PMID?.rich_text?.[0]?.plain_text ?? ""
+      const doi = (props.DOI?.url ?? "").trim()
+      if (pmid || !doi) continue
+      const hasAbstract = (props.Abstract?.rich_text?.length ?? 0) > 0
+      const hasKeywords = (props.Keywords?.multi_select?.length ?? 0) > 0
+      const hasAffiliations = (props.Affiliations?.rich_text?.length ?? 0) > 0
+      const hasVol = (props.Vol?.rich_text?.length ?? 0) > 0
+      const hasIssue = (props.Issue?.rich_text?.length ?? 0) > 0
+      const hasCategory = (props.Category?.multi_select?.length ?? 0) > 0
+      const currentType = props.Type?.select?.name ?? ""
+      const hasType = currentType !== "" && currentType !== "Clinical Study"
+      rows.push({
+        pageId: page.id, pmid: "", doi,
+        hasAbstract, hasKeywords, hasAffiliations,
+        hasVol, hasIssue, hasCategory, hasType, currentType,
+      })
+    }
+    hasMore = resp.has_more
+    cursor = resp.next_cursor
+  }
+  return rows
+}
+
+// DOI 문자열에서 (https://doi.org/) 접두 제거 + 공백 정리
+function normalizeDoi(raw: string): string {
+  return raw.replace(/^https?:\/\/(dx\.)?doi\.org\//i, "").trim()
+}
+
+async function pmidFromDoi(doi: string): Promise<string | null> {
+  const clean = normalizeDoi(doi)
+  if (!clean) return null
+  const url =
+    `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed` +
+    `&term=${encodeURIComponent(`"${clean}"[doi]`)}` +
+    `&retmax=1&retmode=json`
+  const res = await fetch(url, { cache: "no-store", headers: { "User-Agent": "SpinoscopyDashboard/1.0" } })
+  if (!res.ok) return null
+  const payload = (await res.json()) as { esearchresult?: { idlist?: string[] } }
+  return payload.esearchresult?.idlist?.[0] ?? null
+}
+
+export async function runDoiBackfill(): Promise<DoiBackfillResult> {
+  const databaseId = process.env.NOTION_JOURNAL_DB_ID?.trim()
+  if (!databaseId) throw new Error("NOTION_JOURNAL_DB_ID missing")
+
+  const result: DoiBackfillResult = {
+    scanned_no_pmid: 0, has_doi: 0, pmid_resolved: 0,
+    patched: 0, failed_pmid_lookup: 0, failed_patch: 0, emailed: false,
+  }
+  const fieldStats: Record<string, number> = {
+    PMID: 0, Abstract: 0, Keywords: 0, Affiliations: 0, Vol: 0, Issue: 0, Category: 0, Type: 0,
+  }
+  const typeBreakdown: Record<string, number> = {}
+
+  const rows = await loadRowsForDoiBackfill(databaseId)
+  result.has_doi = rows.length
+  // loadRowsForDoiBackfill 는 이미 doi 있는 row 만 반환 — no-pmid 카운트는 따로 추적해도 OK 지만
+  // 사용자 보고용으로는 has_doi 만으로 충분
+  result.scanned_no_pmid = rows.length
+
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+  // Step 1: DOI → PMID 단건 esearch (PubMed rate limit 3 req/s 회피)
+  const resolvedPairs: Array<{ row: DoiRow; pmid: string }> = []
+  for (const row of rows) {
+    try {
+      const pmid = await pmidFromDoi(row.doi)
+      if (pmid) {
+        resolvedPairs.push({ row, pmid })
+      } else {
+        result.failed_pmid_lookup += 1
+      }
+    } catch {
+      result.failed_pmid_lookup += 1
+    }
+    await sleep(340) // ~3 req/s
+  }
+  result.pmid_resolved = resolvedPairs.length
+
+  // Step 2: PMID 50 개씩 efetch + 매핑
+  for (let i = 0; i < resolvedPairs.length; i += 50) {
+    const batch = resolvedPairs.slice(i, i + 50)
+    const pmids = batch.map((p) => p.pmid)
+    let articles: PubmedArticle[] = []
+    try {
+      articles = await fetchPubmedArticles(pmids)
+    } catch {
+      result.failed_patch += batch.length
+      continue
+    }
+    const byPmid = new Map(articles.map((a) => [a.pmid, a]))
+
+    for (const { row, pmid } of batch) {
+      const article = byPmid.get(pmid)
+      if (!article) { result.failed_patch += 1; continue }
+      try {
+        const patch = buildBackfillPatch(article, row)
+        // 항상 PMID 도 채워줌 — 이게 핵심
+        patch.PMID = { rich_text: [{ text: { content: pmid } }] }
+        await notionRequest(`/pages/${row.pageId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ properties: patch }),
+        })
+        result.patched += 1
+        for (const key of Object.keys(patch)) {
+          if (key in fieldStats) fieldStats[key] += 1
+        }
+        if (patch.Type) {
+          const t = (patch.Type as { select: { name: string } }).select.name
+          typeBreakdown[t] = (typeBreakdown[t] ?? 0) + 1
+        }
+        await sleep(120)
+      } catch {
+        result.failed_patch += 1
+      }
+    }
+    await sleep(400)
+  }
+
+  // 결과 메일 리포트
+  const email = await sendDoiBackfillReport(result, fieldStats, typeBreakdown)
+  result.emailed = email.sent
+  if (email.reason) result.emailSkippedReason = email.reason
+  return result
+}
+
+async function sendDoiBackfillReport(
+  result: DoiBackfillResult,
+  fieldStats: Record<string, number>,
+  typeBreakdown: Record<string, number>,
+): Promise<{ sent: boolean; reason?: string }> {
+  const user = process.env.JOURNAL_ALERT_SMTP_USER
+  const pass = process.env.JOURNAL_ALERT_SMTP_PASS
+  const host = process.env.JOURNAL_ALERT_SMTP_HOST ?? "smtp.gmail.com"
+  const port = Number(process.env.JOURNAL_ALERT_SMTP_PORT ?? "587")
+  const to = process.env.JOURNAL_ALERT_RECIPIENT ?? user
+  const cc = process.env.JOURNAL_ALERT_CC?.trim() || undefined
+  if (!user || !pass || !to) return { sent: false, reason: "email_not_configured" }
+
+  const today = new Date().toISOString().slice(0, 10)
+  const subject = `[Journal Alert] DOI Backfill 완료 — ${result.patched}건 패치 (PMID 복구)`
+  const cell = (v: string | number) =>
+    `<td style="padding:6px 10px;border-bottom:1px solid #2a2a2a;">${v}</td>`
+  const fieldRows = Object.entries(fieldStats)
+    .map(([f, c]) => `<tr>${cell(f)}${cell(`<span style="color:#fafafa;">${c}</span>건`)}</tr>`).join("")
+  const typeRows = Object.entries(typeBreakdown).sort((a, b) => b[1] - a[1])
+    .map(([t, c]) => `<tr>${cell(t)}${cell(`<span style="color:#fafafa;">${c}</span>건`)}</tr>`).join("")
+  const html = `<!doctype html><html><body style="background:#09090b;color:#e5e7eb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<div style="max-width:680px;margin:0 auto;padding:24px;">
+  <h1 style="margin:0 0 8px;">🔧 Journal DOI Backfill 완료</h1>
+  <p style="margin:0 0 16px;color:#a1a1aa;">${today}</p>
+  <h3 style="color:#fafafa;border-bottom:1px solid #333;padding-bottom:6px;margin-top:24px;">전체</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <tr>${cell("DOI 있고 PMID 없던 row")}${cell(`<span style="color:#fafafa;">${result.has_doi}</span>건`)}</tr>
+    <tr>${cell("DOI→PMID 매핑 성공")}${cell(`<span style="color:#34d399;">${result.pmid_resolved}</span>건`)}</tr>
+    <tr>${cell("PMID lookup 실패")}${cell(`<span style="color:${result.failed_pmid_lookup > 0 ? "#f87171" : "#a1a1aa"};">${result.failed_pmid_lookup}</span>건`)}</tr>
+    <tr>${cell("패치 성공")}${cell(`<span style="color:#34d399;">${result.patched}</span>건`)}</tr>
+    <tr>${cell("패치 실패")}${cell(`<span style="color:${result.failed_patch > 0 ? "#f87171" : "#a1a1aa"};">${result.failed_patch}</span>건`)}</tr>
+  </table>
+  <h3 style="color:#fafafa;border-bottom:1px solid #333;padding-bottom:6px;margin-top:24px;">필드별 채워진 row 수</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">${fieldRows}</table>
+  ${Object.keys(typeBreakdown).length > 0 ? `
+  <h3 style="color:#fafafa;border-bottom:1px solid #333;padding-bottom:6px;margin-top:24px;">Type 분포</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">${typeRows}</table>` : ""}
+</div></body></html>`
+  try {
+    const transporter = nodemailer.createTransport({
+      host, port, secure: port === 465, auth: { user, pass },
+    })
+    await transporter.sendMail({ from: user, to, cc, subject, html })
+    return { sent: true }
+  } catch (e) {
+    return { sent: false, reason: `smtp_error: ${e instanceof Error ? e.message : "unknown"}` }
+  }
+}
+
 function buildBackfillPatch(article: PubmedArticle, row: ExistingRow): Record<string, unknown> {
   const patch: Record<string, unknown> = {}
   if (!row.hasAbstract && article.abstract) {
@@ -857,6 +1068,18 @@ export interface RunOptions {
 }
 
 export async function runJournalAlertPipeline(days: number, options: RunOptions = {}): Promise<JournalAlertRunResult> {
+  // Kill switch — 중복 cron 의심될 때 Vercel env 에 JOURNAL_ALERT_PAUSED=true 설정하면 즉시 no-op.
+  // 이미 다른 곳에서 alert 발송되고 있다고 의심될 때 일시정지용.
+  if ((process.env.JOURNAL_ALERT_PAUSED ?? "").trim().toLowerCase() === "true") {
+    return {
+      fetched: 0,
+      inserted: 0,
+      skipped: 0,
+      emailed: false,
+      emailSkippedReason: "paused_by_env_flag",
+      existingKeysCount: 0,
+    }
+  }
   const shouldSendEmail = options.sendEmail !== false
   const databaseId = process.env.NOTION_JOURNAL_DB_ID?.trim()
   if (!databaseId) throw new Error("NOTION_JOURNAL_DB_ID missing")
