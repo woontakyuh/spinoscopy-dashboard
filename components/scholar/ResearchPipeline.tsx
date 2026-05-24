@@ -77,13 +77,23 @@ const LANES: LaneConfig[] = [
   },
   {
     id: "submitted",
-    label: "Submitted / Revision",
-    statuses: ["Submitted", "Revision", "2nd Review"],
+    label: "Submitted",
+    statuses: ["Submitted", "Under Review", "2nd Review"],
     color: "text-cyan-300",
     bg: "bg-cyan-950/30",
     border: "border-cyan-800/40",
     dot: "bg-cyan-400",
     headerBg: "bg-cyan-900/40",
+  },
+  {
+    id: "revision",
+    label: "Revision",
+    statuses: ["Revision"],
+    color: "text-amber-300",
+    bg: "bg-amber-950/30",
+    border: "border-amber-800/40",
+    dot: "bg-amber-400",
+    headerBg: "bg-amber-900/40",
   },
   {
     id: "accepted",
@@ -210,7 +220,7 @@ export function ResearchPipeline() {
 
       {/* Kanban Board - 5 Lanes */}
       <div className="overflow-x-auto scrollbar-hide -mx-3 px-3 md:mx-0 md:px-0">
-        <div className="flex gap-3 min-w-[1000px] md:min-w-0 md:grid md:grid-cols-5">
+        <div className="flex gap-3 min-w-[1200px] md:min-w-0 md:grid md:grid-cols-6">
           {LANES.map((lane) => {
             const items = projectsByLane(lane)
             const isExpanded = mobileExpanded === lane.id
