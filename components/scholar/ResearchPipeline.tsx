@@ -52,6 +52,14 @@ interface LaneConfig {
   border: string
   dot: string
   headerBg: string
+  /** 메인 리스트 아래에 별도로 표시할 하위 그룹들 (terminal/inactive 상태 종합) */
+  subgroups?: Array<{
+    id: string
+    label: string
+    statuses: ResearchStatus[]
+    /** true 면 기본 접힘, 클릭으로 펼침 */
+    collapsible?: boolean
+  }>
 }
 
 const LANES: LaneConfig[] = [
@@ -64,6 +72,9 @@ const LANES: LaneConfig[] = [
     border: "border-border/50",
     dot: "bg-zinc-400",
     headerBg: "bg-muted",
+    subgroups: [
+      { id: "hold", label: "Hold", statuses: ["Hold"], collapsible: true },
+    ],
   },
   {
     id: "drafting",
@@ -104,16 +115,9 @@ const LANES: LaneConfig[] = [
     border: "border-emerald-800/40",
     dot: "bg-emerald-400",
     headerBg: "bg-emerald-900/40",
-  },
-  {
-    id: "hold",
-    label: "Hold / Rejected",
-    statuses: ["Hold", "Rejected"],
-    color: "text-muted-foreground",
-    bg: "bg-card/50",
-    border: "border-border/30",
-    dot: "bg-zinc-500",
-    headerBg: "bg-muted/60",
+    subgroups: [
+      { id: "rejected", label: "Rejected", statuses: ["Rejected"] },
+    ],
   },
 ]
 
@@ -220,7 +224,7 @@ export function ResearchPipeline() {
 
       {/* Kanban Board - 5 Lanes */}
       <div className="overflow-x-auto scrollbar-hide -mx-3 px-3 md:mx-0 md:px-0">
-        <div className="flex gap-3 min-w-[1200px] md:min-w-0 md:grid md:grid-cols-6">
+        <div className="flex gap-3 min-w-[1000px] md:min-w-0 md:grid md:grid-cols-5">
           {LANES.map((lane) => {
             const items = projectsByLane(lane)
             const isExpanded = mobileExpanded === lane.id
@@ -261,29 +265,45 @@ export function ResearchPipeline() {
                     isExpanded ? "" : "hidden md:flex"
                   } max-h-[60vh] overflow-y-auto scrollbar-hide`}
                 >
-                  {items.length === 0 ? (
+                  {items.length === 0 && (!lane.subgroups || lane.subgroups.every((sg) => (projects ?? []).filter((p) => sg.statuses.includes(p.status)).length === 0)) ? (
                     <div className="text-xs text-muted-foreground/70 text-center py-4">
                       항목 없음
                     </div>
                   ) : (
-                    items.map((project) => (
-                      <ProjectCard
-                        key={project.page_id}
-                        project={project}
-                        lane={lane}
-                        showSubStatus={lane.statuses.length > 1}
-                        isSelected={
-                          selectedProject?.page_id === project.page_id
-                        }
-                        onClick={() =>
-                          setSelectedProject(
+                    <>
+                      {items.map((project) => (
+                        <ProjectCard
+                          key={project.page_id}
+                          project={project}
+                          lane={lane}
+                          showSubStatus={lane.statuses.length > 1}
+                          isSelected={
                             selectedProject?.page_id === project.page_id
-                              ? null
-                              : project
-                          )
-                        }
-                      />
-                    ))
+                          }
+                          onClick={() =>
+                            setSelectedProject(
+                              selectedProject?.page_id === project.page_id
+                                ? null
+                                : project
+                            )
+                          }
+                        />
+                      ))}
+                      {lane.subgroups?.map((sg) => {
+                        const sgItems = (projects ?? []).filter((p) => sg.statuses.includes(p.status))
+                        if (sgItems.length === 0) return null
+                        return (
+                          <SubgroupSection
+                            key={sg.id}
+                            subgroup={sg}
+                            items={sgItems}
+                            lane={lane}
+                            selectedProject={selectedProject}
+                            onSelectProject={setSelectedProject}
+                          />
+                        )
+                      })}
+                    </>
                   )}
                 </div>
               </div>
@@ -316,6 +336,62 @@ export function ResearchPipeline() {
 
 // ── Project Card ─────────────────────────────────────────────
 
+// ── Subgroup section (e.g. Hold under Idea/Lit Review, Rejected under Accepted) ──
+function SubgroupSection({
+  subgroup,
+  items,
+  lane,
+  selectedProject,
+  onSelectProject,
+}: {
+  subgroup: NonNullable<LaneConfig["subgroups"]>[number]
+  items: ResearchProject[]
+  lane: LaneConfig
+  selectedProject: ResearchProject | null
+  onSelectProject: (p: ResearchProject | null) => void
+}) {
+  const [open, setOpen] = useState(!subgroup.collapsible)
+  const headerLabel = (
+    <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <span>{subgroup.label}</span>
+      <span className="text-muted-foreground/70 num">({items.length})</span>
+    </span>
+  )
+  return (
+    <div className="mt-2 pt-2 border-t border-border/40">
+      {subgroup.collapsible ? (
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="w-full flex items-center justify-between py-1 px-1 hover:bg-muted/40 rounded transition-colors"
+          aria-expanded={open}
+        >
+          {headerLabel}
+          <ChevronDown className={`size-3.5 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+      ) : (
+        <div className="px-1 py-1">{headerLabel}</div>
+      )}
+      {open && (
+        <div className="flex flex-col gap-2 mt-1.5">
+          {items.map((project) => (
+            <ProjectCard
+              key={project.page_id}
+              project={project}
+              lane={lane}
+              showSubStatus={true}
+              isSelected={selectedProject?.page_id === project.page_id}
+              onClick={() =>
+                onSelectProject(selectedProject?.page_id === project.page_id ? null : project)
+              }
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ProjectCard({
   project,
   lane,
@@ -347,6 +423,19 @@ function ProjectCard({
           <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground bg-muted/80 px-1.5 py-0.5 rounded">
             <span className={`size-1.5 rounded-full ${statusInfo.dot}`} />
             {statusInfo.label}
+          </span>
+        </div>
+      )}
+
+      {/* Revision sub-decision badge (Minor / Major) */}
+      {project.status === "Revision" && project.decision && (project.decision === "Minor Revision" || project.decision === "Major Revision") && (
+        <div className="mb-1.5">
+          <span className={`inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
+            project.decision === "Major Revision"
+              ? "bg-orange-950/50 text-orange-300 border-orange-700/40"
+              : "bg-amber-950/40 text-amber-300 border-amber-700/40"
+          }`}>
+            {project.decision}
           </span>
         </div>
       )}
