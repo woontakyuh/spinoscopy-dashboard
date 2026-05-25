@@ -1069,7 +1069,7 @@ function buildBrianTools() {
         status: z.enum([
           "Received",
           "1st Review", "2nd Review", "3rd Review",
-          "1st Review done", "2nd Review done", "3rd Review done",
+          "1st Review Done", "2nd Review Done", "3rd Review Done",
           "1st Revision", "2nd Revision", "3rd Revision",
           "Under Review", "Under Revision",  // legacy
           "Accepted", "Rejected",
