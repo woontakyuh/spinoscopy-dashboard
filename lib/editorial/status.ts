@@ -5,7 +5,7 @@ import type {
 } from "@/lib/types/editorial"
 
 // ─── 카테고리 정의 ────────────────────────────────────────────
-// "내가 처리해야 하는 상태" — Status 가 *Review 거나 Received
+// "내가 처리해야 하는 상태" — Status 가 *Review (writing) 거나 Received
 export const REVIEW_STATUSES: readonly EditorialStatus[] = [
   "Received",
   "1st Review",
@@ -14,7 +14,14 @@ export const REVIEW_STATUSES: readonly EditorialStatus[] = [
   "Under Review", // 레거시
 ] as const
 
-// "저자/편집자 응답 대기" — Status 가 *Revision
+// "내가 리뷰 제출은 했지만 편집자/다른 리뷰어 결정 대기" — 내 손 떠난 상태
+export const REVIEW_DONE_STATUSES: readonly EditorialStatus[] = [
+  "1st Review Done",
+  "2nd Review Done",
+  "3rd Review Done",
+] as const
+
+// "저자가 revision 중" — author 의 손에 있음
 export const REVISION_STATUSES: readonly EditorialStatus[] = [
   "1st Revision",
   "2nd Revision",
@@ -71,8 +78,18 @@ export function isWaitingOnAuthor(item: StateInput): boolean {
   return inList(REVISION_STATUSES, item.status)
 }
 
-// 호환용 alias — 기존 코드가 "awaiting" 명칭으로 부르고 있어서 유지.
-export const isSubmittedAwaiting = isWaitingOnAuthor
+// *Review Done — Tak 가 리뷰는 마쳤지만 편집자가 결정을 못 내리는 상태 (다른 리뷰어 대기 등).
+// Tak 액션은 없음.
+export function isAwaitingEditor(item: StateInput): boolean {
+  if (isEffectivelyTerminal(item)) return false
+  return inList(REVIEW_DONE_STATUSES, item.status)
+}
+
+// "Tak 가 손 떼고 누군가 대기 중" — Awaiting Editor + Revision (Awaiting Author) 둘 다 포함.
+// Brian chat / dashboard 의 "Awaiting" 카운트 등 일괄 사용.
+export function isSubmittedAwaiting(item: StateInput): boolean {
+  return isAwaitingEditor(item) || isWaitingOnAuthor(item)
+}
 
 // ─── 완료된 원고의 결론 분류 ─────────────────────────────────
 export type OutcomeCategory = "Accept" | "Reject" | "Desk Reject"

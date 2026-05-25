@@ -9,7 +9,7 @@ import type {
   EditorialRole,
 } from "@/lib/types/editorial"
 import { ChevronDown } from "lucide-react"
-import { REVISION_STATUSES } from "@/lib/editorial/status"
+import { REVISION_STATUSES, REVIEW_DONE_STATUSES } from "@/lib/editorial/status"
 import type { EditorialStatus } from "@/lib/types/editorial"
 
 // ── Helpers ──────────────────────────────────────────────
@@ -50,11 +50,14 @@ const STATUS_BADGE: Record<string, string> = {
   "1st Review": "bg-amber-500/15 text-amber-300 border-amber-500/30",
   "2nd Review": "bg-amber-500/15 text-amber-300 border-amber-500/30",
   "3rd Review": "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  "1st Revision": "bg-orange-500/15 text-orange-300 border-orange-500/30",
-  "2nd Revision": "bg-orange-500/15 text-orange-300 border-orange-500/30",
-  "3rd Revision": "bg-orange-500/15 text-orange-300 border-orange-500/30",
+  "1st Review Done": "bg-purple-500/15 text-purple-300 border-purple-500/30",
+  "2nd Review Done": "bg-purple-500/15 text-purple-300 border-purple-500/30",
+  "3rd Review Done": "bg-purple-500/15 text-purple-300 border-purple-500/30",
+  "1st Revision": "bg-blue-500/15 text-blue-300 border-blue-500/30",
+  "2nd Revision": "bg-blue-500/15 text-blue-300 border-blue-500/30",
+  "3rd Revision": "bg-blue-500/15 text-blue-300 border-blue-500/30",
   "Under Review": "bg-amber-500/15 text-amber-300 border-amber-500/30",   // legacy
-  "Under Revision": "bg-orange-500/15 text-orange-300 border-orange-500/30", // legacy
+  "Under Revision": "bg-blue-500/15 text-blue-300 border-blue-500/30",     // legacy
   "Accepted": "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
   "Rejected": "bg-red-500/15 text-red-300 border-red-500/30",
 }
@@ -78,7 +81,7 @@ const ROLE_STYLE: Record<string, { badge: string; accent: string }> = {
 // 4개 레인 — 1st/2nd/3rd 는 R1/R2/R3 뱃지로 카드 안에 흡수
 
 interface LaneConfig {
-  id: "review" | "revision" | "accepted" | "rejected"
+  id: "review" | "review_done" | "revision" | "accepted" | "rejected"
   label: string
   sublabel: string  // 한 줄 부가설명 ("내 액션" / "저자 대기" 등)
   bg: string
@@ -89,10 +92,11 @@ interface LaneConfig {
 }
 
 const LANES: LaneConfig[] = [
-  { id: "review",   label: "Under Review",   sublabel: "내 액션",   bg: "bg-amber-950/20",  border: "border-amber-800/40",  headerBg: "bg-amber-900/40",  dot: "bg-amber-400",  text: "text-amber-300" },
-  { id: "revision", label: "Under Revision", sublabel: "저자 대기", bg: "bg-blue-950/20",   border: "border-blue-800/40",   headerBg: "bg-blue-900/40",   dot: "bg-blue-400",   text: "text-blue-300" },
-  { id: "accepted", label: "Accepted",       sublabel: "완료",      bg: "bg-emerald-950/20",border: "border-emerald-800/40",headerBg: "bg-emerald-900/40",dot: "bg-emerald-400",text: "text-emerald-300" },
-  { id: "rejected", label: "Rejected",       sublabel: "완료",      bg: "bg-zinc-950/40",   border: "border-zinc-700/40",   headerBg: "bg-zinc-800/60",   dot: "bg-red-400",    text: "text-zinc-300" },
+  { id: "review",      label: "Under Review",    sublabel: "내 액션",        bg: "bg-amber-950/20",  border: "border-amber-800/40",  headerBg: "bg-amber-900/40",  dot: "bg-amber-400",  text: "text-amber-300" },
+  { id: "review_done", label: "Review Submitted", sublabel: "편집자 대기",     bg: "bg-purple-950/20", border: "border-purple-800/40", headerBg: "bg-purple-900/40", dot: "bg-purple-400", text: "text-purple-300" },
+  { id: "revision",    label: "Under Revision",  sublabel: "저자 대기",      bg: "bg-blue-950/20",   border: "border-blue-800/40",   headerBg: "bg-blue-900/40",   dot: "bg-blue-400",   text: "text-blue-300" },
+  { id: "accepted",    label: "Accepted",        sublabel: "완료",           bg: "bg-emerald-950/20",border: "border-emerald-800/40",headerBg: "bg-emerald-900/40",dot: "bg-emerald-400",text: "text-emerald-300" },
+  { id: "rejected",    label: "Rejected",        sublabel: "완료",           bg: "bg-zinc-950/40",   border: "border-zinc-700/40",   headerBg: "bg-zinc-800/60",   dot: "bg-red-400",    text: "text-zinc-300" },
 ]
 
 const JOURNAL_BADGE: Record<string, string> = {
@@ -187,17 +191,18 @@ export function Editorial() {
   }, [roleFiltered, journalFilter, methodFilter, searchQuery])
 
   // ── Urgent (Overdue + Due Soon) — pending 만 대상 ──
-  // ── Lane buckets — status 기반 4개 ──
+  // ── Lane buckets — status 기반 5개: review / review_done / revision / accepted / rejected ──
   const { urgent, lanes, awaitingCount, completedCount } = useMemo(() => {
     const urgent: EditorialItem[] = []
     const laneItems: Record<LaneConfig["id"], EditorialItem[]> = {
-      review: [], revision: [], accepted: [], rejected: [],
+      review: [], review_done: [], revision: [], accepted: [], rejected: [],
     }
 
     for (const item of filtered) {
       // Lane 분류는 status 그대로
       if (item.status === "Accepted") laneItems.accepted.push(item)
       else if (item.status === "Rejected") laneItems.rejected.push(item)
+      else if ((REVIEW_DONE_STATUSES as readonly string[]).includes(item.status)) laneItems.review_done.push(item)
       else if ((REVISION_STATUSES as readonly string[]).includes(item.status)) laneItems.revision.push(item)
       else laneItems.review.push(item)  // Received + *Review (+ legacy Under Review)
 
@@ -215,6 +220,7 @@ export function Editorial() {
 
     urgent.sort(byDeadline)
     laneItems.review.sort(byDeadline)
+    laneItems.review_done.sort(byRecent)
     laneItems.revision.sort(byRecent)
     laneItems.accepted.sort(byRecent)
     laneItems.rejected.sort(byRecent)
@@ -222,7 +228,8 @@ export function Editorial() {
     return {
       urgent,
       lanes: laneItems,
-      awaitingCount: laneItems.revision.length,
+      // Awaiting 카운트 = 내 손 떠난 진행건 (편집자 대기 + 저자 대기)
+      awaitingCount: laneItems.review_done.length + laneItems.revision.length,
       completedCount: laneItems.accepted.length + laneItems.rejected.length,
     }
   }, [filtered])
@@ -413,14 +420,11 @@ export function Editorial() {
       {/* Overdue / Due Soon 별도 섹션은 제거 — 각 lane card 의 D-day 가 이미 빨강/앰버로 표시.
           Under Revision/Accepted/Rejected 처럼 손 떠난 건엔 D-day 자체를 안 보여줌 (Sub 날짜 또는 decision 으로 대체). */}
 
-      {/* ─── Lane View (4 lanes: Under Review / Under Revision / Accepted / Rejected) ─── */}
+      {/* ─── Lane View (5 lanes: Under Review / Review Submitted / Under Revision / Accepted / Rejected) ─── */}
       <div className="overflow-x-auto scrollbar-hide -mx-3 px-3 md:mx-0 md:px-0">
-        <div className="flex gap-3 min-w-[800px] md:min-w-0 md:grid md:grid-cols-4">
+        <div className="flex gap-3 min-w-[1000px] md:min-w-0 md:grid md:grid-cols-5">
           {LANES.map((lane) => {
-            const items = lane.id === "review" ? lanes.review
-              : lane.id === "revision" ? lanes.revision
-              : lane.id === "accepted" ? lanes.accepted
-              : lanes.rejected
+            const items = lanes[lane.id]
             return (
               <EditorialLane
                 key={lane.id}
@@ -543,6 +547,13 @@ function LaneCard({
   let rightSide: React.ReactNode
   if (laneId === "review") {
     rightSide = <span className={`text-[11px] num whitespace-nowrap ${dl.color}`}>{dl.text}</span>
+  } else if (laneId === "review_done") {
+    // 내가 리뷰는 제출함 — 제출일 강조, 편집자 결정 대기
+    rightSide = (
+      <span className="text-[11px] num whitespace-nowrap text-purple-300/90">
+        {item.date_submitted ? `Sub ${formatDate(item.date_submitted)}` : "—"}
+      </span>
+    )
   } else if (laneId === "revision") {
     rightSide = (
       <span className="text-[11px] num whitespace-nowrap text-blue-300/90">

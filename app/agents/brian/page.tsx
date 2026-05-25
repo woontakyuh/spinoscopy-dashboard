@@ -131,7 +131,7 @@ export default function ScholarPage() {
       return `여교수, 지금까지 ${MY_PAPERS.length}편 출판했네. 1저자 ${firstAuthor}편이야. 다음 거 준비해볼까.`
     }
 
-    // editorial — pending (내 액션) vs awaiting (저자 응답 대기) 분리
+    // editorial — pending (내 액션) vs awaiting (편집자 결정 대기 + 저자 수정 중) 분리
     if (!editorial) return "여교수, 심사 목록 불러오고 있네. 잠깐만 기다리게."
     const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
     const pending = editorial.filter(isPendingMyAction)
@@ -157,11 +157,11 @@ export default function ScholarPage() {
     }
     // 3) 처리할 pending 이 있긴 한데 여유 있을 때
     if (pending.length > 0) {
-      return `여교수, 처리할 심사 ${pending.length}편 있네. 여유 있을 때 보세${awaiting.length > 0 ? `. 따로 ${awaiting.length}편은 저자 답 기다리는 중이고.` : "."}`
+      return `여교수, 처리할 심사 ${pending.length}편 있네. 여유 있을 때 보세${awaiting.length > 0 ? `. 따로 ${awaiting.length}편은 진행 중 (편집자·저자 대기) 이고.` : "."}`
     }
     // 4) pending 없고 awaiting 만 있는 경우 — 닦달 X, 정보 전달만
     if (awaiting.length > 0) {
-      return `여교수, 처리할 심사는 없고 저자 답 기다리는 게 ${awaiting.length}편이네. 손 비었으니 다른 거 하세.`
+      return `여교수, 처리할 심사는 없고 진행 중인 ${awaiting.length}편이 편집자·저자 측에서 굴러가는 중이네. 손 비었으니 다른 거 하세.`
     }
     return "여교수, 지금은 심사 요청 들어온 게 없군. 한가할 때 즐기게."
   }

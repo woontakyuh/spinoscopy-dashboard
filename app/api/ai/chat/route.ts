@@ -920,7 +920,7 @@ const BRIAN_PERSONA = `당신은 Dr. Tak의 연구/저널 파트너 Brian (Brian
 **도구 사용 규칙 (매우 중요)**
 - 여교수가 특정 주제 논문을 찾거나 "X 관련 논문 있어?" 묻는 경우 반드시 먼저 **search_papers 도구 호출**. 시스템 프롬프트의 통계만 보고 답하지 말 것.
 - 여교수가 **심사·편집·revision·reviewer·editor·deadline·특정 manuscript** 관련 질문 → 반드시 **search_editorial 도구 호출**. 시스템 프롬프트엔 pending 상위 10건/awaiting 상위 8건만 들어 있으므로 그 외(완료건·그 외 건·특정 manuscript ID·journal별 등) 는 직접 조회. "심사 목록에 없는 것 같다"고 답하기 전에 무조건 한 번은 호출.
-- **상태 구분**: pending = 여교수가 1차/추가 리뷰 미제출 (deadline 의미 있음). awaiting = 제출 완료, revision/decision 대기 (deadline 지났어도 액션 없음). terminal = Accept/Reject/Desk Reject 완료. 마감 닦달은 pending 만 대상, awaiting/terminal 은 거론하지 말 것.
+- **상태 구분**: pending = 여교수가 1차/추가 리뷰 미제출 (deadline 의미 있음, Received / *Review). awaiting = 내 손 떠난 진행건 = (*Review Done — 다른 리뷰어·편집자 결정 대기) + (*Revision — 저자 수정 중). terminal = Accepted/Rejected (Recommendation = Accept/Reject/Desk Reject 도 포함). 마감 닦달은 pending 만 대상, awaiting/terminal 은 거론하지 말 것.
 - 여교수가 **본인 진행 연구 (research project, drafting, submitted, target journal 등)** 관련 질문 → **search_research 도구 호출**. 시스템 프롬프트엔 working 10건/waiting 8건만 들어가므로 그 외 항목은 직접 조회.
 - **연구 상태 구분**: working = Tak 이 직접 작업 중 (Idea/Lit Review/Drafting/Editing/Revision — 펜이 손에). waiting = 저널 답 대기 (Submitted/Under Review/2nd Review — Tak 액션 없음). terminal = Accepted/Published/Rejected. Hold = 보류. 진척 닦달은 working 만 대상, waiting/terminal/hold 는 "결과 기다리는 중"으로만 언급.
 - 쿼리 설계: 유의어·약자를 queries 배열에 다 넣어 커버리지 확보. 예:
@@ -991,7 +991,7 @@ async function buildBrianPrompt(): Promise<string> {
         const rec = e.recommendation ? ` → ${e.recommendation}` : ""
         return `- [${e.role}] ${e.journal || "?"} · ${e.status}${rec} · ${e.name || e.manuscript_id}${sub}`
       }).join("\n")
-      context += `\n\n[제출 완료·결정/Revision 대기 ${awaitingEd.length}건 — Tak 액션 없음]\n${awaitLines}`
+      context += `\n\n[진행 중 (Tak 액션 없음) ${awaitingEd.length}건 — *Review Done (편집자 결정 대기) + *Revision (저자 수정 중)]\n${awaitLines}`
     }
 
     const recentMine = MY_PAPERS.slice(0, 8).map((p) => `- [${p.year}, ${p.role}] ${p.title} — ${p.journal}`).join("\n")
@@ -1066,7 +1066,14 @@ function buildBrianTools() {
       inputSchema: z.object({
         query: z.string().optional().describe("Name/Manuscript ID/Reviewers/Notes 에서 부분 매칭"),
         journal: z.string().optional().describe("저널 정확 매칭 (예: Neurospine, JMISST)"),
-        status: z.enum(["Received", "Under Review", "Under Revision", "Accepted", "Rejected"]).optional(),
+        status: z.enum([
+          "Received",
+          "1st Review", "2nd Review", "3rd Review",
+          "1st Review Done", "2nd Review Done", "3rd Review Done",
+          "1st Revision", "2nd Revision", "3rd Revision",
+          "Under Review", "Under Revision",  // legacy
+          "Accepted", "Rejected",
+        ]).optional(),
         recommendation: z.enum(["Accept", "Minor Revision", "Major Revision", "Reject", "Peer Review", "Pending", "Desk Reject"]).optional(),
         role: z.enum(["Editor", "Reviewer"]).optional(),
         only_active: z.boolean().optional().describe("true 면 진행 중(terminal 제외)만 — pending + awaiting 둘 다 포함"),
