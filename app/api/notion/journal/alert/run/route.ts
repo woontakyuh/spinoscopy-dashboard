@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { runJournalAlertPipeline, migrateMarkAllAlerted, runBackfillFields } from "@/lib/journal-alert/pipeline"
+import { runJournalAlertPipeline, migrateMarkAllAlerted, runBackfillFields, runReclassifyInterest } from "@/lib/journal-alert/pipeline"
 
 function parseDays(value: string | null): number {
   const parsed = Number(value ?? "7")
@@ -63,6 +63,12 @@ export async function POST(req: NextRequest) {
     if (searchParams.get("backfill") === "fields") {
       const result = await runBackfillFields()
       return NextResponse.json({ ok: true, mode: "backfill_fields", ...result })
+    }
+
+    // 재분류 모드: 기존 row 의 관심도(필독/관심/참고) 를 새 룰로 다시 계산해 PATCH
+    if (searchParams.get("backfill") === "reclassify-interest") {
+      const result = await runReclassifyInterest()
+      return NextResponse.json({ ok: true, mode: "reclassify_interest", ...result })
     }
 
     const days = parseDays(searchParams.get("days"))

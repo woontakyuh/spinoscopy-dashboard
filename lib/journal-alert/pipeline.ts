@@ -566,6 +566,186 @@ async function loadRowsWithFieldStatus(databaseId: string): Promise<ExistingRow[
   return rows
 }
 
+// 기존 row 의 관심도(필독/관심/참고)를 새 룰로 재분류. PubMed 재조회 없이 Notion 자체 필드만 사용.
+// classifyInterest 는 pubTypes 배열이 필요하지만 Notion 엔 단일 Type select 만 있으므로 매핑 변환.
+export interface ReclassifyResult {
+  scanned: number
+  changed: number
+  to_must: number
+  to_interest: number
+  to_ref: number
+  unchanged: number
+  failed: number
+  emailed: boolean
+  emailSkippedReason?: string
+}
+
+type NotionInterestLevel = "🔴 필독" | "🟡 관심" | "⚪ 참고"
+
+interface RowForReclassify {
+  pageId: string
+  title: string
+  abstract: string
+  journalName: string
+  notionType: string
+  currentInterest: string
+}
+
+async function loadRowsForReclassify(databaseId: string): Promise<RowForReclassify[]> {
+  const rows: RowForReclassify[] = []
+  let cursor: string | null = null
+  let hasMore = true
+  while (hasMore) {
+    const body: Record<string, unknown> = { page_size: 100 }
+    if (cursor) body.start_cursor = cursor
+    const resp = await notionRequest<NotionQueryResponse>(`/databases/${databaseId}/query`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    })
+    for (const page of resp.results) {
+      const props = page.properties as Record<string, {
+        type: string
+        title?: Array<{ plain_text?: string }>
+        rich_text?: Array<{ plain_text?: string }>
+        select?: { name: string } | null
+      }>
+      const title = (props.Title?.title ?? []).map((t) => t.plain_text ?? "").join("")
+      const abstract = (props.Abstract?.rich_text ?? []).map((t) => t.plain_text ?? "").join("")
+      const journalName = props["Journal Name"]?.select?.name ?? ""
+      const notionType = props.Type?.select?.name ?? ""
+      const currentInterest = props.관심도?.select?.name ?? ""
+      rows.push({ pageId: page.id, title, abstract, journalName, notionType, currentInterest })
+    }
+    hasMore = resp.has_more
+    cursor = resp.next_cursor
+  }
+  return rows
+}
+
+// Notion Type select 값을 classifyInterest 의 pubTypes 배열로 변환 (LOW_PRIORITY / STRONG_METHOD 매칭용)
+function notionTypeToPubTypes(notionType: string): string[] {
+  const map: Record<string, string[]> = {
+    "Letter to Editor": ["Letter"],
+    "Editorial": ["Editorial"],
+    "Erratum": ["Published Erratum"],
+    "Meta-analysis": ["Meta-Analysis"],
+    "Systematic Review": ["Systematic Review"],
+    "RCT": ["Randomized Controlled Trial"],
+    "Multicenter Study": ["Multicenter Study"],
+    "Observational Study": ["Observational Study"],
+    "Comparative Study": ["Comparative Study"],
+    "Validation Study": ["Validation Study"],
+    "Review": ["Review"],
+    "Case Report": ["Case Reports"],
+    "Clinical Study": [],
+  }
+  return map[notionType] ?? []
+}
+
+export async function runReclassifyInterest(): Promise<ReclassifyResult> {
+  const databaseId = process.env.NOTION_JOURNAL_DB_ID?.trim()
+  if (!databaseId) throw new Error("NOTION_JOURNAL_DB_ID missing")
+
+  const result: ReclassifyResult = {
+    scanned: 0, changed: 0, to_must: 0, to_interest: 0, to_ref: 0,
+    unchanged: 0, failed: 0, emailed: false,
+  }
+
+  const rows = await loadRowsForReclassify(databaseId)
+  result.scanned = rows.length
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+  // 변화 분포 추적 — old → new 그리드
+  const movement: Record<string, number> = {}
+
+  for (const row of rows) {
+    const fakeArticle: PubmedArticle = {
+      pmid: "", title: row.title, authors: "", abstract: row.abstract,
+      doiUrl: "", journalName: row.journalName, pubDate: "",
+      pubTypes: notionTypeToPubTypes(row.notionType),
+      affiliations: "", keywords: [], volume: "", issue: "",
+    }
+    const newInterest = classifyInterest(fakeArticle) as NotionInterestLevel
+    if (newInterest === row.currentInterest) {
+      result.unchanged += 1
+      continue
+    }
+    try {
+      await notionRequest(`/pages/${row.pageId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          properties: { 관심도: { select: { name: newInterest } } },
+        }),
+      })
+      result.changed += 1
+      if (newInterest === "🔴 필독") result.to_must += 1
+      else if (newInterest === "🟡 관심") result.to_interest += 1
+      else result.to_ref += 1
+      const key = `${row.currentInterest || "(empty)"} → ${newInterest}`
+      movement[key] = (movement[key] ?? 0) + 1
+      await sleep(120)
+    } catch {
+      result.failed += 1
+    }
+  }
+
+  const email = await sendReclassifyReport(result, movement)
+  result.emailed = email.sent
+  if (email.reason) result.emailSkippedReason = email.reason
+  return result
+}
+
+async function sendReclassifyReport(
+  result: ReclassifyResult,
+  movement: Record<string, number>,
+): Promise<{ sent: boolean; reason?: string }> {
+  const user = process.env.JOURNAL_ALERT_SMTP_USER
+  const pass = process.env.JOURNAL_ALERT_SMTP_PASS
+  const host = process.env.JOURNAL_ALERT_SMTP_HOST ?? "smtp.gmail.com"
+  const port = Number(process.env.JOURNAL_ALERT_SMTP_PORT ?? "587")
+  const to = process.env.JOURNAL_ALERT_RECIPIENT ?? user
+  const cc = process.env.JOURNAL_ALERT_CC?.trim() || undefined
+  if (!user || !pass || !to) return { sent: false, reason: "email_not_configured" }
+
+  const today = new Date().toISOString().slice(0, 10)
+  const subject = `[Journal Alert] 관심도 재분류 — ${result.changed}건 변경`
+  const cell = (v: string | number) =>
+    `<td style="padding:6px 10px;border-bottom:1px solid #2a2a2a;">${v}</td>`
+  const moveRows = Object.entries(movement).sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => `<tr>${cell(k)}${cell(`<span style="color:#fafafa;">${v}</span>건`)}</tr>`).join("")
+
+  const html = `<!doctype html><html><body style="background:#09090b;color:#e5e7eb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<div style="max-width:680px;margin:0 auto;padding:24px;">
+  <h1 style="margin:0 0 8px;">🔁 Journal 관심도 재분류 완료</h1>
+  <p style="margin:0 0 16px;color:#a1a1aa;">${today}</p>
+  <h3 style="color:#fafafa;border-bottom:1px solid #333;padding-bottom:6px;margin-top:24px;">전체</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <tr>${cell("스캔")}${cell(`<span style="color:#fafafa;">${result.scanned}</span>건`)}</tr>
+    <tr>${cell("변경")}${cell(`<span style="color:#34d399;">${result.changed}</span>건`)}</tr>
+    <tr>${cell("변경 없음")}${cell(`<span style="color:#a1a1aa;">${result.unchanged}</span>건`)}</tr>
+    <tr>${cell("실패")}${cell(`<span style="color:${result.failed > 0 ? "#f87171" : "#a1a1aa"};">${result.failed}</span>건`)}</tr>
+  </table>
+  <h3 style="color:#fafafa;border-bottom:1px solid #333;padding-bottom:6px;margin-top:24px;">새 분류 분포</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <tr>${cell("🔴 필독으로 변경")}${cell(`<span style="color:#f87171;">${result.to_must}</span>건`)}</tr>
+    <tr>${cell("🟡 관심으로 변경")}${cell(`<span style="color:#fbbf24;">${result.to_interest}</span>건`)}</tr>
+    <tr>${cell("⚪ 참고로 변경")}${cell(`<span style="color:#a1a1aa;">${result.to_ref}</span>건`)}</tr>
+  </table>
+  ${Object.keys(movement).length > 0 ? `
+  <h3 style="color:#fafafa;border-bottom:1px solid #333;padding-bottom:6px;margin-top:24px;">변화 매트릭스 (old → new)</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">${moveRows}</table>` : ""}
+</div></body></html>`
+  try {
+    const transporter = nodemailer.createTransport({
+      host, port, secure: port === 465, auth: { user, pass },
+    })
+    await transporter.sendMail({ from: user, to, cc, subject, html })
+    return { sent: true }
+  } catch (e) {
+    return { sent: false, reason: `smtp_error: ${e instanceof Error ? e.message : "unknown"}` }
+  }
+}
+
 export async function runBackfillFields(): Promise<BackfillResult & { emailed: boolean; emailSkippedReason?: string }> {
   const databaseId = process.env.NOTION_JOURNAL_DB_ID?.trim()
   if (!databaseId) throw new Error("NOTION_JOURNAL_DB_ID missing")
