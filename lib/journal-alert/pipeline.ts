@@ -1,10 +1,10 @@
 import nodemailer from "nodemailer"
 import { notionRequest } from "@/lib/notion/client"
 import {
-  INTEREST_KEYWORDS,
   JOURNAL_SOURCES,
   LOW_PRIORITY_TYPES,
-  MUST_READ_KEYWORDS,
+  MUST_READ_PATTERNS,
+  STRONG_METHOD_PUBTYPES,
 } from "@/lib/journal-alert/config"
 
 type InterestLevel = "🔴 필독" | "🟡 관심" | "⚪ 참고"
@@ -276,16 +276,22 @@ function parsePubmedXml(xml: string): PubmedArticle[] {
 }
 
 function classifyInterest(article: PubmedArticle): InterestLevel {
-  const text = [article.title, article.abstract, article.journalName].join(" ").toLowerCase()
-  const lowPriority = article.pubTypes.some((t) =>
-    LOW_PRIORITY_TYPES.some((needle) => t.toLowerCase().includes(needle))
-  )
-  if (lowPriority) return "⚪ 참고"
+  // 1) letter / editorial / erratum 류 → ⚪
+  const lowerTypes = article.pubTypes.map((t) => t.toLowerCase())
+  if (lowerTypes.some((t) => LOW_PRIORITY_TYPES.some((needle) => t.includes(needle)))) {
+    return "⚪ 참고"
+  }
 
-  if (MUST_READ_KEYWORDS.some((k) => text.includes(k))) return "🔴 필독"
-  const score = INTEREST_KEYWORDS.reduce((acc, k) => (text.includes(k) ? acc + 1 : acc), 0)
-  if (score >= 2) return "🔴 필독"
-  if (score >= 1) return "🟡 관심"
+  // 2) MUST_READ regex 매칭 → 🔴 필독 (단어 경계 적용된 패턴들이라 false-positive 적음)
+  const text = `${article.title} ${article.abstract} ${article.journalName}`
+  if (MUST_READ_PATTERNS.some((re) => re.test(text))) return "🔴 필독"
+
+  // 3) 강한 방법론 (RCT / Meta-Analysis / Systematic Review) → 🟡 관심
+  if (STRONG_METHOD_PUBTYPES.some((m) => lowerTypes.some((t) => t.includes(m)))) {
+    return "🟡 관심"
+  }
+
+  // 4) 그 외 → ⚪ 참고 (옛 INTEREST_KEYWORDS 의 broad 매칭은 제거함)
   return "⚪ 참고"
 }
 
