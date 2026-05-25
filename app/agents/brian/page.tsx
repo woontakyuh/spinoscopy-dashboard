@@ -8,7 +8,8 @@ import { MyPapers } from "@/components/scholar/MyPapers"
 import { PaperDB } from "@/components/scholar/PaperDB"
 import { ResearchPipeline } from "@/components/scholar/ResearchPipeline"
 import { Editorial } from "@/components/scholar/Editorial"
-import { MY_PAPERS } from "@/lib/data/my-papers"
+// 출판 논문 통계는 Research DB (status Published / Accepted) 에서 직접 derive.
+const TAK_NAME = "여운탁"
 import type { JournalStats } from "@/lib/types/journal"
 import type { ResearchProject } from "@/lib/types/research"
 import { dday } from "@/lib/greeterContext"
@@ -123,12 +124,23 @@ export default function ScholarPage() {
     }
 
     if (tab === "my-papers") {
-      const thisYear = MY_PAPERS.filter((p) => p.year === CURRENT_YEAR)
-      const firstAuthor = MY_PAPERS.filter((p) => p.role === "1st").length
-      if (thisYear.length > 0) {
-        return `여교수, 올해 벌써 ${thisYear.length}편 나갔군. 총 ${MY_PAPERS.length}편, 꾸준히 쌓이고 있어.`
+      if (!research) return "여교수, 출판 목록 불러오고 있네. 잠깐만."
+      const publishedOrAccepted = research.filter((p) => p.status === "Published" || p.status === "Accepted")
+      const inPress = publishedOrAccepted.filter((p) => p.status === "Accepted").length
+      const total = publishedOrAccepted.length
+      const thisYear = publishedOrAccepted.filter((p) => {
+        const y = p.publish_date?.slice(0, 4) ?? p.start_date?.slice(0, 4)
+        return y === String(CURRENT_YEAR)
+      })
+      const firstAuthor = publishedOrAccepted.filter((p) => p.first_author.includes(TAK_NAME)).length
+
+      if (inPress > 0) {
+        return `여교수, In Press 가 ${inPress}편 있네 — 곧 출판될 거고, 누적 ${total}편이야. 꾸준히 쌓이고 있어.`
       }
-      return `여교수, 지금까지 ${MY_PAPERS.length}편 출판했네. 1저자 ${firstAuthor}편이야. 다음 거 준비해볼까.`
+      if (thisYear.length > 0) {
+        return `여교수, 올해 벌써 ${thisYear.length}편 나갔군. 총 ${total}편, 꾸준히 쌓이고 있어.`
+      }
+      return `여교수, 지금까지 ${total}편 출판했네. 1저자 ${firstAuthor}편이야. 다음 거 준비해볼까.`
     }
 
     // editorial — pending (내 액션) vs awaiting (편집자 결정 대기 + 저자 수정 중) 분리

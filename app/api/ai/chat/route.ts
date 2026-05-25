@@ -37,7 +37,8 @@ import { getJournalStats, queryArticles } from "@/lib/notion/journal"
 import { listEditorialItems } from "@/lib/notion/editorial"
 import { isEffectivelyActive, isPendingMyAction, isSubmittedAwaiting } from "@/lib/editorial/status"
 import { isTakWorking, isWaitingOnJournal, isResearchTerminal } from "@/lib/research/status"
-import { MY_PAPERS } from "@/lib/data/my-papers"
+// MY_PAPERS hardcoded list 는 Research DB (Published / Accepted) 로 대체됨.
+const TAK_NAME = "여운탁"
 import { getAllPatientRows } from "@/lib/notion/analytics"
 import { notionRequest } from "@/lib/notion/client"
 import {
@@ -994,8 +995,34 @@ async function buildBrianPrompt(): Promise<string> {
       context += `\n\n[진행 중 (Tak 액션 없음) ${awaitingEd.length}건 — *Review Done (편집자 결정 대기) + *Revision (저자 수정 중)]\n${awaitLines}`
     }
 
-    const recentMine = MY_PAPERS.slice(0, 8).map((p) => `- [${p.year}, ${p.role}] ${p.title} — ${p.journal}`).join("\n")
-    context += `\n\n[Tak의 출판 논문 총 ${MY_PAPERS.length}편 — 최근 8편]\n${recentMine}`
+    // 출판 논문 (Published + Accepted) — Research DB 의 status 로 분류, 본인 역할 derive
+    const myPapers = projects
+      .filter((p) => p.status === "Published" || p.status === "Accepted")
+      .map((p) => {
+        const role = p.first_author.includes(TAK_NAME)
+          ? "1st"
+          : p.corresponding.includes(TAK_NAME)
+            ? "corr"
+            : "co"
+        const year = p.publish_date?.slice(0, 4) ?? p.start_date?.slice(0, 4) ?? "?"
+        return { ...p, role, year }
+      })
+      .sort((a, b) => {
+        // In Press (Accepted) 먼저, 그 다음 year desc
+        if (a.status !== b.status) return a.status === "Accepted" ? -1 : 1
+        return String(b.year).localeCompare(String(a.year))
+      })
+    if (myPapers.length > 0) {
+      const inPressCount = myPapers.filter((p) => p.status === "Accepted").length
+      const recentMine = myPapers.slice(0, 8).map((p) => {
+        const inPress = p.status === "Accepted" ? " [In Press]" : ""
+        return `- [${p.year}, ${p.role}]${inPress} ${p.title} — ${p.target_journal || "?"}`
+      }).join("\n")
+      const header = inPressCount > 0
+        ? `[Tak 출판 논문 총 ${myPapers.length}편 — In Press ${inPressCount}편 포함, 최근 8편]`
+        : `[Tak 출판 논문 총 ${myPapers.length}편 — 최근 8편]`
+      context += `\n\n${header}\n${recentMine}`
+    }
   } catch {
     // 컨텍스트 로딩 실패 — 페르소나만
   }

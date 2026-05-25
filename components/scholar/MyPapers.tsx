@@ -1,8 +1,11 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { MY_PAPERS, SCHOLAR_LINKS, type PaperRole } from "@/lib/data/my-papers"
+import { useQuery } from "@tanstack/react-query"
+import { SCHOLAR_LINKS } from "@/lib/data/my-papers"
 import { ExternalLink } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import type { ResearchProject } from "@/lib/types/research"
 import {
   BarChart,
   Bar,
@@ -16,46 +19,100 @@ import {
 
 /* ── helpers ─────────────────────────────────────────── */
 
-const ROLE_BADGE: Record<PaperRole, { bg: string; text: string; label: string }> = {
+// 출판 논문 — 본인 (여운탁) 의 역할을 결정 (1st > corresponding > co-author 우선순위)
+const TAK_NAME = "여운탁"
+
+type DerivedRole = "1st" | "corresponding" | "co-author"
+
+function deriveRole(p: ResearchProject): DerivedRole {
+  if (p.first_author.includes(TAK_NAME)) return "1st"
+  if (p.corresponding.includes(TAK_NAME)) return "corresponding"
+  return "co-author"
+}
+
+function deriveYear(p: ResearchProject): number {
+  if (p.publish_date) return Number(p.publish_date.slice(0, 4))
+  if (p.start_date) return Number(p.start_date.slice(0, 4))
+  return new Date().getFullYear()
+}
+
+const ROLE_BADGE: Record<DerivedRole, { bg: string; text: string; label: string }> = {
   "1st":           { bg: "var(--status-drafting-bg)",   text: "var(--status-drafting-text)",   label: "1st" },
   corresponding:   { bg: "var(--status-published-bg)",  text: "var(--status-published-text)",  label: "Corr" },
   "co-author":     { bg: "var(--status-idea-bg)",       text: "var(--status-idea-text)",       label: "Co" },
 }
 
 const TYPE_COLOR: Record<string, { bg: string; text: string }> = {
+  "Original Article":{ bg: "var(--status-submitted-bg)", text: "var(--status-submitted-text)" },
   Original:        { bg: "var(--status-submitted-bg)", text: "var(--status-submitted-text)" },
   Review:          { bg: "var(--status-revision-bg)",  text: "var(--status-revision-text)" },
   "Case Report":   { bg: "var(--status-idea-bg)",      text: "var(--status-idea-text)" },
-  "Meta-analysis": { bg: "var(--status-published-bg)", text: "var(--status-published-text)" },
-  RCT:             { bg: "var(--status-published-bg)", text: "var(--status-published-text)" },
-  Video:           { bg: "var(--status-drafting-bg)",   text: "var(--status-drafting-text)" },
   "Technical Note":{ bg: "var(--status-revision-bg)",  text: "var(--status-revision-text)" },
+  Commentary:      { bg: "var(--status-idea-bg)",      text: "var(--status-idea-text)" },
+  Letter:          { bg: "var(--status-idea-bg)",      text: "var(--status-idea-text)" },
+  Editorial:       { bg: "var(--status-idea-bg)",      text: "var(--status-idea-text)" },
+  Other:           { bg: "var(--status-idea-bg)",      text: "var(--status-idea-text)" },
 }
 
-type Filter = "all" | PaperRole
+type Filter = "all" | DerivedRole
 
 /* ── component ───────────────────────────────────────── */
 
 export function MyPapers() {
   const [filter, setFilter] = useState<Filter>("all")
 
+  // 출판 논문 = Research DB 의 Published + Accepted (Accepted = 아직 미출판이지만 결정난 케이스 = In Press)
+  const { data: research, isLoading } = useQuery<ResearchProject[]>({
+    queryKey: ["research-projects"],
+    queryFn: async () => {
+      const res = await fetch("/api/notion/research")
+      if (!res.ok) throw new Error("Failed to fetch research")
+      return res.json()
+    },
+  })
+
+  // 출판되었거나 Accepted 만
+  const papers = useMemo(() => {
+    if (!research) return []
+    return research
+      .filter((p) => p.status === "Published" || p.status === "Accepted")
+      .map((p) => ({
+        page_id: p.page_id,
+        url: p.url,
+        title: p.title,
+        journal: p.target_journal || "?",
+        year: deriveYear(p),
+        role: deriveRole(p),
+        type: (p.manuscript_type ?? "Original Article") as string,
+        status: p.status,             // "Published" 또는 "Accepted"
+        doi: p.doi,
+      }))
+  }, [research])
+
   const counts = useMemo(() => {
-    const first = MY_PAPERS.filter(p => p.role === "1st").length
-    const corr  = MY_PAPERS.filter(p => p.role === "corresponding").length
-    const co    = MY_PAPERS.filter(p => p.role === "co-author").length
-    return { total: MY_PAPERS.length, first, corr, co }
-  }, [])
+    const first = papers.filter(p => p.role === "1st").length
+    const corr  = papers.filter(p => p.role === "corresponding").length
+    const co    = papers.filter(p => p.role === "co-author").length
+    const inPress = papers.filter(p => p.status === "Accepted").length
+    return { total: papers.length, first, corr, co, inPress }
+  }, [papers])
 
   const filtered = useMemo(() => {
-    const list = filter === "all" ? MY_PAPERS : MY_PAPERS.filter(p => p.role === filter)
-    return [...list].sort((a, b) => b.year - a.year || b.id - a.id)
-  }, [filter])
+    const list = filter === "all" ? papers : papers.filter(p => p.role === filter)
+    // Accepted 를 맨 위로, 그 다음 year desc
+    return [...list].sort((a, b) => {
+      if (a.status !== b.status) {
+        return a.status === "Accepted" ? -1 : 1
+      }
+      return b.year - a.year
+    })
+  }, [papers, filter])
 
   /* ── chart data ── */
 
   const yearData = useMemo(() => {
     const map = new Map<number, { year: number; first: number; corresponding: number; coAuthor: number }>()
-    for (const p of MY_PAPERS) {
+    for (const p of papers) {
       if (!map.has(p.year)) map.set(p.year, { year: p.year, first: 0, corresponding: 0, coAuthor: 0 })
       const row = map.get(p.year)!
       if (p.role === "1st") row.first++
@@ -63,23 +120,33 @@ export function MyPapers() {
       else row.coAuthor++
     }
     return [...map.values()].sort((a, b) => a.year - b.year)
-  }, [])
+  }, [papers])
 
   const journalData = useMemo(() => {
     const map = new Map<string, number>()
-    for (const p of MY_PAPERS) map.set(p.journal, (map.get(p.journal) || 0) + 1)
+    for (const p of papers) map.set(p.journal, (map.get(p.journal) || 0) + 1)
     return [...map.entries()]
       .map(([journal, count]) => ({ journal, count }))
       .sort((a, b) => b.count - a.count)
-  }, [])
+  }, [papers])
 
   /* ── render ── */
 
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-16 w-full bg-muted" />)}
+      </div>
+    )
+  }
+
+  const safePercent = (n: number) => counts.total > 0 ? `${Math.round((n / counts.total) * 100)}%` : "—"
+
   const metrics = [
-    { label: "총 논문", value: counts.total, sub: "" },
-    { label: "1st Author", value: counts.first, sub: `${Math.round((counts.first / counts.total) * 100)}%` },
-    { label: "Corresponding", value: counts.corr, sub: `${Math.round((counts.corr / counts.total) * 100)}%` },
-    { label: "Co-author", value: counts.co, sub: `${Math.round((counts.co / counts.total) * 100)}%` },
+    { label: "총 논문", value: counts.total, sub: counts.inPress > 0 ? `+${counts.inPress} In Press` : "" },
+    { label: "1st Author", value: counts.first, sub: safePercent(counts.first) },
+    { label: "Corresponding", value: counts.corr, sub: safePercent(counts.corr) },
+    { label: "Co-author", value: counts.co, sub: safePercent(counts.co) },
   ]
 
   const filters: { key: Filter; label: string }[] = [
@@ -171,7 +238,7 @@ export function MyPapers() {
           </ResponsiveContainer>
         </div>
 
-        {/* Journal distribution — 세로 바 */}
+        {/* Journal distribution */}
         <div
           className="rounded-xl p-4 border"
           style={{ backgroundColor: "var(--scholar-card)", borderColor: "var(--scholar-accent-light)" }}
@@ -230,23 +297,37 @@ export function MyPapers() {
       {/* ── Paper list ── */}
       <div className="space-y-2">
         {filtered.map(paper => {
-          const typeStyle = TYPE_COLOR[paper.type] ?? TYPE_COLOR.Original
+          const typeStyle = TYPE_COLOR[paper.type] ?? TYPE_COLOR["Original Article"]
+          const isInPress = paper.status === "Accepted"
           return (
             <div
-              key={paper.id}
+              key={paper.page_id}
               className="rounded-xl px-4 py-3 border flex items-start gap-3 card-hover cursor-default"
               style={{
                 backgroundColor: "var(--scholar-card)",
-                borderColor: "var(--scholar-accent-light)",
+                borderColor: isInPress ? "var(--status-revision-text)" : "var(--scholar-accent-light)",
               }}
             >
-              {/* Year */}
-              <span
-                className="text-xs font-mono mt-0.5 shrink-0 num"
-                style={{ color: "var(--scholar-accent)", opacity: 0.7 }}
-              >
-                {paper.year}
-              </span>
+              {/* Year + In Press */}
+              <div className="flex flex-col items-start gap-1 shrink-0 mt-0.5">
+                <span
+                  className="text-xs font-mono num"
+                  style={{ color: "var(--scholar-accent)", opacity: 0.7 }}
+                >
+                  {paper.year}
+                </span>
+                {isInPress && (
+                  <span
+                    className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide"
+                    style={{
+                      backgroundColor: "var(--status-revision-bg)",
+                      color: "var(--status-revision-text)",
+                    }}
+                  >
+                    In Press
+                  </span>
+                )}
+              </div>
 
               {/* Role badge */}
               <span
@@ -280,11 +361,24 @@ export function MyPapers() {
                 </p>
                 <p className="text-xs mt-0.5 opacity-50" style={{ color: "var(--scholar-accent-text)" }}>
                   {paper.journal}
+                  {paper.doi && (
+                    <>
+                      {" · "}
+                      <a href={paper.doi.startsWith("http") ? paper.doi : `https://doi.org/${paper.doi}`} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                        DOI
+                      </a>
+                    </>
+                  )}
                 </p>
               </div>
             </div>
           )
         })}
+        {filtered.length === 0 && (
+          <p className="text-sm text-center py-8 opacity-50" style={{ color: "var(--scholar-accent-text)" }}>
+            조건에 맞는 논문이 없습니다.
+          </p>
+        )}
       </div>
     </div>
   )
