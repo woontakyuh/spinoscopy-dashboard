@@ -15,10 +15,11 @@ export const REVIEW_STATUSES: readonly EditorialStatus[] = [
 ] as const
 
 // "내가 리뷰 제출은 했지만 편집자/다른 리뷰어 결정 대기" — 내 손 떠난 상태
+// 주의: Notion 옵션 명이 소문자 'done' 임 ("1st Review done"). 대소문자 정확히 일치 시켜야 매칭됨.
 export const REVIEW_DONE_STATUSES: readonly EditorialStatus[] = [
-  "1st Review Done",
-  "2nd Review Done",
-  "3rd Review Done",
+  "1st Review done",
+  "2nd Review done",
+  "3rd Review done",
 ] as const
 
 // "저자가 revision 중" — author 의 손에 있음
