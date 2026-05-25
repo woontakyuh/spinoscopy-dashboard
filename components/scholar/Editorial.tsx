@@ -420,25 +420,38 @@ export function Editorial() {
       {/* Overdue / Due Soon 별도 섹션은 제거 — 각 lane card 의 D-day 가 이미 빨강/앰버로 표시.
           Under Revision/Accepted/Rejected 처럼 손 떠난 건엔 D-day 자체를 안 보여줌 (Sub 날짜 또는 decision 으로 대체). */}
 
-      {/* ─── Lane View (5 lanes: Under Review / Review Submitted / Under Revision / Accepted / Rejected) ─── */}
-      <div className="overflow-x-auto scrollbar-hide -mx-3 px-3 md:mx-0 md:px-0">
-        <div className="flex gap-3 min-w-[1000px] md:min-w-0 md:grid md:grid-cols-5">
-          {LANES.map((lane) => {
-            const items = lanes[lane.id]
-            return (
-              <EditorialLane
-                key={lane.id}
-                lane={lane}
-                items={items}
-                expandedId={expandedId}
-                onToggleExpand={(id) => setExpandedId(expandedId === id ? null : id)}
-                onJournalClick={toggleJournal}
-                onMethodClick={toggleMethod}
-              />
-            )
-          })}
-        </div>
-      </div>
+      {/* ─── Lane View — Editor role 일 때는 "Review Submitted" 레인 숨김 (편집자 워크플로우엔 무의미). */}
+      {(() => {
+        const visibleLanes = roleFilter === "Editor"
+          ? LANES.filter((l) => l.id !== "review_done")
+          : LANES
+        const gridCols = visibleLanes.length === 5
+          ? "md:grid-cols-5"
+          : visibleLanes.length === 4
+            ? "md:grid-cols-4"
+            : "md:grid-cols-3"
+        const minW = visibleLanes.length === 5 ? "min-w-[1000px]" : "min-w-[800px]"
+        return (
+          <div className="overflow-x-auto scrollbar-hide -mx-3 px-3 md:mx-0 md:px-0">
+            <div className={`flex gap-3 ${minW} md:min-w-0 md:grid ${gridCols}`}>
+              {visibleLanes.map((lane) => {
+                const items = lanes[lane.id]
+                return (
+                  <EditorialLane
+                    key={lane.id}
+                    lane={lane}
+                    items={items}
+                    expandedId={expandedId}
+                    onToggleExpand={(id) => setExpandedId(expandedId === id ? null : id)}
+                    onJournalClick={toggleJournal}
+                    onMethodClick={toggleMethod}
+                  />
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
@@ -580,8 +593,8 @@ function LaneCard({
       >
         {/* Row 1: Role · Journal · R뱃지 · 우측 상태 */}
         <div className="flex items-center gap-1.5 mb-1">
-          <Badge variant="outline" className={`text-[9px] px-1 py-0 h-[16px] font-medium ${role.badge}`}>
-            {item.role[0]}
+          <Badge variant="outline" className={`text-[9px] px-1.5 py-0 h-[16px] font-medium ${role.badge}`}>
+            {item.role}
           </Badge>
           {item.journal && (
             <button
