@@ -577,6 +577,8 @@ export function PaperDB() {
 
   const visibleArticles = useMemo(() => finalArticles.slice(0, displayLimit), [finalArticles, displayLimit])
   const showMoreVisible = displayLimit < finalArticles.length || hasMore
+  // 자동 fetch 가 displayLimit 채우러 진행 중일 땐 list 숨김 — 부분 결과가 "찔끔찔끔" 갱신되는 거 방지.
+  const isFillingPage = isLoadingMore && hasMore && finalArticles.length < displayLimit
 
   return (
     <div className="space-y-3">
@@ -798,6 +800,11 @@ export function PaperDB() {
         <p className="text-red-400 text-sm text-center py-8">
           로딩 실패: {(error as Error).message}
         </p>
+      ) : isFillingPage ? (
+        <div className="border border-border rounded-lg py-12 flex flex-col items-center gap-3 text-muted-foreground text-sm">
+          <div className="size-5 border-2 border-muted-foreground/30 border-t-foreground rounded-full animate-spin" />
+          <span>매칭되는 논문 더 가져오는 중… ({finalArticles.length}편 확보)</span>
+        </div>
       ) : finalArticles.length === 0 ? (
         <p className="text-muted-foreground text-sm text-center py-12">논문이 없습니다.</p>
       ) : (
