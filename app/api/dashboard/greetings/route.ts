@@ -137,6 +137,7 @@ export async function GET(req: NextRequest) {
     andrej,
   }
   return NextResponse.json(greetings, {
-    headers: { "Cache-Control": "private, max-age=600, stale-while-revalidate=300" },
+    // 캐시 짧게 — Warren BTC / Andrej feed 가 자주 바뀌고 호버 시 신선도 중요
+    headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=60" },
   })
 }

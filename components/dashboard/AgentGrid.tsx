@@ -25,61 +25,65 @@ export function AgentGrid() {
       if (!res.ok) throw new Error("greetings 조회 실패")
       return res.json()
     },
-    staleTime: 10 * 60 * 1000,
+    staleTime: 60 * 1000,  // 1 min — 호버 시 신선도 중요
+    refetchOnWindowFocus: true,
   })
 
-  const hoveredGreeting = hoveredId ? greetings?.[hoveredId] : null
-
   return (
-    <div className="space-y-2">
-      {/* Hover bubble — fixed-height slot to avoid layout jump */}
-      <div className="h-7 flex items-center">
-        {hoveredGreeting && (
-          <div className="rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground/90 animate-fade-in-up max-w-full truncate">
-            {hoveredGreeting}
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-5 gap-2 md:gap-3">
-        {AGENTS.map((agent) => {
-          const card = (
-            <div
-              onMouseEnter={() => setHoveredId(agent.id)}
-              onMouseLeave={() => setHoveredId((id) => (id === agent.id ? null : id))}
-              className={`relative border rounded-xl p-1.5 md:p-3 bg-card transition-all ${
-                agent.active
-                  ? `${agent.accent} hover:scale-[1.03] hover:shadow-lg cursor-pointer`
-                  : "border-border opacity-40 cursor-not-allowed"
-              }`}
-            >
-              <div className="flex flex-col items-center text-center gap-2">
-                <div className="w-10 h-10 md:w-16 md:h-16 rounded-full bg-muted flex items-center justify-center text-3xl overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={agent.image} alt={agent.name} className="w-full h-full object-cover" />
+    <div className="grid grid-cols-5 gap-2 md:gap-3">
+      {AGENTS.map((agent) => {
+        const isHovered = hoveredId === agent.id
+        const greeting = greetings?.[agent.id]
+        const card = (
+          <div
+            onMouseEnter={() => setHoveredId(agent.id)}
+            onMouseLeave={() => setHoveredId((id) => (id === agent.id ? null : id))}
+            className={`relative border rounded-xl p-1.5 md:p-3 bg-card transition-all ${
+              agent.active
+                ? `${agent.accent} hover:scale-[1.03] hover:shadow-lg cursor-pointer`
+                : "border-border opacity-40 cursor-not-allowed"
+            }`}
+          >
+            {/* Speech bubble — agent 위에 떠 있음. relative parent 기준 absolute. */}
+            {isHovered && greeting && (
+              <div
+                className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-20 pointer-events-none animate-fade-in-up"
+                style={{ width: "min(420px, 80vw)" }}
+              >
+                <div className="bg-card border border-border rounded-2xl rounded-bl-sm px-4 py-2.5 shadow-xl text-foreground/95 text-sm leading-snug">
+                  {greeting}
                 </div>
-                <div>
-                  <p className="text-foreground text-[10px] md:text-xs font-semibold">{agent.name}</p>
-                  <p className="hidden md:block text-muted-foreground text-[10px] mt-0.5 leading-tight">{agent.desc}</p>
-                </div>
-                {agent.active && (
-                  <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-green-500" />
-                )}
-                {!agent.active && (
-                  <Badge variant="outline" className="text-[9px] border-border text-muted-foreground/70 px-1.5 py-0">
-                    준비중
-                  </Badge>
-                )}
+                {/* 꼬리 — agent 사진 방향으로 */}
+                <div className="absolute left-1/2 -translate-x-1/2 top-full -mt-px w-3 h-3 rotate-45 bg-card border-r border-b border-border" />
               </div>
-            </div>
-          )
+            )}
 
-          if (agent.active) {
-            return <Link key={agent.name} href={agent.href}>{card}</Link>
-          }
-          return <div key={agent.name}>{card}</div>
-        })}
-      </div>
+            <div className="flex flex-col items-center text-center gap-2">
+              <div className="w-10 h-10 md:w-16 md:h-16 rounded-full bg-muted flex items-center justify-center text-3xl overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={agent.image} alt={agent.name} className="w-full h-full object-cover" />
+              </div>
+              <div>
+                <p className="text-foreground text-[10px] md:text-xs font-semibold">{agent.name}</p>
+                <p className="hidden md:block text-muted-foreground text-[10px] mt-0.5 leading-tight">{agent.desc}</p>
+              </div>
+              {agent.active && (
+                <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-green-500" />
+              )}
+              {!agent.active && (
+                <Badge variant="outline" className="text-[9px] border-border text-muted-foreground/70 px-1.5 py-0">
+                  준비중
+                </Badge>
+              )}
+            </div>
+          </div>
+        )
+
+        if (agent.active) {
+          return <Link key={agent.name} href={agent.href}>{card}</Link>
+        }
+        return <div key={agent.name}>{card}</div>
+      })}
     </div>
   )
 }
