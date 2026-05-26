@@ -60,6 +60,7 @@ type Filter = "all" | DerivedRole
 
 export function MyPapers() {
   const [filter, setFilter] = useState<Filter>("all")
+  const [yearFilter, setYearFilter] = useState<number | null>(null)
 
   // 출판 논문 = Research DB 의 Published + Accepted (Accepted = 아직 미출판이지만 결정난 케이스 = In Press)
   const { data: research, isLoading } = useQuery<ResearchProject[]>({
@@ -136,8 +137,8 @@ export function MyPapers() {
     }
     const i10 = allCounts.filter((c) => c >= 10).length
 
-    // filter 반응 부분
-    const filteredCounts: number[] = (filter === "all" ? papers : papers.filter((p) => p.role === filter))
+    // filter (role + year) 반응 부분 — Total / Avg 만 변동
+    const filteredCounts: number[] = (filter === "all" ? pooledByYear : pooledByYear.filter((p) => p.role === filter))
       .map((p) => citationOf(p.doi))
       .filter((c): c is number => c !== null)
     const total = filteredCounts.reduce((s, c) => s + c, 0)
@@ -145,18 +146,24 @@ export function MyPapers() {
 
     return { h, i10, total, avg, totalSampleSize: filteredCounts.length, globalSampleSize: allCounts.length }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [papers, citationsMap, filter])
+  }, [papers, pooledByYear, citationsMap, filter])
+
+  // 연도 필터 적용 후의 풀 — 이후 role 필터 / counts / metrics 다 이거 기준
+  const pooledByYear = useMemo(
+    () => (yearFilter === null ? papers : papers.filter((p) => p.year === yearFilter)),
+    [papers, yearFilter],
+  )
 
   const counts = useMemo(() => {
-    const first = papers.filter(p => p.role === "1st").length
-    const corr  = papers.filter(p => p.role === "corresponding").length
-    const co    = papers.filter(p => p.role === "co-author").length
-    const inPress = papers.filter(p => p.status === "Accepted").length
-    return { total: papers.length, first, corr, co, inPress }
-  }, [papers])
+    const first = pooledByYear.filter(p => p.role === "1st").length
+    const corr  = pooledByYear.filter(p => p.role === "corresponding").length
+    const co    = pooledByYear.filter(p => p.role === "co-author").length
+    const inPress = pooledByYear.filter(p => p.status === "Accepted").length
+    return { total: pooledByYear.length, first, corr, co, inPress }
+  }, [pooledByYear])
 
   const filtered = useMemo(() => {
-    const list = filter === "all" ? papers : papers.filter(p => p.role === filter)
+    const list = filter === "all" ? pooledByYear : pooledByYear.filter(p => p.role === filter)
     // Accepted 를 맨 위로, 그 다음 year desc
     return [...list].sort((a, b) => {
       if (a.status !== b.status) {
@@ -164,7 +171,7 @@ export function MyPapers() {
       }
       return b.year - a.year
     })
-  }, [papers, filter])
+  }, [pooledByYear, filter])
 
   /* ── chart data ── */
 
@@ -348,6 +355,13 @@ export function MyPapers() {
                     fill={cfg.color}
                     fillOpacity={dim ? 0.18 : 1}
                     radius={isLast ? [3, 3, 0, 0] : [0, 0, 0, 0]}
+                    cursor="pointer"
+                    onClick={(d) => {
+                      const yr = (d as { year?: number })?.year
+                      if (typeof yr === "number") {
+                        setYearFilter((prev) => (prev === yr ? null : yr))
+                      }
+                    }}
                   />
                 )
               })}
@@ -406,6 +420,20 @@ export function MyPapers() {
             {f.label}
           </button>
         ))}
+        {yearFilter !== null && (
+          <button
+            onClick={() => setYearFilter(null)}
+            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg transition-colors num group"
+            style={{
+              backgroundColor: "var(--status-revision-bg)",
+              color: "var(--status-revision-text)",
+            }}
+            title="연도 필터 해제"
+          >
+            {yearFilter}
+            <span className="opacity-60 group-hover:opacity-100">×</span>
+          </button>
+        )}
         <span className="text-xs self-center ml-2 num" style={{ color: "var(--scholar-accent-text)", opacity: 0.5 }}>
           {filtered.length}편
         </span>
