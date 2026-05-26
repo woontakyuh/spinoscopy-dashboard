@@ -110,35 +110,62 @@ export function MyPapers() {
 
   /* ── chart data ── */
 
-  // 연도별: 전체 paper 기반 (filter 무관) — 막대 총 높이 / 좌우 연도 축은 항상 같은 모양 유지.
-  // Role 필터는 opacity 와 stack 순서로 표현 (선택된 role 만 진하게 + 바닥으로 이동).
+  // 연도별: role × (Published / In Press) 6 segment 로 쪼개서 stack.
+  // 막대 총 높이 / 좌우 연도 축은 항상 같은 모양 유지 (papers 전체 기준).
   const yearData = useMemo(() => {
-    const map = new Map<number, { year: number; first: number; corresponding: number; coAuthor: number; inPress: number }>()
+    type Row = {
+      year: number
+      firstPub: number; firstInPress: number
+      corrPub: number; corrInPress: number
+      coPub: number; coInPress: number
+    }
+    const map = new Map<number, Row>()
     for (const p of papers) {
-      if (!map.has(p.year)) map.set(p.year, { year: p.year, first: 0, corresponding: 0, coAuthor: 0, inPress: 0 })
+      if (!map.has(p.year)) map.set(p.year, {
+        year: p.year,
+        firstPub: 0, firstInPress: 0,
+        corrPub: 0, corrInPress: 0,
+        coPub: 0, coInPress: 0,
+      })
       const row = map.get(p.year)!
-      if (p.status === "Accepted") {
-        row.inPress++
-      } else if (p.role === "1st") row.first++
-      else if (p.role === "corresponding") row.corresponding++
-      else row.coAuthor++
+      const ip = p.status === "Accepted"
+      if (p.role === "1st") ip ? row.firstInPress++ : row.firstPub++
+      else if (p.role === "corresponding") ip ? row.corrInPress++ : row.corrPub++
+      else ip ? row.coInPress++ : row.coPub++
     }
     return [...map.values()].sort((a, b) => a.year - b.year)
   }, [papers])
 
-  // 막대 segment 정의 — filter 에 따라 선택된 role 을 stack 바닥(첫 번째)으로 재배치
+  // 막대 segment 정의 — 각 role 마다 Pub + In Press 한 쌍. In Press 는 같은 role 색이지만
+  // 약간 흐림(60%) 으로 시각 구분. filter 활성 시 비선택 role 은 추가 dim (×0.2 ≈ 0.12).
   const barConfigs = useMemo(() => {
-    type Cfg = { key: "first" | "corresponding" | "coAuthor" | "inPress"; name: string; color: string; role: Filter | null }
-    const base: Cfg[] = [
-      { key: "first",         name: "1st Author",    color: "var(--status-drafting-text)",  role: "1st" },
-      { key: "corresponding", name: "Corresponding", color: "var(--status-published-text)", role: "corresponding" },
-      { key: "coAuthor",      name: "Co-author",     color: "var(--status-idea-text)",      role: "co-author" },
-      { key: "inPress",       name: "In Press",      color: "var(--status-revision-text)",  role: null },
+    type Cfg = {
+      key: "firstPub" | "firstInPress" | "corrPub" | "corrInPress" | "coPub" | "coInPress"
+      name: string
+      color: string
+      role: Filter
+      isInPress: boolean
+    }
+    const ROLE_COLOR: Record<"1st" | "corresponding" | "co-author", string> = {
+      "1st": "var(--status-drafting-text)",
+      "corresponding": "var(--status-published-text)",
+      "co-author": "var(--status-idea-text)",
+    }
+    const pair = (role: "1st" | "corresponding" | "co-author", pubKey: Cfg["key"], inPressKey: Cfg["key"], label: string): Cfg[] => [
+      { key: pubKey,     name: label,                color: ROLE_COLOR[role], role, isInPress: false },
+      { key: inPressKey, name: `${label} (In Press)`, color: ROLE_COLOR[role], role, isInPress: true  },
     ]
-    if (filter === "all") return base
-    const selected = base.find((c) => c.role === filter)
-    if (!selected) return base
-    return [selected, ...base.filter((c) => c.key !== selected.key)]
+    const groups: Record<"1st" | "corresponding" | "co-author", Cfg[]> = {
+      "1st":           pair("1st",           "firstPub", "firstInPress", "1st Author"),
+      "corresponding": pair("corresponding", "corrPub",  "corrInPress",  "Corresponding"),
+      "co-author":     pair("co-author",     "coPub",    "coInPress",    "Co-author"),
+    }
+    const baseOrder: Array<"1st" | "corresponding" | "co-author"> = ["1st", "corresponding", "co-author"]
+    // 선택된 role 을 stack 바닥 (먼저 렌더) 으로 이동
+    const order = filter === "all"
+      ? baseOrder
+      : [filter, ...baseOrder.filter((r) => r !== filter)] as Array<"1st" | "corresponding" | "co-author">
+    return order.flatMap((r) => groups[r])
   }, [filter])
 
   const journalData = useMemo(() => {
@@ -253,6 +280,9 @@ export function MyPapers() {
               {barConfigs.map((cfg, idx) => {
                 const isLast = idx === barConfigs.length - 1
                 const dim = filter !== "all" && cfg.role !== filter
+                // base: Pub = 1.0, InPress = 0.55. dim 시 ×0.2 → ~0.12.
+                const baseOpacity = cfg.isInPress ? 0.55 : 1.0
+                const opacity = dim ? baseOpacity * 0.2 : baseOpacity
                 return (
                   <Bar
                     key={cfg.key}
@@ -260,7 +290,7 @@ export function MyPapers() {
                     name={cfg.name}
                     stackId="a"
                     fill={cfg.color}
-                    fillOpacity={dim ? 0.18 : 1}
+                    fillOpacity={opacity}
                     radius={isLast ? [3, 3, 0, 0] : [0, 0, 0, 0]}
                   />
                 )
