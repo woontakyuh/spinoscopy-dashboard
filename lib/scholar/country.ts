@@ -156,18 +156,22 @@ export function getCountryFlag(country: string): string {
 }
 
 // 주제 키워드 그룹 (트렌드 분석용)
+// 키 삽입 순서 = 차트 표시 우선순위. Tak 의 관심사 순으로 정렬됨.
+// 한 paper 가 여러 그룹에 매칭되면 multi-tag (예: UBE paper 는 UBE + Endoscopy 둘 다).
 export const TOPIC_GROUPS: Record<string, string[]> = {
-  "Endoscopy": ["endoscop", "biportal", "ube ", "unilateral biportal", "full-endoscop", "percutaneous endoscop"],
-  "MIS": ["minimally invasive", "mis ", "mini-open", "tubular", "percutaneous"],
-  "Deformity": ["deformity", "scoliosis", "kyphosis", "sagittal", "coronal", "spinal alignment"],
-  "Cervical": ["cervical", "anterior cervical", "acdf", "arthroplasty", "myelopathy"],
-  "AI/ML": ["artificial intelligence", "machine learning", "deep learning", "neural network", "ai-", "ai "],
-  "Navigation": ["navigation", "robot", "augmented reality", "ar-guided"],
-  "Fusion": ["fusion", "interbody", "plif", "tlif", "alif", "olif", "xlif", "llif"],
-  "Stenosis": ["stenosis", "claudication", "decompression"],
-  "Disc": ["disc herniation", "discectomy", "disc degeneration", "lumbar disc"],
-  "Trauma": ["fracture", "trauma", "burst", "compression fracture"],
+  "Endoscopy":   ["endoscop", "biportal", "full-endoscop", "percutaneous endoscop", "unilateral biportal", "ube "],
+  "UBE":         ["ube ", "biportal", "unilateral biportal"],
+  "MIS":         ["minimally invasive", "mis ", "mini-open", "tubular", "percutaneous"],
+  "AI/ML":       ["artificial intelligence", "machine learning", "deep learning", "neural network", "ai-", "ai "],
+  "PROM":        ["patient-reported outcome", "patient reported outcome", "prom ", "promis", "odi ", "ndi ", "vas score", "mjoa", "eq-5d", "sf-36"],
+  "Registry":    ["registry", "national database", "insurance claims", "nationwide"],
+  "Trauma":      ["fracture", "trauma", "burst", "compression fracture"],
+  "Cervical":    ["cervical", "anterior cervical", "acdf", "arthroplasty", "myelopathy"],
+  "Other degen": ["stenosis", "claudication", "decompression", "disc herniation", "discectomy", "disc degeneration", "lumbar disc", "fusion", "interbody", "plif", "tlif", "alif", "olif", "xlif", "llif", "deformity", "scoliosis"],
 }
+
+// 차트 표시 우선순위 — TOPIC_GROUPS 키 순서 그대로
+export const TOPIC_PRIORITY: readonly string[] = Object.keys(TOPIC_GROUPS)
 
 // 논문 유형 정규화
 export const ARTICLE_TYPES: Record<string, string[]> = {

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
-import { extractCountry, getCountryFlag, TOPIC_GROUPS, normalizeArticleType } from "@/lib/scholar/country"
+import { extractCountry, getCountryFlag, TOPIC_GROUPS, TOPIC_PRIORITY, normalizeArticleType } from "@/lib/scholar/country"
 import type { JournalArticle, JournalQueryResult, InterestLevel, DashboardData } from "@/lib/types/journal"
 
 // ── Constants ──────────────────────────────────────────────
@@ -52,7 +52,7 @@ function interestStyle(interest: string) {
 type ChartFilterKey = "topic" | "country" | "type" | "journal"
 
 const CHART_CONFIG = {
-  topic:   { title: "주제 트렌드",  color: "indigo" as const,  limit: 10 },
+  topic:   { title: "주제 트렌드",  color: "indigo" as const,  limit: 12 },
   country: { title: "국가 분포",    color: "emerald" as const, limit: 12 },
   type:    { title: "논문 유형",    color: "amber" as const,   limit: 10 },
   journal: { title: "저널별",       color: "cyan" as const,    limit: 8  },
@@ -112,6 +112,17 @@ function sortedEntries(record: Record<string, number>, limit: number): [string, 
   return Object.entries(record)
     .sort((a, b) => b[1] - a[1])
     .slice(0, limit)
+}
+
+// Topic 차트 전용 정렬 — TOPIC_PRIORITY 에 있는 항목을 그 순서대로 먼저 (count 0 이라도),
+// 나머지는 count desc.
+function topicSortedEntries(record: Record<string, number>, limit: number): [string, number][] {
+  const prioritySet = new Set(TOPIC_PRIORITY)
+  const priorityRows: [string, number][] = TOPIC_PRIORITY.map((t) => [t, record[t] ?? 0])
+  const otherRows = Object.entries(record)
+    .filter(([t]) => !prioritySet.has(t))
+    .sort((a, b) => b[1] - a[1])
+  return [...priorityRows, ...otherRows].slice(0, limit)
 }
 
 // ── Filter State ────────────────────────────────────────────
@@ -668,7 +679,7 @@ export function PaperDB() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in-up" style={{ animationDelay: "60ms" }}>
             <BarChart
               title={CHART_CONFIG.topic.title}
-              entries={sortedEntries(topicCounts, CHART_CONFIG.topic.limit)}
+              entries={topicSortedEntries(topicCounts, CHART_CONFIG.topic.limit)}
               activeKeys={chartActiveKeys.topic}
               onClickItem={key => handleChartClick("topic", key)}
               color="indigo"
