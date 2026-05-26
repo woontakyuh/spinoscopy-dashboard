@@ -73,8 +73,11 @@ async function warrenGreeting(origin: string): Promise<string> {
       fetch(`${origin}/api/vault/prices`, { cache: "no-store" }),
       fetch(`${origin}/api/vault/news`, { cache: "no-store" }),
     ])
-    const prices = pricesRes.ok ? (await pricesRes.json()) as PriceRow[] : []
-    const news = newsRes.ok ? (await newsRes.json()) as NewsRow[] : []
+    // 두 엔드포인트 모두 응답이 wrap 돼 있음: { prices: [...] } / { items: [...] }
+    const pricesPayload = pricesRes.ok ? (await pricesRes.json()) as { prices?: PriceRow[] } : {}
+    const newsPayload = newsRes.ok ? (await newsRes.json()) as { items?: NewsRow[] } : {}
+    const prices: PriceRow[] = pricesPayload.prices ?? []
+    const news: NewsRow[] = newsPayload.items ?? []
     const btc = prices.find((p) => p.symbol === "BTC")
     const btcNews = news.find((n) => n.asset === "BTC")
     if (!btc) return "여선생, 비트코인 시세 못 가져왔어요. 잠시 후 다시."
