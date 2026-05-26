@@ -110,12 +110,16 @@ export function MyPapers() {
 
   /* ── chart data ── */
 
+  // 연도별: Published 만 role 별로 stack 하고, Accepted (In Press) 는 별도 segment 로 분리.
+  // → 해당 연도가 아직 In Press 미정 상태로 몇 편 끼어있는지 한눈에.
   const yearData = useMemo(() => {
-    const map = new Map<number, { year: number; first: number; corresponding: number; coAuthor: number }>()
+    const map = new Map<number, { year: number; first: number; corresponding: number; coAuthor: number; inPress: number }>()
     for (const p of papers) {
-      if (!map.has(p.year)) map.set(p.year, { year: p.year, first: 0, corresponding: 0, coAuthor: 0 })
+      if (!map.has(p.year)) map.set(p.year, { year: p.year, first: 0, corresponding: 0, coAuthor: 0, inPress: 0 })
       const row = map.get(p.year)!
-      if (p.role === "1st") row.first++
+      if (p.status === "Accepted") {
+        row.inPress++
+      } else if (p.role === "1st") row.first++
       else if (p.role === "corresponding") row.corresponding++
       else row.coAuthor++
     }
@@ -233,7 +237,8 @@ export function MyPapers() {
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Bar dataKey="first" name="1st Author" stackId="a" fill="var(--status-drafting-text)" radius={[0, 0, 0, 0]} />
               <Bar dataKey="corresponding" name="Corresponding" stackId="a" fill="var(--status-published-text)" />
-              <Bar dataKey="coAuthor" name="Co-author" stackId="a" fill="var(--status-idea-text)" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="coAuthor" name="Co-author" stackId="a" fill="var(--status-idea-text)" />
+              <Bar dataKey="inPress" name="In Press" stackId="a" fill="var(--status-revision-text)" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -359,13 +364,38 @@ export function MyPapers() {
                 >
                   {paper.title}
                 </p>
-                <p className="text-xs mt-0.5 opacity-50" style={{ color: "var(--scholar-accent-text)" }}>
-                  {paper.journal}
+                <p className="text-xs mt-0.5 opacity-70 flex items-center gap-1.5 flex-wrap" style={{ color: "var(--scholar-accent-text)" }}>
+                  <span className="opacity-70">{paper.journal}</span>
                   {paper.doi && (
                     <>
-                      {" · "}
-                      <a href={paper.doi.startsWith("http") ? paper.doi : `https://doi.org/${paper.doi}`} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                      <span className="opacity-30">·</span>
+                      <a
+                        href={paper.doi.startsWith("http") ? paper.doi : `https://doi.org/${paper.doi}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 underline underline-offset-2 hover:opacity-100"
+                      >
                         DOI
+                      </a>
+                    </>
+                  )}
+                  {paper.url && (
+                    <>
+                      <span className="opacity-30">·</span>
+                      <a
+                        href={paper.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-0.5 hover:opacity-100"
+                        title="Notion 페이지 열기"
+                        aria-label="Notion 페이지 열기"
+                      >
+                        <svg className="size-3.5" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
+                          <path d="M6.017 4.313l55.333-4.087c6.797-.583 8.543-.19 12.817 2.917l17.663 12.443c2.913 2.14 3.883 2.723 3.883 5.053v68.243c0 4.277-1.553 6.807-6.99 7.193L24.467 99.967c-4.08.193-6.023-.39-8.16-3.113L3.3 79.94c-2.333-3.113-3.3-5.443-3.3-8.167V11.113c0-3.497 1.553-6.413 6.017-6.8z" fillRule="evenodd" opacity=".7"/>
+                        </svg>
+                        Notion
                       </a>
                     </>
                   )}
