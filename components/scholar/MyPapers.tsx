@@ -89,6 +89,56 @@ export function MyPapers() {
       }))
   }, [research])
 
+  // OpenAlex 에서 DOI 별 인용수 조회 (1시간 캐시)
+  const doisForCitation = useMemo(
+    () => papers.map((p) => p.doi).filter((d): d is string => Boolean(d)),
+    [papers],
+  )
+  const { data: citationsMap } = useQuery<Record<string, number>>({
+    queryKey: ["paper-citations", doisForCitation.sort().join("|")],
+    queryFn: async () => {
+      if (doisForCitation.length === 0) return {}
+      const res = await fetch("/api/scholar/citations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dois: doisForCitation }),
+      })
+      if (!res.ok) throw new Error("citations fetch failed")
+      const data = (await res.json()) as { citations: Record<string, number> }
+      return data.citations
+    },
+    enabled: doisForCitation.length > 0,
+    staleTime: 60 * 60 * 1000,  // 1시간
+  })
+
+  function normalizeDoi(raw: string): string {
+    return raw.trim().toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//i, "")
+  }
+  function citationOf(doi: string | null): number | null {
+    if (!doi || !citationsMap) return null
+    const v = citationsMap[normalizeDoi(doi)]
+    return typeof v === "number" ? v : null
+  }
+
+  // h-index / total / i10 — DOI 가 있는 paper 만 대상
+  const citationMetrics = useMemo(() => {
+    if (!citationsMap) return null
+    const counts: number[] = papers
+      .map((p) => citationOf(p.doi))
+      .filter((c): c is number => c !== null)
+    if (counts.length === 0) return null
+    const sorted = [...counts].sort((a, b) => b - a)
+    let h = 0
+    for (let i = 0; i < sorted.length; i++) {
+      if (sorted[i] >= i + 1) h = i + 1
+      else break
+    }
+    const total = counts.reduce((s, c) => s + c, 0)
+    const i10 = counts.filter((c) => c >= 10).length
+    return { h, total, i10, withCitationData: counts.length }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [papers, citationsMap])
+
   const counts = useMemo(() => {
     const first = papers.filter(p => p.role === "1st").length
     const corr  = papers.filter(p => p.role === "corresponding").length
@@ -168,6 +218,14 @@ export function MyPapers() {
     { label: "Co-author", value: counts.co, sub: safePercent(counts.co) },
   ]
 
+  // 인용 지표 카드 (OpenAlex 기반). 데이터 없으면 카드 자체 안 보임.
+  const citationCards = citationMetrics ? [
+    { label: "Total Citations", value: citationMetrics.total, sub: "" },
+    { label: "h-index", value: citationMetrics.h, sub: "" },
+    { label: "i10-index", value: citationMetrics.i10, sub: "" },
+    { label: "Avg/논문", value: Math.round(citationMetrics.total / citationMetrics.withCitationData), sub: `${citationMetrics.withCitationData}편 기준` },
+  ] : null
+
   const filters: { key: Filter; label: string }[] = [
     { key: "all", label: "All" },
     { key: "1st", label: "1st Author" },
@@ -201,7 +259,7 @@ export function MyPapers() {
         </a>
       </div>
 
-      {/* ── Metric cards ── */}
+      {/* ── Metric cards (composition: role / count) ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {metrics.map(m => (
           <div
@@ -224,6 +282,32 @@ export function MyPapers() {
           </div>
         ))}
       </div>
+
+      {/* ── Citation metric cards (OpenAlex 기반) ── */}
+      {citationCards && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {citationCards.map(m => (
+            <div
+              key={m.label}
+              className="rounded-xl p-4 border transition-colors"
+              style={{
+                backgroundColor: "var(--scholar-metric)",
+                borderColor: "var(--scholar-accent-light)",
+              }}
+            >
+              <p className="text-xs opacity-60 mb-1" style={{ color: "var(--scholar-accent-text)" }}>
+                {m.label}
+              </p>
+              <p className="text-2xl font-bold num" style={{ color: "var(--scholar-accent)" }}>
+                {m.value}
+                {m.sub && (
+                  <span className="text-sm font-normal ml-1.5 opacity-60">{m.sub}</span>
+                )}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── Charts ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -392,6 +476,18 @@ export function MyPapers() {
                 </p>
                 <p className="text-xs mt-0.5 opacity-70 flex items-center gap-1.5 flex-wrap" style={{ color: "var(--scholar-accent-text)" }}>
                   <span className="opacity-70">{paper.journal}</span>
+                  {(() => {
+                    const c = citationOf(paper.doi)
+                    if (c === null) return null
+                    return (
+                      <>
+                        <span className="opacity-30">·</span>
+                        <span className="num font-medium" title="OpenAlex 인용 수">
+                          🔗 {c}
+                        </span>
+                      </>
+                    )
+                  })()}
                   {paper.doi && (
                     <>
                       <span className="opacity-30">·</span>
