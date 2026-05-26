@@ -121,8 +121,14 @@ export function MyPapers() {
     return typeof v === "number" ? v : null
   }
 
+  // 연도 필터 적용 후의 풀 — 이후 role 필터 / counts / metrics 다 이거 기준
+  const pooledByYear = useMemo(
+    () => (yearFilter === null ? papers : papers.filter((p) => p.year === yearFilter)),
+    [papers, yearFilter],
+  )
+
   // h-index / i10 — 항상 전체 paper 기준 (필터 무관)
-  // total / avg — filter (role) 에 따라 해당 그룹만 집계
+  // total / avg — filter (role + year) 에 따라 해당 그룹만 집계
   const citationMetrics = useMemo(() => {
     if (!citationsMap) return null
     const allCounts: number[] = papers
@@ -147,12 +153,6 @@ export function MyPapers() {
     return { h, i10, total, avg, totalSampleSize: filteredCounts.length, globalSampleSize: allCounts.length }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [papers, pooledByYear, citationsMap, filter])
-
-  // 연도 필터 적용 후의 풀 — 이후 role 필터 / counts / metrics 다 이거 기준
-  const pooledByYear = useMemo(
-    () => (yearFilter === null ? papers : papers.filter((p) => p.year === yearFilter)),
-    [papers, yearFilter],
-  )
 
   const counts = useMemo(() => {
     const first = pooledByYear.filter(p => p.role === "1st").length
