@@ -205,6 +205,9 @@ export function PaperDB() {
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  // 클라이언트 사이드 페이지네이션 — 20 편씩 노출, "더보기" 클릭마다 +20
+  const PAGE_SIZE = 20
+  const [displayLimit, setDisplayLimit] = useState(PAGE_SIZE)
 
   // Debounce search
   useEffect(() => {
@@ -562,7 +565,18 @@ export function PaperDB() {
   }, [displayArticles, subTab])
 
   // Reset sub-tab when filters change
-  useEffect(() => { setSubTab(null) }, [filters.journals.length, filters.topics.length, filters.countries.length, filters.types.length])
+  useEffect(() => { setSubTab(null); setDisplayLimit(PAGE_SIZE) }, [filters.journals.length, filters.topics.length, filters.countries.length, filters.types.length])
+
+  // 필터 변경 / "더보기" 클릭 후 finalArticles 가 displayLimit 미달이면 Notion 페이지 추가 fetch.
+  // (예: PROM 토픽 클릭 시 첫 100 편 중 5 편만 매칭되면 자동으로 다음 100 편 가져와 20 편 채울 때까지)
+  useEffect(() => {
+    if (!isLoadingMore && hasMore && finalArticles.length < displayLimit) {
+      handleLoadMore()
+    }
+  }, [finalArticles.length, displayLimit, hasMore, isLoadingMore, handleLoadMore])
+
+  const visibleArticles = useMemo(() => finalArticles.slice(0, displayLimit), [finalArticles, displayLimit])
+  const showMoreVisible = displayLimit < finalArticles.length || hasMore
 
   return (
     <div className="space-y-3">
@@ -799,7 +813,7 @@ export function PaperDB() {
           </div>
 
           {/* Rows */}
-          {finalArticles.map((article) => (
+          {visibleArticles.map((article) => (
             <Fragment key={article.page_id}>
               <div
                 role="button"
@@ -891,16 +905,16 @@ export function PaperDB() {
       {!isLoading && !error && finalArticles.length > 0 && (
         <div className="flex items-center justify-between px-1">
           <span className="text-muted-foreground/70 text-xs num">
-            {finalArticles.length}편 표시{hasMore ? " · 더 있음" : ""}
+            {visibleArticles.length} / {finalArticles.length}편 표시{hasMore ? " · 더 있음" : ""}
           </span>
-          {hasMore && (
+          {showMoreVisible && (
             <button
               type="button"
-              onClick={handleLoadMore}
+              onClick={() => setDisplayLimit((d) => d + PAGE_SIZE)}
               disabled={isLoadingMore}
               className="px-4 py-1.5 rounded-lg text-xs font-medium bg-muted text-foreground/90 border border-border hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50"
             >
-              {isLoadingMore ? "로딩 중..." : "더보기"}
+              {isLoadingMore ? "로딩 중..." : `더보기 (+${PAGE_SIZE})`}
             </button>
           )}
         </div>
