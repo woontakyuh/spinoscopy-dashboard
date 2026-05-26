@@ -110,12 +110,11 @@ export function MyPapers() {
 
   /* ── chart data ── */
 
-  // 연도별: Published 만 role 별로 stack 하고, Accepted (In Press) 는 별도 segment 로 분리.
-  // → 해당 연도가 아직 In Press 미정 상태로 몇 편 끼어있는지 한눈에.
-  // 차트도 role 필터(filter) 에 맞춰 같이 줄어듦.
+  // 연도별: 전체 paper 기반 (filter 무관) — 막대 총 높이 / 좌우 연도 축은 항상 같은 모양 유지.
+  // Role 필터는 opacity 와 stack 순서로 표현 (선택된 role 만 진하게 + 바닥으로 이동).
   const yearData = useMemo(() => {
     const map = new Map<number, { year: number; first: number; corresponding: number; coAuthor: number; inPress: number }>()
-    for (const p of filtered) {
+    for (const p of papers) {
       if (!map.has(p.year)) map.set(p.year, { year: p.year, first: 0, corresponding: 0, coAuthor: 0, inPress: 0 })
       const row = map.get(p.year)!
       if (p.status === "Accepted") {
@@ -125,7 +124,22 @@ export function MyPapers() {
       else row.coAuthor++
     }
     return [...map.values()].sort((a, b) => a.year - b.year)
-  }, [filtered])
+  }, [papers])
+
+  // 막대 segment 정의 — filter 에 따라 선택된 role 을 stack 바닥(첫 번째)으로 재배치
+  const barConfigs = useMemo(() => {
+    type Cfg = { key: "first" | "corresponding" | "coAuthor" | "inPress"; name: string; color: string; role: Filter | null }
+    const base: Cfg[] = [
+      { key: "first",         name: "1st Author",    color: "var(--status-drafting-text)",  role: "1st" },
+      { key: "corresponding", name: "Corresponding", color: "var(--status-published-text)", role: "corresponding" },
+      { key: "coAuthor",      name: "Co-author",     color: "var(--status-idea-text)",      role: "co-author" },
+      { key: "inPress",       name: "In Press",      color: "var(--status-revision-text)",  role: null },
+    ]
+    if (filter === "all") return base
+    const selected = base.find((c) => c.role === filter)
+    if (!selected) return base
+    return [selected, ...base.filter((c) => c.key !== selected.key)]
+  }, [filter])
 
   const journalData = useMemo(() => {
     const map = new Map<string, number>()
@@ -236,10 +250,21 @@ export function MyPapers() {
                 }}
               />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="first" name="1st Author" stackId="a" fill="var(--status-drafting-text)" radius={[0, 0, 0, 0]} />
-              <Bar dataKey="corresponding" name="Corresponding" stackId="a" fill="var(--status-published-text)" />
-              <Bar dataKey="coAuthor" name="Co-author" stackId="a" fill="var(--status-idea-text)" />
-              <Bar dataKey="inPress" name="In Press" stackId="a" fill="var(--status-revision-text)" radius={[3, 3, 0, 0]} />
+              {barConfigs.map((cfg, idx) => {
+                const isLast = idx === barConfigs.length - 1
+                const dim = filter !== "all" && cfg.role !== filter
+                return (
+                  <Bar
+                    key={cfg.key}
+                    dataKey={cfg.key}
+                    name={cfg.name}
+                    stackId="a"
+                    fill={cfg.color}
+                    fillOpacity={dim ? 0.18 : 1}
+                    radius={isLast ? [3, 3, 0, 0] : [0, 0, 0, 0]}
+                  />
+                )
+              })}
             </BarChart>
           </ResponsiveContainer>
         </div>
