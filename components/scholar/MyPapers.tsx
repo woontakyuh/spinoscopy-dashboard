@@ -112,9 +112,10 @@ export function MyPapers() {
 
   // 연도별: Published 만 role 별로 stack 하고, Accepted (In Press) 는 별도 segment 로 분리.
   // → 해당 연도가 아직 In Press 미정 상태로 몇 편 끼어있는지 한눈에.
+  // 차트도 role 필터(filter) 에 맞춰 같이 줄어듦.
   const yearData = useMemo(() => {
     const map = new Map<number, { year: number; first: number; corresponding: number; coAuthor: number; inPress: number }>()
-    for (const p of papers) {
+    for (const p of filtered) {
       if (!map.has(p.year)) map.set(p.year, { year: p.year, first: 0, corresponding: 0, coAuthor: 0, inPress: 0 })
       const row = map.get(p.year)!
       if (p.status === "Accepted") {
@@ -124,15 +125,15 @@ export function MyPapers() {
       else row.coAuthor++
     }
     return [...map.values()].sort((a, b) => a.year - b.year)
-  }, [papers])
+  }, [filtered])
 
   const journalData = useMemo(() => {
     const map = new Map<string, number>()
-    for (const p of papers) map.set(p.journal, (map.get(p.journal) || 0) + 1)
+    for (const p of filtered) map.set(p.journal, (map.get(p.journal) || 0) + 1)
     return [...map.entries()]
       .map(([journal, count]) => ({ journal, count }))
       .sort((a, b) => b.count - a.count)
-  }, [papers])
+  }, [filtered])
 
   /* ── render ── */
 
