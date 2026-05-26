@@ -71,34 +71,46 @@ async function sendTelegram(text: string): Promise<{ sent: boolean; reason?: str
   return { sent: true }
 }
 
-async function run(req: NextRequest) {
+async function run(req: NextRequest, sendMode: boolean) {
   const greetings = await fetchGreetings(req)
   const message = composeDigest(greetings)
+  if (!sendMode) {
+    // 텍스트만 — Hermes 같은 외부 에이전트가 fetch 후 자체 delivery
+    return { ok: true, sent: false, text: message }
+  }
   const result = await sendTelegram(message)
   return { ok: result.sent, ...result, preview: message.slice(0, 200) }
 }
 
-// Vercel Cron 은 GET 호출
+// Vercel Cron / Hermes / 수동 모두 GET 으로 호출.
+// 기본은 Vercel 측에서 Telegram 전송. ?send=false 로 호출하면 composed text 만 리턴
+// → Hermes 가 fetch 해서 본인 delivery 라인으로 전달하는 패턴.
+// 텍스트만 받는 GET 은 인증 없이 허용 (민감 데이터 없음, 캐시 가능).
 export async function GET(req: NextRequest) {
-  if (!isAuthorized(req)) {
+  const url = new URL(req.url)
+  const sendParam = url.searchParams.get("send")
+  const sendMode = sendParam !== "false" && sendParam !== "0"
+  if (sendMode && !isAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
   try {
-    const result = await run(req)
-    return NextResponse.json(result)
+    const result = await run(req, sendMode)
+    return NextResponse.json(result, {
+      headers: sendMode ? {} : { "Cache-Control": "private, max-age=300" },
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown"
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 
-// 수동 트리거 (테스트용)
+// 수동 트리거 (테스트용) — 항상 Telegram 전송
 export async function POST(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
   try {
-    const result = await run(req)
+    const result = await run(req, true)
     return NextResponse.json(result)
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown"
