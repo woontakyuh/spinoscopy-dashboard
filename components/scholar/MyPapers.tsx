@@ -120,24 +120,32 @@ export function MyPapers() {
     return typeof v === "number" ? v : null
   }
 
-  // h-index / total / i10 — DOI 가 있는 paper 만 대상
+  // h-index / i10 — 항상 전체 paper 기준 (필터 무관)
+  // total / avg — filter (role) 에 따라 해당 그룹만 집계
   const citationMetrics = useMemo(() => {
     if (!citationsMap) return null
-    const counts: number[] = papers
+    const allCounts: number[] = papers
       .map((p) => citationOf(p.doi))
       .filter((c): c is number => c !== null)
-    if (counts.length === 0) return null
-    const sorted = [...counts].sort((a, b) => b - a)
+    if (allCounts.length === 0) return null
+    const sortedAll = [...allCounts].sort((a, b) => b - a)
     let h = 0
-    for (let i = 0; i < sorted.length; i++) {
-      if (sorted[i] >= i + 1) h = i + 1
+    for (let i = 0; i < sortedAll.length; i++) {
+      if (sortedAll[i] >= i + 1) h = i + 1
       else break
     }
-    const total = counts.reduce((s, c) => s + c, 0)
-    const i10 = counts.filter((c) => c >= 10).length
-    return { h, total, i10, withCitationData: counts.length }
+    const i10 = allCounts.filter((c) => c >= 10).length
+
+    // filter 반응 부분
+    const filteredCounts: number[] = (filter === "all" ? papers : papers.filter((p) => p.role === filter))
+      .map((p) => citationOf(p.doi))
+      .filter((c): c is number => c !== null)
+    const total = filteredCounts.reduce((s, c) => s + c, 0)
+    const avg = filteredCounts.length > 0 ? Math.round(total / filteredCounts.length) : 0
+
+    return { h, i10, total, avg, totalSampleSize: filteredCounts.length, globalSampleSize: allCounts.length }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [papers, citationsMap])
+  }, [papers, citationsMap, filter])
 
   const counts = useMemo(() => {
     const first = papers.filter(p => p.role === "1st").length
@@ -219,11 +227,13 @@ export function MyPapers() {
   ]
 
   // 인용 지표 카드 (OpenAlex 기반). 데이터 없으면 카드 자체 안 보임.
+  // 순서: h-index → i10-index → Total Citations → Avg/논문
+  // h-index, i10-index 는 항상 전체 기준 (필터 영향 X). Total / Avg 는 선택된 role 에 반응.
   const citationCards = citationMetrics ? [
-    { label: "Total Citations", value: citationMetrics.total, sub: "" },
-    { label: "h-index", value: citationMetrics.h, sub: "" },
+    { label: "h-index", value: citationMetrics.h, sub: `${citationMetrics.globalSampleSize}편 기준` },
     { label: "i10-index", value: citationMetrics.i10, sub: "" },
-    { label: "Avg/논문", value: Math.round(citationMetrics.total / citationMetrics.withCitationData), sub: `${citationMetrics.withCitationData}편 기준` },
+    { label: "Total Citations", value: citationMetrics.total, sub: filter !== "all" ? `${filter}` : "" },
+    { label: "Avg/논문", value: citationMetrics.avg, sub: `${citationMetrics.totalSampleSize}편 기준` },
   ] : null
 
   const filters: { key: Filter; label: string }[] = [
@@ -324,15 +334,7 @@ export function MyPapers() {
               <CartesianGrid strokeDasharray="3 3" stroke="var(--scholar-accent-light)" />
               <XAxis dataKey="year" tick={{ fontSize: 11, fill: "var(--scholar-accent-text)" }} />
               <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "var(--scholar-accent-text)" }} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "var(--scholar-card)",
-                  border: "1px solid var(--scholar-accent-light)",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  color: "var(--scholar-accent-text)",
-                }}
-              />
+              <Tooltip content={<YearTooltipContent />} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               {barConfigs.map((cfg, idx) => {
                 const isLast = idx === barConfigs.length - 1
@@ -532,6 +534,34 @@ export function MyPapers() {
           </p>
         )}
       </div>
+    </div>
+  )
+}
+
+// 연도별 차트 호버 — value 가 0 인 series 는 한 줄도 표시하지 않음 (특히 In Press 가
+// 0 인 해엔 In Press 자체 미표시).
+type RechartsTooltipItem = { name?: string; value?: number | null; color?: string; dataKey?: string | number }
+function YearTooltipContent({ active, payload, label }: { active?: boolean; payload?: RechartsTooltipItem[]; label?: string | number }) {
+  if (!active || !payload || payload.length === 0) return null
+  const nonZero = payload.filter((p) => typeof p.value === "number" && p.value > 0)
+  if (nonZero.length === 0) return null
+  return (
+    <div
+      className="rounded-lg border px-3 py-2 text-xs shadow-md"
+      style={{
+        backgroundColor: "var(--scholar-card)",
+        borderColor: "var(--scholar-accent-light)",
+        color: "var(--scholar-accent-text)",
+      }}
+    >
+      <p className="font-semibold mb-1 num">{label}</p>
+      {nonZero.map((p) => (
+        <div key={String(p.dataKey)} className="flex items-center gap-1.5">
+          <span className="size-2 rounded-sm" style={{ background: p.color }} />
+          <span className="opacity-80">{p.name}</span>
+          <span className="num font-medium ml-auto">{p.value}</span>
+        </div>
+      ))}
     </div>
   )
 }
