@@ -616,7 +616,7 @@ function LaneCard({
           {rightSide}
         </div>
         {/* Row 2: Title */}
-        <p className={`text-xs leading-snug ${laneId === "accepted" || laneId === "rejected" ? "text-muted-foreground" : "text-foreground"} ${expanded ? "" : "line-clamp-2"}`}>
+        <p className={`text-xs leading-snug ${laneId === "accepted" || laneId === "rejected" ? "text-muted-foreground" : "text-foreground"}`}>
           {item.name || "(제목 없음)"}
         </p>
         {/* Row 3: Methodology + meta */}

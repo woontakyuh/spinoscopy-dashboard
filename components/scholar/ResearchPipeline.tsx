@@ -440,9 +440,21 @@ function ProjectCard({
         </div>
       )}
 
-      {/* Title */}
-      <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug mb-2">
-        {project.title}
+      {/* Title — 클릭하면 Notion 페이지로 (카드 전체 클릭은 detail panel 토글이라 stopPropagation) */}
+      <p className="text-sm font-medium leading-snug mb-2">
+        {project.url ? (
+          <a
+            href={project.url}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="text-foreground hover:text-indigo-300 hover:underline underline-offset-2 transition-colors"
+          >
+            {project.title}
+          </a>
+        ) : (
+          <span className="text-foreground">{project.title}</span>
+        )}
       </p>
 
       {/* Target Journal */}
