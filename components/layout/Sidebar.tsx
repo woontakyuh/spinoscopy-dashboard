@@ -3,6 +3,8 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { useDemoMode } from "@/components/layout/DemoModeContext"
+import { DEMO_AGENT_IDS } from "@/lib/demo"
 
 const NAV_ITEMS = [
   { icon: "📋", image: "/dakota.png", label: "Dakota", href: "/agents/dakota", active: true, color: "bg-blue-600" },
@@ -15,6 +17,14 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const demo = useDemoMode()
+  const navItems = demo
+    ? NAV_ITEMS.filter((item) =>
+        (DEMO_AGENT_IDS as readonly string[]).some(
+          (id) => item.href === `/agents/${id}`,
+        ),
+      )
+    : NAV_ITEMS
 
   return (
     <aside className="w-16 min-h-screen bg-card border-r border-border flex flex-col shrink-0">
@@ -29,7 +39,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 p-1.5 space-y-1">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const isCurrentPage = item.href !== "#" && (
             item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
           )

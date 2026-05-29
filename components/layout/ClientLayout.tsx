@@ -4,8 +4,15 @@ import { useState } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { Sidebar } from "./Sidebar"
 import { usePathname } from "next/navigation"
+import { DemoModeProvider } from "./DemoModeContext"
 
-export function ClientLayout({ children }: { children: React.ReactNode }) {
+export function ClientLayout({
+  children,
+  demoMode = false,
+}: {
+  children: React.ReactNode
+  demoMode?: boolean
+}) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: { queries: { staleTime: 30000 } },
   }))
@@ -13,6 +20,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   const isLogin = pathname === "/login"
 
   return (
+    <DemoModeProvider value={demoMode}>
     <QueryClientProvider client={queryClient}>
       {isLogin ? (
         children
@@ -25,5 +33,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         </div>
       )}
     </QueryClientProvider>
+    </DemoModeProvider>
   )
 }

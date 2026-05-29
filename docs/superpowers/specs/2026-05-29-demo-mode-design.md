@@ -18,9 +18,18 @@ Real Notion data is shown as-is (explicit user decision). No fake/sample data.
 
 ## Non-Goals
 
-- No auth enforcement added to the **main** domain (it currently has none; out of scope).
+- No change to the **main** domain's existing auth (it is already gated by `proxy.ts`
+  with `DASHBOARD_PASSWORD`).
 - No fake data layer.
 - No changes to agent feature pages other than access gating in demo mode.
+
+## Implementation note (discovered during build)
+
+Next.js 16 renamed `middleware.ts` → `proxy.ts`, and the project **already has a
+`proxy.ts`** that gates every route with `DASHBOARD_PASSWORD`. Demo logic is therefore
+**integrated into the existing `proxy.ts`** (not a new `middleware.ts`): on the demo
+host it additionally accepts `DEMO_PASSWORD`, blocks non-(elon/brian) agent paths, and
+forwards the `x-demo=1` header.
 
 ## How it works — domain detection
 

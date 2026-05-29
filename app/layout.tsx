@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { headers } from "next/headers";
 import "./globals.css";
 import { ClientLayout } from "@/components/layout/ClientLayout";
 
@@ -15,11 +16,12 @@ export const metadata: Metadata = {
   description: "AI Agent Dashboard for Tak, MD",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const demoMode = (await headers()).get("x-demo") === "1"
   return (
     <html lang="ko" suppressHydrationWarning>
       <head>
@@ -30,7 +32,7 @@ export default function RootLayout({
         />
       </head>
       <body className={`${interSans.variable} antialiased bg-background text-foreground`}>
-        <ClientLayout>{children}</ClientLayout>
+        <ClientLayout demoMode={demoMode}>{children}</ClientLayout>
       </body>
     </html>
   );
