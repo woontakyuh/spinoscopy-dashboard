@@ -4,6 +4,8 @@ import Link from "next/link"
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Badge } from "@/components/ui/badge"
+import { useDemoMode } from "@/components/layout/DemoModeContext"
+import { DEMO_AGENT_IDS } from "@/lib/demo"
 
 const AGENTS = [
   { id: "elon",   icon: "🩺", image: "/elon.png", name: "Elon", desc: "환자 · 수술 DB", active: true, href: "/agents/elon", accent: "border-emerald-500/30" },
@@ -17,6 +19,10 @@ type AgentId = (typeof AGENTS)[number]["id"]
 
 export function AgentGrid() {
   const [hoveredId, setHoveredId] = useState<AgentId | null>(null)
+  const demo = useDemoMode()
+  const agents = demo
+    ? AGENTS.filter((a) => (DEMO_AGENT_IDS as readonly string[]).includes(a.id))
+    : AGENTS
 
   const { data: greetings } = useQuery<Record<AgentId, string>>({
     queryKey: ["dashboard-greetings"],
@@ -30,8 +36,8 @@ export function AgentGrid() {
   })
 
   return (
-    <div className="grid grid-cols-5 gap-2 md:gap-3">
-      {AGENTS.map((agent) => {
+    <div className={`grid ${demo ? "grid-cols-2" : "grid-cols-5"} gap-2 md:gap-3`}>
+      {agents.map((agent) => {
         const isHovered = hoveredId === agent.id
         const greeting = greetings?.[agent.id]
         const card = (

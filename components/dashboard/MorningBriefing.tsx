@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useChat } from "@ai-sdk/react"
 import { TextStreamChatTransport } from "ai"
 import { WeatherInline, useWeatherLocation } from "@/components/dashboard/WeatherInline"
+import { useDemoMode } from "@/components/layout/DemoModeContext"
 import { pickDakotaGreeting } from "@/lib/dakotaGreetings"
 import { useSpeechRecognition, useElevenLabsSpeech } from "@/lib/voice"
 import {
@@ -35,6 +36,7 @@ function DakotaGreetingChat({
   weatherLocation: string | null
 }) {
   const { image, mode, setMode, applyOutfitOverride } = useDakotaImage()
+  const demo = useDemoMode()
   const [inputValue, setInputValue] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -607,23 +609,34 @@ function DakotaGreetingChat({
         </div>
       </div>
 
-      {/* 우측: 인사 말풍선만 — 채팅하려면 사진 클릭 */}
-      <div className="relative flex-1 min-w-0 mt-2">
-        <div
-          className="relative bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 md:px-5 md:py-3 shadow-lg cursor-pointer hover:bg-card/90 transition-colors"
-          onClick={() => setFocused(true)}
-          title="클릭해서 Dakota와 대화"
-        >
-          <span aria-hidden className="absolute -left-2 top-3 w-3 h-3 rotate-45 bg-card border-l border-t border-border" />
-          <h2 className="text-base md:text-lg font-semibold text-foreground tracking-tight">
-            {greeting}
-          </h2>
+      {/* 우측 */}
+      {demo ? (
+        // 데모: 말풍선 없이 날씨/날짜만 평문으로
+        <div className="flex-1 min-w-0 mt-2">
           <div className="mt-1"><WeatherInline /></div>
           <p className="text-muted-foreground text-xs md:text-sm mt-1">
             {dateStr}{weatherLocation && <span className="ml-2 text-muted-foreground/70">· {weatherLocation}</span>}
           </p>
         </div>
-      </div>
+      ) : (
+        // 인사 말풍선 — 채팅하려면 사진 클릭
+        <div className="relative flex-1 min-w-0 mt-2">
+          <div
+            className="relative bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 md:px-5 md:py-3 shadow-lg cursor-pointer hover:bg-card/90 transition-colors"
+            onClick={() => setFocused(true)}
+            title="클릭해서 Dakota와 대화"
+          >
+            <span aria-hidden className="absolute -left-2 top-3 w-3 h-3 rotate-45 bg-card border-l border-t border-border" />
+            <h2 className="text-base md:text-lg font-semibold text-foreground tracking-tight">
+              {greeting}
+            </h2>
+            <div className="mt-1"><WeatherInline /></div>
+            <p className="text-muted-foreground text-xs md:text-sm mt-1">
+              {dateStr}{weatherLocation && <span className="ml-2 text-muted-foreground/70">· {weatherLocation}</span>}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
