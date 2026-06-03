@@ -9,6 +9,29 @@ function getChatText(parts: Array<{ type: string; text?: string }>): string {
   return parts.filter((p) => p.type === "text" && p.text).map((p) => p.text).join("")
 }
 
+function isTelemetryAgent(agentId: string): agentId is "dakota" | "elon" | "brian" | "lo" | "warren" | "andrej" {
+  return ["dakota", "elon", "brian", "lo", "warren", "andrej"].includes(agentId)
+}
+
+function emitAgentEvent(agentId: string, kind: "received" | "reported", summary: string) {
+  if (!isTelemetryAgent(agentId)) return Promise.resolve()
+  return fetch("/api/orchestrator/events", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      agent: agentId,
+      role: kind === "received" ? "user" : "specialist",
+      kind,
+      status: "completed",
+      channel: "dashboard",
+      summary,
+      requiresApproval: false,
+      approvalState: "none",
+      artifactType: kind === "reported" ? "report" : undefined,
+    }),
+  }).catch(() => {})
+}
+
 interface AgentChatProps {
   agentId: string
   image: string
@@ -21,6 +44,7 @@ export function AgentChat({ agentId, image, name, greeting }: AgentChatProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [focused, setFocused] = useState(false)
   const sessionStartRef = useRef<{ time: string; messageCount: number } | null>(null)
+  const lastReportedMessageIdRef = useRef<string | null>(null)
 
   const { messages, sendMessage, status, error, setMessages } = useChat({
     transport: new TextStreamChatTransport({
@@ -54,6 +78,16 @@ export function AgentChat({ agentId, image, name, greeting }: AgentChatProps) {
       localStorage.setItem(storageKey, JSON.stringify(messages.slice(-50)))
     } catch {}
   }, [messages, storageKey])
+
+  useEffect(() => {
+    if (isStreaming) return
+    const lastAssistant = [...messages].reverse().find((message) => message.role === "assistant")
+    if (!lastAssistant || lastAssistant.id === lastReportedMessageIdRef.current) return
+    const text = getChatText(lastAssistant.parts).trim()
+    if (!text) return
+    lastReportedMessageIdRef.current = lastAssistant.id
+    void emitAgentEvent(agentId, "reported", text.slice(0, 220))
+  }, [agentId, isStreaming, messages])
 
   // 세션 저장 (focus 닫힐 때)
   useEffect(() => {
@@ -123,6 +157,7 @@ export function AgentChat({ agentId, image, name, greeting }: AgentChatProps) {
     const text = inputValue.trim()
     if (!text || isStreaming) return
     setInputValue("")
+    void emitAgentEvent(agentId, "received", text.slice(0, 220))
     sendMessage({ text })
   }
 

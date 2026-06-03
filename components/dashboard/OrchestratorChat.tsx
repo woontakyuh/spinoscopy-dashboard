@@ -11,9 +11,28 @@ function getTextContent(parts: Array<{ type: string; text?: string }>): string {
     .join("")
 }
 
+function emitOrchestratorEvent(kind: "received" | "reported", summary: string) {
+  return fetch("/api/orchestrator/events", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      agent: "dakota",
+      role: kind === "received" ? "user" : "router",
+      kind,
+      status: "completed",
+      channel: "dashboard",
+      summary,
+      requiresApproval: false,
+      approvalState: "none",
+      artifactType: kind === "reported" ? "report" : undefined,
+    }),
+  }).catch(() => {})
+}
+
 export function OrchestratorChat() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [inputValue, setInputValue] = useState("")
+  const lastReportedMessageIdRef = useRef<string | null>(null)
 
   const { messages, sendMessage, status } = useChat({
     transport: new TextStreamChatTransport({
@@ -30,11 +49,22 @@ export function OrchestratorChat() {
     }
   }, [messages, status])
 
+  useEffect(() => {
+    if (isStreaming) return
+    const lastAssistant = [...messages].reverse().find((message) => message.role === "assistant")
+    if (!lastAssistant || lastAssistant.id === lastReportedMessageIdRef.current) return
+    const text = getTextContent(lastAssistant.parts).trim()
+    if (!text) return
+    lastReportedMessageIdRef.current = lastAssistant.id
+    void emitOrchestratorEvent("reported", text.slice(0, 220))
+  }, [isStreaming, messages])
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
     const text = inputValue.trim()
     if (!text || isStreaming) return
     setInputValue("")
+    void emitOrchestratorEvent("received", text.slice(0, 220))
     sendMessage({ text })
   }
 
