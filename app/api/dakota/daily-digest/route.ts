@@ -49,9 +49,9 @@ function composeDigest(greetings: Record<string, string>): string {
 }
 
 async function sendTelegram(text: string): Promise<{ sent: boolean; reason?: string }> {
-  const token = process.env.TELEGRAM_BOT_TOKEN
+  const token = process.env.DAKOTA_TELEGRAM_BOT_TOKEN
   const chatId = process.env.DAKOTA_TELEGRAM_DIGEST_CHAT_ID
-  if (!token) return { sent: false, reason: "TELEGRAM_BOT_TOKEN missing" }
+  if (!token) return { sent: false, reason: "DAKOTA_TELEGRAM_BOT_TOKEN missing" }
   if (!chatId) return { sent: false, reason: "DAKOTA_TELEGRAM_DIGEST_CHAT_ID missing" }
 
   const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {

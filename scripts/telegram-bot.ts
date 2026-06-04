@@ -33,9 +33,9 @@ const ROOT = process.cwd()
 loadDotEnv(path.join(ROOT, ".env.local"))
 loadDotEnv(path.join(ROOT, ".env"))
 
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
+const TELEGRAM_BOT_TOKEN = process.env.DAKOTA_TELEGRAM_BOT_TOKEN
 const LOCAL_CHAT_URL = process.env.DAKOTA_TELEGRAM_CHAT_URL ?? "http://127.0.0.1:4321/api/ai/chat"
-const BOT_NAME = process.env.TELEGRAM_BOT_NAME ?? "Dakota"
+const BOT_NAME = process.env.DAKOTA_TELEGRAM_BOT_NAME ?? "Dakota"
 const GROQ_API_KEY = process.env.GROQ_API_KEY
 const OFFSET_DIR = path.join(ROOT, ".hermes", "runtime")
 const OFFSET_FILE = path.join(OFFSET_DIR, "telegram-offset.json")
@@ -66,7 +66,7 @@ const AGENT_ALIASES: Array<{ agentId: AgentId; aliases: string[] }> = [
 ]
 
 if (!TELEGRAM_BOT_TOKEN) {
-  console.error("[telegram-bot] TELEGRAM_BOT_TOKEN is missing")
+  console.error("[telegram-bot] DAKOTA_TELEGRAM_BOT_TOKEN is missing")
   process.exit(1)
 }
 
