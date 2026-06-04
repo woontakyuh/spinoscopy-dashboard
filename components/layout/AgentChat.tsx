@@ -107,7 +107,7 @@ export function AgentChat({ agentId, image, name, greeting }: AgentChatProps) {
     fetch("/api/dakota/memory/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ startTime: start.time, endTime: new Date().toISOString(), channel: `agent-${agentId}`, exchanges }),
+      body: JSON.stringify({ startTime: start.time, endTime: new Date().toISOString(), channel: `agent-${agentId}`, agentId, exchanges }),
     }).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focused])
@@ -122,7 +122,7 @@ export function AgentChat({ agentId, image, name, greeting }: AgentChatProps) {
         .filter((m) => m.content.length > 0)
       if (exchanges.length === 0) return
       navigator.sendBeacon("/api/dakota/memory/session",
-        new Blob([JSON.stringify({ startTime: start.time, endTime: new Date().toISOString(), channel: `agent-${agentId}`, exchanges })], { type: "application/json" }))
+        new Blob([JSON.stringify({ startTime: start.time, endTime: new Date().toISOString(), channel: `agent-${agentId}`, agentId, exchanges })], { type: "application/json" }))
     }
     window.addEventListener("beforeunload", save)
     return () => window.removeEventListener("beforeunload", save)

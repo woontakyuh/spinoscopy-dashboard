@@ -6,6 +6,7 @@
     "dev": "next dev --port 4321",
     "build": "tsx scripts/generate-dakota-manifest.ts && next build",
     "dakota:manifest": "tsx scripts/generate-dakota-manifest.ts",
+    "telegram:bot": "tsx scripts/telegram-bot.ts",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",

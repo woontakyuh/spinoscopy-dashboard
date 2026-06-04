@@ -1,17 +1,18 @@
 import { NextResponse } from "next/server"
 import { getAgentLanes, getApprovalQueue, listAgentEvents } from "@/lib/orchestrator/store"
 import { ORCHESTRATOR_AGENT_IDS, type AgentId } from "@/lib/orchestrator/types"
-import { listMemories, type MemoryRow } from "@/lib/notion/dakotaMemoryV2"
-
-const SHARED_CORE_CATEGORIES = new Set(["profile", "preference", "person", "project", "rule"])
+import { listMemories, type MemoryRow, isSharedCoreCategory } from "@/lib/notion/dakotaMemoryV2"
 
 function normalizeAgentSource(source: string): AgentId | null {
   const lowered = source.trim().toLowerCase()
-  return ORCHESTRATOR_AGENT_IDS.includes(lowered as AgentId) ? (lowered as AgentId) : null
+  for (const agent of ORCHESTRATOR_AGENT_IDS) {
+    if (lowered === agent || lowered.startsWith(`agent:${agent}:`)) return agent
+  }
+  return null
 }
 
 function formatMemoryBoundary(rows: MemoryRow[]) {
-  const sharedCoreRows = rows.filter((row) => SHARED_CORE_CATEGORIES.has(String(row.category)))
+  const sharedCoreRows = rows.filter((row) => isSharedCoreCategory(String(row.category)) || row.source.toLowerCase().startsWith("shared-core:"))
   const personaCounts = ORCHESTRATOR_AGENT_IDS.reduce<Record<AgentId, { count: number; latestUpdatedAt: string | null }>>((acc, agent) => {
     const scoped = rows.filter((row) => normalizeAgentSource(row.source) === agent)
     acc[agent] = {

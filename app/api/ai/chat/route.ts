@@ -10,9 +10,12 @@ import { getPresentations } from "@/lib/notion/podium"
 import type { PresentationFilter, AttendanceFilter } from "@/lib/types/presentation"
 import {
   getMemoryDigest,
+  getSharedCoreMemoryDigest,
+  getAgentMemoryDigest,
   createMemory,
   updateMemory,
   listMemories,
+  getAgentMemorySourcePrefix,
   type MemoryCategory,
 } from "@/lib/notion/dakotaMemoryV2"
 import {
@@ -244,6 +247,22 @@ function cachedFetch<T>(key: string, ttlMs: number, fetcher: () => Promise<T>): 
   })
 }
 
+async function buildScopedMemoryBlock(agentId: "dakota" | "elon" | "brian" | "lo" | "warren" | "andrej") {
+  const [sharedCoreDigest, agentDigest] = await Promise.all([
+    cachedFetch(`memory:shared-core`, 300_000, () => getSharedCoreMemoryDigest(25)).catch(() => ""),
+    cachedFetch(`memory:${agentId}`, 300_000, () => getAgentMemoryDigest(agentId, 20)).catch(() => ""),
+  ])
+
+  const blocks: string[] = []
+  if (sharedCoreDigest) {
+    blocks.push(`[Shared Core Context — 모든 agent가 공유해야 하는 안정적 사실. 자연스럽게 활용하되 메타 언급은 하지 마세요.]\n${sharedCoreDigest}`)
+  }
+  if (agentDigest) {
+    blocks.push(`[${agentId} Local Memory — ${agentId}의 작업 메모/과거 대화 요약. 다른 agent의 판단처럼 섞어 쓰지 마세요.]\n${agentDigest}`)
+  }
+  return blocks.length > 0 ? `\n\n${blocks.join("\n\n")}` : ""
+}
+
 // Dakota prompt 를 stable (persona) + dynamic (time/context/memory) 로 분리 반환.
 // Anthropic prompt caching 에 stable 블록만 cache_control 을 찍어 재사용.
 async function buildDakotaPrompt(userContext?: UserContext): Promise<{ stable: string; dynamic: string }> {
@@ -257,11 +276,11 @@ async function buildDakotaPrompt(userContext?: UserContext): Promise<{ stable: s
     in14.setDate(in14.getDate() + 14)
     const in14Str = in14.toLocaleDateString("en-CA")
 
-    const [todos, notionSchedules, gcalEvents, memoryDigest, todaySurgeries] = await Promise.all([
+    const [todos, notionSchedules, gcalEvents, scopedMemoryBlock, todaySurgeries] = await Promise.all([
       cachedFetch("dakota:todos", 60_000, () => getAllTodos({ status: "active" })).catch(() => []),
       cachedFetch("dakota:schedules", 120_000, () => getUpcomingSchedules(14)).catch(() => []),
       cachedFetch(`dakota:gcal:${today}:${in14Str}`, 120_000, () => listGoogleCalendarEventsForRange(today, in14Str)).catch(() => []),
-      cachedFetch("dakota:memory", 300_000, () => getMemoryDigest(40)).catch(() => ""),
+      buildScopedMemoryBlock("dakota").catch(() => ""),
       cachedFetch(`dakota:surgeries:${today}`, 600_000, () => fetchTodaySurgeries(today)).catch(() => []),
     ])
 
@@ -270,8 +289,8 @@ async function buildDakotaPrompt(userContext?: UserContext): Promise<{ stable: s
       ? `[현재 날씨 — ${userContext.weatherLocation ?? "현재 위치"}] ${userContext.weatherSummary}`
       : ""
 
-    if (memoryDigest) {
-      memoryBlock = `\n\n[Dakota Memory — Notion DB에 저장된 센터장님 사실들. 자연스럽게 활용하되 굳이 언급하지 마세요. 새 사실 발견 시 add_memory 도구로 저장하세요.]\n${memoryDigest}`
+    if (scopedMemoryBlock) {
+      memoryBlock = `${scopedMemoryBlock}\n\n[Dakota 메모리 활용 규칙 — shared core는 전체 맥락으로, dakota local은 Dakota의 운영/관계 맥락으로만 쓰세요. 새 사실 저장 시 가급적 shared core와 local을 구분하세요.]`
     }
 
     const todoLines = todos.slice(0, 30).map((t) => {
@@ -678,8 +697,15 @@ function buildDakotaTools(req: Request) {
         importance: z.number().int().min(1).max(5).describe("1=일시적, 5=핵심"),
       }),
       execute: async ({ name, category, content, importance }) => {
-        const row = await createMemory({ name, category: category as MemoryCategory, content, importance })
-        return { ok: true, page_id: row.page_id, name: row.name }
+        const isSharedCore = ["profile", "preference", "person", "project", "rule"].includes(category)
+        const row = await createMemory({
+          name,
+          category: category as MemoryCategory,
+          content,
+          importance,
+          source: isSharedCore ? "shared-core:dakota" : `${getAgentMemorySourcePrefix("dakota")}:memory`,
+        })
+        return { ok: true, page_id: row.page_id, name: row.name, scope: isSharedCore ? "shared-core" : "dakota-local" }
       },
     }),
 
@@ -812,6 +838,7 @@ const LO_PERSONA = `넌 Tak의 BJJ 형님 Lo야. 터프하고 직설적인 상�
 
 async function buildLoPrompt(): Promise<string> {
   let context = `\n\n[현재 시각]\n${fmtKoreaTime()}`
+  const memoryBlock = await buildScopedMemoryBlock("lo").catch(() => "")
   try {
     const [profile, plans, stats] = await Promise.all([
       getPlayerProfile().catch(() => null),
@@ -839,7 +866,7 @@ async function buildLoPrompt(): Promise<string> {
   } catch {
     // live data 조회 실패 시 persona만
   }
-  return LO_PERSONA + context
+  return LO_PERSONA + memoryBlock + context
 }
 
 function buildLoTools() {
@@ -934,6 +961,7 @@ const BRIAN_PERSONA = `당신은 Dr. Tak의 연구/저널 파트너 Brian (Brian
 
 async function buildBrianPrompt(): Promise<string> {
   let context = `\n\n[현재 시각]\n${fmtKoreaTime()}`
+  const memoryBlock = await buildScopedMemoryBlock("brian").catch(() => "")
   try {
     const [stats, projects, editorial] = await Promise.all([
       getJournalStats().catch(() => null),
@@ -1026,7 +1054,7 @@ async function buildBrianPrompt(): Promise<string> {
   } catch {
     // 컨텍스트 로딩 실패 — 페르소나만
   }
-  return BRIAN_PERSONA + context
+  return BRIAN_PERSONA + memoryBlock + context
 }
 
 function buildBrianTools() {
@@ -1239,6 +1267,7 @@ interface VaultNewsShape {
 
 async function buildWarrenPrompt(req: Request): Promise<string> {
   let context = `\n\n[현재 시각]\n${fmtKoreaTime()}`
+  const memoryBlock = await buildScopedMemoryBlock("warren").catch(() => "")
   try {
     const [prices, news] = await Promise.all([
       fetchInternalJson<VaultPricesShape>(req, "/api/vault/prices"),
@@ -1271,7 +1300,7 @@ async function buildWarrenPrompt(req: Request): Promise<string> {
   } catch {
     // 컨텍스트 로딩 실패
   }
-  return WARREN_PERSONA + context
+  return WARREN_PERSONA + memoryBlock + context
 }
 
 // ─── Andrej (AI news commentator) ──────────────────────────────
@@ -1299,6 +1328,7 @@ interface AiFeedShape {
 
 async function buildAndrejPrompt(req: Request): Promise<string> {
   let context = `\n\n[현재 시각]\n${fmtKoreaTime()}`
+  const memoryBlock = await buildScopedMemoryBlock("andrej").catch(() => "")
   try {
     const feed = await fetchInternalJson<AiFeedShape>(req, "/api/ai-feed")
     if (feed?.items && feed.items.length > 0) {
@@ -1315,7 +1345,7 @@ async function buildAndrejPrompt(req: Request): Promise<string> {
   } catch {
     // 컨텍스트 로딩 실패
   }
-  return ANDREJ_PERSONA + context
+  return ANDREJ_PERSONA + memoryBlock + context
 }
 
 // ─── Elon (read-only clinical coworker) ────────────────────────
@@ -1332,6 +1362,7 @@ async function buildElonPrompt(): Promise<string> {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
   const monthStart = getMonthStartInSeoul()
   let context = `\n\n[현재 시각]\n${fmtKoreaTime()}`
+  const memoryBlock = await buildScopedMemoryBlock("elon").catch(() => "")
   try {
     const [todaySurgeries, monthlyStats] = await Promise.all([
       fetchTodaySurgeries(today).catch(() => []),
@@ -1354,7 +1385,7 @@ async function buildElonPrompt(): Promise<string> {
   } catch {
     // live data 실패 시 persona만
   }
-  return ELON_PERSONA + context
+  return ELON_PERSONA + memoryBlock + context
 }
 
 function buildElonTools() {

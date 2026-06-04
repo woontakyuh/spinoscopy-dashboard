@@ -33,6 +33,8 @@ export function OrchestratorChat() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [inputValue, setInputValue] = useState("")
   const lastReportedMessageIdRef = useRef<string | null>(null)
+  const sessionStartRef = useRef<string>(new Date().toISOString())
+  const lastSavedMessageCountRef = useRef(0)
 
   const { messages, sendMessage, status } = useChat({
     transport: new TextStreamChatTransport({
@@ -58,6 +60,36 @@ export function OrchestratorChat() {
     lastReportedMessageIdRef.current = lastAssistant.id
     void emitOrchestratorEvent("reported", text.slice(0, 220))
   }, [isStreaming, messages])
+
+  useEffect(() => {
+    function saveSession() {
+      const unsaved = messages.slice(lastSavedMessageCountRef.current)
+        .map((m) => ({ role: m.role as "user" | "assistant", content: getTextContent(m.parts) }))
+        .filter((m) => (m.role === "user" || m.role === "assistant") && m.content.length > 0)
+      if (unsaved.length === 0) return
+      navigator.sendBeacon(
+        "/api/dakota/memory/session",
+        new Blob([
+          JSON.stringify({
+            startTime: sessionStartRef.current,
+            endTime: new Date().toISOString(),
+            channel: "orchestrator",
+            agentId: "dakota",
+            exchanges: unsaved,
+          }),
+        ], { type: "application/json" })
+      )
+      lastSavedMessageCountRef.current = messages.length
+      sessionStartRef.current = new Date().toISOString()
+    }
+
+    window.addEventListener("pagehide", saveSession)
+    window.addEventListener("beforeunload", saveSession)
+    return () => {
+      window.removeEventListener("pagehide", saveSession)
+      window.removeEventListener("beforeunload", saveSession)
+    }
+  }, [messages])
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()

@@ -49,5 +49,7 @@ scripts/
 .superpowers/
 credentials.json
 
-# Claude Code worktrees (embedded repos, never commit)
+# Claude Code / Codex embedded worktrees and local agent runtime state
 .claude/worktrees/
+.codex/
+.hermes/runtime/

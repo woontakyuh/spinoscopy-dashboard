@@ -13,7 +13,15 @@ interface SessionBody {
   startTime: string  // ISO
   endTime: string    // ISO
   channel?: string   // "dashboard" / "desktop" 등
+  agentId?: string
   exchanges: Exchange[]
+}
+
+function normalizeSessionSource(agentId?: string): string {
+  const normalized = (agentId ?? "dakota").trim().toLowerCase()
+  const allowed = new Set(["dakota", "elon", "brian", "lo", "warren", "andrej"])
+  if (!allowed.has(normalized)) return "agent:dakota:session"
+  return `agent:${normalized}:session`
 }
 
 function fmtKoreaTime(iso: string): string {
@@ -44,6 +52,7 @@ export async function POST(req: NextRequest) {
     const start = fmtKoreaTime(body.startTime)
     const end = fmtKoreaTime(body.endTime)
     const channel = body.channel ?? "dashboard"
+    const source = normalizeSessionSource(body.agentId)
 
     const transcript = exchanges
       .map((m) => `${m.role === "user" ? "센터장" : "Dakota"}: ${m.content}`)
@@ -65,7 +74,7 @@ export async function POST(req: NextRequest) {
         category: "fact",
         content: chunks[i],
         importance: 1,
-        source: "session",
+        source,
       })
       results.push({ page_id: row.page_id, url: row.url })
     }

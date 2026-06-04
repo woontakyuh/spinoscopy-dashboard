@@ -2,6 +2,7 @@
 // Dakota Memory DB의 row 단위로 사실을 저장·조회·수정
 
 import { notionRequest } from "./client"
+import type { AgentId } from "@/lib/orchestrator/types"
 
 const DB_ID_KEY = "NOTION_DAKOTA_MEMORY_DB_ID"
 
@@ -93,6 +94,36 @@ export interface MemoryQueryOptions {
   minImportance?: number
   status?: "active" | "archived" | "all"
   limit?: number
+  source?: string | string[]
+  excludeSources?: string[]
+}
+
+const SHARED_CORE_CATEGORIES = new Set<MemoryCategory | string>([
+  "profile",
+  "preference",
+  "person",
+  "project",
+  "rule",
+])
+
+export function getAgentMemorySourcePrefix(agentId: AgentId): string {
+  return `agent:${agentId}`
+}
+
+export function isSharedCoreCategory(category: MemoryCategory | string): boolean {
+  return SHARED_CORE_CATEGORIES.has(category)
+}
+
+export function isAgentScopedSource(source: string | undefined, agentId: AgentId): boolean {
+  if (!source) return false
+  return source.toLowerCase().startsWith(`${getAgentMemorySourcePrefix(agentId)}:`)
+}
+
+function matchesSourceFilter(source: string, filter?: string | string[]): boolean {
+  if (!filter) return true
+  const candidates = Array.isArray(filter) ? filter : [filter]
+  const lowered = source.toLowerCase()
+  return candidates.some((candidate) => lowered.startsWith(candidate.toLowerCase()))
 }
 
 /** Memory DB 쿼리 — 카테고리/중요도/상태로 필터 */
@@ -123,15 +154,19 @@ export async function listMemories(opts: MemoryQueryOptions = {}): Promise<Memor
   })
 
   let rows = res.results.map(toRow)
+  if (opts.source) {
+    rows = rows.filter((r) => matchesSourceFilter(r.source, opts.source))
+  }
+  if (opts.excludeSources && opts.excludeSources.length > 0) {
+    rows = rows.filter((r) => !opts.excludeSources!.some((source) => matchesSourceFilter(r.source, source)))
+  }
   if (typeof opts.minImportance === "number") {
     rows = rows.filter((r) => r.importance >= (opts.minImportance ?? 0))
   }
   return rows
 }
 
-/** 시스템 프롬프트 주입용 — 중요도 높은 순으로 정렬한 텍스트 블록 */
-export async function getMemoryDigest(maxRows = 30): Promise<string> {
-  const rows = await listMemories({ status: "active", limit: 100 })
+function rowsToDigest(rows: MemoryRow[], maxRows = 30): string {
   const sorted = rows.slice().sort((a, b) => b.importance - a.importance).slice(0, maxRows)
   if (sorted.length === 0) return ""
 
@@ -163,6 +198,27 @@ export async function getMemoryDigest(maxRows = 30): Promise<string> {
     }
   }
   return lines.join("\n").trim()
+}
+
+/** 시스템 프롬프트 주입용 — 중요도 높은 순으로 정렬한 텍스트 블록 */
+export async function getMemoryDigest(maxRows = 30): Promise<string> {
+  const rows = await listMemories({ status: "active", limit: 100 })
+  return rowsToDigest(rows, maxRows)
+}
+
+export async function getSharedCoreMemoryDigest(maxRows = 20): Promise<string> {
+  const rows = await listMemories({ status: "active", limit: 100 })
+  const shared = rows.filter((row) => isSharedCoreCategory(row.category))
+  return rowsToDigest(shared, maxRows)
+}
+
+export async function getAgentMemoryDigest(agentId: AgentId, maxRows = 20): Promise<string> {
+  const rows = await listMemories({
+    status: "active",
+    limit: 100,
+    source: getAgentMemorySourcePrefix(agentId),
+  })
+  return rowsToDigest(rows, maxRows)
 }
 
 export interface MemoryCreateInput {
