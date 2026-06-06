@@ -124,6 +124,7 @@ function formatStartMessage() {
   return [
     `${BOT_NAME}가 살아났어요.`,
     "이제 Telegram에서 바로 명령 주시면 제가 처리할게요.",
+    "여긴 별도 Dakota가 아니라, dashboard/Claude와 같은 Dakota에 붙는 Telegram surface예요.",
     "기본 창구는 Dakota고, 필요하면 specialist로 바로 라우팅합니다.",
     "예: 오늘 일정 / Brian: 이 논문 코멘트 정리 / Elon: 오늘 수술 흐름 점검 / Warren: 엔비디아 지금 어떻게 볼까",
   ].join("\n")
@@ -440,6 +441,7 @@ async function handleMessage(message: any) {
       `로컬 AI 엔드포인트: ${LOCAL_CHAT_URL}`,
       `Groq fallback: ${GROQ_API_KEY ? "가능" : "없음"}`,
       "모드: polling",
+      "정체성: dashboard/Claude와 같은 Dakota",
       "라우팅: Dakota front door + specialist direct route",
     ].join("\n")
     await sendReply(chatId, status, messageId)

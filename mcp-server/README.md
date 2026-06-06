@@ -2,7 +2,9 @@
 
 Exposes Dakota's persona, memory, and tools to any MCP client (Claude Desktop, Claude Code CLI, etc.) backed by the same Notion DBs and DAKOTA.md the web dashboard uses.
 
-**Single source of truth** — anything you save in Claude Desktop appears in the web dashboard, and vice versa.
+**Single source of truth** — Dakota is one assistant with one core persona and shared brain. Dashboard, Telegram, and Claude are just different conversation surfaces over the same Dakota.
+
+Anything you save in Claude Desktop should appear in the web dashboard, and vice versa. Telegram should route into the same Dakota backend rather than becoming a separate Dakota clone.
 
 ## What it provides
 
@@ -104,17 +106,26 @@ Add to `~/.claude.json` (or wherever your Claude Code MCP config lives):
 ## Architecture
 
 ```
-DAKOTA.md (git)              ← immutable persona
+DAKOTA.md (git)                    ← immutable persona
        ↓
-       ├──→ Web dashboard (Vercel)  ─┐
-       │                               │
-       └──→ Dakota MCP Server          ├─→ Notion DBs (single source of truth)
-              ↓                        │     - Dakota Memory
-              ├──→ Claude Desktop      │     - Todo
-              ├──→ Claude Code CLI     │     - Schedule
-              └──→ Other MCP clients   │     - Journal / Research / Patients
-                                       ─┘
-                                       └─→ Google Calendar
+       ├──→ Web dashboard (Vercel) ───────┐
+       │                                  │
+       ├──→ Telegram bridge / bot ────────┤
+       │                                  ├─→ Notion DBs (single source of truth)
+       └──→ Dakota MCP Server             │     - Dakota Memory
+              ↓                           │     - Todo
+              ├──→ Claude Desktop         │     - Schedule
+              ├──→ Claude Code CLI        │     - Journal / Research / Patients
+              └──→ Other MCP clients      ─┘
+                                          └─→ Google Calendar
 ```
 
 Same persona, same memory, same actions — whichever channel you use.
+
+## Operational rule
+
+- **Dakota is one brain**.
+- **Dashboard / Telegram / Claude are different surfaces**.
+- A separate Telegram bot token or worker does **not** mean a separate Dakota identity.
+- The only reason to separate Telegram transport is to avoid polling conflicts or to isolate runtime ownership.
+- Specialist agents (Elon, Brian, Lo, Warren, Andrej) remain separate from Dakota and should keep their own local memory lanes.
