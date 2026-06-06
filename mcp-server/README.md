@@ -129,3 +129,5 @@ Same persona, same memory, same actions — whichever channel you use.
 - A separate Telegram bot token or worker does **not** mean a separate Dakota identity.
 - The only reason to separate Telegram transport is to avoid polling conflicts or to isolate runtime ownership.
 - Specialist agents (Elon, Brian, Lo, Warren, Andrej) remain separate from Dakota and should keep their own local memory lanes.
+- `npm run telegram:bot` now fails closed if Hermes gateway is already running, so the dashboard poller cannot silently fight for the same `getUpdates` ownership.
+- Use `npm run telegram:bot:force` only when you intentionally know the dashboard worker and Hermes gateway are using different Telegram bot tokens.

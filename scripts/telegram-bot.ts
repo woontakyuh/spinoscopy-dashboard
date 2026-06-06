@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process"
 import * as fs from "node:fs"
 import * as path from "node:path"
 import * as process from "node:process"
@@ -88,6 +89,36 @@ function writeOffset(offset: number) {
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function detectHermesGatewayPids(): number[] {
+  try {
+    const raw = execFileSync("pgrep", ["-af", "hermes_cli.main gateway run"], { encoding: "utf8" })
+    return raw
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => Number.parseInt(line.split(/\s+/, 1)[0] ?? "", 10))
+      .filter((pid) => Number.isFinite(pid) && pid > 0 && pid !== process.pid)
+  } catch {
+    return []
+  }
+}
+
+function assertNoHermesGatewayConflict() {
+  if (process.env.DAKOTA_TELEGRAM_ALLOW_GATEWAY_CONFLICT === "1") return
+  const gatewayPids = detectHermesGatewayPids()
+  if (!gatewayPids.length) return
+
+  console.error(
+    [
+      `[telegram-bot] Hermes gateway is already running (PID: ${gatewayPids.join(", ")}).`,
+      "[telegram-bot] This polling worker is blocked by default because one Telegram bot token must have exactly one active getUpdates owner.",
+      "[telegram-bot] If the gateway owns Dakota_tak_bot, keep this worker off.",
+      "[telegram-bot] Override only if you are certain the gateway uses a different token: set DAKOTA_TELEGRAM_ALLOW_GATEWAY_CONFLICT=1.",
+    ].join("\n")
+  )
+  process.exit(1)
 }
 
 async function telegramApi(method: string, payload: Record<string, unknown>) {
@@ -494,6 +525,7 @@ async function handleMessage(message: any) {
 }
 
 async function main() {
+  assertNoHermesGatewayConflict()
   let offset = readOffset()
   console.error(`[telegram-bot] starting with offset=${offset}`)
 

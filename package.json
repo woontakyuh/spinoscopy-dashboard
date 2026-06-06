@@ -7,6 +7,7 @@
     "build": "tsx scripts/generate-dakota-manifest.ts && next build",
     "dakota:manifest": "tsx scripts/generate-dakota-manifest.ts",
     "telegram:bot": "tsx scripts/telegram-bot.ts",
+    "telegram:bot:force": "DAKOTA_TELEGRAM_ALLOW_GATEWAY_CONFLICT=1 tsx scripts/telegram-bot.ts",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
