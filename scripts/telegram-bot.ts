@@ -113,6 +113,7 @@ function assertNoHermesGatewayConflict() {
   console.error(
     [
       `[telegram-bot] Hermes gateway is already running (PID: ${gatewayPids.join(", ")}).`,
+      "[telegram-bot] Hermes gateway is the official Dakota Telegram owner.",
       "[telegram-bot] This polling worker is blocked by default because one Telegram bot token must have exactly one active getUpdates owner.",
       "[telegram-bot] If the gateway owns Dakota_tak_bot, keep this worker off.",
       "[telegram-bot] Override only if you are certain the gateway uses a different token: set DAKOTA_TELEGRAM_ALLOW_GATEWAY_CONFLICT=1.",

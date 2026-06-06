@@ -69,6 +69,8 @@ Dakota may route to them, but Dakota remains the visible chief-of-staff front do
 Safe rule:
 - one active poller per bot token
 - many surfaces may point to the same Dakota backend
+- **Hermes gateway is the official runtime owner of Dakota's Telegram bot**
+- the dashboard polling worker is a secondary transport utility, not the default production owner
 
 Therefore:
 - **one Dakota brain** can still have Telegram + dashboard + Claude access
