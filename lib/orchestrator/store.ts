@@ -3,6 +3,7 @@ import path from "node:path"
 import { randomUUID } from "node:crypto"
 import type { AgentEvent, AgentEventInput, AgentId } from "./types"
 import { ORCHESTRATOR_AGENT_IDS } from "./types"
+import { appendNotionAgentEvent, isNotionEventStoreAvailable, listNotionAgentEvents } from "./notionEventStore"
 
 interface EventStore {
   events: AgentEvent[]
@@ -63,6 +64,13 @@ async function ensureStore(): Promise<boolean> {
 async function readStore(): Promise<EventStore> {
   const storeReady = await ensureStore()
   if (!storeReady) {
+    if (isNotionEventStoreAvailable()) {
+      try {
+        return { events: await listNotionAgentEvents(MAX_EVENTS) }
+      } catch {
+        return { events: [] }
+      }
+    }
     return { events: [] }
   }
 
@@ -78,9 +86,18 @@ async function readStore(): Promise<EventStore> {
   }
 }
 
-async function writeStore(store: EventStore): Promise<void> {
+async function writeStore(store: EventStore, newestEvent?: AgentEvent): Promise<void> {
   const storeReady = await ensureStore()
-  if (!storeReady) return
+  if (!storeReady) {
+    if (newestEvent && isNotionEventStoreAvailable()) {
+      try {
+        await appendNotionAgentEvent(newestEvent)
+      } catch {
+        // Fall through silently so telemetry never blocks the primary request path.
+      }
+    }
+    return
+  }
   try {
     await writeFile(STORE_FILE, JSON.stringify(store, null, 2), "utf-8")
   } catch {
@@ -101,7 +118,7 @@ export async function appendAgentEvent(input: AgentEventInput): Promise<AgentEve
   if (store.events.length > MAX_EVENTS) {
     store.events = store.events.slice(0, MAX_EVENTS)
   }
-  await writeStore(store)
+  await writeStore(store, event)
   return event
 }
 
