@@ -12,6 +12,7 @@ import { PromChart } from "./PromChart"
 import { PatientProfileView } from "./PatientProfileView"
 import type { AnalyticsData, PatientRow, Dimension, TimepointParsed, DimensionSchema } from "@/lib/notion/analytics"
 import type { PatientSearchResult } from "@/lib/types/patient"
+import { maskPatientName } from "@/lib/utils"
 
 /* ═══════════════════════════════════════════════════════════════════
    Constants & Types
@@ -752,7 +753,7 @@ function PatientListRow({ patient, isExpanded, onToggle }: {
         }`}
       >
         <span className="text-[11px] text-muted-foreground w-[76px] shrink-0 num">{patient.op_date ?? "—"}</span>
-        <span className="text-sm text-foreground w-[64px] shrink-0 truncate font-medium">{patient.name || "—"}</span>
+        <span className="text-sm text-foreground w-[64px] shrink-0 truncate font-medium">{maskPatientName(patient.name) || "—"}</span>
         <span className="text-xs text-muted-foreground w-[30px] shrink-0 num">{patient.age || "—"}</span>
         <span className={`text-xs w-[18px] shrink-0 font-medium ${
           patient.sex === "M" ? "text-blue-400" : patient.sex === "F" ? "text-pink-400" : "text-muted-foreground/70"

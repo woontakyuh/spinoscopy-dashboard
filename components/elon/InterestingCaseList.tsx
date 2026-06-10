@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import type { InterestingCase } from "@/lib/notion/interestingCases"
+import { maskPatientName } from "@/lib/utils"
 
 function fmtRelative(iso: string): string {
   const then = new Date(iso).getTime()
@@ -67,7 +68,7 @@ export function InterestingCaseList() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-sm font-semibold text-foreground truncate">
-                        {c.name || "(이름 없음)"}
+                        {maskPatientName(c.name) || "(이름 없음)"}
                       </h3>
                       {c.pt_no && (
                         <span className="text-[11px] text-muted-foreground">#{c.pt_no}</span>
