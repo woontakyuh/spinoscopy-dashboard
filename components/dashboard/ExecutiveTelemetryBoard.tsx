@@ -94,8 +94,11 @@ export function ExecutiveTelemetryBoard() {
   const { data, isLoading, error } = useQuery<TelemetryResponse>({
     queryKey: ["executive-telemetry-board"],
     queryFn: async () => {
-      const res = await fetch("/api/orchestrator/telemetry")
-      if (!res.ok) throw new Error("telemetry 조회 실패")
+      const res = await fetch("/api/orchestrator/telemetry", { cache: "no-store" })
+      if (!res.ok) {
+        const body = await res.text().catch(() => "")
+        throw new Error(body || `telemetry 조회 실패 (${res.status})`)
+      }
       return res.json()
     },
     refetchInterval: 15000,
