@@ -134,7 +134,7 @@ export function ExecutiveTelemetryBoard() {
             ))}
             {!isLoading && (data?.feed.length ?? 0) === 0 && (
               <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-950/60 px-4 py-8 text-sm text-zinc-500 text-center">
-                아직 이벤트가 없습니다. 대시보드 대화가 들어오면 여기부터 쌓입니다.
+                아직 이벤트가 없습니다. Telegram 또는 대시보드 대화가 들어오면 여기부터 쌓입니다.
               </div>
             )}
             {data?.feed.map((event) => <EventChip key={event.id} event={event} />)}
@@ -157,53 +157,6 @@ export function ExecutiveTelemetryBoard() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-4">
-            <div>
-              <h2 className="text-white font-semibold">Memory Boundary</h2>
-              <p className="text-zinc-500 text-xs mt-1">shared core 와 persona-local 분리 상태</p>
-            </div>
-
-            {data?.memoryBoundary ? (
-              <div className="mt-4 space-y-4">
-                <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm text-zinc-200">Shared core</span>
-                    <span className="text-sm font-semibold text-cyan-300">{data.memoryBoundary.sharedCoreCount}</span>
-                  </div>
-                  <p className="mt-1 text-[11px] text-zinc-500">
-                    최신 업데이트 {formatTs(data.memoryBoundary.sharedCoreLatestUpdatedAt)}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  {ORCHESTRATOR_AGENT_IDS.map((agent) => {
-                    const count = data.memoryBoundary?.personaCounts[agent].count ?? 0
-                    const latestUpdatedAt = data.memoryBoundary?.personaCounts[agent].latestUpdatedAt ?? null
-                    const meta = AGENT_META[agent]
-                    return (
-                      <div key={agent} className={`rounded-xl border bg-zinc-950/70 p-3 ${meta.border}`}>
-                        <div className="flex items-center justify-between gap-3">
-                          <span className={`text-sm font-medium ${meta.text}`}>{meta.label}</span>
-                          <span className="text-sm text-zinc-200">{count}</span>
-                        </div>
-                        <p className="mt-1 text-[11px] text-zinc-500">{latestUpdatedAt ? formatTs(latestUpdatedAt) : "namespace 미연결"}</p>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {!data.memoryBoundary.personaNamespaceReady && (
-                  <p className="text-[11px] text-amber-300">
-                    persona-local memory namespace는 아직 실제 저장 백엔드가 연결되지 않았습니다.
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div className="mt-4 rounded-xl border border-dashed border-zinc-700 bg-zinc-950/60 px-4 py-6 text-sm text-zinc-500">
-                Memory boundary 조회 불가{data?.memoryError ? `: ${data.memoryError}` : ""}
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
