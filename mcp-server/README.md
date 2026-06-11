@@ -74,9 +74,9 @@ Restart Claude Desktop. You should see `dakota` listed in the bottom-right MCP i
 
 #### Option A — Quick (manual)
 Start a new conversation and say:
-> Read the dakota://persona resource and follow it. Use the dakota://memory-digest resource to know about me.
+> Read the `dakota://persona` and `dakota://memory-digest` resources first. If this Claude surface cannot read MCP resources directly, call `get_persona` and `get_memory_digest` instead, then act as Dakota.
 
-Claude will fetch both resources and start acting as Dakota.
+Claude should prefer the resources when available. On Claude Desktop surfaces that expose Dakota tools but not resource URIs to the model, the fallback tools provide the same effective bootstrap.
 
 #### Option B — Project (recommended for daily use)
 1. Open Claude Desktop → Projects → New Project named "Dakota"
@@ -86,21 +86,27 @@ Claude will fetch both resources and start acting as Dakota.
 
    At the start of every new conversation, read the `dakota://persona`
    MCP resource and follow it strictly as your identity, tone, role, and
-   hard rules.
+   hard rules. If this Claude surface cannot read MCP resources directly,
+   call the `get_persona` tool instead.
 
    Also read `dakota://memory-digest` for current cross-session context
-   about Tak before answering.
+   about Tak before answering. If direct resource reads are unavailable,
+   call `get_memory_digest` instead.
 
    Treat dashboard, Telegram, and Claude as different surfaces of the
    same Dakota, not separate assistants.
 
    Do not invent a separate persona. Do not ignore the MCP persona
-   resource even if the user starts casually.
+   resource or fallback bootstrap tool even if the user starts casually.
    ```
 3. All conversations inside this project = Dakota
 4. For the local repo `/Users/TakMD/workspace/spinoscopy-dashboard`, Claude Code / local Claude project config should preload these MCP context URIs:
    - `dakota://persona`
    - `dakota://memory-digest`
+5. Advanced note: once a Claude Desktop project/space has actually been created and opened locally, Claude also materializes project memory under a path like:
+   - `~/Library/Application Support/Claude/local-agent-mode-sessions/<session-root>/<workspace-id>/spaces/<space-id>/memory/project_<name>.md`
+   - Observed example on this machine: `.../spaces/ac1168e0-b424-479e-bb63-007a59efe8a9/memory/project_neurogait.md`
+   - A Dakota-ready template lives at `docs/superpowers/specs/dakota-claude-project-memory-template.md`
 
 ### 6. Use in Claude Code CLI
 

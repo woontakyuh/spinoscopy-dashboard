@@ -120,6 +120,25 @@ server.setRequestHandler(ReadResourceRequestSchema, async (req) => {
 // ─── Tools ─────────────────────────────────────────────────────
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
+    // ─── Identity bootstrap ───────────────────────────────
+    {
+      name: "get_persona",
+      description:
+        "Return Dakota's canonical persona text. Use this at the start of a conversation if the client cannot read the dakota://persona MCP resource directly.",
+      inputSchema: { type: "object", properties: {} },
+    },
+    {
+      name: "get_memory_digest",
+      description:
+        "Return Dakota's current memory digest text. Use this at the start of a conversation if the client cannot read the dakota://memory-digest MCP resource directly.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          limit: { type: "number", minimum: 1, maximum: 200, default: 60 },
+        },
+      },
+    },
+
     // ─── Memory ────────────────────────────────────────────
     {
       name: "list_memories",
@@ -352,6 +371,25 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
     let result: unknown
 
     switch (name) {
+      // ── Identity bootstrap ──
+      case "get_persona": {
+        result = {
+          text: loadPersona(),
+          source: "DAKOTA.md",
+          fallback_for_resource: "dakota://persona",
+        }
+        break
+      }
+      case "get_memory_digest": {
+        const limit = (args.limit as number | undefined) ?? 60
+        result = {
+          text: await getMemoryDigest(limit),
+          limit,
+          fallback_for_resource: "dakota://memory-digest",
+        }
+        break
+      }
+
       // ── Memory ──
       case "list_memories": {
         const rows = await listMemories({
