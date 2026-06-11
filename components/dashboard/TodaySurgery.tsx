@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EmptyState } from "@/components/ui/empty-state"
+import { maskPatientName } from "@/lib/utils"
 
 interface DashboardSurgeryItem {
   page_id: string
@@ -59,7 +60,7 @@ export function TodaySurgery() {
                 🔪
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-foreground text-sm font-medium truncate">{surgery.name}</p>
+                <p className="text-foreground text-sm font-medium truncate">{maskPatientName(surgery.name)}</p>
                 <p className="text-muted-foreground text-xs truncate mt-0.5">{surgery.op_name || "수술명 미기재"}</p>
                 {surgery.hospital && <p className="text-muted-foreground text-xs mt-0.5">📍 {surgery.hospital}</p>}
               </div>
