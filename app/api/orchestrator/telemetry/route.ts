@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getAgentLanes, getApprovalQueue, listAgentEvents } from "@/lib/orchestrator/store"
+import { buildTaskBoard } from "@/lib/orchestrator/taskStore"
 import { ORCHESTRATOR_AGENT_IDS, type AgentId } from "@/lib/orchestrator/types"
 import { listMemories, type MemoryRow, isSharedCoreCategory } from "@/lib/notion/dakotaMemoryV2"
 
@@ -32,11 +33,13 @@ function formatMemoryBoundary(rows: MemoryRow[]) {
 
 export async function GET() {
   try {
-    const [feed, approvals, lanes] = await Promise.all([
-      listAgentEvents({ limit: 30 }),
+    const [events, approvals, lanes] = await Promise.all([
+      listAgentEvents({ limit: 100 }),
       getApprovalQueue(12),
       getAgentLanes(4),
     ])
+    const feed = events.slice(0, 30)
+    const tasks = buildTaskBoard(events)
 
     let memoryBoundary:
       | {
@@ -59,6 +62,7 @@ export async function GET() {
       feed,
       approvals,
       lanes,
+      tasks,
       memoryBoundary,
       memoryError,
     })

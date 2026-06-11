@@ -370,21 +370,30 @@ function buildTaskId(chatId: number | string, messageId?: number) {
 
 async function emitOrchestratorEvent(
   agentId: AgentId,
-  kind: "received" | "reported",
+  kind: "received" | "delegated" | "analyzed" | "reported" | "proposed" | "approved" | "executed" | "blocked" | "failed",
   summary: string,
   taskId: string,
-  status: EventStatus = "completed"
+  status: EventStatus,
+  extra?: {
+    requiresApproval?: boolean
+    approvalState?: "none" | "proposed" | "approved" | "rejected"
+    artifactType?: "email" | "notion" | "calendar" | "code" | "note" | "report"
+    artifactRef?: string
+    parentEventId?: string
+  }
 ) {
   await postLocalJson(`${LOCAL_BASE_URL}/api/orchestrator/events`, {
     agent: agentId,
-    role: kind === "received" ? "user" : "specialist",
+    role: kind === "reported" ? "specialist" : kind === "executed" ? "executor" : kind === "received" ? "user" : "router",
     kind,
     status,
     channel: "telegram",
     summary,
-    requiresApproval: false,
-    approvalState: "none",
-    artifactType: kind === "reported" ? "report" : undefined,
+    requiresApproval: extra?.requiresApproval ?? false,
+    approvalState: extra?.approvalState ?? "none",
+    artifactType: extra?.artifactType ?? (kind === "reported" ? "report" : undefined),
+    artifactRef: extra?.artifactRef,
+    parentEventId: extra?.parentEventId,
     taskId,
   })
 }
@@ -403,39 +412,39 @@ async function saveTelegramSession(agentId: AgentId, userText: string, answer: s
   })
 }
 
-async function getScheduleText() {
+async function getScheduleText(): Promise<{ ok: boolean; text: string }> {
   try {
     const items = await fetchJson<Array<{ name: string; date_start?: string; date_end?: string; place?: string; category?: string }>>(
       `${LOCAL_BASE_URL}/api/notion/schedule`,
       8_000
     )
-    return formatScheduleSummary(items)
+    return { ok: true, text: formatScheduleSummary(items) }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
-    return `일정 조회가 잠깐 느려요. 잠시 후 다시 시도해 주세요.\n(${msg.slice(0, 120)})`
+    return { ok: false, text: `일정 조회가 잠깐 느려요. 잠시 후 다시 시도해 주세요.\n(${msg.slice(0, 120)})` }
   }
 }
 
-async function getTodoText() {
+async function getTodoText(): Promise<{ ok: boolean; text: string }> {
   try {
     const items = await fetchJson<Array<{ name: string; due?: string | null; priority?: string; category?: string; status?: string }>>(
       `${LOCAL_BASE_URL}/api/dakota/todo?status=active`,
       8_000
     )
-    return formatTodoSummary(items)
+    return { ok: true, text: formatTodoSummary(items) }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
-    return `할 일 조회가 잠깐 느려요. 잠시 후 다시 시도해 주세요.\n(${msg.slice(0, 120)})`
+    return { ok: false, text: `할 일 조회가 잠깐 느려요. 잠시 후 다시 시도해 주세요.\n(${msg.slice(0, 120)})` }
   }
 }
 
-async function getMemoryText() {
+async function getMemoryText(): Promise<{ ok: boolean; text: string }> {
   try {
     const payload = await fetchJson<{ text?: string }>(`${LOCAL_BASE_URL}/api/dakota/memory`, 8_000)
-    return formatMemorySummary(payload.text ?? "")
+    return { ok: true, text: formatMemorySummary(payload.text ?? "") }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
-    return `기억 조회가 잠깐 느려요. 잠시 후 다시 시도해 주세요.\n(${msg.slice(0, 120)})`
+    return { ok: false, text: `기억 조회가 잠깐 느려요. 잠시 후 다시 시도해 주세요.\n(${msg.slice(0, 120)})` }
   }
 }
 
@@ -486,15 +495,41 @@ async function handleMessage(message: any) {
 
   try {
     let answer: string | null = null
+    const isReadOnlyShortcut = !/저장|추가|등록|만들/i.test(routed.cleanedText)
 
-    if (looksLikeScheduleQuery(routed.cleanedText) && !/저장|추가|등록|만들/i.test(routed.cleanedText)) {
-      answer = await getScheduleText()
-    } else if (looksLikeTodoQuery(routed.cleanedText) && !/저장|추가|등록|만들/i.test(routed.cleanedText)) {
-      answer = await getTodoText()
-    } else if (looksLikeMemoryQuery(routed.cleanedText) && !/저장|추가|등록|만들/i.test(routed.cleanedText)) {
-      answer = await getMemoryText()
+    if (looksLikeScheduleQuery(routed.cleanedText) && isReadOnlyShortcut) {
+      await emitOrchestratorEvent("dakota", "received", routed.cleanedText.slice(0, 220), taskId, "pending")
+      await emitOrchestratorEvent("dakota", "analyzed", "일정 조회 시작", taskId, "in_progress")
+      const result = await getScheduleText()
+      answer = result.text
+      if (result.ok) {
+        await emitOrchestratorEvent("dakota", "reported", result.text.slice(0, 220), taskId, "completed", { artifactType: "calendar" })
+      } else {
+        await emitOrchestratorEvent("dakota", "failed", result.text.slice(0, 220), taskId, "blocked", { artifactType: "calendar" })
+      }
+    } else if (looksLikeTodoQuery(routed.cleanedText) && isReadOnlyShortcut) {
+      await emitOrchestratorEvent("dakota", "received", routed.cleanedText.slice(0, 220), taskId, "pending")
+      await emitOrchestratorEvent("dakota", "analyzed", "투두 조회 시작", taskId, "in_progress")
+      const result = await getTodoText()
+      answer = result.text
+      if (result.ok) {
+        await emitOrchestratorEvent("dakota", "reported", result.text.slice(0, 220), taskId, "completed", { artifactType: "note" })
+      } else {
+        await emitOrchestratorEvent("dakota", "failed", result.text.slice(0, 220), taskId, "blocked", { artifactType: "note" })
+      }
+    } else if (looksLikeMemoryQuery(routed.cleanedText) && isReadOnlyShortcut) {
+      await emitOrchestratorEvent("dakota", "received", routed.cleanedText.slice(0, 220), taskId, "pending")
+      await emitOrchestratorEvent("dakota", "analyzed", "기억 조회 시작", taskId, "in_progress")
+      const result = await getMemoryText()
+      answer = result.text
+      if (result.ok) {
+        await emitOrchestratorEvent("dakota", "reported", result.text.slice(0, 220), taskId, "completed", { artifactType: "note" })
+      } else {
+        await emitOrchestratorEvent("dakota", "failed", result.text.slice(0, 220), taskId, "blocked", { artifactType: "note" })
+      }
     } else {
-      await emitOrchestratorEvent(routed.agentId, "received", routed.cleanedText.slice(0, 220), taskId)
+      await emitOrchestratorEvent(routed.agentId, "received", routed.cleanedText.slice(0, 220), taskId, "pending")
+      await emitOrchestratorEvent(routed.agentId, "analyzed", `${routed.label} 응답 생성 시작`, taskId, "in_progress")
       try {
         answer = await callLocalAgentChat(routed.cleanedText, routed.agentId)
       } catch (error) {
@@ -508,7 +543,7 @@ async function handleMessage(message: any) {
       }
 
       if (answer) {
-        await emitOrchestratorEvent(routed.agentId, "reported", answer.slice(0, 220), taskId)
+        await emitOrchestratorEvent(routed.agentId, "reported", answer.slice(0, 220), taskId, "completed")
         await saveTelegramSession(routed.agentId, routed.cleanedText, answer)
         if (routed.explicit && routed.agentId !== "dakota") {
           answer = `[${routed.label}]\n${answer}`
@@ -521,6 +556,7 @@ async function handleMessage(message: any) {
   } catch (error) {
     await typing
     const msg = error instanceof Error ? error.message : String(error)
+    await emitOrchestratorEvent(routed.agentId === "dakota" ? "dakota" : routed.agentId, "failed", msg.slice(0, 220), taskId, "blocked")
     await sendReply(chatId, `지금은 잠깐 막혔어요. ${msg.slice(0, 200)}`, messageId)
   }
 }

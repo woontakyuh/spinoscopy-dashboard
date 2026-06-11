@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto"
 import type { AgentEvent, AgentEventInput, AgentId } from "./types"
 import { ORCHESTRATOR_AGENT_IDS } from "./types"
 import { appendNotionAgentEvent, isNotionEventStoreAvailable, listNotionAgentEvents } from "./notionEventStore"
+import { appendTaskProjection } from "./taskStore"
 
 interface EventStore {
   events: AgentEvent[]
@@ -119,6 +120,13 @@ export async function appendAgentEvent(input: AgentEventInput): Promise<AgentEve
     store.events = store.events.slice(0, MAX_EVENTS)
   }
   await writeStore(store, event)
+
+  try {
+    appendTaskProjection(event)
+  } catch {
+    // Task projection is secondary; event persistence should still succeed.
+  }
+
   return event
 }
 
