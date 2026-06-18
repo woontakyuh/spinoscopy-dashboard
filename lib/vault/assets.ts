@@ -37,6 +37,20 @@ export const TRACKED_ASSETS: TrackedAsset[] = [
     newsQuery: "Apple AAPL OR 애플 주가",
   },
   {
+    symbol: "005930",
+    label: "삼성전자",
+    category: "stock-kr",
+    yahooTicker: "005930.KS",
+    newsQuery: "삼성전자 005930 OR Samsung Electronics",
+  },
+  {
+    symbol: "000660",
+    label: "SK하이닉스",
+    category: "stock-kr",
+    yahooTicker: "000660.KS",
+    newsQuery: "SK하이닉스 000660 OR SK hynix",
+  },
+  {
     symbol: "206650",
     label: "유바이오로직스",
     category: "stock-kr",

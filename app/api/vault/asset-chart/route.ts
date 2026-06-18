@@ -27,10 +27,12 @@ interface AssetConfig {
 const ASSET_MAP: Record<string, AssetConfig> = {
   BTC: { source: "binance", ticker: "BTCUSDT" },
   ETH: { source: "binance", ticker: "ETHUSDT" },
-  "206650": { source: "yahoo", ticker: "206650.KQ" },
   TSLA: { source: "yahoo", ticker: "TSLA" },
   GOOGL: { source: "yahoo", ticker: "GOOGL" },
   AAPL: { source: "yahoo", ticker: "AAPL" },
+  "005930": { source: "yahoo", ticker: "005930.KS" },
+  "000660": { source: "yahoo", ticker: "000660.KS" },
+  "206650": { source: "yahoo", ticker: "206650.KQ" },
 }
 
 type BinanceKline = [

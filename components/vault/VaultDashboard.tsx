@@ -103,18 +103,30 @@ export function VaultDashboard({ view }: VaultDashboardProps) {
             )
           })()}
 
-          {/* BTC 일봉 차트 - 풀 너비 */}
-          <AssetDailyChart symbol="BTC" title="₿ BTC/USDT" currency="USD" height={320} />
+          <div className="border border-border rounded-xl p-3 bg-card space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-muted-foreground text-xs font-medium">종목 차트</p>
+              <span className="text-[11px] text-muted-foreground">가격 카드와 같은 종목을 일봉 차트로 같이 표시</span>
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <AssetDailyChart symbol="ETH" title="Ξ ETH/USDT" currency="USD" height={240} />
-            <AssetDailyChart symbol="206650" title="유바이오로직스" currency="KRW" height={240} />
-          </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {TRACKED_ASSETS.map((asset) => {
+                const title = `${asset.symbol} ${asset.label}`
+                const currency = asset.category === "stock-kr" ? "KRW" : "USD"
+                const height = asset.symbol === "BTC" ? 320 : 240
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <AssetDailyChart symbol="TSLA" title="TSLA 테슬라" currency="USD" height={240} />
-            <AssetDailyChart symbol="GOOGL" title="GOOGL 구글" currency="USD" height={240} />
-            <AssetDailyChart symbol="AAPL" title="AAPL 애플" currency="USD" height={240} />
+                return (
+                  <AssetDailyChart
+                    key={asset.symbol}
+                    symbol={asset.symbol}
+                    title={title}
+                    currency={currency}
+                    height={height}
+                    defaultPeriod={asset.category === "crypto" ? "3M" : "1M"}
+                  />
+                )
+              })}
+            </div>
           </div>
         </>
       )}
