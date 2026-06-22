@@ -43,6 +43,7 @@ next-env.d.ts
 scripts/*
 !scripts/generate-dakota-manifest.ts
 !scripts/telegram-bot.ts
+!scripts/social-collector
 
 # legacy planning tool
 .sisyphus/

@@ -1,0 +1,14 @@
+{
+  "name": "social-collector",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "맥 mini 전용 소셜 수집기 — Threads/X 공개 글을 긁어 Notion Social Feed DB에 적재. 대시보드(Vercel)와 격리(자체 node_modules).",
+  "scripts": {
+    "collect": "node collect.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "playwright": "^1.61.0"
+  }
+}

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FeedCard } from "./FeedCard"
+import { SocialColumn } from "./SocialColumn"
 import type { FeedItem, FeedResponse, FeedSource, FeedTier } from "@/lib/types/radar"
 
 const TIERS: Array<{ value: FeedTier; label: string }> = [
@@ -187,8 +188,10 @@ function FeedColumn({ tier, items, fetchedAt }: { tier: typeof TIERS[number]; it
 }
 
 // ─── Main RadarFeed ───
+type MobileTab = FeedTier | "social"
+
 export function RadarFeed() {
-  const [mobileTab, setMobileTab] = useState<FeedTier>("ai-company")
+  const [mobileTab, setMobileTab] = useState<MobileTab>("ai-company")
 
   const feedQuery = useQuery({
     queryKey: ["radar-feed"],
@@ -232,7 +235,7 @@ export function RadarFeed() {
     )
   }
 
-  const activeTier = TIERS.find((t) => t.value === mobileTab)!
+  const activeTier = TIERS.find((t) => t.value === mobileTab) ?? TIERS[0]
 
   return (
     <div className="space-y-3">
@@ -257,11 +260,26 @@ export function RadarFeed() {
             </button>
           )
         })}
+        <button
+          type="button"
+          onClick={() => setMobileTab("social")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            mobileTab === "social"
+              ? "border-cyan-500 text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground/90"
+          }`}
+        >
+          소셜
+        </button>
       </div>
 
       {/* ─── Mobile: single column ─── */}
       <div className="md:hidden">
-        <FeedColumn tier={activeTier} items={items} fetchedAt={feedQuery.data?.fetchedAt} />
+        {mobileTab === "social" ? (
+          <SocialColumn />
+        ) : (
+          <FeedColumn tier={activeTier} items={items} fetchedAt={feedQuery.data?.fetchedAt} />
+        )}
       </div>
 
       {/* ─── Desktop: 3-column grid ─── */}
@@ -276,10 +294,11 @@ export function RadarFeed() {
             </span>
           </div>
         )}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-4 gap-4">
           {TIERS.map((tier) => (
             <FeedColumn key={tier.value} tier={tier} items={items} />
           ))}
+          <SocialColumn />
         </div>
       </div>
     </div>
