@@ -3,7 +3,6 @@ import assert from "node:assert/strict"
 import {
   firstLine,
   dedupeByPostId,
-  extractTweetsFromNextData,
   normalizeDate,
   toNotionProperties,
 } from "./normalize.mjs"
@@ -23,22 +22,6 @@ test("dedupeByPostId: 기존 PostId 제외 + 내부 중복 제거", () => {
   ]
   const out = dedupeByPostId(items, ["b"])
   assert.deepEqual(out.map((i) => i.postId), ["a"])
-})
-
-test("extractTweetsFromNextData: 깊이 탐색으로 id_str+text 수집", () => {
-  const root = {
-    props: { pageProps: { timeline: { entries: [
-      { content: { tweet: { id_str: "111", full_text: "hello", created_at: "2026-06-20T00:00:00Z" } } },
-      { content: { tweet: { id_str: "222", text: "world" } } },
-    ] } } },
-  }
-  const tweets = extractTweetsFromNextData(root, "karpathy")
-  assert.equal(tweets.length, 2)
-  const t1 = tweets.find((t) => t.postId === "111")
-  assert.equal(t1.text, "hello")
-  assert.equal(t1.url, "https://x.com/karpathy/status/111")
-  assert.equal(t1.postedAt, "2026-06-20")
-  assert.equal(t1.platform, "x")
 })
 
 test("normalizeDate: 파싱/실패", () => {

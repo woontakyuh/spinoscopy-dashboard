@@ -8,9 +8,12 @@ AI Radar 소셜 컬럼용 수집기. Threads/X 공개 글을 긁어 Notion "Soci
 ## 동작
 
 - **Threads** `@choi.openai` → Playwright(시스템 Chrome, headless) 렌더 → DOM 추출
-- **X** `@karpathy` → `syndication.twitter.com` timeline-profile 파싱
 - 정규화 → 기존 PostId 제외(중복제거) → Notion `pages` insert
-- 한 플랫폼 실패(예: X 429)는 다른 쪽·기존 데이터에 영향 없음(graceful skip)
+- 수집 실패는 기존 데이터에 영향 없음(graceful skip)
+
+> **X 제외(2026-06-22):** X는 로그아웃 syndication이 IP 레이트리밋(429)으로 상시 막혀 제외.
+> insane-search 엔진(curl_cffi 지문)으로도 동일하게 rate_limited — 지문 우회 불가한 IP 차단.
+> 재도입하려면 로그인 세션 재사용(쿠키) 또는 유료 API 필요.
 
 ## 설치 (맥)
 
@@ -48,7 +51,5 @@ launchctl unload ~/Library/LaunchAgents/com.spino.social-collector.plist   # 중
 
 ## 알려진 한계
 
-- **X syndication은 IP 레이트리밋(429)**이 잦다. 그 회차는 스킵되고 다음 시간에 재시도된다.
-  지속적으로 막히면 백오프/대체 경로(로그인 세션 등) 검토 필요.
 - Threads 본문에 계정명·상대시각·인용글 일부가 섞일 수 있다(DOM 컨테이너 특성). 본문은 보존됨 — 정제는 후속 개선 여지.
 - 공개(로그아웃) 글 한정. 과거 글 대량 백필은 범위 밖.

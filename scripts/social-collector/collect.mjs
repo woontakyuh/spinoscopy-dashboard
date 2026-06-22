@@ -1,6 +1,7 @@
 // 맥 mini 전용 소셜 수집기.
-// Threads(@choi.openai) = Playwright 렌더, X(@karpathy) = syndication.
-// 수집 → Notion "Social Feed" DB에 신규만 적재. 한 플랫폼 실패는 다른 쪽/기존 데이터에 영향 없음.
+// Threads(@choi.openai) = Playwright 렌더.
+// 수집 → Notion "Social Feed" DB에 신규만 적재. 실패는 기존 데이터에 영향 없음.
+// (X는 로그아웃 syndication이 IP 레이트리밋으로 상시 막혀 제외 — 2026-06-22)
 //
 // 필요 env: NOTION_TOKEN, NOTION_SOCIAL_DB_ID
 // 실행: node collect.mjs   (launchd 1h)
@@ -8,7 +9,6 @@
 import { chromium } from "playwright"
 import {
   dedupeByPostId,
-  extractTweetsFromNextData,
   normalizeDate,
   toNotionProperties,
 } from "./normalize.mjs"
@@ -24,7 +24,6 @@ const NOTION_HEADERS = {
 
 const ACCOUNTS = {
   threads: ["choi.openai"],
-  x: ["karpathy"],
 }
 
 const UA =
@@ -81,23 +80,6 @@ async function collectThreads(account) {
   }
 }
 
-// ─── X (syndication) ───
-async function collectX(handle) {
-  const url = `https://syndication.twitter.com/srv/timeline-profile/screen-name/${handle}?showReplies=false`
-  const res = await fetch(url, { headers: { "User-Agent": UA, Accept: "text/html" } })
-  if (!res.ok) throw new Error(`syndication ${res.status}`)
-  const html = await res.text()
-  const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/)
-  let root
-  if (m) {
-    root = JSON.parse(m[1])
-  } else {
-    try { root = JSON.parse(html) } catch { root = null }
-  }
-  if (!root) return []
-  return extractTweetsFromNextData(root, handle)
-}
-
 // ─── Notion ───
 async function fetchExistingPostIds(limit = 100) {
   const res = await fetch(`${NOTION_BASE}/databases/${NOTION_DB}/query`, {
@@ -151,7 +133,6 @@ async function main() {
 
   const collected = [
     ...(await gather("threads", collectThreads, ACCOUNTS.threads)),
-    ...(await gather("x", collectX, ACCOUNTS.x)),
   ]
   log(`총 수집 ${collected.length}건`)
 
