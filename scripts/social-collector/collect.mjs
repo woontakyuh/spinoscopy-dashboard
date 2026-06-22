@@ -11,7 +11,14 @@ import {
   dedupeByPostId,
   normalizeDate,
   toNotionProperties,
+  cleanThreadText,
+  sinceDate,
+  withinSince,
 } from "./normalize.mjs"
+
+// 최근 N일치를 수집 (주간 백필)
+const SINCE_DAYS = 7
+const MAX_SCROLLS = 40
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN
 const NOTION_DB = process.env.NOTION_SOCIAL_DB_ID
@@ -34,7 +41,30 @@ function log(...args) {
 }
 
 // ─── Threads (Playwright) ───
+// 최근 SINCE_DAYS일치까지 스크롤하며 누적 수집 (Threads는 가상화로 옛 글이 언마운트되므로
+// 매 스크롤마다 추출해 postId로 머지). 가장 오래된 글이 컷오프를 넘으면 중단.
 async function collectThreads(account) {
+  const cutoff = sinceDate(SINCE_DAYS, Date.now())
+  const extract = (acct) => {
+    const out = []
+    document.querySelectorAll("[data-pressable-container]").forEach((el) => {
+      const text = (el.innerText || "").trim()
+      if (!text || text.length < 10) return
+      const a = el.querySelector(`a[href*="/post/"]`)
+      const href = a ? a.getAttribute("href") : null
+      const m = href ? href.match(/\/post\/([A-Za-z0-9_-]+)/) : null
+      if (!m) return
+      const timeEl = el.querySelector("time[datetime]")
+      out.push({
+        postId: m[1],
+        text,
+        url: href.startsWith("http") ? href : `https://www.threads.com${href}`,
+        postedAtRaw: timeEl ? timeEl.getAttribute("datetime") : "",
+      })
+    })
+    return out
+  }
+
   let browser
   try {
     browser = await chromium.launch({ channel: "chrome", headless: true })
@@ -42,39 +72,35 @@ async function collectThreads(account) {
     const page = await ctx.newPage()
     await page.goto(`https://www.threads.com/@${account}`, { waitUntil: "domcontentloaded", timeout: 45000 })
     await page.waitForTimeout(6000)
-    // 더 받기 위해 가볍게 스크롤
-    for (let i = 0; i < 4; i++) {
-      await page.mouse.wheel(0, 3000)
-      await page.waitForTimeout(1500)
-    }
-    const raw = await page.evaluate((acct) => {
-      const out = []
-      document.querySelectorAll("[data-pressable-container]").forEach((el) => {
-        const text = (el.innerText || "").trim()
-        if (!text || text.length < 10) return
-        const a = el.querySelector(`a[href*="/post/"]`)
-        const href = a ? a.getAttribute("href") : null
-        const m = href ? href.match(/\/post\/([A-Za-z0-9_-]+)/) : null
-        if (!m) return
-        const timeEl = el.querySelector("time[datetime]")
-        out.push({
-          account: acct,
-          postId: m[1],
-          text,
-          url: href.startsWith("http") ? href : `https://www.threads.com${href}`,
-          postedAtRaw: timeEl ? timeEl.getAttribute("datetime") : "",
-        })
+
+    const seen = new Map()
+    for (let s = 0; s < MAX_SCROLLS; s++) {
+      const batch = await page.evaluate(extract, account)
+      for (const r of batch) if (!seen.has(r.postId)) seen.set(r.postId, r)
+      // 가장 오래된 (날짜 있는) 글이 컷오프보다 과거면 일주일치 다 받은 것
+      const dates = [...seen.values()].map((r) => normalizeDate(r.postedAtRaw)).filter(Boolean).sort()
+      if (dates.length && dates[0] < cutoff) break
+      const before = seen.size
+      await page.mouse.wheel(0, 5000)
+      await page.waitForTimeout(1800)
+      // 새 글이 두 번 연속 안 늘면 (로그아웃 스크롤 한계) 중단
+      const grew = await page.evaluate(extract, account).then((b) => {
+        for (const r of b) if (!seen.has(r.postId)) seen.set(r.postId, r)
+        return seen.size > before
       })
-      return out
-    }, account)
-    return raw.map((r) => ({
-      platform: "threads",
-      account: r.account,
-      postId: r.postId,
-      text: r.text,
-      url: r.url,
-      postedAt: normalizeDate(r.postedAtRaw),
-    }))
+      if (!grew && s > 3) break
+    }
+
+    return [...seen.values()]
+      .map((r) => ({
+        platform: "threads",
+        account,
+        postId: r.postId,
+        text: cleanThreadText(r.text, account),
+        url: r.url,
+        postedAt: normalizeDate(r.postedAtRaw),
+      }))
+      .filter((it) => withinSince(it, cutoff))
   } finally {
     if (browser) await browser.close()
   }

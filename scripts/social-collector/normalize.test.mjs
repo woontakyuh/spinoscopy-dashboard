@@ -5,7 +5,24 @@ import {
   dedupeByPostId,
   normalizeDate,
   toNotionProperties,
+  cleanThreadText,
+  sinceDate,
+  withinSince,
 } from "./normalize.mjs"
+
+test("cleanThreadText: 머리 메타(계정·시각) 제거", () => {
+  assert.equal(cleanThreadText("choi.openai\n14분\n실제 본문\n둘째줄", "choi.openai"), "실제 본문\n둘째줄")
+  assert.equal(cleanThreadText("2시간\n본문", "choi.openai"), "본문")
+  assert.equal(cleanThreadText("본문만", "choi.openai"), "본문만")
+})
+
+test("sinceDate / withinSince: 주간 컷오프", () => {
+  const now = Date.parse("2026-06-22T00:00:00Z")
+  assert.equal(sinceDate(7, now), "2026-06-15")
+  assert.equal(withinSince({ postedAt: "2026-06-20" }, "2026-06-15"), true)
+  assert.equal(withinSince({ postedAt: "2026-06-10" }, "2026-06-15"), false)
+  assert.equal(withinSince({ postedAt: "" }, "2026-06-15"), true) // 날짜 미상은 포함
+})
 
 test("firstLine: 첫 비어있지 않은 줄, 길면 잘림", () => {
   assert.equal(firstLine("\n  hello \n world"), "hello")

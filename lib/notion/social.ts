@@ -50,8 +50,12 @@ function toSocialItem(page: NotionPage): SocialItem | null {
   }
 }
 
+// "Social Feed" DB id. DB id는 비밀이 아니라 식별자일 뿐(실제 시크릿은 NOTION_TOKEN, 이미 env).
+// 환경변수가 있으면 우선, 없으면 기본값 → Vercel env 미설정이어도 프로덕션에서 동작.
+const DEFAULT_SOCIAL_DB_ID = "387908af-25b9-818e-a68b-ef7555b364e0"
+
 export async function querySocialItems(limit = 40): Promise<SocialItem[]> {
-  const dbId = process.env.NOTION_SOCIAL_DB_ID
+  const dbId = process.env.NOTION_SOCIAL_DB_ID ?? DEFAULT_SOCIAL_DB_ID
   if (!dbId) return []
 
   const data = await notionRequest<NotionQueryResponse>(`/databases/${dbId}/query`, {

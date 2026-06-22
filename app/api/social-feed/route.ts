@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic"
 // 수집(Threads/X 스크래핑)은 맥 mini 수집기가 담당 — 여기선 저장된 것만 읽는다.
 export async function GET() {
   try {
-    const items = await querySocialItems(40)
+    const items = await querySocialItems(100)
     const response: SocialFeedResponse = {
       items,
       fetchedAt: new Date().toISOString(),
