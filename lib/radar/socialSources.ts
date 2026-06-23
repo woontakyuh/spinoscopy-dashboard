@@ -11,6 +11,7 @@ export interface SocialAccount {
 // (X는 로그아웃 syndication이 IP 레이트리밋으로 상시 막혀 제외 — 2026-06-22)
 export const SOCIAL_ACCOUNTS: SocialAccount[] = [
   { platform: "threads", account: "choi.openai", lang: "ko", label: "Threads @choi.openai" },
+  { platform: "threads", account: "unclejobs.ai", lang: "ko", label: "Threads @unclejobs.ai" },
 ]
 
 // 계정 언어. 모르는 계정은 영문 가정(한글 요약 버튼 노출).

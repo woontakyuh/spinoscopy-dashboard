@@ -30,7 +30,7 @@ const NOTION_HEADERS = {
 }
 
 const ACCOUNTS = {
-  threads: ["choi.openai"],
+  threads: ["choi.openai", "unclejobs.ai"],
 }
 
 const UA =
