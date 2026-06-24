@@ -125,13 +125,8 @@ export default function VaultPage() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-w-0 p-3 md:p-6 max-w-4xl w-full">
+      <div className="flex-1 min-w-0 p-3 md:p-6 max-w-[1680px] w-full">
         <AgentChat agentId="warren" image="/warren.png" name="Warren" greeting={isTabLoading ? "..." : message} />
-        <div className="border border-border rounded-xl p-4 bg-card mb-4">
-          <p className="text-foreground/90 text-sm">
-            주요 자산 시세와 시장 지표를 실시간으로 추적하고, 관련 뉴스를 확인합니다.
-          </p>
-        </div>
         <VaultDashboard view={activeTab} />
       </div>
     </div>

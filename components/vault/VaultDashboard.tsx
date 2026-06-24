@@ -109,21 +109,24 @@ export function VaultDashboard({ view }: VaultDashboardProps) {
               <span className="text-[11px] text-muted-foreground">가격 카드와 같은 종목을 일봉 차트로 같이 표시</span>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               {TRACKED_ASSETS.map((asset) => {
                 const title = `${asset.symbol} ${asset.label}`
                 const currency = asset.category === "stock-kr" ? "KRW" : "USD"
-                const height = asset.symbol === "BTC" ? 320 : 240
+                const isBtc = asset.symbol === "BTC"
+                // BTC는 상단 전체폭으로 크게, 나머지는 3열 컴팩트 — 한눈에 보이게
+                const height = isBtc ? 300 : 210
 
                 return (
-                  <AssetDailyChart
-                    key={asset.symbol}
-                    symbol={asset.symbol}
-                    title={title}
-                    currency={currency}
-                    height={height}
-                    defaultPeriod={asset.category === "crypto" ? "3M" : "1M"}
-                  />
+                  <div key={asset.symbol} className={isBtc ? "md:col-span-2 xl:col-span-3" : ""}>
+                    <AssetDailyChart
+                      symbol={asset.symbol}
+                      title={title}
+                      currency={currency}
+                      height={height}
+                      defaultPeriod={asset.category === "crypto" ? "3M" : "1M"}
+                    />
+                  </div>
                 )
               })}
             </div>
@@ -192,7 +195,7 @@ export function VaultDashboard({ view }: VaultDashboardProps) {
             <p className="text-muted-foreground text-sm">뉴스가 없습니다.</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
             {filteredNews.map((item) => {
               const asset = TRACKED_ASSETS.find((a) => a.symbol === item.asset)
               return (
