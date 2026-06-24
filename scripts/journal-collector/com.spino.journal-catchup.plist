@@ -9,7 +9,7 @@
   </array>
   <key>StartCalendarInterval</key>
   <array>
-    <dict><key>Day</key><integer>26</integer><key>Hour</key><integer>7</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Day</key><integer>25</integer><key>Hour</key><integer>7</integer><key>Minute</key><integer>0</integer></dict>
   </array>
   <key>StandardOutPath</key><string>/tmp/journal-catchup.log</string>
   <key>StandardErrorPath</key><string>/tmp/journal-catchup.log</string>
