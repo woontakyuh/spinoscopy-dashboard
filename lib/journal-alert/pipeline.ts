@@ -399,6 +399,26 @@ export async function searchPubmedByTitle(title: string, journal: string): Promi
   return article ?? null
 }
 
+export interface IngestResult { scraped: number; created: number; skipped: number; enriched: number }
+
+export async function ingestScrapedArticles(
+  databaseId: string,
+  scraped: ScrapedArticle[],
+): Promise<IngestResult> {
+  const existing = await loadExistingKeys(databaseId)
+  let created = 0, skipped = 0, enriched = 0
+  for (const s of scraped) {
+    if (existing.has(titleKey(s.title))) { skipped++; continue }
+    let article = await searchPubmedByTitle(s.title, s.journalName)
+    if (article) enriched++; else article = minimalArticleFromScraped(s)
+    await createJournalPage(databaseId, article)
+    created++
+    existing.add(titleKey(s.title))
+    await new Promise((r) => setTimeout(r, 350))
+  }
+  return { scraped: scraped.length, created, skipped, enriched }
+}
+
 function titleKey(title: string): string {
   return title.trim().toLowerCase().slice(0, 80)
 }
