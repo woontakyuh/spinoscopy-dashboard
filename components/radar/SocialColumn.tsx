@@ -39,7 +39,7 @@ function Avatar({ account, platform, avatarUrl }: { account: string; platform: S
       {avatarUrl && !imgError ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={avatarUrl}
+          src={`/api/social-feed/avatar?u=${encodeURIComponent(avatarUrl)}`}
           alt={account}
           className="w-9 h-9 rounded-full object-cover"
           referrerPolicy="no-referrer"
