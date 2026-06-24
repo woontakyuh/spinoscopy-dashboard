@@ -27,7 +27,15 @@ const NOTION_HEADERS = {
 
 const SINCE_DAYS = 7
 const ACCOUNTS = {
-  threads: ["choi.openai", "unclejobs.ai"],
+  threads: [
+    "choi.openai",
+    "unclejobs.ai",
+    "roach_log",
+    "tofukyung",
+    "asin_cartel",
+    "darkest_alex",
+    "aimaster3658",
+  ],
   x: ["karpathy"],
 }
 
@@ -53,14 +61,16 @@ function scrollCollectCode(url, extractBody, cutoff) {
 const p = await openTab(${JSON.stringify(url)});
 await sleep(6500);
 const seen = {};
+const CUTOFF = ${JSON.stringify(cutoff)};
 for (let i=0;i<30;i++){
   const batch = await p.evaluate(()=>{ ${extractBody} });
-  let added=0; batch.forEach(r=>{ if(r && r.postId && !seen[r.postId]){ seen[r.postId]=r; added++; } });
-  const dates=Object.values(seen).map(r=>(r.at||'').slice(0,10)).filter(Boolean).sort();
-  if(dates.length && dates[0] < ${JSON.stringify(cutoff)}) break;
+  // 새로 추가된 '최근(cutoff 이내)' 글 수. 오래된 고정글은 여기 안 셈 → 조기중단 방지.
+  let addedFresh=0;
+  batch.forEach(r=>{ if(r && r.postId && !seen[r.postId]){ seen[r.postId]=r; const d=(r.at||'').slice(0,10); if(d && d >= CUTOFF) addedFresh++; } });
   await p.evaluate(()=>window.scrollBy(0, 5000));
   await sleep(1700);
-  if(added===0 && i>4) break;
+  // 워밍업 후, 한 바퀴 돌아도 최근 글이 더 안 늘면 7일 윈도우를 다 본 것 → 종료
+  if(addedFresh===0 && i>=3) break;
 }
 try { await p.close(); } catch(e) {}
 console.log('ASIDE_RESULT '+JSON.stringify(Object.values(seen)));

@@ -12,6 +12,11 @@ export interface SocialAccount {
 export const SOCIAL_ACCOUNTS: SocialAccount[] = [
   { platform: "threads", account: "choi.openai", lang: "ko", label: "Threads @choi.openai" },
   { platform: "threads", account: "unclejobs.ai", lang: "ko", label: "Threads @unclejobs.ai" },
+  { platform: "threads", account: "roach_log", lang: "ko", label: "Threads @roach_log" },
+  { platform: "threads", account: "tofukyung", lang: "ko", label: "Threads @tofukyung" },
+  { platform: "threads", account: "asin_cartel", lang: "ko", label: "Threads @asin_cartel" },
+  { platform: "threads", account: "darkest_alex", lang: "ko", label: "Threads @darkest_alex" },
+  { platform: "threads", account: "aimaster3658", lang: "ko", label: "Threads @aimaster3658" },
   { platform: "x", account: "karpathy", lang: "en", label: "X @karpathy" },
 ]
 
