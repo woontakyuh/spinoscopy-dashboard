@@ -12,7 +12,7 @@ async function main() {
 
   // 1) TSJ Articles in Press DOM 추출 (Aside + Chrome)
   console.log("TSJ scraping 시작...")
-  const raw = await scrapeTsjRaw()
+  const raw: Array<{ title: string; href: string; innerText: string }> = await scrapeTsjRaw()
   console.log(`scraped raw: ${raw.length}`)
 
   // 2) 각 DOM 항목을 ScrapedArticle 로 파싱 (PII 없으면 null → 필터)
