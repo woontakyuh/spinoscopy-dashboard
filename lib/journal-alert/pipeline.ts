@@ -386,7 +386,8 @@ export function minimalArticleFromScraped(s: ScrapedArticle): PubmedArticle {
 
 // 제목 정확매칭으로 PubMed 단건 조회. 색인 전이면 null.
 export async function searchPubmedByTitle(title: string, journal: string): Promise<PubmedArticle | null> {
-  const term = `"${title}"[Title] AND "${journal}"[journal]`
+  const safeTitle = title.replace(/"/g, " ")
+  const term = `"${safeTitle}"[Title] AND "${journal}"[journal]`
   const url =
     `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed` +
     `&term=${encodeURIComponent(term)}&retmax=1&retmode=json`
@@ -399,28 +400,34 @@ export async function searchPubmedByTitle(title: string, journal: string): Promi
   return article ?? null
 }
 
-export interface IngestResult { scraped: number; created: number; skipped: number; enriched: number }
+export interface IngestResult { scraped: number; created: number; skipped: number; enriched: number; failed: number }
 
 export async function ingestScrapedArticles(
   databaseId: string,
   scraped: ScrapedArticle[],
 ): Promise<IngestResult> {
   const existing = await loadExistingKeys(databaseId)
-  let created = 0, skipped = 0, enriched = 0
+  let created = 0, skipped = 0, enriched = 0, failed = 0
   for (const s of scraped) {
     if (existing.has(titleKey(s.title))) { skipped++; continue }
-    let article = await searchPubmedByTitle(s.title, s.journalName)
-    if (article) enriched++; else article = minimalArticleFromScraped(s)
-    await createJournalPage(databaseId, article)
-    created++
-    existing.add(titleKey(s.title))
+    try {
+      let article = await searchPubmedByTitle(s.title, s.journalName)
+      if (article) enriched++; else article = minimalArticleFromScraped(s)
+      await createJournalPage(databaseId, article)
+      created++
+      existing.add(titleKey(s.title))
+    } catch (err) {
+      failed++
+      console.error(`[ingest] 실패: "${s.title}" —`, err instanceof Error ? err.message : err)
+      continue
+    }
     await new Promise((r) => setTimeout(r, 350))
   }
-  return { scraped: scraped.length, created, skipped, enriched }
+  return { scraped: scraped.length, created, skipped, enriched, failed }
 }
 
-function titleKey(title: string): string {
-  return title.trim().toLowerCase().slice(0, 80)
+export function titleKey(title: string): string {
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().slice(0, 80)
 }
 
 function pubDateMillis(value: string): number {

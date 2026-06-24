@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { toMultiSelectOptions, minimalArticleFromScraped } from "./pipeline"
+import { toMultiSelectOptions, minimalArticleFromScraped, titleKey } from "./pipeline"
 
 describe("toMultiSelectOptions", () => {
   it("splits a comma-joined keyword into separate options (Notion 400 regression)", () => {
@@ -50,5 +50,30 @@ describe("minimalArticleFromScraped", () => {
     expect(a.pubDate).toBe("2026-06-24")
     expect(a.doiUrl).toBe("")
     expect(a.journalName).toBe("The Spine Journal")
+  })
+})
+
+describe("titleKey", () => {
+  it("trailing period and no period produce the same key", () => {
+    expect(
+      titleKey("Quantifying Postural Recovery After Lumbar Decompression.")
+    ).toBe(
+      titleKey("Quantifying Postural Recovery After Lumbar Decompression")
+    )
+  })
+
+  it("typographic vs straight punctuation collapses to the same key", () => {
+    expect(
+      titleKey("UBE: A “Pilot” Study")
+    ).toBe(
+      titleKey("UBE  A  Pilot  Study")
+    )
+  })
+
+  it("lowercases and caps result at 80 chars", () => {
+    const long = "A".repeat(100)
+    const key = titleKey(long)
+    expect(key).toBe("a".repeat(80))
+    expect(key.length).toBe(80)
   })
 })
