@@ -347,7 +347,27 @@ async function searchPubmedIds(query: string, days: number): Promise<string[]> {
   return Array.from(new Set([...edatIds, ...pdatIds]))
 }
 
-async function fetchPubmedArticles(pmids: string[]): Promise<PubmedArticle[]> {
+// 저널 제약 없는 주제 검색 (topic-radar 용) — edat+pdat union.
+export async function searchPubmedByTerm(term: string, days: number): Promise<string[]> {
+  const now = new Date()
+  const start = new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
+  const fmt = (d: Date) =>
+    `${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${String(d.getUTCDate()).padStart(2, "0")}`
+  const run = async (datetype: "edat" | "pdat") => {
+    const url =
+      `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed` +
+      `&term=${encodeURIComponent(term)}&datetype=${datetype}&mindate=${fmt(start)}&maxdate=${fmt(now)}` +
+      `&retmax=200&retmode=json`
+    const res = await fetch(url, { cache: "no-store", headers: { "User-Agent": "SpinoscopyDashboard/1.0" } })
+    if (!res.ok) throw new Error(`PubMed term search (${datetype}) failed: ${res.status}`)
+    const payload = (await res.json()) as { esearchresult?: { idlist?: string[] } }
+    return payload.esearchresult?.idlist ?? []
+  }
+  const [edat, pdat] = await Promise.all([run("edat"), run("pdat")])
+  return Array.from(new Set([...edat, ...pdat]))
+}
+
+export async function fetchPubmedArticles(pmids: string[]): Promise<PubmedArticle[]> {
   if (pmids.length === 0) return []
   const chunks: string[][] = []
   for (let i = 0; i < pmids.length; i += 50) chunks.push(pmids.slice(i, i + 50))
