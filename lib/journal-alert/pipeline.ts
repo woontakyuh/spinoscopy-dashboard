@@ -51,6 +51,23 @@ function mapNotionType(pubTypes: string[]): string {
   return "Clinical Study"
 }
 
+// Notion multi_select 옵션 이름에는 콤마를 못 쓴다(API 400). PubMed <Keyword> 가
+// "A,B, C" 식 콤마구분 목록을 한 항목에 통째로 담는 경우가 있어 → 콤마로 쪼개고
+// trim·빈값제거·중복제거·100자 제한. Keywords/Category 쓰기 전 항상 통과시킨다.
+export function toMultiSelectOptions(values: string[]): Array<{ name: string }> {
+  const seen = new Set<string>()
+  const out: Array<{ name: string }> = []
+  for (const v of values) {
+    for (const part of String(v).split(",")) {
+      const name = part.trim().slice(0, 100)
+      if (!name || seen.has(name.toLowerCase())) continue
+      seen.add(name.toLowerCase())
+      out.push({ name })
+    }
+  }
+  return out
+}
+
 // title + abstract + keywords 에서 Category multi_select 옵션을 추정.
 // Notion DB 의 14개 옵션과 동일하게 유지 — 새 옵션을 만들지 않음.
 const CATEGORY_RULES: Array<{ category: string; matchers: string[] }> = [
@@ -461,8 +478,10 @@ function buildArticleProperties(article: PubmedArticle, opts: { forCreate: boole
   if (article.volume) properties.Vol = { rich_text: [{ text: { content: article.volume.slice(0, 100) } }] }
   if (article.issue) properties.Issue = { rich_text: [{ text: { content: article.issue.slice(0, 100) } }] }
   if (article.affiliations) properties.Affiliations = { rich_text: [{ text: { content: article.affiliations } }] }
-  if (article.keywords.length > 0) properties.Keywords = { multi_select: article.keywords.map((k) => ({ name: k })) }
-  if (derivedCategories.length > 0) properties.Category = { multi_select: derivedCategories.map((c) => ({ name: c })) }
+  const keywordOpts = toMultiSelectOptions(article.keywords)
+  if (keywordOpts.length > 0) properties.Keywords = { multi_select: keywordOpts }
+  const categoryOpts = toMultiSelectOptions(derivedCategories)
+  if (categoryOpts.length > 0) properties.Category = { multi_select: categoryOpts }
 
   return properties
 }
@@ -1033,8 +1052,9 @@ function buildBackfillPatch(article: PubmedArticle, row: ExistingRow): Record<st
   if (!row.hasAbstract && article.abstract) {
     patch.Abstract = { rich_text: [{ text: { content: article.abstract.slice(0, 1900) } }] }
   }
-  if (!row.hasKeywords && article.keywords.length > 0) {
-    patch.Keywords = { multi_select: article.keywords.map((k) => ({ name: k })) }
+  if (!row.hasKeywords) {
+    const keywordOpts = toMultiSelectOptions(article.keywords)
+    if (keywordOpts.length > 0) patch.Keywords = { multi_select: keywordOpts }
   }
   if (!row.hasAffiliations && article.affiliations) {
     patch.Affiliations = { rich_text: [{ text: { content: article.affiliations } }] }
@@ -1046,8 +1066,8 @@ function buildBackfillPatch(article: PubmedArticle, row: ExistingRow): Record<st
     patch.Issue = { rich_text: [{ text: { content: article.issue.slice(0, 100) } }] }
   }
   if (!row.hasCategory) {
-    const derived = deriveCategories(article)
-    if (derived.length > 0) patch.Category = { multi_select: derived.map((c) => ({ name: c })) }
+    const derived = toMultiSelectOptions(deriveCategories(article))
+    if (derived.length > 0) patch.Category = { multi_select: derived }
   }
   if (!row.hasType) {
     const mapped = mapNotionType(article.pubTypes)
