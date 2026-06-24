@@ -84,7 +84,11 @@ const THREADS_EXTRACT = `
     const a=el.querySelector('a[href*="/post/"]'); const href=a?a.getAttribute('href'):null;
     const m=href?href.match(/\\/post\\/([A-Za-z0-9_-]+)/):null; if(!m) return;
     const time=el.querySelector('time[datetime]');
-    out.push({postId:m[1], text, url:href.startsWith('http')?href:'https://www.threads.com'+href, at:time?time.getAttribute('datetime'):''});
+    // 프로필 사진: 프로필 링크(/@handle) 안의 img 우선, 없으면 첫 IG 이미지
+    let avatar='';
+    el.querySelectorAll('a[href^="/@"]').forEach(an=>{ if(avatar) return; const h=an.getAttribute('href')||''; if(/^\\/@[^/]+\\/?$/.test(h)){ const im=an.querySelector('img'); if(im) avatar=im.src; } });
+    if(!avatar){ const im=el.querySelector('img[src*="cdninstagram"],img[src*="fbcdn"]'); if(im) avatar=im.src; }
+    out.push({postId:m[1], text, url:href.startsWith('http')?href:'https://www.threads.com'+href, at:time?time.getAttribute('datetime'):'', avatar});
   });
   return out;`
 
@@ -95,7 +99,8 @@ const X_EXTRACT = `
     const time=a.querySelector('time');
     const link=time&&time.closest('a')?time.closest('a').href:'';
     const m=link.match(/status\\/(\\d+)/); if(!m) return;
-    out.push({postId:m[1], text:(t?t.innerText:'').trim(), url:link, at:time?time.getAttribute('datetime'):''});
+    const im=a.querySelector('img[src*="profile_images"]');
+    out.push({postId:m[1], text:(t?t.innerText:'').trim(), url:link, at:time?time.getAttribute('datetime'):'', avatar:im?im.src:''});
   });
   return out;`
 
@@ -109,6 +114,7 @@ function collectThreads(account, cutoff) {
       text: cleanThreadText(r.text, account),
       url: r.url,
       postedAt: normalizeDate(r.at),
+      avatar: r.avatar || "",
     }))
     .filter((it) => withinSince(it, cutoff))
 }
@@ -123,6 +129,7 @@ function collectX(handle, cutoff) {
       text: (r.text || "").trim(),
       url: r.url || `https://x.com/${handle}/status/${r.postId}`,
       postedAt: normalizeDate(r.at),
+      avatar: r.avatar || "",
     }))
     .filter((it) => it.text && withinSince(it, cutoff))
 }

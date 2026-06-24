@@ -83,6 +83,7 @@ export function toNotionProperties(item, collectedAtISO) {
     FullText: { rich_text: [{ text: { content: (item.text || "").slice(0, 1900) } }] },
     CollectedAt: { date: { start: collectedAtISO } },
   }
+  if (item.avatar) props.Avatar = { url: item.avatar }
   if (item.postedAt) props.PostedAt = { date: { start: item.postedAt } }
   return props
 }

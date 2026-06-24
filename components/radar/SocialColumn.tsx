@@ -7,14 +7,12 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { EmptyState } from "@/components/ui/empty-state"
 import type { SocialFeedResponse, SocialItem, SocialSummarizeResponse } from "@/lib/types/social"
 
-// 핸들 → 안정적인 아바타 색
 function avatarColor(seed: string): string {
   let h = 0
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 360
   return `hsl(${h} 55% 45%)`
 }
 
-// 실제 Threads 로고
 function ThreadsIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-label="Threads">
@@ -23,7 +21,6 @@ function ThreadsIcon({ className }: { className?: string }) {
   )
 }
 
-// 실제 X 로고
 function XIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-label="X">
@@ -32,13 +29,25 @@ function XIcon({ className }: { className?: string }) {
   )
 }
 
-function Avatar({ account, platform }: { account: string; platform: SocialItem["platform"] }) {
+function Avatar({ account, platform, avatarUrl }: { account: string; platform: SocialItem["platform"]; avatarUrl: string }) {
+  const [imgError, setImgError] = useState(false)
   return (
     <div
-      className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold relative"
-      style={{ background: avatarColor(account) }}
+      className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold relative overflow-visible"
+      style={avatarUrl && !imgError ? undefined : { background: avatarColor(account) }}
     >
-      {account.replace(/[^a-zA-Z0-9]/g, "").charAt(0).toUpperCase() || "·"}
+      {avatarUrl && !imgError ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={avatarUrl}
+          alt={account}
+          className="w-9 h-9 rounded-full object-cover"
+          referrerPolicy="no-referrer"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        account.replace(/[^a-zA-Z0-9]/g, "").charAt(0).toUpperCase() || "·"
+      )}
       <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-background flex items-center justify-center border border-border text-foreground">
         {platform === "x" ? <XIcon className="w-2 h-2" /> : <ThreadsIcon className="w-2.5 h-2.5" />}
       </span>
@@ -46,33 +55,8 @@ function Avatar({ account, platform }: { account: string; platform: SocialItem["
   )
 }
 
-// ─── Threads: 원문 그대로 (네이티브 피드 느낌) ───
-function ThreadsCard({ item }: { item: SocialItem }) {
-  return (
-    <a
-      href={item.url}
-      target="_blank"
-      rel="noreferrer"
-      className="flex gap-3 px-1 py-3.5 border-b border-border/70 hover:bg-muted/30 transition-colors"
-    >
-      <Avatar account={item.account} platform={item.platform} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5 text-sm">
-          <span className="font-semibold text-foreground truncate">@{item.account}</span>
-          {item.postedAt && <span className="text-muted-foreground text-xs shrink-0">· {item.postedAt.slice(5)}</span>}
-        </div>
-        <p className="mt-1 text-[13.5px] leading-relaxed text-foreground/95 whitespace-pre-wrap break-words">
-          {item.text}
-        </p>
-      </div>
-    </a>
-  )
-}
-
-// ─── X: 한글 요약 자동 표시 (원문은 토글) ───
-function XCard({ item }: { item: SocialItem }) {
-  const [showOriginal, setShowOriginal] = useState(false)
-  const sum = useQuery({
+function useSummary(item: SocialItem, enabled: boolean) {
+  return useQuery({
     queryKey: ["social-sum", item.id],
     queryFn: async () => {
       const res = await fetch("/api/social-feed/summarize", {
@@ -83,13 +67,66 @@ function XCard({ item }: { item: SocialItem }) {
       if (!res.ok) throw new Error("요약 실패")
       return (await res.json()) as SocialSummarizeResponse
     },
+    enabled,
     staleTime: Infinity,
     retry: 1,
   })
+}
+
+// ─── Threads: 원문 그대로 + 요약 버튼 ───
+function ThreadsCard({ item, avatarUrl }: { item: SocialItem; avatarUrl: string }) {
+  const [summarize, setSummarize] = useState(false)
+  const sum = useSummary(item, summarize)
 
   return (
     <div className="flex gap-3 px-1 py-3.5 border-b border-border/70">
-      <Avatar account={item.account} platform={item.platform} />
+      <Avatar account={item.account} platform={item.platform} avatarUrl={avatarUrl} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 text-sm">
+          <span className="font-semibold text-foreground truncate">@{item.account}</span>
+          {item.postedAt && <span className="text-muted-foreground text-xs shrink-0">· {item.postedAt.slice(5)}</span>}
+        </div>
+        <a href={item.url} target="_blank" rel="noreferrer" className="block">
+          <p className="mt-1 text-[13.5px] leading-relaxed text-foreground/95 whitespace-pre-wrap break-words hover:text-blue-300 transition-colors">
+            {item.text}
+          </p>
+        </a>
+
+        {summarize && (
+          <div className="mt-2">
+            {sum.isLoading ? (
+              <Skeleton className="h-8 w-full bg-muted rounded-md" />
+            ) : (
+              <p className="text-[12.5px] leading-relaxed text-foreground/90 bg-card/70 border-l-2 border-cyan-500/60 rounded-md px-2.5 py-1.5 whitespace-pre-wrap break-words">
+                {sum.isError ? "요약 실패" : sum.data?.summary}
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="mt-1.5">
+          <button
+            type="button"
+            onClick={() => setSummarize(true)}
+            disabled={summarize}
+            className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+          >
+            {summarize ? "요약됨" : "✦ 요약"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── X: 한글 요약 자동 표시 (원문은 토글) ───
+function XCard({ item, avatarUrl }: { item: SocialItem; avatarUrl: string }) {
+  const [showOriginal, setShowOriginal] = useState(false)
+  const sum = useSummary(item, true)
+
+  return (
+    <div className="flex gap-3 px-1 py-3.5 border-b border-border/70">
+      <Avatar account={item.account} platform={item.platform} avatarUrl={avatarUrl} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5 text-sm">
           <span className="font-semibold text-foreground truncate">@{item.account}</span>
@@ -102,20 +139,14 @@ function XCard({ item }: { item: SocialItem }) {
             <Skeleton className="h-3 w-full bg-muted" />
             <Skeleton className="h-3 w-4/5 bg-muted" />
           </div>
-        ) : sum.isError ? (
-          <p className="mt-1 text-[13.5px] leading-relaxed text-foreground/95 whitespace-pre-wrap break-words">{item.text}</p>
         ) : (
           <p className="mt-1 text-[13.5px] leading-relaxed text-foreground/95 whitespace-pre-wrap break-words">
-            {sum.data?.summary}
+            {sum.isError ? item.text : sum.data?.summary}
           </p>
         )}
 
         <div className="mt-1.5 flex items-center gap-3 text-xs">
-          <button
-            type="button"
-            onClick={() => setShowOriginal((v) => !v)}
-            className="text-muted-foreground hover:text-foreground"
-          >
+          <button type="button" onClick={() => setShowOriginal((v) => !v)} className="text-muted-foreground hover:text-foreground">
             {showOriginal ? "원문 접기" : "원문 보기"}
           </button>
           <a href={item.url} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground">
@@ -147,6 +178,13 @@ export function SocialColumn() {
 
   const items: SocialItem[] = socialQuery.data?.items ?? []
 
+  // 계정별 최신 아바타 — 오래된 글(아바타 없음)도 같은 계정의 최신 사진을 공유
+  const avatarByAccount: Record<string, string> = {}
+  for (const it of items) {
+    if (it.avatarUrl && !avatarByAccount[it.account]) avatarByAccount[it.account] = it.avatarUrl
+  }
+  const avatarFor = (it: SocialItem) => avatarByAccount[it.account] || it.avatarUrl
+
   return (
     <div className="space-y-2">
       <div className="hidden md:flex items-center gap-2 pb-1 border-b border-border">
@@ -170,12 +208,7 @@ export function SocialColumn() {
       ) : socialQuery.isError ? (
         <div className="border border-border rounded-xl p-4 bg-card">
           <p className="text-red-400 text-sm">오류: {(socialQuery.error as Error).message}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-2 text-xs border-border text-foreground/90"
-            onClick={() => socialQuery.refetch()}
-          >
+          <Button variant="outline" size="sm" className="mt-2 text-xs border-border text-foreground/90" onClick={() => socialQuery.refetch()}>
             재시도
           </Button>
         </div>
@@ -186,16 +219,15 @@ export function SocialColumn() {
       ) : (
         <div>
           {items.slice(0, visibleCount).map((item) =>
-            item.platform === "x" ? <XCard key={item.id} item={item} /> : <ThreadsCard key={item.id} item={item} />
+            item.platform === "x" ? (
+              <XCard key={item.id} item={item} avatarUrl={avatarFor(item)} />
+            ) : (
+              <ThreadsCard key={item.id} item={item} avatarUrl={avatarFor(item)} />
+            )
           )}
           {items.length > visibleCount && (
             <div className="flex justify-center pt-3 pb-4">
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs border-border text-muted-foreground hover:text-foreground"
-                onClick={() => setVisibleCount((prev) => prev + 25)}
-              >
+              <Button variant="outline" size="sm" className="text-xs border-border text-muted-foreground hover:text-foreground" onClick={() => setVisibleCount((prev) => prev + 25)}>
                 더보기 ({items.length - visibleCount}개 남음)
               </Button>
             </div>

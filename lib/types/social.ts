@@ -10,6 +10,7 @@ export interface SocialItem {
   text: string // 본문 전체
   url: string // 원글 permalink
   postedAt: string // ISO date string ("" if unknown)
+  avatarUrl: string // 프로필 사진 URL ("" if none)
 }
 
 export interface SocialFeedResponse {

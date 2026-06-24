@@ -47,6 +47,7 @@ function toSocialItem(page: NotionPage): SocialItem | null {
     text,
     url,
     postedAt: props.PostedAt?.date?.start ?? "",
+    avatarUrl: props.Avatar?.url ?? "",
   }
 }
 
