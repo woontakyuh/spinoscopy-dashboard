@@ -40,7 +40,7 @@ function ThreadsCard({ item }: { item: SocialItem }) {
       <Avatar account={item.account} platform={item.platform} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5 text-sm">
-          <span className="font-semibold text-foreground truncate">{item.account}</span>
+          <span className="font-semibold text-foreground truncate">@{item.account}</span>
           {item.postedAt && <span className="text-muted-foreground text-xs shrink-0">· {item.postedAt.slice(5)}</span>}
         </div>
         <p className="mt-1 text-[13.5px] leading-relaxed text-foreground/95 whitespace-pre-wrap break-words">
