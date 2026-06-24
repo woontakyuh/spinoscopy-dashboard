@@ -6,6 +6,7 @@ import {
   MUST_READ_PATTERNS,
   STRONG_METHOD_PUBTYPES,
 } from "@/lib/journal-alert/config"
+import type { ScrapedArticle } from "./journalSite"
 
 type InterestLevel = "🔴 필독" | "🟡 관심" | "⚪ 참고"
 
@@ -364,6 +365,38 @@ async function fetchPubmedArticles(pmids: string[]): Promise<PubmedArticle[]> {
     if (i < chunks.length - 1) await new Promise((r) => setTimeout(r, 400))
   }
   return all
+}
+
+export function minimalArticleFromScraped(s: ScrapedArticle): PubmedArticle {
+  return {
+    pmid: null as unknown as string,   // PubMed 미색인 — 기존 코드의 pmid 사용부는 falsy 가드 있음
+    title: s.title,
+    authors: s.authors,
+    abstract: "",
+    doiUrl: "",
+    journalName: s.journalName,
+    pubDate: s.postedAt ?? "",
+    pubTypes: [],
+    affiliations: "",
+    keywords: [],
+    volume: "",
+    issue: "",
+  }
+}
+
+// 제목 정확매칭으로 PubMed 단건 조회. 색인 전이면 null.
+export async function searchPubmedByTitle(title: string, journal: string): Promise<PubmedArticle | null> {
+  const term = `"${title}"[Title] AND "${journal}"[journal]`
+  const url =
+    `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed` +
+    `&term=${encodeURIComponent(term)}&retmax=1&retmode=json`
+  const res = await fetch(url, { cache: "no-store", headers: { "User-Agent": "SpinoscopyDashboard/1.0" } })
+  if (!res.ok) throw new Error(`PubMed title search failed: ${res.status}`)
+  const payload = (await res.json()) as { esearchresult?: { idlist?: string[] } }
+  const id = payload.esearchresult?.idlist?.[0]
+  if (!id) return null
+  const [article] = await fetchPubmedArticles([id])
+  return article ?? null
 }
 
 function titleKey(title: string): string {
