@@ -44,6 +44,7 @@ scripts/*
 !scripts/generate-dakota-manifest.ts
 !scripts/telegram-bot.ts
 !scripts/social-collector
+!scripts/journal-collector
 
 # legacy planning tool
 .sisyphus/
