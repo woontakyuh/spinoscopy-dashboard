@@ -31,7 +31,7 @@ export function parseTsjDate(text: string): string | null {
 }
 
 export function extractPii(href: string): string | null {
-  const m = href.match(/\/article\/(S\d{4}-\d{4}\(\d{2}\)\d{5}-\d)/)
+  const m = href.match(/\/article\/(S\d{4}-\d{4}\(\d{2}\)\d{5}-[\dX])/)
   return m ? m[1] : null
 }
 

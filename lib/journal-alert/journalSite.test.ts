@@ -20,6 +20,9 @@ describe("extractPii", () => {
   it("returns null when absent", () => {
     expect(extractPii("/issue/whatever")).toBeNull()
   })
+  it("accepts an X check digit (Elsevier mod-11 PII)", () => {
+    expect(extractPii("/article/S1529-9430(26)00188-X/fulltext")).toBe("S1529-9430(26)00188-X")
+  })
 })
 
 describe("parseTsjCitation", () => {
