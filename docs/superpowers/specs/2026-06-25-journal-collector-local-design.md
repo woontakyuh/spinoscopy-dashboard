@@ -8,14 +8,14 @@
 
 Scholar의 저널 알림 수집이 **2026-05-29 이후 멈춰 있음** (약 4주간 신규 논문 0건). 진단 결과 두 가지가 동시에 터져 있었다:
 
-1. **PubMed가 Vercel datacenter IP를 차단(429)** — 프로덕션 엔드포인트(`/api/notion/journal/alert/run`)를 직접 호출하면 `PubMed search (pdat) failed: 429`. 파이프라인은 첫 429에서 전체 throw → 매 run 0건. (검증: 같은 PubMed esearch가 맥미니 residential IP 121.165.0.87 에서는 **HTTP 200**.)
+1. **PubMed가 Vercel datacenter IP를 차단(429)** — 프로덕션 엔드포인트(`/api/notion/journal/alert/run`)를 직접 호출하면 `PubMed search (pdat) failed: 429`. 파이프라인은 첫 429에서 전체 throw → 매 run 0건. (검증: 같은 PubMed esearch가 **병원 M4 맥미니 IP 121.165.0.87** 에서는 **HTTP 200**.)
 2. **Vercel cron 미등록** — `vercel inspect`의 Crons 섹션이 비어 있음. 현재 라이브 프로덕션 배포에 cron 자체가 등록 안 됨. (env `JOURNAL_ALERT_PAUSED`·`CRON_SECRET`는 둘 다 없음 → 킬스위치/인증 차단은 원인 아님.)
 
 추가로 PubMed는 구조적으로 **색인 지연·누락**이 있다 (online-first가 며칠~몇 주 늦게 색인되고, 한 호가 통째로 안 들어오고 뜨문뜨문 들어옴). cron을 살려도 신선도 문제는 남는다.
 
 ## 2. 목표
 
-- 수집을 **Vercel cron 의존에서 떼어내 맥미니(launchd) 로컬 수집으로 전환** — 소셜 컬렉터와 같은 토대. residential IP라 PubMed 429 해소.
+- 수집을 **Vercel cron 의존에서 떼어내 병원 M4 맥미니(launchd, 24/7 서버) 로컬 수집으로 전환** — 소셜 컬렉터와 같은 토대. 비-datacenter(병원) IP라 PubMed 429 해소.
 - PubMed 색인 지연을 **저널 사이트 직접 스크랩(Aside)** 으로 보강 → 신선도 확보.
 - 기존 분류(必読/関心/参考)·이메일·dedup 로직은 그대로 재사용.
 - 멈춰 있던 ~4주 backlog 복구.
@@ -37,8 +37,8 @@ PubMed와 Aside 스크랩은 경쟁이 아니라 **역할 분담**이다. 429는
 ## 4. 아키텍처
 
 ```
-[맥미니 Taks-Mac-mini.local · launchd]  scripts/journal-collector/
-  ├─ 소스1: PubMed E-utilities (residential IP, 429 없음)   ← backbone
+[병원 M4 맥미니 Taks-Mac-mini.local · 24/7 · launchd]  scripts/journal-collector/
+  ├─ 소스1: PubMed E-utilities (병원 IP, 429 없음)          ← backbone
   │        기존 lib/journal-alert 로직 재사용
   └─ 소스2: Aside CLI 로 저널 "Articles in Press" 스크랩     ← 신선도 가속기
   → DOI(차선: 제목 정규화)로 merge + dedup
@@ -48,7 +48,7 @@ PubMed와 Aside 스크랩은 경쟁이 아니라 **역할 분담**이다. 429는
 [Vercel] 대시보드: Notion 을 READ 만. 수집 안 함. cron 폐기.
 ```
 
-호스트 확정: 이 맥미니가 소셜 컬렉터(launchd + Aside) 호스트와 동일. `~/.local/bin/aside` 존재, `com.spino.social-collector` launchd 등록됨.
+호스트 확정: **병원 M4 맥미니**(Mac16,10 / Apple M4, 24/7 가동, 메인 개발+서버). 소셜 컬렉터(launchd + Aside) 호스트와 동일 머신. `~/.local/bin/aside` 존재, `com.spino.social-collector` launchd 등록됨. 공개 학술 데이터만 다루므로 환자 데이터 프라이버시 이슈 없음. 병원 방화벽은 소셜 컬렉터 outbound + PubMed 200 이미 통과 확인.
 
 ## 5. 컴포넌트
 
@@ -96,7 +96,7 @@ TSJ를 먼저 하는 이유: WAF가 가장 센 출판사. 여기가 Aside로 뚫
 
 ## 9. Vercel 이슈 해결 (별도 작업, 병행 가능)
 
-1. **Backlog 복구**: 맥미니에서 기존 파이프라인을 residential IP로 직접 실행 — `days=30, email=false`(백필 모드, 메일 안 감)로 5/29~현재 누락분 Notion 채움. (429 없음 검증됨.)
+1. **Backlog 복구**: 병원 M4 맥미니에서 기존 파이프라인을 병원 IP로 직접 실행 — `days=30, email=false`(백필 모드, 메일 안 감)로 5/29~현재 누락분 Notion 채움. (429 없음 검증됨.)
 2. **죽은 Vercel cron 정리**: 로컬 수집으로 전환하므로 `vercel.json`의 cron 제거(또는 명시적으로 비활성). 좀비 cron이 혼란/중복 유발하지 않게. 단, 로컬 수집기가 안정 가동 확인된 뒤 제거 (전환 공백 방지).
 3. 대시보드 READ 경로는 무변경.
 
@@ -112,7 +112,8 @@ TSJ를 먼저 하는 이유: WAF가 가장 센 출판사. 여기가 Aside로 뚫
 - **Aside 로그인 세션** — 저널 사이트는 초록까지는 보통 비로그인 공개. 로그인 필요 여부 파일럿서 확인. (Aside는 실제 Chrome라 WAF/JS는 통과.)
 - **pipeline.ts의 node 직접 import 가능성** — 안 되면 순수 함수 추출 리팩터.
 - **이메일 중복** — 로컬 수집기가 이메일 보내면, Vercel cron(살아있을 경우)과 중복 가능. cron 제거로 해소. (메모리: journal-alert sender는 하나여야 함.)
-- **맥미니 가동률** — launchd는 맥 꺼지면 안 돔. 소셜 컬렉터와 동일 제약(이미 수용 중).
+- **맥미니 가동률** — launchd는 맥 꺼지면 안 돔. 단 병원 M4는 24/7 서버라 리스크 낮음(소셜 컬렉터가 이미 안정 가동 중).
+- **병원 네트워크 의존** — 수집이 병원 IP/방화벽에 묶임. 현재 outbound 통과 확인됐으나, 병원 망 정책 변경 시 영향 가능.
 
 ## 12. 성공 기준
 
