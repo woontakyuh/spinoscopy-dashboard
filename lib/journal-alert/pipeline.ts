@@ -426,6 +426,31 @@ export async function ingestScrapedArticles(
   return { scraped: scraped.length, created, skipped, enriched, failed }
 }
 
+// 외부 소스(CrossRef 등)에서 이미 메타데이터까지 갖춘 article 들을 적재.
+// PubMed 가 아직 색인 못 한 누락분 보충용 — DOI/제목으로 dedup 후 분류·생성.
+export async function ingestExternalArticles(
+  databaseId: string,
+  articles: PubmedArticle[],
+): Promise<IngestResult> {
+  const existing = await loadExistingKeys(databaseId)
+  let created = 0, skipped = 0, failed = 0
+  for (const a of articles) {
+    if ((a.doiUrl && existing.has(a.doiUrl)) || existing.has(titleKey(a.title))) { skipped++; continue }
+    try {
+      await createJournalPage(databaseId, a)
+      created++
+      existing.add(titleKey(a.title))
+      if (a.doiUrl) existing.add(a.doiUrl)
+    } catch (err) {
+      failed++
+      console.error(`[ingest-external] 실패: "${a.title}" —`, err instanceof Error ? err.message : err)
+      continue
+    }
+    await new Promise((r) => setTimeout(r, 350))
+  }
+  return { scraped: articles.length, created, skipped, enriched: 0, failed }
+}
+
 export function titleKey(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().slice(0, 80)
 }
