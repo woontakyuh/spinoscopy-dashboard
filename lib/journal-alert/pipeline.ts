@@ -293,7 +293,7 @@ function parsePubmedXml(xml: string): PubmedArticle[] {
     .filter((article) => article.title.length > 0)
 }
 
-function classifyInterest(article: PubmedArticle): InterestLevel {
+export function classifyInterest(article: PubmedArticle): InterestLevel {
   // 1) letter / editorial / erratum 류 → ⚪
   const lowerTypes = article.pubTypes.map((t) => t.toLowerCase())
   if (lowerTypes.some((t) => LOW_PRIORITY_TYPES.some((needle) => t.includes(needle)))) {

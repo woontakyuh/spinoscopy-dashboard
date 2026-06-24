@@ -9,7 +9,7 @@
   </array>
   <key>StartCalendarInterval</key>
   <array>
-    <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Hour</key><integer>8</integer><key>Minute</key><integer>0</integer></dict>
   </array>
   <key>StandardOutPath</key><string>/tmp/journal-topic-radar.log</string>
   <key>StandardErrorPath</key><string>/tmp/journal-topic-radar.log</string>

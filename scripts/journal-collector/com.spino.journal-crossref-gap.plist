@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.spino.journal-crossref-gap</string>
+  <key>ProgramArguments</key><array>
+    <string>/bin/bash</string>
+    <string>/Users/TakMD/workspace/spinoscopy-dashboard/scripts/journal-collector/run-crossref-gap.sh</string>
+  </array>
+  <key>StartCalendarInterval</key><array>
+    <dict><key>Hour</key><integer>7</integer><key>Minute</key><integer>15</integer></dict>
+  </array>
+  <key>StandardOutPath</key><string>/tmp/journal-crossref-gap.log</string>
+  <key>StandardErrorPath</key><string>/tmp/journal-crossref-gap.log</string>
+</dict></plist>
