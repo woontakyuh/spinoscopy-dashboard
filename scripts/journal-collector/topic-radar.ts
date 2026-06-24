@@ -62,7 +62,31 @@ function loadSeen(): Set<string> {
   try { return new Set(JSON.parse(readFileSync(SEEN_PATH, "utf8"))) } catch { return new Set() }
 }
 
-interface Scored { pmid: string; title: string; authors: string; journal: string; doiUrl: string; score: number; reason: string }
+// 핵심 술기(UBE/biportal/full-endoscopic 척추) 키워드 매칭 — LLM 점수와 무관하게 통과 후보.
+function isCoreTechnique(title: string): boolean {
+  return /unilateral biportal|biportal|full[- ]endoscop|endoscopic (spine|lumbar|cervical|disc|decompression|discectomy)/i.test(title)
+}
+
+// OpenAlex 로 저널 impact(2년 평균 피인용 ≈ IF) 조회. PMID→source→summary_stats. source 별 캐시.
+const IMPACT_CACHE = new Map<string, { journal: string; impact: number }>()
+async function journalImpact(pmid: string): Promise<{ journal: string; impact: number }> {
+  const mail = process.env.JOURNAL_ALERT_RECIPIENT || "noreply@example.com"
+  try {
+    const w = await fetch(`https://api.openalex.org/works/pmid:${pmid}?select=primary_location&mailto=${mail}`)
+    if (!w.ok) return { journal: "", impact: -1 }
+    const src = ((await w.json()) as any)?.primary_location?.source
+    if (!src?.id) return { journal: "", impact: -1 }
+    if (IMPACT_CACHE.has(src.id)) return IMPACT_CACHE.get(src.id)!
+    const s = await fetch(`https://api.openalex.org/sources/${src.id.split("/").pop()}?select=display_name,summary_stats&mailto=${mail}`)
+    let impact = -1, journal = src.display_name || ""
+    if (s.ok) { const sj: any = await s.json(); impact = Number(sj?.summary_stats?.["2yr_mean_citedness"] ?? -1); journal = sj?.display_name || journal }
+    const val = { journal, impact }
+    IMPACT_CACHE.set(src.id, val)
+    return val
+  } catch { return { journal: "", impact: -1 } }
+}
+
+interface Scored { pmid: string; title: string; authors: string; journal: string; doiUrl: string; score: number; reason: string; impact: number; core: boolean }
 
 async function gateWithLLM(cands: { pmid: string; title: string; abstract: string }[]): Promise<Map<string, { score: number; reason: string }>> {
   const list = cands.map((c, i) => `[${i}] ${c.title}\n${(c.abstract || "(no abstract)").slice(0, 320)}`).join("\n\n")
@@ -104,13 +128,14 @@ function buildHtml(kept: Scored[]): string {
   const items = kept.map((r) => `
     <li style="margin:0 0 16px 0;line-height:1.5">
       <a href="${esc(r.doiUrl)}" style="color:#2563eb;text-decoration:none;font-weight:600">${esc(r.title)}</a>
-      <span style="background:#ecfdf5;color:#047857;font-size:12px;padding:1px 6px;border-radius:4px;margin-left:6px">★ ${r.score}</span><br>
+      ${r.core ? '<span style="background:#eff6ff;color:#1d4ed8;font-size:11px;padding:1px 6px;border-radius:4px;margin-left:6px">핵심술기</span>' : ""}
+      <span style="background:#ecfdf5;color:#047857;font-size:12px;padding:1px 6px;border-radius:4px;margin-left:4px">★${r.score} · IF ${r.impact >= 0 ? r.impact.toFixed(1) : "?"}</span><br>
       <span style="color:#6b7280;font-size:13px">${esc(r.authors)} · <i>${esc(r.journal)}</i></span><br>
       <span style="color:#374151;font-size:13px">→ ${esc(r.reason)}</span>
     </li>`).join("")
   return `<div style="font-family:-apple-system,Segoe UI,sans-serif;max-width:680px;margin:0 auto;color:#111">
     <h2 style="font-size:17px;margin:0 0 6px 0">🛰️ Topic Radar — 다른 저널의 주목할 논문</h2>
-    <p style="margin:0 0 16px 0;font-size:13px;color:#6b7280">코어 6개 저널 밖에서 주제(UBE·내시경·PROM·AI) 기준으로 선별한 논문 ${kept.length}건 (LLM 점수 ${MIN_SCORE}+).</p>
+    <p style="margin:0 0 16px 0;font-size:13px;color:#6b7280">코어 6개 밖에서 주제(UBE·내시경·PROM·AI) 선별 ${kept.length}건 — 핵심술기 자동통과 + 나머지 LLM ${MIN_SCORE}+, 저널 impact 게이트.</p>
     <ul style="padding-left:18px;margin:0">${items}</ul>
   </div>`
 }
@@ -135,17 +160,30 @@ async function main() {
   if (cands.length === 0) { console.log("[radar] 신규 없음 — 종료"); return }
 
   const scores = await gateWithLLM(cands.map((a) => ({ pmid: a.pmid, title: a.title, abstract: a.abstract })))
-  const kept: Scored[] = cands
-    .map((a) => ({ pmid: a.pmid, title: a.title, authors: a.authors, journal: a.journalName, doiUrl: a.doiUrl || (a.pmid ? `https://pubmed.ncbi.nlm.nih.gov/${a.pmid}/` : ""), ...(scores.get(a.pmid) || { score: 0, reason: "" }) }))
-    .filter((x) => x.score >= MIN_SCORE)
-    .sort((a, b) => b.score - a.score)
+  const MIN_IMPACT = Number(process.env.RADAR_MIN_IMPACT ?? "1.3")
+  const scored: Scored[] = []
+  for (const a of cands) {
+    const sc = scores.get(a.pmid) || { score: 0, reason: "" }
+    const { journal, impact } = await journalImpact(a.pmid)
+    scored.push({
+      pmid: a.pmid, title: a.title, authors: a.authors, journal: journal || a.journalName,
+      doiUrl: a.doiUrl || (a.pmid ? `https://pubmed.ncbi.nlm.nih.gov/${a.pmid}/` : ""),
+      score: sc.score, reason: sc.reason, impact, core: isCoreTechnique(a.title),
+    })
+    await new Promise((r) => setTimeout(r, 120))
+  }
+  // 하이브리드 + impact 게이트: (핵심술기 OR LLM>=MIN_SCORE) AND 저널 impact>=MIN_IMPACT
+  const kept = scored
+    .filter((x) => (x.core || x.score >= MIN_SCORE) && x.impact >= MIN_IMPACT)
+    .sort((a, b) => Number(b.core) - Number(a.core) || b.score - a.score || b.impact - a.impact)
     .slice(0, Number(process.env.RADAR_MAX ?? "12"))
-  console.log(`[radar] LLM 통과(${MIN_SCORE}+, 상위 ${process.env.RADAR_MAX ?? "12"} cap): ${kept.length}`)
+  console.log(`[radar] 게이트 통과(core OR ${MIN_SCORE}+, impact>=${MIN_IMPACT}, cap ${process.env.RADAR_MAX ?? "12"}): ${kept.length}`)
 
   if (DRY) {
-    console.log("=== DRY RUN ===")
-    kept.forEach((k) => console.log(`  ★${k.score} [${k.journal}] ${k.title.slice(0, 68)} — ${k.reason.slice(0, 50)}`))
-    console.log(`(seen 갱신/발송 안 함. 후보검토 ${cands.length}, 통과 ${kept.length})`)
+    console.log(`=== DRY RUN (전 후보 — core/점수/impact, MIN_IMPACT=${MIN_IMPACT}) ===`)
+    scored.sort((a, b) => b.impact - a.impact).forEach((k) =>
+      console.log(`  ${k.core ? "CORE" : "    "} ★${k.score} IF${k.impact >= 0 ? k.impact.toFixed(1) : "?"} [${k.journal.slice(0, 24)}] ${k.title.slice(0, 52)}`))
+    console.log(`(seen/발송 안 함. 후보 ${cands.length}, 게이트통과 ${kept.length})`)
     return
   }
 
