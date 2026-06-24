@@ -16,6 +16,14 @@ test("cleanThreadText: 머리 메타(계정·시각) 제거", () => {
   assert.equal(cleanThreadText("본문만", "choi.openai"), "본문만")
 })
 
+test("cleanThreadText: AI Threads 토픽칩·시각·Translate·참여수 제거", () => {
+  const raw = "AI Threads\n56m\nAI 쯔꾸르 만들기 장족의발전\n집을 템플릿화시켜서\nTranslate\n\n1\n/\n3\n4\n5"
+  assert.equal(cleanThreadText(raw, "aimaster3658"), "AI 쯔꾸르 만들기 장족의발전\n집을 템플릿화시켜서")
+  // Pinned + 영문 토픽칩 + View N more
+  const raw2 = "Pinned\nunclejobs.ai\n10h\nAside는, 통합하지 않습니다\n본문 둘째줄\nView 12 more"
+  assert.equal(cleanThreadText(raw2, "unclejobs.ai"), "Aside는, 통합하지 않습니다\n본문 둘째줄")
+})
+
 test("sinceDate / withinSince: 주간 컷오프", () => {
   const now = Date.parse("2026-06-22T00:00:00Z")
   assert.equal(sinceDate(7, now), "2026-06-15")

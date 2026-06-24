@@ -11,18 +11,35 @@ export function firstLine(text, max = 80) {
  * 예: "choi.openai\n14분\n실제 본문…" → "실제 본문…"
  */
 export function cleanThreadText(text, account) {
-  const lines = (text || "").split("\n")
-  const isMeta = (l) => {
-    const t = l.trim()
-    if (!t) return true
-    if (account && t === account) return true
-    if (/^\d+\s*(초|분|시간|일|주|개월|년)$/.test(t)) return true // 14분, 2시간, 5일
-    if (/^\d+[smhdw]$/i.test(t)) return true // 14m, 2h, 5d
+  let lines = (text || "").split("\n").map((s) => s.trim())
+
+  const isRelTime = (l) =>
+    /^\d+\s*(초|분|시간|일|주|개월|년)$/.test(l) || /^\d+[smhdwy]$/i.test(l)
+
+  // 앞쪽 메타(계정명·토픽칩 "AI Threads"·상대시각·Pinned·빈 줄) 제거
+  const isLeadMeta = (l) => {
+    if (!l) return true
+    if (account && l === account) return true
+    if (/^[A-Za-z][\w ]* Threads$/.test(l)) return true // "AI Threads", "Tech Threads" 토픽칩
+    if (/^(Pinned|고정됨)$/i.test(l)) return true
+    if (isRelTime(l)) return true
     return false
   }
   let i = 0
-  while (i < lines.length && isMeta(lines[i])) i++
-  return lines.slice(i).join("\n").trim()
+  while (i < lines.length && isLeadMeta(lines[i])) i++
+  lines = lines.slice(i)
+
+  // 본문 끝: "Translate"/"View N more"/"N개 더" 등 UI에서 자름
+  const cut = lines.findIndex((l) =>
+    /^(Translate|번역(하기)?|View\s+\d+\s+more|\d+\s*more|더\s*보기|\d+개\s*더|Show more)$/i.test(l)
+  )
+  if (cut >= 0) lines = lines.slice(0, cut)
+
+  // 꼬리의 참여수(좋아요/답글/리포트 숫자·슬래시·빈 줄) 제거
+  const isEngagement = (l) => l === "" || l === "/" || /^[\d.,]+[KkMm]?$/.test(l)
+  while (lines.length && isEngagement(lines[lines.length - 1])) lines.pop()
+
+  return lines.join("\n").trim()
 }
 
 /** YYYY-MM-DD 기준 N일 전 컷오프 문자열 */
