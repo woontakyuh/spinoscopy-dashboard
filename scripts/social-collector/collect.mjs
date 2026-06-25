@@ -135,17 +135,25 @@ function collectX(handle, cutoff) {
 }
 
 // ─── Notion ───
-async function fetchExistingPostIds(limit = 100) {
-  const res = await fetch(`${NOTION_BASE}/databases/${NOTION_DB}/query`, {
-    method: "POST",
-    headers: NOTION_HEADERS,
-    body: JSON.stringify({ page_size: limit, sorts: [{ property: "CollectedAt", direction: "descending" }] }),
-  })
-  if (!res.ok) throw new Error(`Notion query ${res.status}: ${await res.text()}`)
-  const data = await res.json()
-  return (data.results ?? [])
-    .map((p) => (p.properties?.PostId?.rich_text ?? []).map((r) => r.plain_text ?? "").join(""))
-    .filter(Boolean)
+// 기존 PostId 전체를 페이지네이션으로 수집 (100건 제한 금지 — 중복 적재 방지)
+async function fetchExistingPostIds() {
+  const ids = []
+  let cursor
+  do {
+    const res = await fetch(`${NOTION_BASE}/databases/${NOTION_DB}/query`, {
+      method: "POST",
+      headers: NOTION_HEADERS,
+      body: JSON.stringify({ page_size: 100, start_cursor: cursor }),
+    })
+    if (!res.ok) throw new Error(`Notion query ${res.status}: ${await res.text()}`)
+    const data = await res.json()
+    for (const p of data.results ?? []) {
+      const id = (p.properties?.PostId?.rich_text ?? []).map((r) => r.plain_text ?? "").join("")
+      if (id) ids.push(id)
+    }
+    cursor = data.has_more ? data.next_cursor : undefined
+  } while (cursor)
+  return ids
 }
 
 async function insertPage(item, collectedAtISO) {
@@ -187,7 +195,7 @@ async function main() {
 
   let existing = []
   try {
-    existing = await fetchExistingPostIds(100)
+    existing = await fetchExistingPostIds()
   } catch (e) {
     log("기존 PostId 조회 실패 — 진행:", e.message)
   }
