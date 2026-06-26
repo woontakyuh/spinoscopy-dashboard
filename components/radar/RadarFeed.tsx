@@ -241,6 +241,17 @@ export function RadarFeed() {
     <div className="space-y-3">
       {/* ─── Mobile: tab navigation ─── */}
       <div className="md:hidden flex items-center gap-1 border-b border-border">
+        <button
+          type="button"
+          onClick={() => setMobileTab("social")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            mobileTab === "social"
+              ? "border-cyan-500 text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground/90"
+          }`}
+        >
+          Social
+        </button>
         {TIERS.map((t) => {
           const active = mobileTab === t.value
           const count = items.filter((i) => i.tier === t.value).length
@@ -260,17 +271,6 @@ export function RadarFeed() {
             </button>
           )
         })}
-        <button
-          type="button"
-          onClick={() => setMobileTab("social")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            mobileTab === "social"
-              ? "border-cyan-500 text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground/90"
-          }`}
-        >
-          소셜
-        </button>
       </div>
 
       {/* ─── Mobile: single column ─── */}
@@ -295,10 +295,10 @@ export function RadarFeed() {
           </div>
         )}
         <div className="grid grid-cols-4 gap-4">
+          <SocialColumn />
           {TIERS.map((tier) => (
             <FeedColumn key={tier.value} tier={tier} items={items} />
           ))}
-          <SocialColumn />
         </div>
       </div>
     </div>

@@ -188,7 +188,7 @@ export function SocialColumn() {
   return (
     <div className="space-y-2">
       <div className="hidden md:flex items-center gap-2 pb-1 border-b border-border">
-        <h3 className="text-sm font-medium text-foreground">소셜</h3>
+        <h3 className="text-sm font-medium text-foreground">Social</h3>
         <span className="text-xs text-muted-foreground">{items.length}</span>
       </div>
 
