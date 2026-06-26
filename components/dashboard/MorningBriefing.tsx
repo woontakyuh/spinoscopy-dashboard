@@ -9,7 +9,6 @@ import { WeatherInline, useWeatherLocation } from "@/components/dashboard/Weathe
 import { useDemoMode } from "@/components/layout/DemoModeContext"
 import { pickDakotaGreeting } from "@/lib/dakotaGreetings"
 import { useSpeechRecognition, useElevenLabsSpeech } from "@/lib/voice"
-import { useGeminiLive } from "@/lib/geminiLive"
 import {
   getSlot,
   dateKeySeoul,
@@ -92,51 +91,6 @@ function DakotaGreetingChat({
 
   const { speak, stop: stopSpeech, isSupported: ttsSupported, isSpeaking, prime: primeAudio } = useElevenLabsSpeech()
 
-  // ─── Gemini Live (speech-to-speech) — EL 과 나란히 A/B ──────────
-  const [geminiMode, setGeminiMode] = useState(false)
-  const geminiLogRef = useRef<Array<{ role: "user" | "assistant"; content: string }>>([])
-  const geminiStartTimeRef = useRef<string | null>(null)
-  const onGeminiTranscript = useCallback((role: "user" | "assistant", text: string) => {
-    const log = geminiLogRef.current
-    const last = log[log.length - 1]
-    if (last && last.role === role) last.content += text
-    else log.push({ role, content: text })
-  }, [])
-  const gemini = useGeminiLive({ onTranscript: onGeminiTranscript })
-  const geminiStart = gemini.start
-  const geminiStop = gemini.stop
-
-  const enterGemini = useCallback(() => {
-    geminiLogRef.current = []
-    geminiStartTimeRef.current = new Date().toISOString()
-    setGeminiMode(true)
-    void geminiStart()
-  }, [geminiStart])
-
-  const exitGemini = useCallback(() => {
-    geminiStop()
-    setGeminiMode(false)
-    // 세션 전사를 메모리에 저장 (EL session 저장과 동일 엔드포인트)
-    const start = geminiStartTimeRef.current
-    const exchanges = geminiLogRef.current
-      .map((m) => ({ role: m.role, content: m.content.trim() }))
-      .filter((m) => m.content.length > 0)
-    geminiLogRef.current = []
-    geminiStartTimeRef.current = null
-    if (start && exchanges.length > 0) {
-      fetch("/api/dakota/memory/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          startTime: start,
-          endTime: new Date().toISOString(),
-          channel: "dashboard-gemini",
-          exchanges,
-        }),
-      }).catch((e) => console.warn("[gemini] session save failed:", e))
-    }
-  }, [geminiStop])
-
   const handleVoiceFinal = useCallback(
     (text: string) => {
       const trimmed = text.trim()
@@ -186,11 +140,6 @@ function DakotaGreetingChat({
       lastInputViaMicRef.current = false
     }
   }, [focused, stopSpeech, stopListening])
-
-  // Focus overlay 닫히면 Gemini 세션도 종료(+메모리 저장)
-  useEffect(() => {
-    if (!focused && geminiMode) exitGemini()
-  }, [focused, geminiMode, exitGemini])
 
   const toggleVoiceMode = useCallback(() => {
     if (voiceMode) {
@@ -569,99 +518,20 @@ function DakotaGreetingChat({
     </div>
   ) : null
 
-  // ─── Gemini Live immersive (speech-to-speech, 연속 대화) ──────────
-  const geminiBusy = gemini.status === "speaking"
-  const geminiActive = gemini.status === "listening" || gemini.status === "speaking"
-  const geminiImmersive = (focused && geminiMode) ? (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-center p-6">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={image}
-        alt="Dakota"
-        className="relative h-[58vh] w-auto max-h-[32rem] object-contain select-none"
-        style={{
-          filter: geminiBusy
-            ? "drop-shadow(0 0 10px rgba(16,185,129,0.7)) drop-shadow(0 0 24px rgba(16,185,129,0.35))"
-            : geminiActive
-              ? "drop-shadow(0 0 10px rgba(59,130,246,0.7)) drop-shadow(0 0 24px rgba(59,130,246,0.35))"
-              : "drop-shadow(0 0 6px rgba(255,255,255,0.15))",
-          transition: "filter 500ms ease",
-        }}
-        draggable={false}
-      />
-
-      <div className="mt-8 text-center space-y-1">
-        <div className="text-[12px] text-muted-foreground">
-          {gemini.status === "connecting"
-            ? "… 연결 중"
-            : gemini.status === "speaking"
-              ? "🔊 Dakota"
-              : gemini.status === "listening"
-                ? "🎙 듣는 중 — 그냥 말하세요"
-                : gemini.status === "error"
-                  ? `⚠ ${gemini.error || "오류"}`
-                  : "…"}
-        </div>
-        <div className="text-[10px] text-emerald-500/80">Gemini 실시간 (S2S)</div>
-      </div>
-
-      {/* 종료 버튼 */}
-      <div className="mt-8 flex justify-center">
-        <button
-          type="button"
-          onClick={exitGemini}
-          className="w-16 h-16 rounded-full flex items-center justify-center bg-red-500 text-white shadow-xl active:scale-95 transition-transform"
-          aria-label="대화 종료"
-          title="대화 종료"
-        >
-          <span className="block w-5 h-5 bg-current rounded-sm" />
-        </button>
-      </div>
-
-      <div className="absolute bottom-8 left-0 right-0 flex justify-center">
-        <button
-          type="button"
-          onClick={exitGemini}
-          className="text-[10px] text-muted-foreground/60"
-        >
-          ⏹ 종료하고 채팅으로
-        </button>
-      </div>
-    </div>
-  ) : null
-
   // ─── Focused overlay (portal to body to escape transformed ancestors) ──
-  const focusedOverlay = (focused && !voiceMode && !geminiMode) ? (
+  const focusedOverlay = (focused && !voiceMode) ? (
     <div className="fixed inset-0 z-50 bg-background backdrop-blur-sm overflow-hidden flex items-stretch md:items-center justify-center md:p-6">
         <div className="w-full h-full md:max-w-5xl md:h-[80vh] flex flex-col md:flex-row md:gap-6 overflow-hidden">
-          {/* Dakota 캐릭터 + 음성 모드 선택 버튼 (EL vs Gemini S2S) */}
-          <div className="shrink-0 flex flex-col items-center md:justify-center pt-3 md:pt-0 gap-2">
+          {/* Dakota 캐릭터 — 탭하면 음성모드 진입 (비공개 entry point) */}
+          <div className="shrink-0 flex justify-center md:items-center pt-3 md:pt-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={image}
               alt="Dakota"
               onClick={toggleVoiceMode}
-              className="h-[24vh] md:h-[60vh] w-auto max-w-[50vw] md:max-w-[280px] object-contain select-none cursor-pointer hover:opacity-90 transition-opacity"
+              className="h-[28vh] md:h-full w-auto max-w-[50vw] md:max-w-[280px] object-contain select-none cursor-pointer hover:opacity-90 transition-opacity"
               draggable={false}
             />
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={toggleVoiceMode}
-                className="px-3 py-1.5 rounded-full text-[11px] font-medium bg-muted text-foreground border border-border hover:bg-muted/70 transition-colors"
-                title="기존 ElevenLabs 음성 (녹음→Claude→TTS)"
-              >
-                🎙 EL 음성
-              </button>
-              <button
-                type="button"
-                onClick={enterGemini}
-                className="px-3 py-1.5 rounded-full text-[11px] font-medium bg-emerald-600 text-white hover:bg-emerald-500 transition-colors"
-                title="Gemini 실시간 speech-to-speech"
-              >
-                ⚡ Gemini 실시간
-              </button>
-            </div>
           </div>
 
           {/* 채팅 카드 */}
@@ -708,7 +578,6 @@ function DakotaGreetingChat({
   return (
     <div className="pt-2 md:pt-4 flex items-start gap-3 md:gap-4">
       {typeof document !== "undefined" && voiceImmersive && createPortal(voiceImmersive, document.body)}
-      {typeof document !== "undefined" && geminiImmersive && createPortal(geminiImmersive, document.body)}
       {typeof document !== "undefined" && focusedOverlay && createPortal(focusedOverlay, document.body)}
 
       {/* 좌측: 캐릭터 — 상체만 크롭, 클릭하면 전신 보기 */}
