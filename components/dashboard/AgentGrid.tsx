@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Badge } from "@/components/ui/badge"
 import { useDemoMode } from "@/components/layout/DemoModeContext"
@@ -19,6 +19,12 @@ type AgentId = (typeof AGENTS)[number]["id"]
 
 export function AgentGrid() {
   const [hoveredId, setHoveredId] = useState<AgentId | null>(null)
+  // 터치 기기에선 hover 말풍선을 띄우지 않는다 — 첫 탭이 hover로 소비되어
+  // Link 이동이 막히는 모바일 버그 방지. hover 가능한 기기에서만 활성화.
+  const [canHover, setCanHover] = useState(false)
+  useEffect(() => {
+    setCanHover(window.matchMedia?.("(hover: hover)").matches ?? false)
+  }, [])
   const demo = useDemoMode()
   const agents = demo
     ? AGENTS.filter((a) => (DEMO_AGENT_IDS as readonly string[]).includes(a.id))
@@ -42,8 +48,8 @@ export function AgentGrid() {
         const greeting = greetings?.[agent.id]
         const card = (
           <div
-            onMouseEnter={() => setHoveredId(agent.id)}
-            onMouseLeave={() => setHoveredId((id) => (id === agent.id ? null : id))}
+            onMouseEnter={canHover ? () => setHoveredId(agent.id) : undefined}
+            onMouseLeave={canHover ? () => setHoveredId((id) => (id === agent.id ? null : id)) : undefined}
             className={`relative border rounded-xl p-1.5 md:p-3 bg-card transition-all ${
               agent.active
                 ? `${agent.accent} hover:scale-[1.03] hover:shadow-lg cursor-pointer`
@@ -51,7 +57,7 @@ export function AgentGrid() {
             }`}
           >
             {/* Speech bubble — agent 위에 떠 있음. relative parent 기준 absolute. */}
-            {isHovered && greeting && (
+            {canHover && isHovered && greeting && (
               <div
                 className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-20 pointer-events-none animate-fade-in-up"
                 style={{ width: "min(420px, 80vw)" }}
