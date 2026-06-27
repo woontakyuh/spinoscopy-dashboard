@@ -455,12 +455,12 @@ export async function ingestExternalArticles(
   const existing = await loadExistingKeys(databaseId)
   let created = 0, skipped = 0, failed = 0
   for (const a of articles) {
-    if ((a.doiUrl && existing.has(a.doiUrl)) || existing.has(titleKey(a.title))) { skipped++; continue }
+    if (articleAlreadyExists(a, existing)) { skipped++; continue }
     try {
       await createJournalPage(databaseId, a)
       created++
       existing.add(titleKey(a.title))
-      if (a.doiUrl) existing.add(a.doiUrl)
+      if (a.doiUrl) existing.add(doiKey(a.doiUrl))
     } catch (err) {
       failed++
       console.error(`[ingest-external] 실패: "${a.title}" —`, err instanceof Error ? err.message : err)
@@ -473,6 +473,25 @@ export async function ingestExternalArticles(
 
 export function titleKey(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().slice(0, 80)
+}
+
+// DOI dedup 키 — url 접두 제거 + 소문자화. DOI 는 대소문자 무시이므로
+// CrossRef("…/brs.…") 와 PubMed("…/BRS.…") 가 같은 키가 되도록 정규화한다.
+// (이 정규화 누락이 중복 적재의 근본 원인이었음.)
+export function doiKey(raw: string): string {
+  return normalizeDoi(raw).toLowerCase()
+}
+
+// 모든 적재 경로(sweep / crossref-gap / scrape)가 공유하는 단일 dedup 판정.
+// existing 집합엔 doiKey, titleKey, `pmid:<id>` 형태의 키가 들어있다고 가정.
+export function articleAlreadyExists(
+  article: Pick<PubmedArticle, "doiUrl" | "title" | "pmid">,
+  existing: Set<string>,
+): boolean {
+  if (article.doiUrl && existing.has(doiKey(article.doiUrl))) return true
+  if (article.title && existing.has(titleKey(article.title))) return true
+  if (article.pmid && existing.has(`pmid:${article.pmid}`)) return true
+  return false
 }
 
 function pubDateMillis(value: string): number {
@@ -519,7 +538,7 @@ async function loadExistingKeys(databaseId: string): Promise<Set<string>> {
     for (const row of resp.results) {
       const props = row.properties
       const doi = (props.DOI as { url?: string } | undefined)?.url
-      if (doi) existing.add(doi)
+      if (doi) existing.add(doiKey(doi))
       const title =
         (props.Title as { title?: Array<{ plain_text?: string }> } | undefined)?.title?.[0]
           ?.plain_text ?? ""
@@ -1095,10 +1114,14 @@ export async function runDoiBackfill(): Promise<DoiBackfillResult> {
     await sleep(400)
   }
 
-  // 결과 메일 리포트
-  const email = await sendDoiBackfillReport(result, fieldStats, typeBreakdown)
-  result.emailed = email.sent
-  if (email.reason) result.emailSkippedReason = email.reason
+  // 결과 메일 리포트 — 매일 도는 잡이라 패치 0건이면 메일 생략(노이즈 방지).
+  if (result.patched > 0) {
+    const email = await sendDoiBackfillReport(result, fieldStats, typeBreakdown)
+    result.emailed = email.sent
+    if (email.reason) result.emailSkippedReason = email.reason
+  } else {
+    result.emailSkippedReason = "no_patches"
+  }
   return result
 }
 
@@ -1419,22 +1442,14 @@ export async function runJournalAlertPipeline(days: number, options: RunOptions 
   }
 
   const unique = Array.from(dedupedMap.values())
-  const toInsert = unique.filter((article) => {
-    const keyByTitle = titleKey(article.title)
-    const pmidKey = article.pmid ? `pmid:${article.pmid}` : null
-    // DOI, PMID, 제목 중 하나라도 이미 존재하면 제외
-    return (
-      !existing.has(article.doiUrl) &&
-      !existing.has(keyByTitle) &&
-      (!pmidKey || !existing.has(pmidKey))
-    )
-  })
+  // DOI(정규화)·PMID·제목 중 하나라도 이미 존재하면 제외
+  const toInsert = unique.filter((article) => !articleAlreadyExists(article, existing))
 
   // 삽입하면서 page_id 추적
   const insertedWithIds: Array<{ article: PubmedArticle; pageId: string }> = []
   for (const article of toInsert) {
     const pageId = await createJournalPage(databaseId, article)
-    if (article.doiUrl) existing.add(article.doiUrl)
+    if (article.doiUrl) existing.add(doiKey(article.doiUrl))
     if (article.pmid) existing.add(`pmid:${article.pmid}`)
     existing.add(titleKey(article.title))
     insertedWithIds.push({ article, pageId })

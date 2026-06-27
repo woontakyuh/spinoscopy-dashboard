@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { toMultiSelectOptions, minimalArticleFromScraped, titleKey } from "./pipeline"
+import { toMultiSelectOptions, minimalArticleFromScraped, titleKey, doiKey, articleAlreadyExists } from "./pipeline"
 
 describe("toMultiSelectOptions", () => {
   it("splits a comma-joined keyword into separate options (Notion 400 regression)", () => {
@@ -75,5 +75,45 @@ describe("titleKey", () => {
     const key = titleKey(long)
     expect(key).toBe("a".repeat(80))
     expect(key.length).toBe(80)
+  })
+})
+
+describe("doiKey", () => {
+  it("normalizes DOI case + url prefix to the same key (BRS vs brs dup regression)", () => {
+    expect(doiKey("https://doi.org/10.1097/BRS.0000000000005777")).toBe(
+      doiKey("https://doi.org/10.1097/brs.0000000000005777"),
+    )
+  })
+
+  it("strips http/https/dx.doi.org prefix and lowercases", () => {
+    expect(doiKey("https://dx.doi.org/10.1097/BRS.5777")).toBe("10.1097/brs.5777")
+    expect(doiKey("10.1097/BRS.5777")).toBe("10.1097/brs.5777")
+  })
+})
+
+describe("articleAlreadyExists", () => {
+  it("matches a DOI that differs only by case (crossref stub vs PubMed dup)", () => {
+    const existing = new Set([doiKey("https://doi.org/10.1097/brs.0000000000005777")])
+    expect(
+      articleAlreadyExists(
+        { doiUrl: "https://doi.org/10.1097/BRS.0000000000005777", title: "Some Title", pmid: "42348845" },
+        existing,
+      ),
+    ).toBe(true)
+  })
+
+  it("matches by PMID when DOI absent", () => {
+    const existing = new Set(["pmid:12345"])
+    expect(articleAlreadyExists({ doiUrl: "", title: "X", pmid: "12345" }, existing)).toBe(true)
+  })
+
+  it("matches by title key when DOI/PMID absent", () => {
+    const existing = new Set([titleKey("Endoscopic UBE for Stenosis")])
+    expect(articleAlreadyExists({ doiUrl: "", title: "Endoscopic UBE for stenosis.", pmid: null as unknown as string }, existing)).toBe(true)
+  })
+
+  it("returns false for a genuinely new article", () => {
+    const existing = new Set([doiKey("https://doi.org/10.1/aaa")])
+    expect(articleAlreadyExists({ doiUrl: "https://doi.org/10.1/bbb", title: "New", pmid: "999" }, existing)).toBe(false)
   })
 })
