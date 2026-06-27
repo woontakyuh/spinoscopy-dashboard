@@ -5,8 +5,10 @@
 import { runDoiBackfill } from "../../lib/journal-alert/pipeline"
 
 async function main() {
-  console.log(`[doi-backfill ${new Date().toISOString()}] start`)
-  const res = await runDoiBackfill()
+  // 기본 메일 OFF — 매일 도는 정비 잡이라 노이즈. JOURNAL_BACKFILL_EMAIL=true 로 옵트인.
+  const sendEmail = process.env.JOURNAL_BACKFILL_EMAIL === "true"
+  console.log(`[doi-backfill ${new Date().toISOString()}] start (email=${sendEmail})`)
+  const res = await runDoiBackfill({ sendEmail })
   console.log(`[doi-backfill ${new Date().toISOString()}] done`, JSON.stringify(res))
 }
 main().catch((e) => { console.error("[doi-backfill] 실패:", e); process.exit(1) })

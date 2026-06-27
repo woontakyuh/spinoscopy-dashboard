@@ -1036,7 +1036,10 @@ async function pmidFromDoi(doi: string): Promise<string | null> {
   return payload.esearchresult?.idlist?.[0] ?? null
 }
 
-export async function runDoiBackfill(): Promise<DoiBackfillResult> {
+export async function runDoiBackfill(options: { sendEmail?: boolean } = {}): Promise<DoiBackfillResult> {
+  // 매일 도는 백그라운드 정비 잡 — 기본은 메일 OFF (패치가 거의 매일 있어 노이즈).
+  // 디버그/수동 실행 시 sendEmail:true 로 리포트 받을 수 있음.
+  const shouldEmail = options.sendEmail === true
   const databaseId = process.env.NOTION_JOURNAL_DB_ID?.trim()
   if (!databaseId) throw new Error("NOTION_JOURNAL_DB_ID missing")
 
@@ -1114,13 +1117,13 @@ export async function runDoiBackfill(): Promise<DoiBackfillResult> {
     await sleep(400)
   }
 
-  // 결과 메일 리포트 — 매일 도는 잡이라 패치 0건이면 메일 생략(노이즈 방지).
-  if (result.patched > 0) {
+  // 결과 메일 리포트 — 기본 OFF. 옵트인(sendEmail:true) + 패치 있을 때만 발송.
+  if (shouldEmail && result.patched > 0) {
     const email = await sendDoiBackfillReport(result, fieldStats, typeBreakdown)
     result.emailed = email.sent
     if (email.reason) result.emailSkippedReason = email.reason
   } else {
-    result.emailSkippedReason = "no_patches"
+    result.emailSkippedReason = !shouldEmail ? "email_disabled" : "no_patches"
   }
   return result
 }
