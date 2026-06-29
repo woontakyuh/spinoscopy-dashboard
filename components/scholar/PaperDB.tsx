@@ -691,8 +691,15 @@ export function PaperDB() {
             <StatCard label="필독 미읽음" value={dashMustReadUnread} icon="🔴" accent="red" />
           </div>
 
-          {/* Charts 2x2 */}
+          {/* Charts 2x2 — journal first because Brian's primary scan is journal-led */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in-up" style={{ animationDelay: "60ms" }}>
+            <BarChart
+              title={CHART_CONFIG.journal.title}
+              entries={sortedEntries(journalCounts, CHART_CONFIG.journal.limit)}
+              activeKeys={chartActiveKeys.journal}
+              onClickItem={key => handleChartClick("journal", key)}
+              color="cyan"
+            />
             <BarChart
               title={CHART_CONFIG.topic.title}
               entries={topicSortedEntries(topicCounts, CHART_CONFIG.topic.limit)}
@@ -700,6 +707,8 @@ export function PaperDB() {
               onClickItem={key => handleChartClick("topic", key)}
               color="indigo"
             />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in-up" style={{ animationDelay: "120ms" }}>
             <BarChart
               title={CHART_CONFIG.country.title}
               entries={sortedEntries(countryCounts, CHART_CONFIG.country.limit)}
@@ -708,21 +717,12 @@ export function PaperDB() {
               color="emerald"
               renderLabel={key => `${getCountryFlag(key)} ${key}`}
             />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in-up" style={{ animationDelay: "120ms" }}>
             <BarChart
               title={CHART_CONFIG.type.title}
               entries={sortedEntries(typeCounts, CHART_CONFIG.type.limit)}
               activeKeys={chartActiveKeys.type}
               onClickItem={key => handleChartClick("type", key)}
               color="amber"
-            />
-            <BarChart
-              title={CHART_CONFIG.journal.title}
-              entries={sortedEntries(journalCounts, CHART_CONFIG.journal.limit)}
-              activeKeys={chartActiveKeys.journal}
-              onClickItem={key => handleChartClick("journal", key)}
-              color="cyan"
             />
           </div>
         </div>
@@ -810,7 +810,7 @@ export function PaperDB() {
       ) : (
         <div className="border border-border rounded-lg overflow-hidden">
           {/* Header */}
-          <div className="grid grid-cols-[80px_28px_1fr_90px_100px_40px] gap-2 px-3 py-2 bg-muted/80 border-b border-border text-muted-foreground text-[11px] font-medium uppercase tracking-wider">
+          <div className="hidden md:grid grid-cols-[80px_28px_1fr_90px_100px_40px] gap-2 px-3 py-2 bg-muted/80 border-b border-border text-muted-foreground text-[11px] font-medium uppercase tracking-wider">
             <span>날짜</span>
             <span />
             <span>제목</span>
@@ -834,7 +834,7 @@ export function PaperDB() {
                     setExpandedId(expandedId === article.page_id ? null : article.page_id)
                   }
                 }}
-                className={`grid grid-cols-[80px_28px_1fr_90px_100px_40px] gap-2 px-3 py-2 items-center border-b border-border cursor-pointer transition-colors ${
+                className={`grid grid-cols-[44px_16px_minmax(0,1fr)_28px] md:grid-cols-[80px_28px_1fr_90px_100px_40px] gap-2 px-3 py-2.5 md:py-2 items-center border-b border-border cursor-pointer transition-colors ${
                   expandedId === article.page_id
                     ? "bg-muted/70"
                     : "card-hover hover:bg-muted/40"
@@ -852,7 +852,7 @@ export function PaperDB() {
 
                 {/* Title */}
                 <span
-                  className={`text-xs leading-snug truncate ${
+                  className={`min-w-0 text-xs leading-snug truncate ${
                     article.read ? "text-muted-foreground" : "text-foreground"
                   }`}
                   title={article.title}
@@ -861,7 +861,7 @@ export function PaperDB() {
                 </span>
 
                 {/* Journal badge */}
-                <span>
+                <span className="hidden md:block">
                   <Badge
                     variant="outline"
                     className={`text-[9px] px-1.5 py-0 h-[18px] font-medium ${journalBadgeClass(article.journal_name)}`}
@@ -871,7 +871,7 @@ export function PaperDB() {
                 </span>
 
                 {/* Pub type */}
-                <span className={`text-[10px] truncate ${article.read ? "text-muted-foreground/70" : "text-muted-foreground"}`}>
+                <span className={`hidden md:block text-[10px] truncate ${article.read ? "text-muted-foreground/70" : "text-muted-foreground"}`}>
                   {article.pub_type || "—"}
                 </span>
 
