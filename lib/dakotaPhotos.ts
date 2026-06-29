@@ -31,6 +31,39 @@ const M = manifest as unknown as ManifestShape
 
 const FALLBACK = "/dakota-morning.png"
 
+// 자동 노출용 safe pool.
+// manifest의 _all은 보유 의상 전체 목록일 뿐, 첫 화면 적합성까지 의미하지 않는다.
+// 첫 화면은 의료/업무 대시보드의 front door이므로 선정성·이벤트성·사적 home 컷은 제외한다.
+const AUTO_SAFE_BY_SLOT: Record<DakotaSlot, string[]> = {
+  office: [
+    "/dakota/by-outfit/office/office19.png",
+    "/dakota/by-outfit/office/office20.png",
+    "/dakota/by-outfit/office/office21.png",
+    "/dakota/by-outfit/office/whitejacket1.png",
+    "/dakota/by-outfit/office/whitejacket2.png",
+    "/dakota/by-outfit/office/whitejacket3.png",
+    "/dakota/by-outfit/office/whitejacket4.png",
+    "/dakota/by-outfit/office/whitejacket5.png",
+    "/dakota/by-outfit/office/whitejacket6.png",
+    "/dakota/by-outfit/office/whitejacket8.png",
+  ],
+  outside: [
+    "/dakota/by-outfit/outside/blacktop2.png",
+    "/dakota/by-outfit/outside/blacktop5.png",
+    "/dakota/by-outfit/outside/blacktop7.png",
+    "/dakota/by-outfit/outside/blacktop8.png",
+  ],
+  // 현재 home/free 컷은 첫 화면 자동 노출에는 부적합하므로 심야에도 안전한 office pool을 쓴다.
+  home: [
+    "/dakota/by-outfit/office/office21.png",
+    "/dakota/by-outfit/office/whitejacket1.png",
+    "/dakota/by-outfit/office/whitejacket2.png",
+    "/dakota/by-outfit/office/whitejacket3.png",
+    "/dakota/by-outfit/office/whitejacket6.png",
+    "/dakota/by-outfit/office/whitejacket8.png",
+  ],
+}
+
 function getSeoulHourMinute(date: Date): number {
   const hour = Number(
     new Intl.DateTimeFormat("en-GB", {
@@ -82,12 +115,7 @@ export function pickDakotaPhoto(
   dateKey: string,
   now: Date = new Date(),
 ): string {
-  const category = M[slot]
-  // 대시보드 첫 화면의 work/office 자동 선택은 전문적인 whitejacket 계열로 제한한다.
-  // office _all에는 레이스/이벤트 컷도 섞여 있어 첫 진입 제품 인상을 깨뜨릴 수 있다.
-  const files = slot === "office" && mode === "work"
-    ? (category?.whitejacket ?? category?._all ?? [])
-    : (category?._all ?? [])
+  const files = AUTO_SAFE_BY_SLOT[slot]
   if (files.length === 0) return FALLBACK
   const bucket = Math.floor(getSeoulHourMinute(now) / 30)
   const idx = hashString(`${dateKey}-${slot}-${mode}-${bucket}`) % files.length
