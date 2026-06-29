@@ -25,12 +25,12 @@ Dakota 탭은 별도 ERP 앱이 아니라 이 `spinoscopy-dashboard` 안에서 �
 
 ## Agent-Specific Development (마스터 세션 워크플로우)
 
-하나의 Claude Code 세션(마스터)에서 서브에이전트를 위임하여 병렬 개발한다.
-각 multi-agent의 컨텍스트 파일: `.claude/agents/{name}.md`
+하나의 Codex 세션(마스터)에서 서브에이전트를 위임하여 병렬 개발한다.
+각 multi-agent의 컨텍스트 파일: `.Codex/agents/{name}.md`
 
 ### 작업 위임 프로세스
 1. 사용자가 특정 에이전트 작업을 요청
-2. `.claude/agents/{name}.md` 를 읽어 컨텍스트 확보
+2. `.Codex/agents/{name}.md` 를 읽어 컨텍스트 확보
 3. Task tool로 서브에이전트 호출:
    - `subagent_type: "general-purpose"`
    - `isolation: "worktree"` (독립 브랜치에서 작업)
@@ -62,7 +62,7 @@ Dakota 탭은 별도 ERP 앱이 아니라 이 `spinoscopy-dashboard` 안에서 �
 - `components/dashboard/` — 홈 대시보드 위젯
 - `app/layout.tsx` — 루트 레이아웃
 - `app/page.tsx` — 대시보드 홈
-- `app/api/ai/chat/route.ts` — 공용 Claude 채팅 (agentId로 분기)
+- `app/api/ai/chat/route.ts` — 공용 Codex 채팅 (agentId로 분기)
 
 ## Agent Dependencies
 
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
 - Notion 쿼리: `notionRequest()` from `lib/notion/client.ts`
 - State: Zustand (클라이언트), React Query (서버 상태)
 - Forms: React Hook Form + Zod
-- AI: Claude via `@ai-sdk/anthropic`, Groq via direct API
+- AI: Codex via `@ai-sdk/anthropic`, Groq via direct API
 - Styling: Tailwind v4 utility classes, zinc 계열 다크 팔레트
 
 ## Environment Variables
@@ -130,7 +130,7 @@ NOTION_JOURNAL_DB_ID        — Scholar
 NOTION_SCHEDULE_DB_ID       — Dakota + Podium (공유)
 NOTION_TODO_DB_ID           — Dakota
 NOTION_SENSEI_DB_ID         — Sensei
-ANTHROPIC_API_KEY           — Claude AI
+ANTHROPIC_API_KEY           — Codex AI
 GROQ_API_KEY                — Groq (파싱/요약)
 GOOGLE_CLIENT_ID/SECRET     — Google Calendar
 DASHBOARD_PASSWORD          — 로그인

@@ -7,7 +7,6 @@ import { TodayTodo } from "@/components/dashboard/TodayTodo"
 import { MorningBriefing } from "@/components/dashboard/MorningBriefing"
 import { MonthCalendar } from "@/components/dashboard/MonthCalendar"
 import { ConferenceSchedule } from "@/components/dashboard/ConferenceSchedule"
-import { ExecutiveTelemetryBoard } from "@/components/dashboard/ExecutiveTelemetryBoard"
 
 export default function DashboardPage() {
   return (
@@ -23,7 +22,7 @@ export default function DashboardPage() {
           <AgentGrid />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6 items-start">
           {/* Column 1 — Briefing + Todo */}
           <div className="space-y-4">
             <MorningBriefing />
@@ -37,9 +36,6 @@ export default function DashboardPage() {
           {/* Column 3 — Conferences (전체 표시) */}
           <ConferenceSchedule />
         </div>
-
-        <ExecutiveTelemetryBoard />
-
       </div>
     </div>
   )
