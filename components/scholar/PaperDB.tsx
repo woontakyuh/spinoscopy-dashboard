@@ -20,13 +20,15 @@ const INTEREST_CYCLE: InterestLevel[] = ["🔴 필독", "🟡 관심", "⚪ 참�
 
 const JOURNAL_COLORS: Record<string, string> = {
   TSJ: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
-  Spine: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-  ESJ: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
   "JNS Spine": "bg-purple-500/20 text-purple-300 border-purple-500/30",
   JNS: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+  Spine: "bg-blue-500/20 text-blue-300 border-blue-500/30",
   Neurospine: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+  ESJ: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
   GSJ: "bg-rose-500/20 text-rose-300 border-rose-500/30",
 }
+
+const JOURNAL_DISPLAY_ORDER = ["TSJ", "Spine", "JNS Spine", "Neurospine", "ESJ", "GSJ"]
 
 function journalBadgeClass(name: string): string {
   for (const [key, cls] of Object.entries(JOURNAL_COLORS)) {
@@ -111,6 +113,18 @@ function countBy<T>(items: T[], keyFn: (item: T) => string | string[] | null): R
 function sortedEntries(record: Record<string, number>, limit: number): [string, number][] {
   return Object.entries(record)
     .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+}
+
+function journalSortedEntries(record: Record<string, number>, limit: number): [string, number][] {
+  const orderIndex = new Map(JOURNAL_DISPLAY_ORDER.map((journal, index) => [journal, index]))
+  return Object.entries(record)
+    .sort(([aName, aCount], [bName, bCount]) => {
+      const aRank = orderIndex.get(aName) ?? Number.POSITIVE_INFINITY
+      const bRank = orderIndex.get(bName) ?? Number.POSITIVE_INFINITY
+      if (aRank !== bRank) return aRank - bRank
+      return bCount - aCount
+    })
     .slice(0, limit)
 }
 
@@ -695,7 +709,7 @@ export function PaperDB() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in-up" style={{ animationDelay: "60ms" }}>
             <BarChart
               title={CHART_CONFIG.journal.title}
-              entries={sortedEntries(journalCounts, CHART_CONFIG.journal.limit)}
+              entries={journalSortedEntries(journalCounts, CHART_CONFIG.journal.limit)}
               activeKeys={chartActiveKeys.journal}
               onClickItem={key => handleChartClick("journal", key)}
               color="cyan"
@@ -834,7 +848,7 @@ export function PaperDB() {
                     setExpandedId(expandedId === article.page_id ? null : article.page_id)
                   }
                 }}
-                className={`grid grid-cols-[44px_16px_minmax(0,1fr)_28px] md:grid-cols-[80px_28px_1fr_90px_100px_40px] gap-2 px-3 py-2.5 md:py-2 items-center border-b border-border cursor-pointer transition-colors ${
+                className={`grid grid-cols-[44px_16px_minmax(0,1fr)_54px_28px] md:grid-cols-[80px_28px_1fr_90px_100px_40px] gap-2 px-3 py-2.5 md:py-2 items-center border-b border-border cursor-pointer transition-colors ${
                   expandedId === article.page_id
                     ? "bg-muted/70"
                     : "card-hover hover:bg-muted/40"
@@ -861,10 +875,10 @@ export function PaperDB() {
                 </span>
 
                 {/* Journal badge */}
-                <span className="hidden md:block">
+                <span className="min-w-0">
                   <Badge
                     variant="outline"
-                    className={`text-[9px] px-1.5 py-0 h-[18px] font-medium ${journalBadgeClass(article.journal_name)}`}
+                    className={`max-w-[54px] md:max-w-none text-[9px] px-1.5 py-0 h-[18px] font-medium truncate ${journalBadgeClass(article.journal_name)}`}
                   >
                     {article.journal_name.replace(" Spine", "").replace("The ", "")}
                   </Badge>
