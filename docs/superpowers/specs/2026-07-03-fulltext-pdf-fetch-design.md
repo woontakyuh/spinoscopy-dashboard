@@ -21,11 +21,11 @@ DOI 링크를 타고 직접 받을 수 있으므로 **이 시스템의 대상이
 
 ```
 [이후]  안 되는 논문에서 [원문 받기] 클릭 → 경북대 맥스튜디오가 원내망에서 자동 다운로드
-        → Notion 페이지에 PDF 첨부 + 추출 텍스트 저장 → 대시보드에서 [PDF 열기]
+        → Dropbox 공유 폴더 저장(양쪽 로컬 동기화) → 대시보드/모바일에서 [PDF 열기](공유링크)
 ```
 
-고용산 교수의 역할은 "매번 수동 다운로드·전달"에서 "맥스튜디오를 켜두고 로그인
-세션을 살아있게 유지"로 바뀐다.
+고용산 교수의 역할은 "매번 수동 다운로드·전달"에서 "맥스튜디오를 켜두고 원내망 IP에
+붙여두기"로 바뀐다.
 
 ## 2. 성공 기준
 
@@ -46,20 +46,32 @@ DOI 링크를 타고 직접 받을 수 있으므로 **이 시스템의 대상이
 - 출판사 로그인/자격증명 관리는 하지 않는다. 경북대 원문 접근은 **IP 기반(원내망 자동)** 이
   므로 맥스튜디오가 원내망 IP에 붙어있는 한 인증이 자동 통과된다. Aside-Chrome은 인증이
   아니라 **봇 차단(Cloudflare·JS challenge) 우회** 목적으로만 쓴다.
-- PDF 뷰어 자체 구현 안 함 — Notion 첨부/원문 링크로 연다.
+- PDF 뷰어 자체 구현 안 함 — Dropbox 공유링크로 연다.
+- Notion 파일 첨부는 하지 않는다. PDF 원본은 Dropbox 공유 폴더가 정본 저장소다(아래 §4·§5).
 
-## 4. 데이터 모델 — Notion Journal DB 필드 추가
+## 4. 데이터 모델
+
+### 4.1 저장소 — Dropbox 공유 폴더
+
+PDF 원본은 센터장님·고용산 교수가 이미 공유 중인 Dropbox 폴더에 저장한다. 워커가 맥스튜디오의
+**로컬 Dropbox 공유 폴더**에 파일을 쓰면 Dropbox가 양쪽 로컬로 자동 동기화하므로, 지금의
+"받아서 전달"하던 워크플로우와 그대로 일치한다(원본이 두 사람 로컬에 모두 쌓임).
+
+- 저장 경로: `{DROPBOX_SCHOLAR_DIR}/{safeName}.pdf`
+  - `safeName` = DOI slug(예: `10.1007_s00586-024-01234`) 또는 DOI 없으면 Notion page id.
+  - 재확보 시 같은 이름으로 덮어쓴다(중복 방지).
+- 대시보드/모바일 열람용으로 **Dropbox API로 https 공유링크를 1회 생성**해 Notion에 저장한다.
+
+### 4.2 Notion Journal DB 필드 추가
 
 기존 필드(Title, Author, Journal Name, DOI, Abstract, 관심도, 읽음, Alerted, PMID 등)는
-그대로 두고 3개 추가한다.
+그대로 두고 3개 추가한다. Notion은 이제 **메타데이터·상태·링크 레이어**로만 쓴다.
 
 | 필드명 | 타입 | 용도 |
 |--------|------|------|
 | `원문 요청` | checkbox | 큐 트리거. 대시보드 버튼과 Notion 수동 체크 둘 다 이걸 켠다. |
 | `원문 상태` | select | `요청됨` / `OA 확보` / `원내망 확보` / `실패` |
-| `PDF` | files | 확보된 PDF 첨부. Notion File Upload API로 업로드. |
-
-Notion 워크스페이스는 유료(파일 용량 무제한)이므로 PDF는 크기 제한 없이 그대로 첨부한다.
+| `원문 PDF` | url | Dropbox 공유링크(https). 대시보드 `PDF 열기` 버튼이 이걸 연다. |
 
 실패 사유는 `원문 상태 = 실패`일 때 워커 로그 + 페이지 본문 콜아웃 블록
 (`⚠️ 원문 확보 실패: <사유>`)으로 남긴다.
@@ -83,42 +95,53 @@ Notion 워크스페이스는 유료(파일 용량 무제한)이므로 PDF는 크
 
 세 개의 독립 유닛으로 나눈다. 각각 인터페이스가 명확하고 단독 테스트 가능해야 한다.
 
+모든 PDF 확보·저장은 **워커에서만** 일어난다. 워커만이 로컬 Dropbox 폴더에 파일을 쓰고
+Aside-Chrome을 구동할 수 있기 때문이다(Vercel 서버리스는 둘 다 불가). 따라서 대시보드 API는
+큐 등록만 하는 얇은 레이어로 유지한다.
+
 ### 5.1 대시보드 버튼 + API (Vercel, 지금 개발)
 
-- **컴포넌트**: `ArticleDetail.tsx`의 DOI 버튼 옆에 PDF 버튼 추가. `article.원문상태`에
-  따라 라벨/동작 분기. 클릭 시 `PATCH /api/notion/journal` 호출.
-- **API 액션**: 기존 route의 PATCH에 `action: "requestFulltext"` 추가. 하는 일:
-  1. (OA fast-path) DOI/PMID로 Unpaywall·PMC·Europe PMC 조회. 무료 PDF가 있으면
-     즉시 다운로드 → Notion 첨부 + 텍스트 추출 → `원문 상태 = OA 확보`, 응답으로 완료 반환.
-  2. OA 없으면 `원문 요청 = true`, `원문 상태 = 요청됨` 세팅 → 큐 등록. 응답 `확보 중`.
-- **폴링**: 대시보드는 상세 조회 시 `원문 상태`를 읽어 버튼 라벨을 렌더. `확보 중…` 상태면
-  가벼운 폴링(예: 상세 열려있는 동안 20~30초 간격 재조회)으로 완료를 감지. (SSE/실시간
+- **컴포넌트**: `ArticleDetail.tsx`의 DOI 버튼 옆에 PDF 버튼 추가. `원문 상태`/`원문 PDF`에
+  따라 라벨/동작 분기(`원문 받기` → `확보 중…` → `PDF 열기`(링크) / `실패`). 클릭 시
+  `PATCH /api/notion/journal` 호출.
+- **API 액션**: 기존 route의 PATCH에 `action: "requestFulltext"` 추가. 하는 일은 **큐 등록뿐**:
+  `원문 요청 = true`, `원문 상태 = 요청됨` 세팅 후 `확보 중` 응답. (PDF 다운로드·Dropbox·
+  Aside는 일절 하지 않음 — Vercel에서 불가능하고 불필요.) 이미 확보 상태면 no-op.
+- **폴링**: 대시보드는 상세 조회 시 `원문 상태`/`원문 PDF`를 읽어 버튼을 렌더. `확보 중…`
+  상태면 가벼운 폴링(상세 열려있는 동안 20~30초 간격 재조회)으로 완료를 감지. (SSE/실시간
   불필요 — 원내망 확보는 분 단위라 폴링으로 충분.)
 
-### 5.2 확보 라이브러리 (공유, 지금 개발 + 테스트)
+### 5.2 확보 라이브러리 (워커 전용, 지금 개발 + 테스트)
 
-`lib/fulltext/` 신규 모듈. 워커·API route 양쪽에서 재사용.
+`lib/fulltext/` 신규 모듈. 워커가 import. Vitest로 단독 테스트.
 
 - `resolveOA(doi, pmid): Promise<{url, source} | null>` — Unpaywall/PMC/Europe PMC 조회.
 - `fetchPdfViaAside(articlePageUrl): Promise<Buffer | null>` — Aside-Chrome로 논문
   페이지 열고 PDF 획득(§6).
-- `attachToNotion(pageId, pdfBuffer, filename)` — Notion File Upload API로 첨부 +
-  `원문 상태`/`PDF` 갱신.
+- `saveToDropbox(pdfBuffer, safeName): Promise<{ localPath, shareUrl }>` — 로컬 Dropbox
+  공유 폴더에 파일 쓰기 + Dropbox API로 https 공유링크 1회 생성.
+- `markAcquired(pageId, source, shareUrl)` — `원문 상태 = OA/원내망 확보`, `원문 PDF = shareUrl`.
 - `markFailed(pageId, reason)` — `원문 상태 = 실패` + 콜아웃 블록.
 
-경계: OA 해석과 Aside 다운로드와 Notion 저장을 서로 모른 채 조합 가능하게 분리.
-Notion File Upload는 3-step(create upload → send bytes → attach) 흐름을 캡슐화.
+경계: OA 해석 · Aside 다운로드 · Dropbox 저장 · Notion 갱신을 서로 모른 채 조합 가능하게
+분리. Dropbox 공유링크 생성(`sharing/create_shared_link_with_settings`)은 캡슐화.
 
-### 5.3 원내망 워커 (경북대 맥스튜디오, Phase 2)
+### 5.3 확보 워커 (Phase 1 맥미니 검증 → Phase 2 경북대 맥스튜디오)
 
 `scripts/fulltext-worker/` 신규. 기존 `scripts/journal-collector/` 와 동일 패턴:
 launchd plist + run.sh + tsx 엔트리포인트.
 
 - launchd로 5분 간격 실행(`StartInterval` 또는 기존처럼 캘린더).
-- 큐 조회: `원문 요청 = true AND 원문 상태 ∈ {요청됨}`인 페이지 목록.
-- 각 페이지에 대해: OA fast-path(놓쳤을 경우 대비) → 실패 시 Aside fetch → 저장.
+- 큐 조회: `원문 요청 = true AND 원문 상태 ∈ {요청됨, 비어있음}`인 페이지 목록.
+- 각 페이지 처리 순서:
+  1. **OA 먼저** — `resolveOA` 성공 시 그 URL에서 다운로드 → Dropbox 저장 → `OA 확보`.
+     (무료본이면 원내망·일일상한을 아끼고 봇차단도 안 탐. OA는 부수적 fast-path.)
+  2. OA 없으면 **원내망** — `fetchPdfViaAside`(§6) → Dropbox 저장 → `원내망 확보`.
+  3. 둘 다 실패 → `markFailed`.
 - 안전장치: 건당 최소 간격 30초 + 랜덤 지터, 세션당 일일 상한(env `FULLTEXT_DAILY_MAX`,
   기본 20), 출판사 도메인별 연속 실패 시 백오프.
+- Phase 1에서는 센터장님 맥미니에서 이 워커를 돌려 OA 경로·Dropbox 저장·Notion 갱신을
+  실검증한다(맥미니엔 원내망 권한이 없어 구독형은 자연히 실패로 떨어지지만 파이프라인은 검증됨).
 
 ## 6. PDF 확보 엔진 (Aside-Chrome) — 상세
 
@@ -138,11 +161,12 @@ launchd plist + run.sh + tsx 엔트리포인트.
      워커가 재조립. `execFileSync`의 `maxBuffer`를 넉넉히(예: 64MB) 잡아 ~18MB PDF 커버.
    - **B. 다운로드 폴더 감시 (폴백)**: A가 막히거나 PDF가 스트리밍/대용량이면 브라우저
      다운로드를 유발하고, 지정 다운로드 폴더에 새로 떨어진 파일을 mtime으로 집어온다.
-4. 획득한 Buffer가 실제 PDF인지 매직넘버(`%PDF`)로 검증. 아니면(로그인 벽·challenge
+4. 획득한 Buffer가 실제 PDF인지 매직넘버(`%PDF`)로 검증. 아니면(구독 벽·challenge
    HTML) 실패 처리.
-5. `attachToNotion` 호출.
+5. `saveToDropbox(buffer, safeName)` → `markAcquired`.
 
 주의: base64 exfil 경로는 파일 크기 상한이 있으니, 상한 초과 시 자동으로 폴백 B로.
+폴백 B는 브라우저 다운로드를 로컬 임시 폴더로 받은 뒤 워커가 Dropbox 폴더로 옮긴다.
 
 ## 7. 에러 처리
 
@@ -151,15 +175,16 @@ launchd plist + run.sh + tsx 엔트리포인트.
 | OA·원내망 모두 실패 | `원문 상태 = 실패` + 콜아웃(사유). 버튼 `실패 — DOI로 이동`. |
 | 원내망 IP 이탈(맥스튜디오가 외부망에 붙음) | 워커가 로그인 벽/구독 안내 HTML 감지 → 실패 사유 "원내망 아님"; 로그 경고. 네트워크 확인 필요. |
 | 출판사 봇 차단(challenge) | 재시도 1회(지터 후) → 실패. 도메인 백오프. |
-| Notion File Upload 실패 | 재시도 1회 → 실패 사유 기록(`원문 상태 = 실패`). |
+| Dropbox 저장/링크 생성 실패 | 재시도 1회 → 실패 사유 기록(`원문 상태 = 실패`). 파일은 로컬에 남김. |
 | DOI 없음 | 버튼 비활성(요청 불가) — DOI 없는 논문은 대상 아님. |
 | 중복 요청(이미 확보) | route에서 `원문 상태` 확인 후 no-op. |
 
 ## 8. 테스트 전략
 
 - **단위(Vitest)**: `resolveOA` 응답 파싱, PDF 매직넘버 검증, base64 청크 재조립,
-  상태 머신 전이 판별.
-- **통합(로컬 맥미니)**: 실제 OA DOI로 end-to-end(Unpaywall→다운→Notion 테스트 페이지 첨부).
+  `safeName` 슬러그화, 상태 머신 전이 판별.
+- **통합(로컬 맥미니)**: 실제 OA DOI로 end-to-end(resolveOA→다운→Dropbox 폴더 저장→공유링크
+  생성→Notion `원문 PDF` 갱신). Dropbox 앱에서 파일·링크 확인.
 - **Aside fetch**: 로컬 맥미니의 Aside-Chrome로 OA 논문 페이지에서 in-page fetch 경로
   검증(원내망 권한 없이도 OA 논문으로 메커니즘 확인 가능).
 - **실전 검증**: Phase 2에서 맥스튜디오 반입 후 구독형 논문 1건 수동 트리거로 확인.
@@ -171,24 +196,29 @@ launchd plist + run.sh + tsx 엔트리포인트.
 
 - **Phase 1 (로컬, 경북대 준비 불필요)**
   - Notion 필드 3개 추가 + 타입/쿼리 반영(`lib/notion/journal.ts`, `lib/types/journal.ts`).
-  - `lib/fulltext/` 라이브러리 + 단위 테스트.
-  - `ArticleDetail.tsx` PDF 버튼 + `PATCH requestFulltext` 액션 + 폴링.
-  - OA fast-path end-to-end 동작(맥미니 Aside로 fetch 메커니즘 검증).
+  - `lib/fulltext/` 라이브러리(resolveOA/fetchPdfViaAside/saveToDropbox/markAcquired/markFailed)
+    + 단위 테스트.
+  - `ArticleDetail.tsx` PDF 버튼 + `PATCH requestFulltext`(큐 등록만) + 폴링.
+  - `scripts/fulltext-worker/` 엔트리 + Dropbox 앱 토큰 발급 + 맥미니에서 OA end-to-end 검증
+    (OA 논문 → 공유 Dropbox 폴더 저장 → 공유링크 → 대시보드 `PDF 열기` 확인).
 - **Phase 2 (경북대 맥스튜디오)**
-  - `scripts/fulltext-worker/` + launchd plist + 설치 스크립트/가이드.
-  - 맥스튜디오 반입: Aside 앱 + 로그인 Chrome(원내망 접근 확인) + Node/tsx.
+  - 맥스튜디오 반입: Aside 앱 + Chrome(원내망 IP 확인) + Node/tsx + Dropbox 클라이언트(공유
+    폴더 동기화) + launchd 등록.
   - Tailscale 원격 관리, 구독형 논문 실전 확인.
 
 ## 10. Phase 2 착수 전 확인 사항 (고용산 교수)
 
-1. 맥스튜디오에 Aside 앱 + Chrome + Node/tsx 설치 가능한가.
+1. 맥스튜디오에 Aside 앱 + Chrome + Node/tsx + Dropbox 클라이언트 설치 가능한가.
 2. ~~원문 접근 방식~~ — **IP 기반(원내망 자동) 확인됨.** 맥스튜디오가 원내망 IP에
    상시 붙어있으면 됨(Wi-Fi/유선이 원내망인지, VPN·게스트망 아닌지 확인).
-3. 맥스튜디오를 24시간 켜두고 외부망(Notion API) 아웃바운드가 허용되는가.
+3. 맥스튜디오를 24시간 켜두고 외부망(Notion API + Dropbox API) 아웃바운드가 허용되는가.
+4. 맥스튜디오의 Dropbox에 그 공유 폴더가 동기화되어 있고 로컬 경로가 잡히는가.
 
 ## 11. 미해결/리스크
 
 - 출판사 다양성: `citation_pdf_url` 미지원 사이트는 셀렉터 테이블을 점진 확장해야 함.
   초기엔 코어 저널(ESJ/GSJ/TSJ/JNS Spine/Spine 등) 우선 대응.
 - 라이선스: 기관 구독 범위 내 개인 열람 목적. 대량/재배포 아님을 rate limit로 보장.
-- Notion 워크스페이스 유료(파일 무제한) 확인됨 — PDF 크기 제한 이슈 없음.
+- PDF 저장은 Dropbox 공유 폴더(정본) — 두 사람 로컬에 자동 동기화. Notion엔 링크만.
+- Dropbox 앱 토큰: 워커에 `sharing.write` 스코프 토큰 1개 필요(공유링크 생성용). 만료 시
+  재발급. refresh token 방식으로 장기 운용 권장. (env 예: `DROPBOX_TOKEN`, `DROPBOX_SCHOLAR_DIR`)
