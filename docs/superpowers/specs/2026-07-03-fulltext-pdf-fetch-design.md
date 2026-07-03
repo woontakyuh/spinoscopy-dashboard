@@ -33,15 +33,16 @@ DOI 링크를 타고 직접 받을 수 있으므로 **이 시스템의 대상이
    `원문 받기 → 확보 중… → PDF 열기`(또는 `실패`)로 자동 전이한다.
 2. 고용산 교수는 대시보드 없이 Notion에서 `원문 요청` 체크박스만 켜도 같은 큐를 탄다.
 3. 구독형 논문의 PDF가 경북대 맥스튜디오를 통해 실제로 Notion 페이지에 첨부된다.
-4. 첨부와 별개로 PDF 본문 텍스트가 Notion 페이지 블록으로 저장되어 Brian이 API로
-   원문을 읽을 수 있다.
-5. 실패해도 기존 DOI 수동 이동 경험이 유지된다(열화 없음).
-6. 출판사 대량 다운로드 탐지에 걸리지 않도록 rate limit·일일 상한이 강제된다.
+4. 실패해도 기존 DOI 수동 이동 경험이 유지된다(열화 없음).
+5. 출판사 대량 다운로드 탐지에 걸리지 않도록 rate limit·일일 상한이 강제된다.
 
 ## 3. 비목표 (YAGNI)
 
 - OA 자동 대량 수집은 하지 않는다. OA는 큐 처리 직전의 **부수적 fast-path**로만 둔다.
-- 논문 전체 텍스트에 대한 RAG/임베딩·의미검색은 이번 범위 밖. (본문 텍스트 저장까지만)
+- **PDF 본문 텍스트 추출은 하지 않는다.** 목표는 사람이 PDF를 열람하는 것까지다. Brian이
+  원문을 API로 읽어 요약/Q&A하는 기능은 후속 과제 — 필요해지면 첨부된 PDF를 소스로
+  추출 레이어만 얹는다. 지금은 poppler 의존성·본문 블록 조작 없이 첨부만 한다.
+- 논문 전체 텍스트에 대한 RAG/임베딩·의미검색은 이번 범위 밖.
 - 출판사별 로그인 자동화(자격증명 관리)는 하지 않는다. 로그인은 사람이 브라우저에서
   한 번 해두고 Aside 세션이 이어받는다.
 - PDF 뷰어 자체 구현 안 함 — Notion 첨부/원문 링크로 연다.
@@ -57,13 +58,10 @@ DOI 링크를 타고 직접 받을 수 있으므로 **이 시스템의 대상이
 | `원문 상태` | select | `요청됨` / `OA 확보` / `원내망 확보` / `실패` |
 | `PDF` | files | 확보된 PDF 첨부. Notion File Upload API로 업로드. |
 
-추가로, 워커는 PDF에서 추출한 텍스트를 페이지 본문에 **`📄 Full Text` 토글 블록**으로
-넣는다(2000자 단위로 분할한 paragraph children). 이유: Notion files 속성의 첨부파일은
-AI 도구가 소비하기 어렵다. 페이지 본문 블록은 Notion API로 읽히므로 Brian이 원문 기반
-요약/Q&A를 하려면 이 텍스트가 필요하다.
+Notion 워크스페이스는 유료(파일 용량 무제한)이므로 PDF는 크기 제한 없이 그대로 첨부한다.
 
-실패 사유는 `원문 상태 = 실패`일 때 본문 콜아웃 또는 `Summary`가 아닌 별도 처리 없이
-워커 로그 + 페이지 본문 콜아웃 블록(`⚠️ 원문 확보 실패: <사유>`)으로 남긴다.
+실패 사유는 `원문 상태 = 실패`일 때 워커 로그 + 페이지 본문 콜아웃 블록
+(`⚠️ 원문 확보 실패: <사유>`)으로 남긴다.
 
 ### 상태 머신
 
@@ -103,9 +101,8 @@ AI 도구가 소비하기 어렵다. 페이지 본문 블록은 Notion API로 �
 - `resolveOA(doi, pmid): Promise<{url, source} | null>` — Unpaywall/PMC/Europe PMC 조회.
 - `fetchPdfViaAside(articlePageUrl): Promise<Buffer | null>` — Aside-Chrome로 논문
   페이지 열고 PDF 획득(§6).
-- `extractText(pdfBuffer): Promise<string>` — `pdftotext`(poppler) 호출로 텍스트 추출.
-- `attachToNotion(pageId, pdfBuffer, filename, text)` — Notion File Upload API로 첨부 +
-  `📄 Full Text` 토글 블록 append + `원문 상태`/`PDF` 갱신.
+- `attachToNotion(pageId, pdfBuffer, filename)` — Notion File Upload API로 첨부 +
+  `원문 상태`/`PDF` 갱신.
 - `markFailed(pageId, reason)` — `원문 상태 = 실패` + 콜아웃 블록.
 
 경계: OA 해석과 Aside 다운로드와 Notion 저장을 서로 모른 채 조합 가능하게 분리.
@@ -153,14 +150,14 @@ Chrome을 스크립트로 조종하므로 (a) 봇 차단·JS challenge를 사람
 | OA·원내망 모두 실패 | `원문 상태 = 실패` + 콜아웃(사유). 버튼 `실패 — DOI로 이동`. |
 | Aside 세션 만료/로그아웃 | 워커가 로그인 벽 HTML 감지 → 실패 사유 "세션 만료"; 로그 경고. 교수/센터장 재로그인 필요. |
 | 출판사 봇 차단(challenge) | 재시도 1회(지터 후) → 실패. 도메인 백오프. |
-| Notion File Upload 실패(크기 초과 등) | 텍스트 블록만이라도 저장 + 사유 기록. |
+| Notion File Upload 실패 | 재시도 1회 → 실패 사유 기록(`원문 상태 = 실패`). |
 | DOI 없음 | 버튼 비활성(요청 불가) — DOI 없는 논문은 대상 아님. |
 | 중복 요청(이미 확보) | route에서 `원문 상태` 확인 후 no-op. |
 
 ## 8. 테스트 전략
 
 - **단위(Vitest)**: `resolveOA` 응답 파싱, PDF 매직넘버 검증, base64 청크 재조립,
-  텍스트 청크 분할(2000자), 상태 머신 전이 판별.
+  상태 머신 전이 판별.
 - **통합(로컬 맥미니)**: 실제 OA DOI로 end-to-end(Unpaywall→다운→Notion 테스트 페이지 첨부).
 - **Aside fetch**: 로컬 맥미니의 Aside-Chrome로 OA 논문 페이지에서 in-page fetch 경로
   검증(원내망 권한 없이도 OA 논문으로 메커니즘 확인 가능).
@@ -178,12 +175,12 @@ Chrome을 스크립트로 조종하므로 (a) 봇 차단·JS challenge를 사람
   - OA fast-path end-to-end 동작(맥미니 Aside로 fetch 메커니즘 검증).
 - **Phase 2 (경북대 맥스튜디오)**
   - `scripts/fulltext-worker/` + launchd plist + 설치 스크립트/가이드.
-  - 맥스튜디오 반입: Aside 앱 + 로그인 Chrome(원내망 접근 확인) + Node/tsx + poppler.
+  - 맥스튜디오 반입: Aside 앱 + 로그인 Chrome(원내망 접근 확인) + Node/tsx.
   - Tailscale 원격 관리, 구독형 논문 실전 확인.
 
 ## 10. Phase 2 착수 전 확인 사항 (고용산 교수)
 
-1. 맥스튜디오에 Aside 앱 + 로그인 Chrome + Node/tsx + poppler 설치 가능한가.
+1. 맥스튜디오에 Aside 앱 + 로그인 Chrome + Node/tsx 설치 가능한가.
 2. 경북대 원문 접근이 **IP 기반(원내망 자동)** 인가, **개별 로그인(EZproxy/기관계정)** 인가.
    후자면 그 세션에 한 번 로그인해두면 Aside가 이어받는다.
 3. 맥스튜디오를 24시간 켜두고 외부망(Notion API) 아웃바운드가 허용되는가.
@@ -193,5 +190,4 @@ Chrome을 스크립트로 조종하므로 (a) 봇 차단·JS challenge를 사람
 - 출판사 다양성: `citation_pdf_url` 미지원 사이트는 셀렉터 테이블을 점진 확장해야 함.
   초기엔 코어 저널(ESJ/GSJ/TSJ/JNS Spine/Spine 등) 우선 대응.
 - 라이선스: 기관 구독 범위 내 개인 열람 목적. 대량/재배포 아님을 rate limit로 보장.
-- Notion 무료 플랜 파일 5MB 제한 가능성 — 워크스페이스 플랜 확인 필요(초과 시 텍스트만
-  저장 또는 Drive 폴백은 후속 과제).
+- Notion 워크스페이스 유료(파일 무제한) 확인됨 — PDF 크기 제한 이슈 없음.
