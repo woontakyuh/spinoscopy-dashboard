@@ -105,12 +105,16 @@ Aside-Chrome을 구동할 수 있기 때문이다(Vercel 서버리스는 둘 다
 - **컴포넌트**: `ArticleDetail.tsx`의 DOI 버튼 옆에 PDF 버튼 추가. `원문 상태`/`원문 PDF`에
   따라 라벨/동작 분기(`원문 받기` → `확보 중…` → `PDF 열기`(링크) / `실패`). 클릭 시
   `PATCH /api/notion/journal` 호출.
-- **API 액션**: 기존 route의 PATCH에 `action: "requestFulltext"` 추가. 하는 일은 **큐 등록뿐**:
-  `원문 요청 = true`, `원문 상태 = 요청됨` 세팅 후 `확보 중` 응답. (PDF 다운로드·Dropbox·
-  Aside는 일절 하지 않음 — Vercel에서 불가능하고 불필요.) 이미 확보 상태면 no-op.
+- **API 액션**: 기존 route의 PATCH에 `action: "requestFulltext"` 추가. 하는 일:
+  (1) `원문 요청 = true`, `원문 상태 = 요청됨` 세팅 → 큐 등록,
+  (2) **Ably 채널에 트리거 메시지 1건 발행**(워커가 즉시 깨어나도록),
+  (3) `확보 중` 응답. PDF 다운로드·Dropbox·Aside는 일절 하지 않음(Vercel 불가). 이미 확보면 no-op.
+  Ably 발행이 실패해도(키 미설정·네트워크) 요청 등록은 성공 처리한다 — 백업 폴링이 결국 집어감.
+- **트리거 전달(§5.4)**: 큐는 Notion에 있지만, 워커를 **즉시** 깨우기 위해 Ably pub/sub를 쓴다.
+  대시보드는 Notion에 못 도달하는 맥스튜디오로 직접 push할 수 없으므로, 워커가 outbound로
+  Ably 채널을 구독(방화벽 무관)하고 대시보드가 그 채널에 발행한다.
 - **폴링**: 대시보드는 상세 조회 시 `원문 상태`/`원문 PDF`를 읽어 버튼을 렌더. `확보 중…`
-  상태면 가벼운 폴링(상세 열려있는 동안 20~30초 간격 재조회)으로 완료를 감지. (SSE/실시간
-  불필요 — 원내망 확보는 분 단위라 폴링으로 충분.)
+  상태면 가벼운 폴링(상세 열려있는 동안 20~30초 간격 재조회)으로 완료를 감지.
 
 ### 5.2 확보 라이브러리 (워커 전용, 지금 개발 + 테스트)
 
@@ -119,8 +123,8 @@ Aside-Chrome을 구동할 수 있기 때문이다(Vercel 서버리스는 둘 다
 - `resolveOA(doi, pmid): Promise<{url, source} | null>` — Unpaywall/PMC/Europe PMC 조회.
 - `fetchPdfViaAside(articlePageUrl): Promise<Buffer | null>` — Aside-Chrome로 논문
   페이지 열고 PDF 획득(§6).
-- `saveToDropbox(pdfBuffer, safeName): Promise<{ localPath, shareUrl }>` — 로컬 Dropbox
-  공유 폴더에 파일 쓰기 + Dropbox API로 https 공유링크 1회 생성.
+- `saveToDropbox(pdfBuffer, safeName): Promise<{ shareUrl }>` — Dropbox API `files/upload`로
+  공유 폴더에 올리고 https 공유링크 1회 생성.
 - `markAcquired(pageId, source, shareUrl)` — `원문 상태 = OA/원내망 확보`, `원문 PDF = shareUrl`.
 - `markFailed(pageId, reason)` — `원문 상태 = 실패` + 콜아웃 블록.
 
@@ -129,10 +133,15 @@ Aside-Chrome을 구동할 수 있기 때문이다(Vercel 서버리스는 둘 다
 
 ### 5.3 확보 워커 (Phase 1 맥미니 검증 → Phase 2 경북대 맥스튜디오)
 
-`scripts/fulltext-worker/` 신규. 기존 `scripts/journal-collector/` 와 동일 패턴:
-launchd plist + run.sh + tsx 엔트리포인트.
+`scripts/fulltext-worker/` 신규. 기존 `scripts/journal-collector/` 패턴을 따르되, **상주 데몬**으로
+돈다(launchd `KeepAlive`). run.sh + tsx 엔트리포인트 + plist.
 
-- launchd로 5분 간격 실행(`StartInterval` 또는 기존처럼 캘린더).
+- **상주 데몬**: 프로세스가 계속 떠서 Ably 채널을 구독한다. 트리거 메시지를 받으면 즉시
+  큐를 처리한다(지연 ~1~2초). 죽으면 launchd `KeepAlive`가 되살린다.
+- **백업 폴링(안전망)**: 트리거를 놓쳐도(프록시 끊김·재시작 중 클릭) 빠지지 않도록, 데몬이
+  내부 타이머로 5분마다 큐를 한 번 훑는다. Ably가 즉시성, 폴링이 완전성을 담당.
+- **드레인**: 트리거든 폴링이든 한 번 깨면 **큐가 빌 때까지** 연속 처리(여러 건이 밀려 있어도
+  한 번에 소진). 동시 실행 방지 위해 처리 중 플래그(뮤텍스)로 중복 기동을 막는다.
 - 큐 조회: `원문 요청 = true AND 원문 상태 ∈ {요청됨, 비어있음}`인 페이지 목록.
 - 각 페이지 처리 순서:
   1. **OA 먼저** — `resolveOA` 성공 시 그 URL에서 다운로드 → Dropbox 저장 → `OA 확보`.
@@ -143,6 +152,18 @@ launchd plist + run.sh + tsx 엔트리포인트.
   기본 20), 출판사 도메인별 연속 실패 시 백오프.
 - Phase 1에서는 센터장님 맥미니에서 이 워커를 돌려 OA 경로·Dropbox 저장·Notion 갱신을
   실검증한다(맥미니엔 원내망 권한이 없어 구독형은 자연히 실패로 떨어지지만 파이프라인은 검증됨).
+
+### 5.4 즉시 트리거 채널 (Ably pub/sub)
+
+대시보드(Vercel)와 워커(맥스튜디오)는 서로 도달 불가하다. 워커가 outbound로 Ably 채널
+`fulltext-trigger`를 구독하고, 대시보드가 요청 시 그 채널에 메시지를 발행해 워커를 즉시 깨운다.
+
+- 방향: 워커 → Ably 구독(outbound WebSocket, 방화벽 무관). 대시보드 → Ably REST 발행 1회.
+- 메시지 페이로드는 최소(예: `{ pageId }` 또는 빈 신호). 워커는 신호를 받으면 **Notion 큐 전체**를
+  다시 조회해 처리한다(메시지 내용에 의존하지 않음 → 유실·순서 문제 무관).
+- 키: Vercel엔 발행 전용(publish-only) 스코프 키, 워커엔 구독 키. env `ABLY_API_KEY`
+  (Phase 1은 단순화를 위해 동일 키 사용 가능).
+- Ably 무료 티어로 충분(이 용도 월 수백 건 수준). 장애 시 백업 폴링(§5.3)이 완전성 보장.
 
 ## 6. PDF 확보 엔진 (Aside-Chrome) — 상세
 
@@ -158,8 +179,8 @@ launchd plist + run.sh + tsx 엔트리포인트.
    - 2순위: 출판사별 "Download PDF"/"Full Text PDF" 앵커 셀렉터(설정 테이블로 관리).
 3. **PDF 획득 — 2경로**:
    - **A. in-page fetch (주 경로)**: 논문 페이지 컨텍스트에서 PDF URL을 `fetch`(동일 세션·
-     쿠키·IP) → `arrayBuffer` → base64로 청크 분할해 `console.log('PDF_CHUNK ...')` 출력 →
-     워커가 재조립. `execFileSync`의 `maxBuffer`를 넉넉히(예: 64MB) 잡아 ~18MB PDF 커버.
+     쿠키·IP) → `arrayBuffer` → base64로 인코딩해 `console.log('ASIDE_RESULT {json}')` 단일
+     라인으로 출력 → 워커가 파싱·디코드. `execFileSync`의 `maxBuffer`를 64MB로 잡아 ~48MB PDF 커버.
    - **B. 다운로드 폴더 감시 (폴백)**: A가 막히거나 PDF가 스트리밍/대용량이면 브라우저
      다운로드를 유발하고, 지정 다운로드 폴더에 새로 떨어진 파일을 mtime으로 집어온다.
 4. 획득한 Buffer가 실제 PDF인지 매직넘버(`%PDF`)로 검증. 아니면(구독 벽·challenge
@@ -182,8 +203,8 @@ launchd plist + run.sh + tsx 엔트리포인트.
 
 ## 8. 테스트 전략
 
-- **단위(Vitest)**: `resolveOA` 응답 파싱, PDF 매직넘버 검증, base64 청크 재조립,
-  `safeName` 슬러그화, 상태 머신 전이 판별.
+- **단위(Vitest)**: `resolveOA` 응답 파싱, PDF 매직넘버 검증, Aside 결과 JSON 파싱,
+  `safeName` 슬러그화, Dropbox 경로/공유링크 응답 파싱, 상태 머신 전이 판별.
 - **통합(로컬 맥미니)**: 실제 OA DOI로 end-to-end(resolveOA→다운→Dropbox 폴더 저장→공유링크
   생성→Notion `원문 PDF` 갱신). Dropbox 앱에서 파일·링크 확인.
 - **Aside fetch**: 로컬 맥미니의 Aside-Chrome로 OA 논문 페이지에서 in-page fetch 경로
@@ -199,22 +220,21 @@ launchd plist + run.sh + tsx 엔트리포인트.
   - Notion 필드 3개 추가 + 타입/쿼리 반영(`lib/notion/journal.ts`, `lib/types/journal.ts`).
   - `lib/fulltext/` 라이브러리(resolveOA/fetchPdfViaAside/saveToDropbox/markAcquired/markFailed)
     + 단위 테스트.
-  - `ArticleDetail.tsx` PDF 버튼 + `PATCH requestFulltext`(큐 등록만) + 폴링.
-  - `scripts/fulltext-worker/` 엔트리 + Dropbox 앱 토큰 발급 + 맥미니에서 OA end-to-end 검증
-    (OA 논문 → 공유 Dropbox 폴더 저장 → 공유링크 → 대시보드 `PDF 열기` 확인).
+  - `ArticleDetail.tsx` PDF 버튼 + `PATCH requestFulltext`(큐 등록 + Ably 발행) + 폴링.
+  - `scripts/fulltext-worker/` 상주 데몬(Ably 구독 + 백업 폴링) + Dropbox·Ably 토큰 발급
+    + 맥미니에서 OA end-to-end 검증(OA 논문 → Dropbox 저장 → 공유링크 → 대시보드 `PDF 열기`).
 - **Phase 2 (경북대 맥스튜디오)**
-  - 맥스튜디오 반입: Aside 앱 + Chrome(원내망 IP 확인) + Node/tsx + Dropbox 클라이언트(공유
-    폴더 동기화) + launchd 등록.
+  - 맥스튜디오 반입: Aside 앱 + Chrome(원내망 IP 확인) + Node/tsx + launchd `KeepAlive` 등록.
   - Tailscale 원격 관리, 구독형 논문 실전 확인.
 
 ## 10. Phase 2 착수 전 확인 사항 (고용산 교수)
 
-1. 맥스튜디오에 Aside 앱 + Chrome + Node/tsx + Dropbox 클라이언트 설치 가능한가.
+1. 맥스튜디오에 Aside 앱 + Chrome + Node/tsx 설치 가능한가.
 2. ~~원문 접근 방식~~ — **IP 기반(원내망 자동) 확인됨.** 맥스튜디오가 원내망 IP에
    상시 붙어있으면 됨(Wi-Fi/유선이 원내망인지, VPN·게스트망 아닌지 확인).
-3. 맥스튜디오를 24시간 켜두고 외부망(Notion API + Dropbox API) 아웃바운드가 허용되는가.
-4. (API 업로드 방식이라 맥스튜디오에 Dropbox 클라이언트는 불필요. 대신 공유 폴더가 토큰
-   계정의 Dropbox에 존재하고 두 사람이 멤버인지만 확인.)
+3. 맥스튜디오를 24시간 켜두고 외부망(Notion + Dropbox + Ably) 아웃바운드가 허용되는가.
+   특히 Ably WebSocket(장기 연결)이 병원 프록시에 막히지 않는지 — 막혀도 백업 폴링이 커버.
+4. Dropbox 공유 폴더가 토큰 계정에 존재하고 두 사람이 멤버인가(클라이언트 설치는 불필요).
 
 ## 11. 미해결/리스크
 
@@ -222,5 +242,7 @@ launchd plist + run.sh + tsx 엔트리포인트.
   초기엔 코어 저널(ESJ/GSJ/TSJ/JNS Spine/Spine 등) 우선 대응.
 - 라이선스: 기관 구독 범위 내 개인 열람 목적. 대량/재배포 아님을 rate limit로 보장.
 - PDF 저장은 Dropbox 공유 폴더(정본) — 두 사람 로컬에 자동 동기화. Notion엔 링크만.
-- Dropbox 앱 토큰: 워커에 `sharing.write` 스코프 토큰 1개 필요(공유링크 생성용). 만료 시
-  재발급. refresh token 방식으로 장기 운용 권장. (env 예: `DROPBOX_TOKEN`, `DROPBOX_SCHOLAR_DIR`)
+- Dropbox 앱 토큰: 워커에 `files.write` + `sharing.write` 스코프 토큰 1개 필요. 만료 시
+  재발급. refresh token 방식으로 장기 운용 권장. (env: `DROPBOX_TOKEN`, `DROPBOX_SCHOLAR_DIR`)
+- Ably: 무료 티어 키 1개(`ABLY_API_KEY`). 즉시 트리거용, 유실돼도 백업 폴링이 완전성 보장.
+  병원 프록시가 WebSocket을 죽이면 Ably가 HTTP 폴백으로 자동 강등되고, 최악엔 5분 폴링으로 동작.

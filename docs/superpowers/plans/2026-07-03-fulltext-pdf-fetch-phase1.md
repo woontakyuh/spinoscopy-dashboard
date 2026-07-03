@@ -4,9 +4,9 @@
 
 **Goal:** Brian(Scholar) 논문에 "원문 받기" 버튼을 추가해, 클릭하면 OA 무료본이나 경북대 원내망 PDF를 자동 확보해 Dropbox 공유 폴더에 저장하고 대시보드/모바일에서 열 수 있게 한다.
 
-**Architecture:** Vercel API route는 큐 등록만 한다(`원문 요청`=true). 실제 PDF 확보·저장은 Node 워커(`scripts/fulltext-worker/`)가 담당한다 — OA 리졸버(Unpaywall/Europe PMC) → 실패 시 Aside-Chrome로 원내망 PDF 획득 → Dropbox API 업로드 + 공유링크 생성 → Notion 상태·링크 갱신. Notion은 메타/상태/링크 레이어로만 쓰고, PDF 정본은 Dropbox 공유 폴더다.
+**Architecture:** Vercel API route는 큐 등록(`원문 요청`=true) + Ably 트리거 발행만 한다. 실제 PDF 확보·저장은 상주 데몬 워커(`scripts/fulltext-worker/`)가 담당한다 — Ably 채널 구독으로 즉시 깨어나고(백업 5분 폴링), OA 리졸버(Unpaywall/Europe PMC) → 실패 시 Aside-Chrome로 원내망 PDF 획득 → Dropbox API 업로드 + 공유링크 생성 → Notion 상태·링크 갱신. Notion은 메타/상태/링크 레이어, PDF 정본은 Dropbox 공유 폴더, Ably는 즉시 트리거 전용이다.
 
-**Tech Stack:** Next.js 16 / React 19 / TypeScript, Notion API(`notionRequest`), `aside repl` CLI(로그인 Chrome 구동, 기존 `scrape-tsj.mjs` 패턴), Dropbox HTTP API(SDK 없이 fetch), Vitest, tsx + launchd.
+**Tech Stack:** Next.js 16 / React 19 / TypeScript, Notion API(`notionRequest`), `aside repl` CLI(로그인 Chrome 구동, 기존 `scrape-tsj.mjs` 패턴), Dropbox HTTP API(SDK 없이 fetch), Ably HTTP REST 발행 + `ably` npm 구독, Vitest, tsx + launchd(`KeepAlive`).
 
 ## Global Constraints
 
@@ -16,7 +16,8 @@
 - `원문 상태` select 값 4종(정확히 이 문자열): `요청됨` / `OA 확보` / `원내망 확보` / `실패`.
 - 워커 rate limit: 건당 최소 간격 30초 + 랜덤 지터, 일일 상한 `FULLTEXT_DAILY_MAX`(기본 20).
 - PDF 검증: 획득 버퍼는 반드시 매직넘버 `%PDF`(hex `25 50 44 46`)로 시작해야 유효.
-- env: `DROPBOX_TOKEN`(sharing.write + files.write 스코프), `DROPBOX_SCHOLAR_DIR`(Dropbox-상대 폴더경로, 예 `/Scholar PDFs`), `UNPAYWALL_EMAIL`(없으면 `woontak.yuh@gmail.com`), `FULLTEXT_DAILY_MAX`(기본 20). 워커는 기존 `run.sh` 패턴대로 `.env.local`에서 로드.
+- env: `DROPBOX_TOKEN`(files.write + sharing.write 스코프), `DROPBOX_SCHOLAR_DIR`(Dropbox-상대 폴더경로, 예 `/Scholar PDFs`), `ABLY_API_KEY`(Ably 앱 키), `UNPAYWALL_EMAIL`(없으면 `woontak.yuh@gmail.com`), `FULLTEXT_DAILY_MAX`(기본 20), `FULLTEXT_POLL_MS`(백업 폴링 간격, 기본 300000). 워커는 기존 `run.sh` 패턴대로 `.env.local`에서 로드. Vercel에는 `ABLY_API_KEY`를 프로젝트 env로 등록.
+- Ably 채널명 `fulltext-trigger`, 이벤트명 `request` 고정. 발행 페이로드는 최소(`{}` 또는 `{pageId}`) — 워커는 신호를 받으면 Notion 큐 전체를 재조회하므로 페이로드에 의존하지 않는다.
 - 커밋 메시지 꼬리(모든 커밋):
   ```
   Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
@@ -29,14 +30,16 @@
 - `lib/fulltext/pdf.ts` — 순수 유틸: `extractDoi`, `safeName`, `isPdfBuffer`, `buildFetchScript`, `parseAsideResult`.
 - `lib/fulltext/aside.ts` — `fetchPdfViaAside`(execFileSync로 `aside repl` 호출, 위 순수 유틸 조합).
 - `lib/fulltext/dropbox.ts` — `dropboxPath`(순수), `parseCreateLinkResponse`(순수), `saveToDropbox`(API 업로드+공유링크).
+- `lib/fulltext/ably.ts` — `publishTrigger()`(Ably REST 발행, Vercel route용). 상수 `ABLY_CHANNEL`/`ABLY_EVENT`.
 - `lib/notion/fulltext.ts` — Notion 읽기/쓰기: `readFulltext`(순수), `requestFulltext`, `markAcquired`, `markFailed`, `queryFulltextQueue`.
 - `lib/types/journal.ts` — `JournalArticle`에 3필드 추가(수정).
 - `lib/notion/journal.ts` — `toArticle`에서 새 필드 매핑(수정).
 - `app/api/notion/journal/route.ts` — PATCH에 `requestFulltext` 액션 추가(수정).
 - `components/scholar/ArticleDetail.tsx` — PDF 버튼 + 폴링 추가(수정).
-- `scripts/fulltext-worker/process.ts` — 워커 엔트리(큐 순회 → 확보 → 저장).
-- `scripts/fulltext-worker/run.sh` — launchd 진입점(.env.local 로드).
-- `scripts/fulltext-worker/com.spino.fulltext-worker.plist` — 5분 간격 launchd.
+- `scripts/fulltext-worker/drain.ts` — 큐 1회 소진 로직(순수 처리 루프, 데몬이 호출).
+- `scripts/fulltext-worker/daemon.ts` — 상주 데몬 엔트리(Ably 구독 + 백업 폴링 + 뮤텍스).
+- `scripts/fulltext-worker/run.sh` — launchd 진입점(.env.local 로드, daemon.ts 실행).
+- `scripts/fulltext-worker/com.spino.fulltext-worker.plist` — `KeepAlive` 상주 launchd.
 - `scripts/fulltext-worker/README.md` — 셋업/운영 가이드.
 - 테스트: `lib/fulltext/*.test.ts`, `lib/notion/fulltext.test.ts`.
 
@@ -758,23 +761,93 @@ Claude-Session: https://claude.ai/code/session_01TaJf53o9dKVFnYvVq1hFwk"
 
 ---
 
-### Task 5: API route — requestFulltext 액션
+### Task 5: Ably 발행 lib + API route requestFulltext 액션
 
-대시보드 버튼이 호출할 큐 등록 엔드포인트.
+대시보드 버튼이 호출할 큐 등록 엔드포인트. 큐 등록(Notion) + 즉시 트리거(Ably 발행).
 
 **Files:**
+- Create: `lib/fulltext/ably.ts`
+- Create: `lib/fulltext/ably.test.ts`
 - Modify: `app/api/notion/journal/route.ts:57-81` (PATCH 확장)
 
 **Interfaces:**
 - Consumes: `requestFulltext(pageId)` (Task 1).
-- Produces: `PATCH /api/notion/journal` body `{ pageId, action: "requestFulltext" }` → `{ ok: true }`.
+- Produces:
+  - `ABLY_CHANNEL = "fulltext-trigger"`, `ABLY_EVENT = "request"` (상수, 워커도 동일 값 사용)
+  - `ablyAuthHeader(key: string): string` (순수, Basic 인증 헤더값)
+  - `publishTrigger(pageId?: string): Promise<void>` (키 없으면 no-op, 실패해도 throw 안 함)
+  - `PATCH /api/notion/journal` body `{ pageId, action: "requestFulltext" }` → `{ ok: true }`
 
-- [ ] **Step 1: route PATCH에 액션 추가**
+- [ ] **Step 1: ably 순수 유틸 실패 테스트** — `lib/fulltext/ably.test.ts`
 
-import에 추가(9행 `getDashboardData,` 다음 블록 밖, 별도 import):
+```typescript
+import { describe, it, expect } from "vitest"
+import { ablyAuthHeader, ABLY_CHANNEL, ABLY_EVENT } from "./ably"
+
+describe("ablyAuthHeader", () => {
+  it("키를 base64 Basic 헤더로 만든다", () => {
+    // "app.key:secret" → base64
+    expect(ablyAuthHeader("app.key:secret")).toBe(
+      "Basic " + Buffer.from("app.key:secret").toString("base64")
+    )
+  })
+})
+
+describe("상수", () => {
+  it("채널/이벤트명 고정", () => {
+    expect(ABLY_CHANNEL).toBe("fulltext-trigger")
+    expect(ABLY_EVENT).toBe("request")
+  })
+})
+```
+
+- [ ] **Step 2: 테스트 실패 확인**
+
+Run: `npx vitest run lib/fulltext/ably.test.ts`
+Expected: FAIL — 모듈 없음.
+
+- [ ] **Step 3: `lib/fulltext/ably.ts` 구현**
+
+```typescript
+export const ABLY_CHANNEL = "fulltext-trigger"
+export const ABLY_EVENT = "request"
+
+const ABLY_KEY = process.env.ABLY_API_KEY ?? ""
+
+export function ablyAuthHeader(key: string): string {
+  return "Basic " + Buffer.from(key).toString("base64")
+}
+
+/**
+ * 워커를 즉시 깨우는 트리거를 Ably 채널에 발행한다.
+ * 키 미설정/네트워크 실패는 조용히 무시 — 백업 폴링이 결국 큐를 집어간다.
+ */
+export async function publishTrigger(pageId?: string): Promise<void> {
+  if (!ABLY_KEY) return
+  try {
+    await fetch(`https://rest.ably.io/channels/${ABLY_CHANNEL}/messages`, {
+      method: "POST",
+      headers: { Authorization: ablyAuthHeader(ABLY_KEY), "Content-Type": "application/json" },
+      body: JSON.stringify({ name: ABLY_EVENT, data: pageId ? { pageId } : {} }),
+    })
+  } catch {
+    /* 백업 폴링이 커버 */
+  }
+}
+```
+
+- [ ] **Step 4: 테스트 통과 확인**
+
+Run: `npx vitest run lib/fulltext/ably.test.ts`
+Expected: PASS
+
+- [ ] **Step 5: route PATCH에 액션 추가**
+
+import에 추가(기존 import 블록 아래 별도 줄):
 
 ```typescript
 import { requestFulltext } from "@/lib/notion/fulltext"
+import { publishTrigger } from "@/lib/fulltext/ably"
 ```
 
 PATCH 내부 타입/분기 수정:
@@ -796,15 +869,16 @@ PATCH 내부 타입/분기 수정:
       await updateInterest(pageId, value as InterestLevel)
     } else if (action === "requestFulltext") {
       await requestFulltext(pageId)
+      await publishTrigger(pageId)
     }
 ```
 
-- [ ] **Step 2: 타입체크**
+- [ ] **Step 6: 타입체크**
 
 Run: `npx tsc --noEmit`
 Expected: 에러 없음.
 
-- [ ] **Step 3: 수동 스모크 테스트**
+- [ ] **Step 7: 수동 스모크 테스트**
 
 `npm run dev` 실행 후 다른 터미널에서(테스트용 실제 pageId 하나로):
 
@@ -815,12 +889,13 @@ curl -s -X PATCH http://localhost:4321/api/notion/journal \
 ```
 
 Expected: `{"ok":true}` 그리고 Notion에서 그 페이지 `원문 요청`=체크, `원문 상태`=요청됨.
+(ABLY_API_KEY 미설정이어도 200 정상 — publishTrigger가 no-op.)
 
-- [ ] **Step 4: 커밋**
+- [ ] **Step 8: 커밋**
 
 ```bash
-git add app/api/notion/journal/route.ts
-git commit -m "feat(scholar): PATCH requestFulltext 액션(큐 등록)
+git add lib/fulltext/ably.ts lib/fulltext/ably.test.ts app/api/notion/journal/route.ts
+git commit -m "feat(scholar): PATCH requestFulltext (큐 등록 + Ably 즉시 트리거)
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01TaJf53o9dKVFnYvVq1hFwk"
@@ -985,37 +1060,42 @@ Claude-Session: https://claude.ai/code/session_01TaJf53o9dKVFnYvVq1hFwk"
 
 ---
 
-### Task 7: 확보 워커 + launchd 등록
+### Task 7: 확보 워커(큐 소진 + 상주 데몬) + launchd 등록
 
-큐를 순회하며 OA→원내망 순으로 확보해 Dropbox 저장·Notion 갱신. 안전장치(간격/일일상한) 포함.
+큐를 소진하며 OA→원내망 순으로 확보해 Dropbox 저장·Notion 갱신(`drain.ts`), 그 위에 Ably 구독 + 백업 폴링 + 중복기동 방지 뮤텍스를 얹은 상주 데몬(`daemon.ts`).
 
 **Files:**
-- Create: `scripts/fulltext-worker/process.ts`
+- Create: `scripts/fulltext-worker/drain.ts`
+- Create: `scripts/fulltext-worker/daemon.ts`
 - Create: `scripts/fulltext-worker/run.sh`
 - Create: `scripts/fulltext-worker/com.spino.fulltext-worker.plist`
 - Create: `scripts/fulltext-worker/README.md`
+- Modify: `package.json` (dependencies에 `ably` 추가 — `npm install ably`)
 
 **Interfaces:**
-- Consumes: `queryFulltextQueue`, `markAcquired`, `markFailed` (Task 1); `resolveOA` (Task 2); `extractDoi`, `safeName`, `isPdfBuffer` (Task 3); `fetchPdfViaAside` (Task 4); `saveToDropbox` (Task 4).
-- Produces: 없음(운영 진입점).
+- Consumes: `queryFulltextQueue`, `markAcquired`, `markFailed` (Task 1); `resolveOA` (Task 2); `extractDoi`, `safeName` (Task 3); `fetchPdfViaAside` (Task 4); `saveToDropbox` (Task 4); `ABLY_CHANNEL`, `ABLY_EVENT` (Task 5).
+- Produces:
+  - `drainQueue(): Promise<number>` (한 번 호출 시 큐를 상한까지 소진, 처리 건수 반환)
 
-- [ ] **Step 1: `scripts/fulltext-worker/process.ts` 작성**
+- [ ] **Step 1: `ably` 패키지 설치**
+
+Run: `npm install ably`
+Expected: `package.json` dependencies에 `ably` 추가, 설치 성공.
+
+- [ ] **Step 2: `scripts/fulltext-worker/drain.ts` 작성 (큐 소진 로직)**
 
 ```typescript
-// scripts/fulltext-worker/process.ts
-// 원문 확보 워커 — 큐 순회 → OA fast-path → 원내망 Aside → Dropbox 저장 → Notion 갱신.
-// 병원/연구실 상시 머신에서 launchd로 5분마다 실행. run.sh 가 .env.local 로드 후 tsx 호출.
-import {
-  queryFulltextQueue,
-  markAcquired,
-  markFailed,
-} from "../../lib/notion/fulltext"
+// scripts/fulltext-worker/drain.ts
+// 큐를 한 번 소진 — OA fast-path → 원내망 Aside → Dropbox 저장 → Notion 갱신.
+// daemon.ts가 트리거/폴링 시 호출. 처리 건수를 반환.
+import { queryFulltextQueue, markAcquired, markFailed } from "../../lib/notion/fulltext"
 import { resolveOA } from "../../lib/fulltext/oa"
 import { fetchPdfViaAside } from "../../lib/fulltext/aside"
 import { saveToDropbox } from "../../lib/fulltext/dropbox"
 import { extractDoi, safeName } from "../../lib/fulltext/pdf"
 
-const DAILY_MAX = Number(process.env.FULLTEXT_DAILY_MAX ?? "20")
+// per-run 버스트 가드(진짜 일일 누적 아님 — Phase 1 단순화). 한 번 소진에 이만큼까지만.
+const MAX_PER_RUN = Number(process.env.FULLTEXT_DAILY_MAX ?? "20")
 const MIN_GAP_MS = 30_000
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -1032,14 +1112,14 @@ async function downloadOA(url: string): Promise<Buffer | null> {
   }
 }
 
-async function main() {
+export async function drainQueue(): Promise<number> {
   const queue = await queryFulltextQueue()
-  console.log(`[fulltext ${new Date().toISOString()}] 큐 ${queue.length}건`)
+  console.log(`[drain ${new Date().toISOString()}] 큐 ${queue.length}건`)
   let processed = 0
 
   for (const item of queue) {
-    if (processed >= DAILY_MAX) {
-      console.log(`일일 상한(${DAILY_MAX}) 도달 — 나머지는 다음 실행에`)
+    if (processed >= MAX_PER_RUN) {
+      console.log(`per-run 상한(${MAX_PER_RUN}) 도달 — 나머지는 다음 트리거/폴링에`)
       break
     }
     const doi = extractDoi(item.doiUrl)
@@ -1083,20 +1163,68 @@ async function main() {
       await markFailed(item.pageId, msg).catch(() => {})
     }
   }
-  console.log(`[fulltext] done — ${processed}건 처리`)
+  console.log(`[drain] done — ${processed}건 처리`)
+  return processed
+}
+```
+
+- [ ] **Step 3: `scripts/fulltext-worker/daemon.ts` 작성 (상주 데몬)**
+
+```typescript
+// scripts/fulltext-worker/daemon.ts
+// 상주 데몬 — Ably 트리거(즉시) + 백업 폴링(완전성) + 중복기동 방지 뮤텍스.
+// launchd KeepAlive 로 상시 유지. run.sh 가 .env.local 로드 후 tsx 호출.
+import * as Ably from "ably"
+import { drainQueue } from "./drain"
+import { ABLY_CHANNEL, ABLY_EVENT } from "../../lib/fulltext/ably"
+
+const POLL_MS = Number(process.env.FULLTEXT_POLL_MS ?? "300000")
+const ABLY_KEY = process.env.ABLY_API_KEY ?? ""
+
+let running = false
+
+async function runDrain(trigger: string): Promise<void> {
+  if (running) {
+    console.log(`[${trigger}] 이미 처리 중 — skip`)
+    return
+  }
+  running = true
+  try {
+    const n = await drainQueue()
+    console.log(`[${trigger}] ${n}건 처리`)
+  } catch (e) {
+    console.error(`[${trigger}] drain 오류:`, e instanceof Error ? e.message : e)
+  } finally {
+    running = false
+  }
+}
+
+async function main() {
+  console.log(`[fulltext-daemon] 시작 (poll=${POLL_MS}ms, ably=${ABLY_KEY ? "on" : "off"})`)
+
+  await runDrain("startup") // 부팅 시 밀린 큐 한 번 소진
+  setInterval(() => void runDrain("poll"), POLL_MS) // 백업 폴링(안전망)
+
+  if (ABLY_KEY) {
+    const client = new Ably.Realtime(ABLY_KEY)
+    const channel = client.channels.get(ABLY_CHANNEL)
+    await channel.subscribe(ABLY_EVENT, () => void runDrain("ably"))
+    console.log("[fulltext-daemon] Ably 구독 시작")
+  }
+  // setInterval + Ably 연결이 이벤트 루프를 유지 → 프로세스 상주.
 }
 
 main().catch((e) => {
-  console.error("[fulltext] 치명 오류:", e)
+  console.error("[fulltext-daemon] 치명 오류:", e)
   process.exit(1)
 })
 ```
 
-- [ ] **Step 2: `run.sh` 작성 (기존 collector run.sh 패턴)**
+- [ ] **Step 4: `run.sh` 작성 (기존 collector run.sh 패턴, daemon 실행)**
 
 ```bash
 #!/bin/bash
-# launchd 진입점 — .env.local 로드 후 원문 확보 워커 실행.
+# launchd 진입점 — .env.local 로드 후 원문 확보 데몬 실행.
 set -euo pipefail
 REPO="/Users/TakMD/workspace/spinoscopy-dashboard"
 cd "$REPO"
@@ -1105,7 +1233,7 @@ set -a
 . "$REPO/.env.local"
 set +a
 export PATH="/Users/TakMD/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
-exec npx tsx "$REPO/scripts/fulltext-worker/process.ts"
+exec npx tsx "$REPO/scripts/fulltext-worker/daemon.ts"
 ```
 
 실행권한:
@@ -1116,7 +1244,7 @@ chmod +x scripts/fulltext-worker/run.sh
 
 > **맥스튜디오(Phase 2) 이식 시:** `REPO` 경로를 그 머신 경로로 바꾼다.
 
-- [ ] **Step 3: `com.spino.fulltext-worker.plist` 작성 (5분 간격)**
+- [ ] **Step 5: `com.spino.fulltext-worker.plist` 작성 (KeepAlive 상주)**
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -1128,31 +1256,41 @@ chmod +x scripts/fulltext-worker/run.sh
     <string>/bin/bash</string>
     <string>/Users/TakMD/workspace/spinoscopy-dashboard/scripts/fulltext-worker/run.sh</string>
   </array>
-  <key>StartInterval</key><integer>300</integer>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
   <key>StandardOutPath</key><string>/tmp/fulltext-worker.log</string>
   <key>StandardErrorPath</key><string>/tmp/fulltext-worker.log</string>
 </dict></plist>
 ```
 
-- [ ] **Step 4: `README.md` 작성 (셋업/운영 가이드)**
+- [ ] **Step 6: `README.md` 작성 (셋업/운영 가이드)**
 
 ```markdown
 # 원문 확보 워커 (fulltext-worker)
 
-Scholar 논문 큐(`원문 요청`=true, `원문 상태`∈{요청됨,비어있음})를 순회하며
+Scholar 논문 큐(`원문 요청`=true, `원문 상태`∈{요청됨,비어있음})를 소진하며
 OA→원내망(Aside-Chrome) 순으로 PDF를 확보, Dropbox 공유 폴더에 올리고
 Notion `원문 상태`/`원문 PDF`를 갱신한다.
+
+## 구조
+- `drain.ts` — 큐 1회 소진(export `drainQueue`).
+- `daemon.ts` — 상주 데몬: Ably 트리거(즉시) + 백업 폴링(기본 5분) + 중복기동 뮤텍스.
 
 ## env (.env.local)
 - `NOTION_TOKEN`, `NOTION_JOURNAL_DB_ID` — 기존
 - `DROPBOX_TOKEN` — files.write + sharing.write 스코프
 - `DROPBOX_SCHOLAR_DIR` — Dropbox-상대 폴더(예 `/Scholar PDFs`)
+- `ABLY_API_KEY` — Ably 앱 키(없으면 폴링만으로 동작)
 - `UNPAYWALL_EMAIL` — 선택(기본 woontak.yuh@gmail.com)
-- `FULLTEXT_DAILY_MAX` — 선택(기본 20)
+- `FULLTEXT_DAILY_MAX` — per-run 상한(기본 20)
+- `FULLTEXT_POLL_MS` — 백업 폴링 간격(기본 300000=5분)
 
 ## 수동 실행 (개발/검증)
     set -a; . ./.env.local; set +a
-    npx tsx scripts/fulltext-worker/process.ts
+    # 큐 1회 소진만:
+    npx tsx -e "import('./scripts/fulltext-worker/drain').then(m=>m.drainQueue())"
+    # 데몬 전체(Ctrl+C로 종료):
+    npx tsx scripts/fulltext-worker/daemon.ts
 
 ## launchd 등록 (상시)
     cp scripts/fulltext-worker/com.spino.fulltext-worker.plist ~/Library/LaunchAgents/
@@ -1166,13 +1304,13 @@ Notion `원문 상태`/`원문 PDF`를 갱신한다.
 - 동시 두 곳에서 돌리면 큐가 겹치므로, 이관 후 맥미니 plist는 unload 한다.
 ```
 
-- [ ] **Step 5: OA end-to-end 검증 (맥미니, 실제 OA DOI 하나)**
+- [ ] **Step 7: OA end-to-end 검증 (맥미니, 실제 OA DOI 하나)**
 
 준비: `.env.local`에 `DROPBOX_TOKEN`, `DROPBOX_SCHOLAR_DIR` 채우고, Notion에서 OA 논문 1건의 `원문 요청`을 체크(또는 Task 5 curl로 요청).
 
 ```bash
 set -a; . ./.env.local; set +a
-npx tsx scripts/fulltext-worker/process.ts
+npx tsx -e "import('./scripts/fulltext-worker/drain').then(m=>m.drainQueue())"
 ```
 
 Expected:
@@ -1181,14 +1319,20 @@ Expected:
 - Notion 그 페이지 `원문 상태`=`OA 확보`, `원문 PDF`=Dropbox 링크
 - 대시보드 상세에서 버튼이 `PDF 열기`로 바뀌고 링크로 PDF가 열림
 
-- [ ] **Step 6: 커밋**
+- [ ] **Step 8: 데몬 + Ably 트리거 검증 (선택, ABLY_API_KEY 있을 때)**
+
+`npx tsx scripts/fulltext-worker/daemon.ts` 로 데몬을 띄운 상태에서, 다른 터미널에서 Task 5의
+curl(또는 대시보드 버튼)로 요청 → 데몬 로그에 `[ably] N건 처리`가 **수 초 내** 찍히는지 확인.
+키가 없으면 이 단계는 건너뛰고 백업 폴링(최대 5분)으로만 동작.
+
+- [ ] **Step 9: 커밋**
 
 ```bash
-git add scripts/fulltext-worker/
-git commit -m "feat(scholar): 원문 확보 워커 + launchd(5분) + 가이드
+git add scripts/fulltext-worker/ package.json package-lock.json
+git commit -m "feat(scholar): 원문 확보 데몬(Ably 즉시 트리거 + 백업 폴링) + KeepAlive
 
-큐 순회 → OA fast-path → 원내망 Aside → Dropbox 저장 → Notion 갱신.
-건당 30초+지터, 일일 상한 FULLTEXT_DAILY_MAX(기본 20).
+drain.ts 큐 소진 + daemon.ts 상주(Ably 구독/5분 폴링/뮤텍스).
+OA→원내망 Aside→Dropbox 저장→Notion 갱신, 건당 30초+지터, per-run 상한 20.
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01TaJf53o9dKVFnYvVq1hFwk"
@@ -1206,6 +1350,11 @@ Claude-Session: https://claude.ai/code/session_01TaJf53o9dKVFnYvVq1hFwk"
   폴백 B는 Phase 2에서 실제 실패 사례가 나오면 추가한다.
 - **Dropbox 실패 자동 재시도 연기**: 저장 실패 시 즉시 `실패` 처리하고, 재시도는 사용자가
   버튼을 다시 눌러 큐에 재등록하는 경로(상태 머신)로 커버한다. 자동 1회 재시도는 후속.
+- **일일 상한은 per-run 버스트 가드**: `FULLTEXT_DAILY_MAX`는 진짜 24시간 누적이 아니라 "한 번
+  소진에 최대 N건"이다(디스크/DB 상태 없이 단순화). 트리거/폴링이 잦아도 건당 30초+지터가
+  있어 실질 다운로드 속도는 사람 수준. 진짜 일일 누적 카운팅은 Phase 2 후속.
+- **Ably는 선택적 최적화**: `ABLY_API_KEY` 미설정이면 route 발행은 no-op, 데몬은 백업 폴링만으로
+  동작(최대 5분 지연). 즉시성만 잃고 기능은 완전. 키가 있으면 지연 ~1~2초.
 
 ## Phase 2 (별도, 이 플랜 범위 밖 — 참고)
 
@@ -1216,6 +1365,7 @@ unload. Task 7의 README에 절차를 담았다.
 ## 완료 기준 (Phase 1)
 
 - `npx vitest run` 전부 통과, `npx tsc --noEmit` 에러 없음.
-- 대시보드 논문 상세에 `원문 받기` 버튼 노출, 클릭 시 큐 등록 + `확보 중…`.
-- 맥미니 워커가 OA 논문 1건을 Dropbox+Notion까지 end-to-end 확보, 대시보드에서 `PDF 열기` 동작.
+- 대시보드 논문 상세에 `원문 받기` 버튼 노출, 클릭 시 큐 등록 + `확보 중…` + (키 있으면) Ably 발행.
+- 맥미니 데몬이 OA 논문 1건을 Dropbox+Notion까지 end-to-end 확보, 대시보드에서 `PDF 열기` 동작.
+- (ABLY_API_KEY 있을 때) 버튼 클릭 → 데몬이 수 초 내 반응. 없으면 백업 폴링으로 5분 내.
 - Notion 수동 `원문 요청` 체크로도 같은 큐를 타는 것 확인.
