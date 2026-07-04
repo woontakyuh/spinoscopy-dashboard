@@ -366,10 +366,10 @@ function FulltextButton({
   }
   if (status === "실패") {
     return (
-      <a href={doiUrl} target="_blank" rel="noopener noreferrer"
+      <button type="button" onClick={onRequest}
         className={`${base} bg-red-500/15 text-red-400 border-red-500/30 hover:bg-red-500/25`}>
-        실패 — DOI로 이동 ↗
-      </a>
+        실패 — 다시 받기
+      </button>
     )
   }
   return (

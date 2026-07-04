@@ -5,7 +5,7 @@ import { queryFulltextQueue, markAcquired, markFailed } from "../../lib/notion/f
 import { resolveOA } from "../../lib/fulltext/oa"
 import { fetchPdfViaAside } from "../../lib/fulltext/aside"
 import { saveToDropbox } from "../../lib/fulltext/dropbox"
-import { extractDoi, safeName } from "../../lib/fulltext/pdf"
+import { extractDoi, safeName, isPdfBuffer } from "../../lib/fulltext/pdf"
 
 // per-run 버스트 가드(진짜 일일 누적 아님 — Phase 1 단순화). 한 번 소진에 이만큼까지만.
 const MAX_PER_RUN = Number(process.env.FULLTEXT_DAILY_MAX ?? "20")
@@ -19,7 +19,7 @@ async function downloadOA(url: string): Promise<Buffer | null> {
     const res = await fetch(url)
     if (!res.ok) return null
     const buf = Buffer.from(await res.arrayBuffer())
-    return buf.subarray(0, 4).toString("latin1") === "%PDF" ? buf : null
+    return isPdfBuffer(buf) ? buf : null
   } catch {
     return null
   }

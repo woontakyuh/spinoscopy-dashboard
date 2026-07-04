@@ -9,6 +9,8 @@ export function fetchPdfViaAside(articleUrl: string): { pdf: Buffer | null; reas
   const script = buildFetchScript(articleUrl)
   let stdout: string
   try {
+    // execFileSync는 의도적 동기 블록 — 데몬은 뮤텍스로 직렬 처리하므로 이 구간 이벤트루프
+    // 정지는 허용된다(끝나면 Ably 자동 재연결 + 백업 폴링이 복구). 상한 timeout 150s.
     stdout = execFileSync("aside", ["repl", script], {
       encoding: "utf8",
       maxBuffer: 64 * 1024 * 1024,
