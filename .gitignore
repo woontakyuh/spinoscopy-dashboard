@@ -45,6 +45,7 @@ scripts/*
 !scripts/telegram-bot.ts
 !scripts/social-collector
 !scripts/journal-collector
+!scripts/fulltext-worker
 
 # legacy planning tool
 .sisyphus/
