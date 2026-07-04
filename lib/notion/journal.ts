@@ -9,6 +9,7 @@ import type {
   DashboardData,
 } from "../types/journal"
 import { extractCountry, classifyTopics, normalizeArticleType } from "../scholar/country"
+import { readFulltext } from "./fulltext"
 
 interface NotionPage {
   id: string
@@ -83,6 +84,9 @@ function toArticle(page: NotionPage): JournalArticle {
     volume: getText(p.Vol),
     issue: getText(p.Issue),
     affiliations: getText(p.Affiliations),
+    fulltext_requested: readFulltext(p).requested,
+    fulltext_status: readFulltext(p).status,
+    fulltext_pdf: readFulltext(p).pdf,
   }
 }
 

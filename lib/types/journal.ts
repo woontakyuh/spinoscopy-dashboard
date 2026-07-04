@@ -20,6 +20,9 @@ export interface JournalArticle {
   volume: string
   issue: string
   affiliations: string
+  fulltext_requested: boolean
+  fulltext_status: string | null
+  fulltext_pdf: string | null
 }
 
 export interface JournalFilter {
