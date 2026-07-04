@@ -12,7 +12,7 @@ const MAX_PER_RUN = Number(process.env.FULLTEXT_DAILY_MAX ?? "20")
 const MIN_GAP_MS = 30_000
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
-const jitter = () => MIN_GAP_MS + Math.floor(((Date.now() % 1000) / 1000) * 15_000)
+const jitter = () => MIN_GAP_MS + Math.floor(Math.random() * 15_000)
 
 async function downloadOA(url: string): Promise<Buffer | null> {
   try {
@@ -57,6 +57,7 @@ export async function drainQueue(): Promise<number> {
       // 2) 원내망 Aside
       if (!item.doiUrl) {
         await markFailed(item.pageId, "DOI 없음 — 원내망 확보 불가")
+        processed++
         continue
       }
       const { pdf, reason } = fetchPdfViaAside(item.doiUrl)
@@ -74,6 +75,8 @@ export async function drainQueue(): Promise<number> {
       const msg = e instanceof Error ? e.message : String(e)
       console.error(`  ! 오류: ${msg}`)
       await markFailed(item.pageId, msg).catch(() => {})
+      processed++
+      await sleep(jitter())
     }
   }
   console.log(`[drain] done — ${processed}건 처리`)

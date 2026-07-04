@@ -33,10 +33,14 @@ async function main() {
   setInterval(() => void runDrain("poll"), POLL_MS) // 백업 폴링(안전망)
 
   if (ABLY_KEY) {
-    const client = new Ably.Realtime(ABLY_KEY)
-    const channel = client.channels.get(ABLY_CHANNEL)
-    await channel.subscribe(ABLY_EVENT, () => void runDrain("ably"))
-    console.log("[fulltext-daemon] Ably 구독 시작")
+    try {
+      const client = new Ably.Realtime(ABLY_KEY)
+      const channel = client.channels.get(ABLY_CHANNEL)
+      await channel.subscribe(ABLY_EVENT, () => void runDrain("ably"))
+      console.log("[fulltext-daemon] Ably 구독 시작")
+    } catch (e) {
+      console.error("[fulltext-daemon] Ably 구독 실패 — 백업 폴링만으로 동작:", e instanceof Error ? e.message : e)
+    }
   }
   // setInterval + Ably 연결이 이벤트 루프를 유지 → 프로세스 상주.
 }
