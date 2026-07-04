@@ -22,7 +22,7 @@ async function uploadBytes(path: string, pdf: Buffer): Promise<void> {
       "Dropbox-API-Arg": JSON.stringify({ path, mode: "overwrite", mute: true }),
       "Content-Type": "application/octet-stream",
     },
-    body: pdf as any,
+    body: new Uint8Array(pdf),
   })
   if (!res.ok) throw new Error(`Dropbox upload ${res.status}: ${await res.text()}`)
 }
