@@ -27,6 +27,9 @@ export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
   const [oneLiner, setOneLiner] = useState<string | null>(null)
   const [translating, setTranslating] = useState(false)
   const [summarizing, setSummarizing] = useState(false)
+  const [ftStatus, setFtStatus] = useState<string | null>(article.fulltext_status)
+  const [ftPdf, setFtPdf] = useState<string | null>(article.fulltext_pdf)
+  const [ftBusy, setFtBusy] = useState(false)
 
   useEffect(() => {
     void article.page_id
@@ -34,6 +37,9 @@ export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
     setOneLiner(null)
     setTranslating(false)
     setSummarizing(false)
+    setFtStatus(article.fulltext_status)
+    setFtPdf(article.fulltext_pdf)
+    setFtBusy(false)
   }, [article.page_id])
 
   const toggleReadMutation = useMutation({
@@ -126,6 +132,41 @@ export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
       setSummarizing(false)
     }
   }
+
+  async function handleRequestFulltext() {
+    if (!article.doi_url || ftBusy) return
+    setFtBusy(true)
+    setFtStatus("요청됨")
+    try {
+      const res = await fetch("/api/notion/journal", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pageId: article.page_id, action: "requestFulltext" }),
+      })
+      if (!res.ok) throw new Error("요청 실패")
+    } catch (e) {
+      console.error(e)
+      setFtStatus(article.fulltext_status)
+    } finally {
+      setFtBusy(false)
+    }
+  }
+
+  useEffect(() => {
+    if (ftStatus !== "요청됨") return
+    const id = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/notion/journal?action=detail&pageId=${article.page_id}`)
+        if (!res.ok) return
+        const fresh = (await res.json()) as JournalArticle
+        setFtStatus(fresh.fulltext_status)
+        setFtPdf(fresh.fulltext_pdf)
+      } catch {
+        /* 폴링 실패는 무시 */
+      }
+    }, 25000)
+    return () => clearInterval(id)
+  }, [ftStatus, article.page_id])
 
   return (
     <div className="space-y-4">
@@ -262,6 +303,15 @@ export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
 
       <div className="flex gap-2 pt-2">
         {article.doi_url && (
+          <FulltextButton
+            status={ftStatus}
+            pdfUrl={ftPdf}
+            busy={ftBusy}
+            doiUrl={article.doi_url}
+            onRequest={handleRequestFulltext}
+          />
+        )}
+        {article.doi_url && (
           <a
             href={article.doi_url}
             target="_blank"
@@ -281,5 +331,51 @@ export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
         </a>
       </div>
     </div>
+  )
+}
+
+function FulltextButton({
+  status,
+  pdfUrl,
+  busy,
+  doiUrl,
+  onRequest,
+}: {
+  status: string | null
+  pdfUrl: string | null
+  busy: boolean
+  doiUrl: string
+  onRequest: () => void
+}) {
+  const base = "px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors"
+
+  if (pdfUrl && (status === "OA 확보" || status === "원내망 확보")) {
+    return (
+      <a href={pdfUrl} target="_blank" rel="noopener noreferrer"
+        className={`${base} bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30`}>
+        PDF 열기 ↗
+      </a>
+    )
+  }
+  if (status === "요청됨" || busy) {
+    return (
+      <span className={`${base} bg-muted text-muted-foreground border-border opacity-70 cursor-default`}>
+        확보 중…
+      </span>
+    )
+  }
+  if (status === "실패") {
+    return (
+      <a href={doiUrl} target="_blank" rel="noopener noreferrer"
+        className={`${base} bg-red-500/15 text-red-400 border-red-500/30 hover:bg-red-500/25`}>
+        실패 — DOI로 이동 ↗
+      </a>
+    )
+  }
+  return (
+    <button type="button" onClick={onRequest}
+      className={`${base} bg-muted text-foreground/90 border-border hover:bg-muted`}>
+      원문 받기
+    </button>
   )
 }
