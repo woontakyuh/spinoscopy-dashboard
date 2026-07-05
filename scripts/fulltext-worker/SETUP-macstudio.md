@@ -46,19 +46,21 @@ cd spinoscopy-dashboard
 
 ## 4단계 — 비밀 설정파일 넣기
 
-센터장님이 보내준 **4줄짜리 내용**을 `.env.local` 이라는 파일로 저장합니다. 터미널에서:
+센터장님이 보내준 **설정 내용**을 `.env.local` 이라는 파일로 저장합니다. 터미널에서:
 
 ```
 cat > .env.local
 ```
 
-엔터 친 뒤, 센터장님이 보내준 4줄을 **붙여넣고**, 마지막에 **엔터 → Control+D**(끝).
-(붙여넣을 내용 예시 — 실제 값은 센터장님 것으로):
+엔터 친 뒤, 센터장님이 보내준 내용을 **그대로 붙여넣고**, 마지막에 **엔터 → Control+D**(끝).
+(붙여넣을 항목 — 실제 값은 센터장님이 채워서 보냅니다):
 ```
 NOTION_TOKEN=...
 NOTION_JOURNAL_DB_ID=...
-DROPBOX_TOKEN=...
 DROPBOX_SCHOLAR_DIR="/공유폴더/경로"
+DROPBOX_APP_KEY=...
+DROPBOX_APP_SECRET=...
+DROPBOX_REFRESH_TOKEN=...
 ```
 
 ## 5단계 — 설치 실행 (한 줄)

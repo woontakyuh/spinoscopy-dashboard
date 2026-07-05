@@ -38,19 +38,30 @@ if [ ! -f "$REPO/.env.local" ]; then
   echo "❌ .env.local 이 없습니다."
   echo "   센터장님이 보내준 내용을 아래 위치에 저장한 뒤 다시 실행하세요:"
   echo "     $REPO/.env.local"
-  echo "   (필요한 키: NOTION_TOKEN, NOTION_JOURNAL_DB_ID, DROPBOX_TOKEN, DROPBOX_SCHOLAR_DIR)"
+  echo "   (필요한 키: NOTION_TOKEN, NOTION_JOURNAL_DB_ID, DROPBOX_SCHOLAR_DIR,"
+  echo "    그리고 DROPBOX_REFRESH_TOKEN+DROPBOX_APP_KEY+DROPBOX_APP_SECRET)"
   exit 1
 fi
-# 필수 키 존재 점검
+# 공통 필수 키
 missing=""
-for k in NOTION_TOKEN NOTION_JOURNAL_DB_ID DROPBOX_TOKEN DROPBOX_SCHOLAR_DIR; do
+for k in NOTION_TOKEN NOTION_JOURNAL_DB_ID DROPBOX_SCHOLAR_DIR; do
   grep -q "^$k=" "$REPO/.env.local" || missing="$missing $k"
 done
 if [ -n "$missing" ]; then
   echo "❌ .env.local 에 다음 키가 없습니다:$missing"
   exit 1
 fi
-echo "✓ .env.local 확인(필수 키 모두 있음)"
+# Dropbox 인증: 장기(refresh 3종) 또는 단기(DROPBOX_TOKEN) 중 하나는 있어야 함
+if grep -q "^DROPBOX_REFRESH_TOKEN=" "$REPO/.env.local" \
+   && grep -q "^DROPBOX_APP_KEY=" "$REPO/.env.local" \
+   && grep -q "^DROPBOX_APP_SECRET=" "$REPO/.env.local"; then
+  echo "✓ .env.local 확인(Dropbox 장기 인증)"
+elif grep -q "^DROPBOX_TOKEN=" "$REPO/.env.local"; then
+  echo "⚠️  .env.local 확인 — 단기 DROPBOX_TOKEN 사용(약 4h 만료). 24/7 운용엔 refresh 3종 권장."
+else
+  echo "❌ Dropbox 인증 키 없음: DROPBOX_REFRESH_TOKEN+DROPBOX_APP_KEY+DROPBOX_APP_SECRET(권장) 또는 DROPBOX_TOKEN 필요"
+  exit 1
+fi
 
 chmod +x "$REPO/scripts/fulltext-worker/run.sh"
 

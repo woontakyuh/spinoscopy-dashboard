@@ -10,7 +10,9 @@ Notion `원문 상태`/`원문 PDF`를 갱신한다.
 
 ## env (.env.local)
 - `NOTION_TOKEN`, `NOTION_JOURNAL_DB_ID` — 기존
-- `DROPBOX_TOKEN` — files.write + sharing.write 스코프
+- Dropbox 인증(둘 중 하나):
+  - 권장(장기): `DROPBOX_REFRESH_TOKEN` + `DROPBOX_APP_KEY` + `DROPBOX_APP_SECRET` — 자동 갱신, 24/7용
+  - 개발(단기): `DROPBOX_TOKEN` — Generated access token(약 4h 만료)
 - `DROPBOX_SCHOLAR_DIR` — Dropbox-상대 폴더(예 `/Scholar PDFs`)
 - `ABLY_API_KEY` — Ably 앱 키(없으면 폴링만으로 동작)
 - `UNPAYWALL_EMAIL` — 선택(기본 woontak.yuh@gmail.com)
