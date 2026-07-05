@@ -39,14 +39,14 @@ export async function requestFulltext(pageId: string): Promise<void> {
 /** 확보 성공: 상태 + Dropbox 공유링크 기록. source는 "OA" | "원내망". */
 export async function markAcquired(
   pageId: string,
-  source: "OA" | "원내망",
+  source: "OA" | "Aside",
   shareUrl: string
 ): Promise<void> {
   await notionRequest(`/pages/${pageId}`, {
     method: "PATCH",
     body: JSON.stringify({
       properties: {
-        "원문 상태": { select: { name: source === "OA" ? "OA 확보" : "원내망 확보" } },
+        "원문 상태": { select: { name: source === "OA" ? "OA 확보" : "Aside 확보" } },
         "원문 PDF": { url: shareUrl },
       },
     }),

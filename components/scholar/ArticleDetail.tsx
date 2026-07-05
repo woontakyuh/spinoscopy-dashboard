@@ -349,7 +349,7 @@ function FulltextButton({
 }) {
   const base = "px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors"
 
-  if (pdfUrl && (status === "OA 확보" || status === "원내망 확보")) {
+  if (pdfUrl && (status === "OA 확보" || status === "Aside 확보")) {
     return (
       <a href={pdfUrl} target="_blank" rel="noopener noreferrer"
         className={`${base} bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30`}>

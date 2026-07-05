@@ -63,7 +63,7 @@ export async function drainQueue(): Promise<number> {
       const { pdf, reason } = fetchPdfViaAside(item.doiUrl)
       if (pdf) {
         const { shareUrl } = await saveToDropbox(pdf, name)
-        await markAcquired(item.pageId, "원내망", shareUrl)
+        await markAcquired(item.pageId, "Aside", shareUrl)
         console.log(`  → 원내망 확보`)
       } else {
         await markFailed(item.pageId, reason ?? "원문 확보 실패")
