@@ -1,5 +1,64 @@
 import { describe, it, expect } from "vitest"
-import { extractDoi, safeName, isPdfBuffer, buildFetchScript, parseAsideResult } from "./pdf"
+import {
+  extractDoi, safeName, isPdfBuffer, buildFetchScript, parseAsideResult,
+  firstAuthorSurname, titleKeyword, doiTail, buildFilename,
+} from "./pdf"
+
+describe("firstAuthorSurname", () => {
+  it("이니셜.성 형식에서 성을 뽑는다", () => {
+    expect(firstAuthorSurname("Y. Yang, X. Yang, Y. Liu")).toBe("Yang")
+  })
+  it("성 이니셜 형식도 성을 뽑는다", () => {
+    expect(firstAuthorSurname("Yang X, Liu Y")).toBe("Yang")
+  })
+  it("악센트 제거", () => {
+    expect(firstAuthorSurname("J. Muñoz")).toBe("Munoz")
+  })
+  it("빈 값이면 Unknown", () => {
+    expect(firstAuthorSurname("")).toBe("Unknown")
+  })
+})
+
+describe("titleKeyword", () => {
+  it("괄호 속 대문자 약어를 우선", () => {
+    expect(titleKeyword('A novel strategy of “Separation Surgery” (SSVPI) in managing')).toBe("SSVPI")
+  })
+  it("약어 없으면 핵심 단어 2개(불용어/일반어 제외)", () => {
+    expect(titleKeyword("Reduced paraspinal muscle endurance and electromyography")).toBe("Reduced-Paraspinal")
+  })
+  it("불용어만 있으면 빈 문자열", () => {
+    expect(titleKeyword("A study of the spine surgery")).toBe("")
+  })
+})
+
+describe("doiTail", () => {
+  it("영숫자 마지막 6자", () => {
+    expect(doiTail("10.1007/s00586-026-10116-x")).toBe("10116x")
+  })
+})
+
+describe("buildFilename", () => {
+  const base = {
+    pubDate: "2026-07-03",
+    journal: "ESJ",
+    authors: "Y. Yang, X. Yang, Y. Liu",
+    title: 'A novel strategy of “Separation Surgery Combined with Vertebroplasty (SSVPI)”',
+    doiUrl: "https://doi.org/10.1007/s00586-026-10116-x",
+    pageId: "392908af-25b9-8125",
+  }
+  it("연월_저널_저자_약어", () => {
+    expect(buildFilename(base)).toBe("2026_07_ESJ_Yang_SSVPI")
+  })
+  it("발행일 없으면 0000_00", () => {
+    expect(buildFilename({ ...base, pubDate: null })).toBe("0000_00_ESJ_Yang_SSVPI")
+  })
+  it("키워드 못 뽑으면 DOI 꼬리로 폴백", () => {
+    expect(buildFilename({ ...base, title: "A study of the spine" })).toBe("2026_07_ESJ_Yang_10116x")
+  })
+  it("공백 저널명은 영숫자로 정리", () => {
+    expect(buildFilename({ ...base, journal: "JNS Spine" })).toBe("2026_07_JNSSpine_Yang_SSVPI")
+  })
+})
 
 describe("extractDoi", () => {
   it("doi.org URL에서 bare DOI를 뽑는다", () => {

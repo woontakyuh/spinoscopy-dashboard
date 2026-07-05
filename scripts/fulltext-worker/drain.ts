@@ -2,10 +2,11 @@
 // 큐를 한 번 소진 — OA fast-path → 원내망 Aside → Dropbox 저장 → Notion 갱신.
 // daemon.ts가 트리거/폴링 시 호출. 처리 건수를 반환.
 import { queryFulltextQueue, markAcquired, markFailed } from "../../lib/notion/fulltext"
+import { getArticle } from "../../lib/notion/journal"
 import { resolveOA } from "../../lib/fulltext/oa"
 import { fetchPdfViaAside } from "../../lib/fulltext/aside"
 import { saveToDropbox } from "../../lib/fulltext/dropbox"
-import { extractDoi, safeName, isPdfBuffer } from "../../lib/fulltext/pdf"
+import { extractDoi, buildFilename, isPdfBuffer } from "../../lib/fulltext/pdf"
 
 // per-run 버스트 가드(진짜 일일 누적 아님 — Phase 1 단순화). 한 번 소진에 이만큼까지만.
 const MAX_PER_RUN = Number(process.env.FULLTEXT_DAILY_MAX ?? "20")
@@ -36,8 +37,17 @@ export async function drainQueue(): Promise<number> {
       break
     }
     const doi = extractDoi(item.doiUrl)
-    const name = safeName(doi, item.pageId)
-    console.log(`처리: ${item.title.slice(0, 60)} (doi=${doi ?? "없음"})`)
+    // 사람이 읽는 파일명(발행연월_저널_저자_키워드)을 위해 전체 메타 조회
+    const art = await getArticle(item.pageId)
+    const name = buildFilename({
+      pubDate: art.pub_date,
+      journal: art.journal_name,
+      authors: art.authors,
+      title: art.title,
+      doiUrl: art.doi_url,
+      pageId: item.pageId,
+    })
+    console.log(`처리: ${item.title.slice(0, 60)} → ${name} (doi=${doi ?? "없음"})`)
 
     try {
       // 1) OA 먼저
