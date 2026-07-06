@@ -33,13 +33,20 @@ npm install --no-audit --no-fund >/tmp/fulltext-npm-install.log 2>&1 || {
   echo "❌ npm install 실패. 로그: /tmp/fulltext-npm-install.log"; exit 1; }
 echo "✓ 의존성 설치 완료"
 
-# 4) .env.local 확인
+# 4) .env.local 확인 — 없으면 보내준 설정파일(spino-settings.txt)을 자동으로 찾아 적용
 if [ ! -f "$REPO/.env.local" ]; then
-  echo "❌ .env.local 이 없습니다."
-  echo "   센터장님이 보내준 내용을 아래 위치에 저장한 뒤 다시 실행하세요:"
-  echo "     $REPO/.env.local"
-  echo "   (필요한 키: NOTION_TOKEN, NOTION_JOURNAL_DB_ID, DROPBOX_SCHOLAR_DIR,"
-  echo "    그리고 DROPBOX_REFRESH_TOKEN+DROPBOX_APP_KEY+DROPBOX_APP_SECRET)"
+  for cand in "$REPO/spino-settings.txt" "$HOME/Downloads/spino-settings.txt" "$HOME/Desktop/spino-settings.txt"; do
+    if [ -f "$cand" ]; then
+      cp "$cand" "$REPO/.env.local"
+      echo "✓ 설정파일 자동 적용: $cand"
+      break
+    fi
+  done
+fi
+if [ ! -f "$REPO/.env.local" ]; then
+  echo "❌ 설정파일을 못 찾았습니다."
+  echo "   센터장님이 보내준 'spino-settings.txt' 파일을 다운로드 폴더(Downloads)에 두고 다시 실행하세요."
+  echo "   (또는 그 내용을 $REPO/.env.local 로 저장)"
   exit 1
 fi
 # 공통 필수 키
