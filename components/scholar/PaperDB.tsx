@@ -206,6 +206,65 @@ const FILTER_LABELS: Record<string, string> = {
   dateTo: "종료일",
 }
 
+// ── DOI/링크로 원문 요청 추가 ──────────────────────────────
+
+function AddByDoiBar() {
+  const queryClient = useQueryClient()
+  const [doi, setDoi] = useState("")
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  const mut = useMutation({
+    mutationFn: async (input: string) => {
+      const res = await fetch("/api/notion/journal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ doi: input }),
+      })
+      const data = (await res.json()) as { created?: boolean; title?: string; error?: string }
+      if (!res.ok) throw new Error(data.error ?? "추가 실패")
+      return data as { created: boolean; title: string }
+    },
+    onSuccess: (data) => {
+      const t = (data.title ?? "").slice(0, 45)
+      setMsg({ ok: true, text: data.created ? `추가됨 · 확보 중… — ${t}` : `이미 등록된 논문 · 원문요청함 — ${t}` })
+      setDoi("")
+      queryClient.invalidateQueries({ queryKey: ["journal"] })
+      queryClient.invalidateQueries({ queryKey: ["scholar-dashboard"] })
+    },
+    onError: (e: Error) => setMsg({ ok: false, text: e.message }),
+  })
+
+  function submit() {
+    if (!doi.trim() || mut.isPending) return
+    setMsg(null)
+    mut.mutate(doi.trim())
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 p-2 rounded-lg bg-card border border-border">
+      <span className="text-muted-foreground/80 text-[11px] font-semibold shrink-0">원문 요청</span>
+      <Input
+        placeholder="DOI 또는 논문 링크 붙여넣기 → Enter"
+        value={doi}
+        onChange={(e) => setDoi(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") submit() }}
+        className="flex-1 min-w-48 bg-muted border-border text-foreground placeholder:text-muted-foreground/70 h-7 text-xs"
+      />
+      <button
+        type="button"
+        onClick={submit}
+        disabled={mut.isPending || !doi.trim()}
+        className="h-7 px-3 rounded text-xs font-medium bg-emerald-600/80 text-white hover:bg-emerald-600 disabled:opacity-40 transition-colors shrink-0"
+      >
+        {mut.isPending ? "추가 중…" : "추가"}
+      </button>
+      {msg && (
+        <span className={`text-[11px] basis-full ${msg.ok ? "text-emerald-400" : "text-red-400"}`}>{msg.text}</span>
+      )}
+    </div>
+  )
+}
+
 // ── Main Component ──────────────────────────────────────────
 
 export function PaperDB() {
@@ -596,6 +655,9 @@ export function PaperDB() {
 
   return (
     <div className="space-y-3">
+      {/* ── DOI/링크로 원문 요청 추가 ── */}
+      <AddByDoiBar />
+
       {/* ── Compact Controls ── */}
       <div className="flex flex-wrap items-center gap-2 p-2 rounded-lg bg-card border border-border">
         {/* Search */}
