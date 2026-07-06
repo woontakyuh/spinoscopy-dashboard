@@ -11,6 +11,16 @@ export function safeName(doi: string | null, pageId: string): string {
   return `page-${pageId}`
 }
 
+/** 임의 입력(DOI·doi.org 링크·출판사 URL·텍스트)에서 DOI를 찾는다. 없으면 null. */
+export function findDoiInText(input: string): string | null {
+  if (!input) return null
+  const s = input.trim()
+  const direct = extractDoi(s)
+  if (direct) return direct.replace(/[.,;)\]}>]+$/, "")
+  const m = s.match(/10\.\d{4,}\/[^\s"'<>?#]+/)
+  return m ? m[0].replace(/[.,;)\]}>]+$/, "") : null
+}
+
 export function isPdfBuffer(buf: Buffer): boolean {
   return buf.length >= 4 && buf.subarray(0, 4).toString("latin1") === "%PDF"
 }

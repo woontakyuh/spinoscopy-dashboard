@@ -8,7 +8,7 @@ import {
   getDashboardData,
 } from "@/lib/notion/journal"
 import type { InterestLevel, JournalFilter } from "@/lib/types/journal"
-import { requestFulltext } from "@/lib/notion/fulltext"
+import { requestFulltext, addFulltextRequestByDoi } from "@/lib/notion/fulltext"
 import { publishTrigger } from "@/lib/fulltext/ably"
 
 export const dynamic = "force-dynamic"
@@ -82,5 +82,21 @@ export async function PATCH(req: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error"
     return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
+
+// 밖에서 본 논문을 DOI/링크로 원문요청 큐에 추가
+export async function POST(req: NextRequest) {
+  try {
+    const { doi } = (await req.json()) as { doi?: string }
+    if (!doi || typeof doi !== "string" || !doi.trim()) {
+      return NextResponse.json({ error: "DOI 또는 링크를 입력해 주세요." }, { status: 400 })
+    }
+    const result = await addFulltextRequestByDoi(doi)
+    await publishTrigger(result.pageId)
+    return NextResponse.json(result)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error"
+    return NextResponse.json({ error: message }, { status: 400 })
   }
 }

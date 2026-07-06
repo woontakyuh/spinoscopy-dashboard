@@ -1,4 +1,6 @@
 import { notionRequest } from "./client"
+import { findDoiInText } from "../fulltext/pdf"
+import { fetchCrossref } from "../fulltext/crossref"
 
 export interface FulltextFields {
   requested: boolean
@@ -118,4 +120,54 @@ export async function queryFulltextQueue(): Promise<QueueItem[]> {
       title,
     }
   })
+}
+
+export interface AddByDoiResult {
+  pageId: string
+  created: boolean
+  title: string
+  doi: string
+}
+
+/**
+ * 밖에서 본 논문을 DOI(또는 DOI 포함 링크)로 원문요청 큐에 넣는다.
+ * 이미 있으면 그 행 재사용, 없으면 CrossRef 메타로 새 행 생성. 둘 다 원문요청 ON.
+ */
+export async function addFulltextRequestByDoi(input: string): Promise<AddByDoiResult> {
+  const doi = findDoiInText(input)
+  if (!doi) throw new Error("DOI를 찾을 수 없습니다. DOI 또는 DOI가 포함된 링크를 붙여넣어 주세요.")
+  const doiLower = doi.toLowerCase()
+  const url = `https://doi.org/${doiLower}`
+
+  // dedup: 같은 DOI 행이 있으면 재사용
+  const found = await notionRequest<{ results: Array<{ id: string; properties: Record<string, any> }> }>(
+    `/databases/${JOURNAL_DB_ID}/query`,
+    { method: "POST", body: JSON.stringify({ page_size: 1, filter: { property: "DOI", url: { equals: url } } }) }
+  )
+  if (found.results[0]) {
+    const page = found.results[0]
+    await requestFulltext(page.id)
+    const title = (page.properties?.Title?.title ?? [])
+      .map((t: { plain_text?: string }) => t.plain_text ?? "").join("").trim()
+    return { pageId: page.id, created: false, title: title || doiLower, doi: doiLower }
+  }
+
+  // CrossRef 메타로 새 행 생성
+  const meta = await fetchCrossref(doiLower)
+  const title = meta?.title || doiLower
+  const props: Record<string, unknown> = {
+    Title: { title: [{ text: { content: title.slice(0, 2000) } }] },
+    DOI: { url },
+    "원문 요청": { checkbox: true },
+    "원문 상태": { select: { name: "요청됨" } },
+  }
+  if (meta?.authors) props.Author = { rich_text: [{ text: { content: meta.authors.slice(0, 2000) } }] }
+  if (meta?.journal) props["Journal Name"] = { select: { name: meta.journal.slice(0, 100) } }
+  if (meta?.pubDate) props["Publication Date"] = { date: { start: meta.pubDate } }
+
+  const created = await notionRequest<{ id: string }>("/pages", {
+    method: "POST",
+    body: JSON.stringify({ parent: { database_id: JOURNAL_DB_ID }, properties: props }),
+  })
+  return { pageId: created.id, created: true, title, doi: doiLower }
 }

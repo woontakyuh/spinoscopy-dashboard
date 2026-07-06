@@ -1,8 +1,32 @@
 import { describe, it, expect } from "vitest"
 import {
   extractDoi, safeName, isPdfBuffer, buildFetchScript, parseAsideResult,
-  firstAuthorSurname, titleKeyword, doiTail, buildFilename,
+  firstAuthorSurname, titleKeyword, doiTail, buildFilename, findDoiInText,
 } from "./pdf"
+
+describe("findDoiInText", () => {
+  it("bare DOI", () => {
+    expect(findDoiInText("10.1007/s00586-026-10116-x")).toBe("10.1007/s00586-026-10116-x")
+  })
+  it("doi.org 링크", () => {
+    expect(findDoiInText("https://doi.org/10.1007/s00586-026-10116-x")).toBe("10.1007/s00586-026-10116-x")
+  })
+  it("출판사 URL 속 DOI 추출", () => {
+    expect(findDoiInText("https://link.springer.com/article/10.1007/s00586-026-10116-x")).toBe(
+      "10.1007/s00586-026-10116-x"
+    )
+  })
+  it("쿼리스트링/후행문장부호 제거", () => {
+    expect(findDoiInText("see 10.1016/j.spinee.2024.01.001.")).toBe("10.1016/j.spinee.2024.01.001")
+    expect(findDoiInText("https://x.org/10.1016/j.spinee.2024.01.001?foo=bar")).toBe(
+      "10.1016/j.spinee.2024.01.001"
+    )
+  })
+  it("DOI 없으면 null", () => {
+    expect(findDoiInText("그냥 텍스트")).toBeNull()
+    expect(findDoiInText("")).toBeNull()
+  })
+})
 
 describe("firstAuthorSurname", () => {
   it("이니셜.성 형식에서 성을 뽑는다", () => {
