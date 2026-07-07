@@ -1049,6 +1049,18 @@ function InlineDetail({
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["journal"] }),
   })
 
+  const requestFulltextMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/notion/journal", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pageId: article.page_id, action: "requestFulltext" }),
+      })
+      if (!res.ok) throw new Error("요청 실패")
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["journal"] }),
+  })
+
   function handleToggleRead() {
     const next = !currentRead
     setCurrentRead(next)
@@ -1163,6 +1175,37 @@ function InlineDetail({
         >
           {currentRead ? "✓ 읽음" : "읽지 않음"}
         </button>
+
+        {article.doi_url && (() => {
+          const st = article.fulltext_status
+          const busy = requestFulltextMutation.isPending
+          const btn = "px-2.5 py-1 rounded-md text-xs font-medium border transition-colors"
+          if (article.fulltext_pdf && (st === "OA 확보" || st === "Aside 확보")) {
+            return (
+              <a href={article.fulltext_pdf} target="_blank" rel="noopener noreferrer"
+                className={`${btn} bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30`}>
+                PDF 열기 ↗
+              </a>
+            )
+          }
+          if (st === "요청됨" || busy) {
+            return <span className={`${btn} bg-muted text-muted-foreground border-border opacity-70`}>확보 중…</span>
+          }
+          if (st === "실패") {
+            return (
+              <button type="button" onClick={() => requestFulltextMutation.mutate()}
+                className={`${btn} bg-red-500/15 text-red-400 border-red-500/30 hover:bg-red-500/25`}>
+                실패 · 다시 받기
+              </button>
+            )
+          }
+          return (
+            <button type="button" onClick={() => requestFulltextMutation.mutate()}
+              className={`${btn} bg-muted text-foreground/90 border-border hover:bg-muted`}>
+              원문 받기
+            </button>
+          )
+        })()}
 
         {article.doi_url && (
           <a
