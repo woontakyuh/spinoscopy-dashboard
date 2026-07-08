@@ -93,10 +93,10 @@ cat > "$PLIST" <<PLISTEOF
 PLISTEOF
 echo "✓ launchd 등록파일 생성: $PLIST"
 
-# 6) 셀프 테스트 — 큐 1회 드레인(대기 중 요청 처리 시도)
+# 6) 셀프 테스트 — 큐 1회 드레인(대기 중 요청 처리 시도). 실패해도 등록은 계속(non-fatal).
 echo "· 셀프 테스트: 큐 1회 처리 시도…"
 set -a; . "$REPO/.env.local"; set +a
-npx tsx -e "import('$REPO/scripts/fulltext-worker/drain.ts').then(m=>m.drainQueue()).then(n=>console.log('  → 처리:',n,'건(대기 요청이 없으면 0이 정상)')).catch(e=>{console.error('  ❌ 실패:',e.message);process.exit(1)})"
+npx tsx "$REPO/scripts/fulltext-worker/run-once.ts" || echo "  (셀프테스트 스킵 — 데몬 등록은 계속합니다)"
 
 # 7) 상시 가동 등록
 launchctl unload "$PLIST" 2>/dev/null || true

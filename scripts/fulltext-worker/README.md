@@ -22,7 +22,7 @@ Notion `원문 상태`/`원문 PDF`를 갱신한다.
 ## 수동 실행 (개발/검증)
     set -a; . ./.env.local; set +a
     # 큐 1회 소진만:
-    npx tsx -e "import('./scripts/fulltext-worker/drain').then(m=>m.drainQueue())"
+    npx tsx scripts/fulltext-worker/run-once.ts
     # 데몬 전체(Ctrl+C로 종료):
     npx tsx scripts/fulltext-worker/daemon.ts
 
