@@ -2,6 +2,7 @@ import { anthropic } from "@ai-sdk/anthropic"
 import { streamText, stepCountIs, tool } from "ai"
 import { z } from "zod"
 import { logUsage } from "@/lib/ai/usageLog"
+import { getAgentDefinition, isRegisteredAgentId } from "@/lib/agents/registry"
 import { readFileSync } from "node:fs"
 import path from "node:path"
 import { getAllTodos, createTodo, updateTodo, deleteTodo } from "@/lib/notion/todo"
@@ -1562,16 +1563,11 @@ Same Dakota. English only. Quiet, warm, affectionate presence.
     })
   }
 
-  // 모델 선택: 오케스트레이션/심층 토론은 Sonnet, 요약·브리핑 위주는 Haiku
-  const modelForAgent: Record<string, string> = {
-    dakota: "claude-sonnet-4-6",
-    lo: "claude-sonnet-4-6",
-    elon: "claude-sonnet-4-6",
-    brian: "claude-sonnet-4-6",
-    warren: "claude-haiku-4-5-20251001",
-    andrej: "claude-haiku-4-5-20251001",
-  }
-  const modelId = modelForAgent[agentId as string] ?? "claude-sonnet-4-6"
+  // Every interactive specialist uses the same current Sonnet tier. Model
+  // routing now lives in the registry instead of diverging inside this route.
+  const modelId = isRegisteredAgentId(agentId)
+    ? getAgentDefinition(agentId).model
+    : "claude-sonnet-5"
 
   try {
     const modelMessages = toModelMessages((messages ?? []) as UIMessage[])
