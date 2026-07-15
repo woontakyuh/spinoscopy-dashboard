@@ -31,8 +31,9 @@ Notion `원문 상태`/`원문 PDF`를 갱신한다.
     launchctl load ~/Library/LaunchAgents/com.spino.fulltext-worker.plist
     tail -f /tmp/fulltext-worker.log
 
-## Phase 2 (경북대 맥스튜디오)
-- Aside 앱 + 로그인 Chrome(원내망 IP 확인) + Node/tsx 설치.
-- run.sh 의 REPO 경로 수정.
+## Phase 2 (경북대 맥스튜디오) — 설치 완료(2026-07-15 가동 중)
+- 상세 가이드: `SETUP-macstudio.md` (비개발자용, TCC 주의사항 포함).
+- run.sh 는 레포 위치 자동감지 — 수정 불필요. 단 레포를 Downloads/Documents/Desktop
+  안에 두면 macOS TCC가 launchd 실행을 차단하므로 홈(`~`) 바로 아래에 둘 것.
 - 맥미니의 워커는 OA만 처리(원내망 권한 없음) → 맥스튜디오로 이관하면 구독형까지 확보.
 - 동시 두 곳에서 돌리면 큐가 겹치므로, 이관 후 맥미니 plist는 unload 한다.
