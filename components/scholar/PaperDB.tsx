@@ -20,13 +20,15 @@ const INTEREST_CYCLE: InterestLevel[] = ["🔴 필독", "🟡 관심", "⚪ 참�
 
 const JOURNAL_COLORS: Record<string, string> = {
   TSJ: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
-  Spine: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-  ESJ: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
   "JNS Spine": "bg-purple-500/20 text-purple-300 border-purple-500/30",
   JNS: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+  Spine: "bg-blue-500/20 text-blue-300 border-blue-500/30",
   Neurospine: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+  ESJ: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
   GSJ: "bg-rose-500/20 text-rose-300 border-rose-500/30",
 }
+
+const JOURNAL_DISPLAY_ORDER = ["TSJ", "Spine", "JNS Spine", "Neurospine", "ESJ", "GSJ"]
 
 function journalBadgeClass(name: string): string {
   for (const [key, cls] of Object.entries(JOURNAL_COLORS)) {
@@ -114,6 +116,18 @@ function sortedEntries(record: Record<string, number>, limit: number): [string, 
     .slice(0, limit)
 }
 
+function journalSortedEntries(record: Record<string, number>, limit: number): [string, number][] {
+  const orderIndex = new Map(JOURNAL_DISPLAY_ORDER.map((journal, index) => [journal, index]))
+  return Object.entries(record)
+    .sort(([aName, aCount], [bName, bCount]) => {
+      const aRank = orderIndex.get(aName) ?? Number.POSITIVE_INFINITY
+      const bRank = orderIndex.get(bName) ?? Number.POSITIVE_INFINITY
+      if (aRank !== bRank) return aRank - bRank
+      return bCount - aCount
+    })
+    .slice(0, limit)
+}
+
 // Topic 차트 전용 정렬 — TOPIC_PRIORITY 에 있는 항목을 그 순서대로 먼저 (count 0 이라도),
 // 나머지는 count desc.
 function topicSortedEntries(record: Record<string, number>, limit: number): [string, number][] {
@@ -190,6 +204,65 @@ const FILTER_LABELS: Record<string, string> = {
   search: "검색",
   dateFrom: "시작일",
   dateTo: "종료일",
+}
+
+// ── DOI/링크로 원문 요청 추가 ──────────────────────────────
+
+function AddByDoiBar() {
+  const queryClient = useQueryClient()
+  const [doi, setDoi] = useState("")
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  const mut = useMutation({
+    mutationFn: async (input: string) => {
+      const res = await fetch("/api/notion/journal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ doi: input }),
+      })
+      const data = (await res.json()) as { created?: boolean; title?: string; error?: string }
+      if (!res.ok) throw new Error(data.error ?? "추가 실패")
+      return data as { created: boolean; title: string }
+    },
+    onSuccess: (data) => {
+      const t = (data.title ?? "").slice(0, 45)
+      setMsg({ ok: true, text: data.created ? `추가됨 · 확보 중… — ${t}` : `이미 등록된 논문 · 원문요청함 — ${t}` })
+      setDoi("")
+      queryClient.invalidateQueries({ queryKey: ["journal"] })
+      queryClient.invalidateQueries({ queryKey: ["scholar-dashboard"] })
+    },
+    onError: (e: Error) => setMsg({ ok: false, text: e.message }),
+  })
+
+  function submit() {
+    if (!doi.trim() || mut.isPending) return
+    setMsg(null)
+    mut.mutate(doi.trim())
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 p-2 rounded-lg bg-card border border-border">
+      <span className="text-muted-foreground/80 text-[11px] font-semibold shrink-0">원문 요청</span>
+      <Input
+        placeholder="DOI 또는 논문 링크 붙여넣기 → Enter"
+        value={doi}
+        onChange={(e) => setDoi(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") submit() }}
+        className="flex-1 min-w-48 bg-muted border-border text-foreground placeholder:text-muted-foreground/70 h-7 text-xs"
+      />
+      <button
+        type="button"
+        onClick={submit}
+        disabled={mut.isPending || !doi.trim()}
+        className="h-7 px-3 rounded text-xs font-medium bg-emerald-600/80 text-white hover:bg-emerald-600 disabled:opacity-40 transition-colors shrink-0"
+      >
+        {mut.isPending ? "추가 중…" : "추가"}
+      </button>
+      {msg && (
+        <span className={`text-[11px] basis-full ${msg.ok ? "text-emerald-400" : "text-red-400"}`}>{msg.text}</span>
+      )}
+    </div>
+  )
 }
 
 // ── Main Component ──────────────────────────────────────────
@@ -582,6 +655,9 @@ export function PaperDB() {
 
   return (
     <div className="space-y-3">
+      {/* ── DOI/링크로 원문 요청 추가 ── */}
+      <AddByDoiBar />
+
       {/* ── Compact Controls ── */}
       <div className="flex flex-wrap items-center gap-2 p-2 rounded-lg bg-card border border-border">
         {/* Search */}
@@ -691,8 +767,15 @@ export function PaperDB() {
             <StatCard label="필독 미읽음" value={dashMustReadUnread} icon="🔴" accent="red" />
           </div>
 
-          {/* Charts 2x2 */}
+          {/* Charts 2x2 — journal first because Brian's primary scan is journal-led */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in-up" style={{ animationDelay: "60ms" }}>
+            <BarChart
+              title={CHART_CONFIG.journal.title}
+              entries={journalSortedEntries(journalCounts, CHART_CONFIG.journal.limit)}
+              activeKeys={chartActiveKeys.journal}
+              onClickItem={key => handleChartClick("journal", key)}
+              color="cyan"
+            />
             <BarChart
               title={CHART_CONFIG.topic.title}
               entries={topicSortedEntries(topicCounts, CHART_CONFIG.topic.limit)}
@@ -700,6 +783,8 @@ export function PaperDB() {
               onClickItem={key => handleChartClick("topic", key)}
               color="indigo"
             />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in-up" style={{ animationDelay: "120ms" }}>
             <BarChart
               title={CHART_CONFIG.country.title}
               entries={sortedEntries(countryCounts, CHART_CONFIG.country.limit)}
@@ -708,21 +793,12 @@ export function PaperDB() {
               color="emerald"
               renderLabel={key => `${getCountryFlag(key)} ${key}`}
             />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in-up" style={{ animationDelay: "120ms" }}>
             <BarChart
               title={CHART_CONFIG.type.title}
               entries={sortedEntries(typeCounts, CHART_CONFIG.type.limit)}
               activeKeys={chartActiveKeys.type}
               onClickItem={key => handleChartClick("type", key)}
               color="amber"
-            />
-            <BarChart
-              title={CHART_CONFIG.journal.title}
-              entries={sortedEntries(journalCounts, CHART_CONFIG.journal.limit)}
-              activeKeys={chartActiveKeys.journal}
-              onClickItem={key => handleChartClick("journal", key)}
-              color="cyan"
             />
           </div>
         </div>
@@ -810,7 +886,7 @@ export function PaperDB() {
       ) : (
         <div className="border border-border rounded-lg overflow-hidden">
           {/* Header */}
-          <div className="grid grid-cols-[80px_28px_1fr_90px_100px_40px] gap-2 px-3 py-2 bg-muted/80 border-b border-border text-muted-foreground text-[11px] font-medium uppercase tracking-wider">
+          <div className="hidden md:grid grid-cols-[80px_28px_1fr_90px_100px_40px] gap-2 px-3 py-2 bg-muted/80 border-b border-border text-muted-foreground text-[11px] font-medium uppercase tracking-wider">
             <span>날짜</span>
             <span />
             <span>제목</span>
@@ -834,7 +910,7 @@ export function PaperDB() {
                     setExpandedId(expandedId === article.page_id ? null : article.page_id)
                   }
                 }}
-                className={`grid grid-cols-[80px_28px_1fr_90px_100px_40px] gap-2 px-3 py-2 items-center border-b border-border cursor-pointer transition-colors ${
+                className={`grid grid-cols-[44px_16px_minmax(0,1fr)_54px_28px] md:grid-cols-[80px_28px_1fr_90px_100px_40px] gap-2 px-3 py-2.5 md:py-2 items-center border-b border-border cursor-pointer transition-colors ${
                   expandedId === article.page_id
                     ? "bg-muted/70"
                     : "card-hover hover:bg-muted/40"
@@ -852,7 +928,7 @@ export function PaperDB() {
 
                 {/* Title */}
                 <span
-                  className={`text-xs leading-snug truncate ${
+                  className={`min-w-0 text-xs leading-snug truncate ${
                     article.read ? "text-muted-foreground" : "text-foreground"
                   }`}
                   title={article.title}
@@ -861,17 +937,17 @@ export function PaperDB() {
                 </span>
 
                 {/* Journal badge */}
-                <span>
+                <span className="min-w-0">
                   <Badge
                     variant="outline"
-                    className={`text-[9px] px-1.5 py-0 h-[18px] font-medium ${journalBadgeClass(article.journal_name)}`}
+                    className={`max-w-[54px] md:max-w-none text-[9px] px-1.5 py-0 h-[18px] font-medium truncate ${journalBadgeClass(article.journal_name)}`}
                   >
                     {article.journal_name.replace(" Spine", "").replace("The ", "")}
                   </Badge>
                 </span>
 
                 {/* Pub type */}
-                <span className={`text-[10px] truncate ${article.read ? "text-muted-foreground/70" : "text-muted-foreground"}`}>
+                <span className={`hidden md:block text-[10px] truncate ${article.read ? "text-muted-foreground/70" : "text-muted-foreground"}`}>
                   {article.pub_type || "—"}
                 </span>
 

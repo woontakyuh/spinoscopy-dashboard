@@ -31,6 +31,10 @@ Notion `원문 상태`/`원문 PDF`를 갱신한다.
 
 ## Phase 2 (경북대 맥스튜디오)
 - Aside 앱 + 로그인 Chrome(원내망 IP 확인) + Node/tsx 설치.
-- run.sh 의 REPO 경로 수정.
+- 레포는 `~/Downloads` 밖에 둘 것(예: `~/spinoscopy-dashboard`) — macOS TCC가
+  Downloads/Desktop/Documents 안의 launchd 백그라운드 실행을 막는다.
+  zip으로 받았으면 `xattr -dr com.apple.quarantine <폴더>`로 격리 해제.
+- run.sh 는 레포 위치를 자동 감지하므로 수정 불필요. **plist 안의 run.sh 절대경로만**
+  설치 위치에 맞게 수정 후 `~/Library/LaunchAgents/`에 복사·load.
 - 맥미니의 워커는 OA만 처리(원내망 권한 없음) → 맥스튜디오로 이관하면 구독형까지 확보.
 - 동시 두 곳에서 돌리면 큐가 겹치므로, 이관 후 맥미니 plist는 unload 한다.
