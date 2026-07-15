@@ -41,6 +41,13 @@ export function AgentGrid() {
     refetchOnWindowFocus: true,
   })
 
+  function forceNavigate(href: string) {
+    // Mobile Safari/PWA can occasionally swallow Next.js client-side Link taps
+    // when horizontal scroll / hover / fixed layers are involved. For these
+    // primary agent-entry targets, prefer a reliable document navigation.
+    window.location.assign(href)
+  }
+
   return (
     <div className={`grid ${demo ? "grid-cols-2" : "grid-cols-5"} gap-2 md:gap-3`}>
       {agents.map((agent) => {
@@ -92,7 +99,19 @@ export function AgentGrid() {
         )
 
         if (agent.active) {
-          return <Link key={agent.name} href={agent.href}>{card}</Link>
+          return (
+            <Link
+              key={agent.name}
+              href={agent.href}
+              className="relative z-20 block touch-manipulation select-none pointer-events-auto"
+              onClick={(event) => {
+                event.preventDefault()
+                forceNavigate(agent.href)
+              }}
+            >
+              {card}
+            </Link>
+          )
         }
         return <div key={agent.name}>{card}</div>
       })}

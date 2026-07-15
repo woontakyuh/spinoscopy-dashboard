@@ -90,7 +90,7 @@ export default function ClinicusPage() {
       <TopBar title="" />
 
       {/* Tabs */}
-      <div className="border-b border-border bg-background sticky top-0 z-10 overflow-x-auto">
+      <div className="border-b border-border bg-background sticky top-0 z-30 overflow-x-auto touch-pan-x">
         <div className="flex gap-0.5 px-3 min-w-max">
           {TABS.map((tab) => (
             <button
@@ -98,7 +98,7 @@ export default function ClinicusPage() {
               type="button"
               onClick={() => setActiveTab(tab.id)}
               className={`
-                px-3 py-2.5 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap
+                px-3 py-2.5 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap touch-manipulation select-none
                 ${activeTab === tab.id ? "text-foreground" : "text-muted-foreground hover:text-foreground/90"}
               `}
             >

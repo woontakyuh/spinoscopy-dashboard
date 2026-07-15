@@ -7,10 +7,12 @@ import { AgentGreeter } from "@/components/layout/AgentGreeter"
 import { PresentationList } from "@/components/dakota/PresentationList"
 import { TodoHistory } from "@/components/dakota/TodoHistory"
 import { ConferenceTab } from "@/components/dakota/ConferenceTab"
+import { DakotaCommandCenter } from "@/components/dakota/DakotaCommandCenter"
 import { getTimeContext, dday } from "@/lib/greeterContext"
 import type { Presentation } from "@/lib/types/presentation"
 
 const TABS = [
+  { id: "command", label: "Command Center", icon: "🧠" },
   { id: "history", label: "Todo List", icon: "📋" },
   { id: "presentations", label: "발표 관리", icon: "🎤" },
   { id: "conferences", label: "학회", icon: "🏛️" },
@@ -21,7 +23,7 @@ type DakotaTab = (typeof TABS)[number]["id"]
 interface TodoItem { name: string; due: string | null; status: string; priority: string }
 
 export default function DakotaPage() {
-  const [activeTab, setActiveTab] = useState<DakotaTab>("history")
+  const [activeTab, setActiveTab] = useState<DakotaTab>("command")
 
   const { data, isLoading: isTodosLoading } = useQuery<TodoItem[]>({
     queryKey: ["dakota-todos"],
@@ -59,6 +61,11 @@ export default function DakotaPage() {
 
   function getMessageForTab(tab: DakotaTab): string {
     const tc = getTimeContext()
+
+    if (tab === "command") {
+      const active = todos.length > 0 ? `할 일 ${todos.length}건` : "운영 큐는 가볍고"
+      return `센터장님, Dakota Command Center 열어둘게요. ${active}, specialist 병렬 상태와 지식 승격 큐까지 한 화면에서 보겠습니다.`
+    }
 
     if (tab === "presentations") {
       // 발표(attendance_type === "발표") 중 가장 가까운 것
@@ -114,6 +121,7 @@ export default function DakotaPage() {
 
   const message = getMessageForTab(activeTab)
   const isTabLoading =
+    (activeTab === "command" && isTodosLoading) ||
     (activeTab === "history" && isTodosLoading) ||
     (activeTab === "presentations" && isPresLoading) ||
     (activeTab === "conferences" && isPresLoading)
@@ -123,7 +131,7 @@ export default function DakotaPage() {
       <TopBar title="" />
 
       {/* Tabs */}
-      <div className="border-b border-border bg-background sticky top-0 z-10 overflow-x-auto">
+      <div className="border-b border-border bg-background sticky top-0 z-30 overflow-x-auto touch-pan-x">
         <div className="flex gap-0.5 px-3 min-w-max">
           {TABS.map((tab) => (
             <button
@@ -131,7 +139,7 @@ export default function DakotaPage() {
               type="button"
               onClick={() => setActiveTab(tab.id)}
               className={`
-                px-3 py-2.5 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap
+                px-3 py-2.5 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap touch-manipulation select-none
                 ${activeTab === tab.id ? "text-foreground" : "text-muted-foreground hover:text-foreground/90"}
               `}
             >
@@ -150,6 +158,8 @@ export default function DakotaPage() {
       {/* Content */}
       <div className="flex-1 min-w-0 p-3 md:p-6">
         <AgentGreeter image="/dakota.png" name="Dakota" message={message} loading={isTabLoading} />
+
+        {activeTab === "command" && <DakotaCommandCenter />}
 
         {activeTab === "history" && <TodoHistory />}
 
