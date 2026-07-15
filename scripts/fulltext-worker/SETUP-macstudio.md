@@ -36,10 +36,14 @@ Aside 앱을 설치하고 실행해서, Chrome에 연결된 상태로 둡니다.
 터미널 앱(응용프로그램 > 유틸리티 > **터미널**)을 열고, 아래를 **한 줄씩 복사→붙여넣기→엔터**:
 
 ```
-cd ~/Documents
+cd ~
 git clone https://github.com/woontakyuh/spinoscopy-dashboard.git
 cd spinoscopy-dashboard
 ```
+
+> ⚠️ 위치 중요: 반드시 홈(`~`) 바로 아래에 두세요. **다운로드/문서/데스크탑 폴더 안에 두면
+> macOS 보안(TCC)이 백그라운드 실행을 차단**해서 워커가 돌지 않습니다(실제 설치에서 겪은 문제).
+> zip으로 내려받아 옮긴 경우엔 격리 딱지도 제거: `xattr -dr com.apple.quarantine ~/spinoscopy-dashboard`
 
 > 만약 로그인/권한을 물으면, 센터장님이 준 접근 방법(초대 수락 또는 토큰)을 쓰세요.
 > `git`이 없다고 하면, 뜨는 안내창의 "설치"를 누르면 됩니다.

@@ -892,7 +892,7 @@ export function PaperDB() {
             <span>제목</span>
             <span>저널</span>
             <span>유형</span>
-            <span>DOI</span>
+            <span>원문</span>
           </div>
 
           {/* Rows */}
@@ -951,9 +951,34 @@ export function PaperDB() {
                   {article.pub_type || "—"}
                 </span>
 
-                {/* DOI */}
+                {/* 원문(확보 상태) / DOI */}
                 <span className="flex justify-center">
-                  {article.doi_url ? (
+                  {article.fulltext_pdf && (article.fulltext_status === "OA 확보" || article.fulltext_status === "Aside 확보") ? (
+                    <a
+                      href={article.fulltext_pdf}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-emerald-400 hover:text-emerald-300 transition-colors"
+                      title={`원문 PDF 열기 (${article.fulltext_status})`}
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </a>
+                  ) : article.fulltext_status === "요청됨" ? (
+                    <span className="text-amber-400/80" title="원문 확보 중…">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </span>
+                  ) : article.fulltext_status === "실패" ? (
+                    <span className="text-red-400/80" title="원문 확보 실패 — 행을 펼쳐 다시 받기">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </span>
+                  ) : article.doi_url ? (
                     <a
                       href={article.doi_url}
                       target="_blank"
