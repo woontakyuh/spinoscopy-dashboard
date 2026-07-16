@@ -49,6 +49,43 @@ function interestStyle(interest: string) {
   return "bg-zinc-500/20 text-muted-foreground border-zinc-500/40 hover:bg-zinc-500/30"
 }
 
+// ── 원문/저자/소속 표시 헬퍼 ─────────────────────────────
+
+// Dropbox 공유링크 → 웹 미리보기를 거치지 않고 파일이 브라우저에서 바로 열리는 raw 링크
+function rawPdfUrl(shareUrl: string): string {
+  try {
+    const u = new URL(shareUrl)
+    if (!u.hostname.includes("dropbox.com")) return shareUrl
+    u.searchParams.delete("dl")
+    u.searchParams.set("raw", "1")
+    return u.toString()
+  } catch {
+    return shareUrl
+  }
+}
+
+// 로컬 Dropbox 동기화 폴더 (Finder ⌘⇧G / 탐색기 주소창 붙여넣기용)
+const DROPBOX_LOCAL_DIR = "~/Library/CloudStorage/Dropbox/Tak/0. Article PDF Vault"
+
+function localPdfPath(shareUrl: string): string | null {
+  try {
+    const name = decodeURIComponent(new URL(shareUrl).pathname.split("/").pop() ?? "")
+    if (!name.toLowerCase().endsWith(".pdf")) return null
+    return `${DROPBOX_LOCAL_DIR}/${name}`
+  } catch {
+    return null
+  }
+}
+
+function firstAuthor(authors: string): string {
+  return authors.split(/[;,]/)[0]?.trim() ?? ""
+}
+
+function firstAffiliation(affiliations: string): string {
+  const first = affiliations.split(";")[0] ?? ""
+  return first.replace(/\S+@\S+/g, "").replace(/\s{2,}/g, " ").replace(/[\s.,]+$/, "").trim()
+}
+
 // ── Chart Helpers ─────────────────────────────────────────
 
 type ChartFilterKey = "topic" | "country" | "type" | "journal"
@@ -444,6 +481,11 @@ export function PaperDB() {
     },
   })
 
+  // 행 단위 낙관적 업데이트 — 전체 refetch 없이 해당 논문만 갱신 (페이지네이션 유지)
+  const patchArticle = useCallback((pageId: string, patch: Partial<JournalArticle>) => {
+    setAllArticles((prev) => prev.map((a) => (a.page_id === pageId ? { ...a, ...patch } : a)))
+  }, [])
+
   const handleLoadMore = useCallback(async () => {
     if (!nextCursor || isLoadingMore) return
     setIsLoadingMore(true)
@@ -650,8 +692,6 @@ export function PaperDB() {
 
   const visibleArticles = useMemo(() => finalArticles.slice(0, displayLimit), [finalArticles, displayLimit])
   const showMoreVisible = displayLimit < finalArticles.length || hasMore
-  // 자동 fetch 가 displayLimit 채우러 진행 중일 땐 list 숨김 — 부분 결과가 "찔끔찔끔" 갱신되는 거 방지.
-  const isFillingPage = isLoadingMore && hasMore && finalArticles.length < displayLimit
 
   return (
     <div className="space-y-3">
@@ -876,23 +916,28 @@ export function PaperDB() {
         <p className="text-red-400 text-sm text-center py-8">
           로딩 실패: {(error as Error).message}
         </p>
-      ) : isFillingPage ? (
-        <div className="border border-border rounded-lg py-12 flex flex-col items-center gap-3 text-muted-foreground text-sm">
-          <div className="size-5 border-2 border-muted-foreground/30 border-t-foreground rounded-full animate-spin" />
-          <span>매칭되는 논문 더 가져오는 중… ({finalArticles.length}편 확보)</span>
-        </div>
       ) : finalArticles.length === 0 ? (
-        <p className="text-muted-foreground text-sm text-center py-12">논문이 없습니다.</p>
+        hasMore || isLoadingMore ? (
+          // 아직 화면에 보여줄 행이 하나도 없을 때만 전체 스피너 — 행이 있으면 목록 유지 + 하단 로딩 행
+          <div className="border border-border rounded-lg py-12 flex flex-col items-center gap-3 text-muted-foreground text-sm">
+            <div className="size-5 border-2 border-muted-foreground/30 border-t-foreground rounded-full animate-spin" />
+            <span>매칭되는 논문 가져오는 중…</span>
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-sm text-center py-12">논문이 없습니다.</p>
+        )
       ) : (
         <div className="border border-border rounded-lg overflow-hidden">
           {/* Header */}
-          <div className="hidden md:grid grid-cols-[80px_28px_1fr_90px_100px_40px] gap-2 px-3 py-2 bg-muted/80 border-b border-border text-muted-foreground text-[11px] font-medium uppercase tracking-wider">
+          <div className="hidden md:grid grid-cols-[76px_76px_90px_minmax(0,2.2fr)_100px_minmax(0,1.3fr)_60px_36px] gap-2 px-3 py-2 bg-muted/80 border-b border-border text-muted-foreground text-[11px] font-medium uppercase tracking-wider">
             <span>날짜</span>
-            <span />
-            <span>제목</span>
             <span>저널</span>
             <span>유형</span>
-            <span>원문</span>
+            <span>제목</span>
+            <span>대표저자</span>
+            <span>소속</span>
+            <span className="text-center">원문요청</span>
+            <span className="text-center">원문</span>
           </div>
 
           {/* Rows */}
@@ -910,52 +955,77 @@ export function PaperDB() {
                     setExpandedId(expandedId === article.page_id ? null : article.page_id)
                   }
                 }}
-                className={`grid grid-cols-[44px_16px_minmax(0,1fr)_54px_28px] md:grid-cols-[80px_28px_1fr_90px_100px_40px] gap-2 px-3 py-2.5 md:py-2 items-center border-b border-border cursor-pointer transition-colors ${
+                className={`grid grid-cols-[44px_54px_minmax(0,1fr)_28px] md:grid-cols-[76px_76px_90px_minmax(0,2.2fr)_100px_minmax(0,1.3fr)_60px_36px] gap-2 px-3 py-2.5 md:py-2 items-center border-b border-border cursor-pointer transition-colors ${
                   expandedId === article.page_id
                     ? "bg-muted/70"
                     : "card-hover hover:bg-muted/40"
                 }`}
               >
-                {/* Date */}
+                {/* 날짜 */}
                 <span className={`num text-[11px] ${article.read ? "text-muted-foreground" : "text-foreground/90"}`}>
-                  {article.pub_date?.slice(5) ?? "—"}
+                  <span className="md:hidden">{article.pub_date?.slice(5) ?? "—"}</span>
+                  <span className="hidden md:inline">{article.pub_date ?? "—"}</span>
                 </span>
 
-                {/* Interest dot */}
-                <span className="flex justify-center">
-                  <span className={`w-2 h-2 rounded-full ${interestDot(article.interest)}`} />
-                </span>
-
-                {/* Title */}
-                <span
-                  className={`min-w-0 text-xs leading-snug truncate ${
-                    article.read ? "text-muted-foreground" : "text-foreground"
-                  }`}
-                  title={article.title}
-                >
-                  {article.title}
-                </span>
-
-                {/* Journal badge */}
+                {/* 저널 */}
                 <span className="min-w-0">
                   <Badge
                     variant="outline"
-                    className={`max-w-[54px] md:max-w-none text-[9px] px-1.5 py-0 h-[18px] font-medium truncate ${journalBadgeClass(article.journal_name)}`}
+                    className={`max-w-[54px] md:max-w-full text-[9px] px-1.5 py-0 h-[18px] font-medium truncate ${journalBadgeClass(article.journal_name)}`}
                   >
                     {article.journal_name.replace(" Spine", "").replace("The ", "")}
                   </Badge>
                 </span>
 
-                {/* Pub type */}
+                {/* 유형 */}
                 <span className={`hidden md:block text-[10px] truncate ${article.read ? "text-muted-foreground/70" : "text-muted-foreground"}`}>
                   {article.pub_type || "—"}
+                </span>
+
+                {/* 제목 (관심도 점 포함) */}
+                <span className="min-w-0 flex items-center gap-1.5">
+                  <span className={`shrink-0 w-2 h-2 rounded-full ${interestDot(article.interest)}`} />
+                  <span
+                    className={`min-w-0 text-xs leading-snug truncate ${
+                      article.read ? "text-muted-foreground" : "text-foreground"
+                    }`}
+                    title={article.title}
+                  >
+                    {article.title}
+                  </span>
+                </span>
+
+                {/* 대표저자 */}
+                <span
+                  className={`hidden md:block text-[11px] truncate ${article.read ? "text-muted-foreground/70" : "text-muted-foreground"}`}
+                  title={article.authors}
+                >
+                  {firstAuthor(article.authors) || "—"}
+                </span>
+
+                {/* 소속 */}
+                <span
+                  className={`hidden md:block text-[10px] truncate ${article.read ? "text-muted-foreground/70" : "text-muted-foreground"}`}
+                  title={article.affiliations}
+                >
+                  {(() => {
+                    const c = extractCountry(article.affiliations)
+                    const aff = firstAffiliation(article.affiliations)
+                    if (!aff && !c) return "—"
+                    return `${c ? `${getCountryFlag(c)} ` : ""}${aff}`
+                  })()}
+                </span>
+
+                {/* 원문요청 체크박스 */}
+                <span className="hidden md:flex justify-center">
+                  <FulltextCheckbox article={article} onPatch={patchArticle} />
                 </span>
 
                 {/* 원문(확보 상태) / DOI */}
                 <span className="flex justify-center">
                   {article.fulltext_pdf && (article.fulltext_status === "OA 확보" || article.fulltext_status === "Aside 확보") ? (
                     <a
-                      href={article.fulltext_pdf}
+                      href={rawPdfUrl(article.fulltext_pdf)}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
@@ -1006,6 +1076,14 @@ export function PaperDB() {
               )}
             </Fragment>
           ))}
+
+          {/* 추가 로딩 — 기존 행은 그대로 두고 하단에만 표시 */}
+          {isLoadingMore && (
+            <div className="px-3 py-2.5 flex items-center justify-center gap-2 text-muted-foreground text-xs">
+              <div className="size-3.5 border-2 border-muted-foreground/30 border-t-foreground rounded-full animate-spin" />
+              <span>더 가져오는 중… ({finalArticles.length}편 확보)</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -1028,6 +1106,89 @@ export function PaperDB() {
         </div>
       )}
     </div>
+  )
+}
+
+// ── 원문요청 체크박스 (Notion "원문 요청" 체크박스와 동일 동작) ──
+
+function FulltextCheckbox({
+  article,
+  onPatch,
+}: {
+  article: JournalArticle
+  onPatch: (pageId: string, patch: Partial<JournalArticle>) => void
+}) {
+  const acquired = article.fulltext_status === "OA 확보" || article.fulltext_status === "Aside 확보"
+
+  const mut = useMutation({
+    mutationFn: async (next: boolean) => {
+      const res = await fetch("/api/notion/journal", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pageId: article.page_id,
+          action: next ? "requestFulltext" : "cancelFulltext",
+        }),
+      })
+      if (!res.ok) throw new Error("원문요청 실패")
+    },
+    onMutate: (next) => {
+      onPatch(article.page_id, {
+        fulltext_requested: next,
+        fulltext_status: next ? "요청됨" : null,
+      })
+    },
+    onError: () => {
+      // 실패 시 원복 (mutate 호출 시점의 article 값)
+      onPatch(article.page_id, {
+        fulltext_requested: article.fulltext_requested,
+        fulltext_status: article.fulltext_status,
+      })
+    },
+  })
+
+  return (
+    <input
+      type="checkbox"
+      checked={article.fulltext_requested}
+      disabled={acquired || mut.isPending}
+      onClick={(e) => e.stopPropagation()}
+      onChange={(e) => mut.mutate(e.target.checked)}
+      className="size-3.5 accent-emerald-500 cursor-pointer disabled:cursor-default disabled:opacity-60"
+      title={
+        acquired
+          ? `원문 확보됨 (${article.fulltext_status})`
+          : article.fulltext_requested
+            ? "원문요청 취소"
+            : "원문요청"
+      }
+    />
+  )
+}
+
+// ── 로컬 Dropbox 경로 복사 ─────────────────────────────────
+
+function LocalPathCopy({ shareUrl }: { shareUrl: string }) {
+  const [copied, setCopied] = useState(false)
+  const path = localPdfPath(shareUrl)
+  if (!path) return null
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(path)
+          setCopied(true)
+          setTimeout(() => setCopied(false), 1500)
+        } catch {
+          // clipboard 권한 없으면 무시
+        }
+      }}
+      className="px-2.5 py-1 rounded-md text-xs font-medium bg-muted text-foreground/90 border border-border hover:bg-muted transition-colors"
+      title={`로컬 Dropbox 경로 복사: ${path}`}
+    >
+      {copied ? "복사됨 ✓" : "📁 로컬 경로"}
+    </button>
   )
 }
 
@@ -1207,10 +1368,13 @@ function InlineDetail({
           const btn = "px-2.5 py-1 rounded-md text-xs font-medium border transition-colors"
           if (article.fulltext_pdf && (st === "OA 확보" || st === "Aside 확보")) {
             return (
-              <a href={article.fulltext_pdf} target="_blank" rel="noopener noreferrer"
-                className={`${btn} bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30`}>
-                PDF 열기 ↗
-              </a>
+              <>
+                <a href={rawPdfUrl(article.fulltext_pdf)} target="_blank" rel="noopener noreferrer"
+                  className={`${btn} bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30`}>
+                  PDF 열기 ↗
+                </a>
+                <LocalPathCopy shareUrl={article.fulltext_pdf} />
+              </>
             )
           }
           if (st === "요청됨" || busy) {

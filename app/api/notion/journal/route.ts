@@ -8,7 +8,7 @@ import {
   getDashboardData,
 } from "@/lib/notion/journal"
 import type { InterestLevel, JournalFilter } from "@/lib/types/journal"
-import { requestFulltext, addFulltextRequestByDoi } from "@/lib/notion/fulltext"
+import { requestFulltext, cancelFulltextRequest, addFulltextRequestByDoi } from "@/lib/notion/fulltext"
 import { publishTrigger } from "@/lib/fulltext/ably"
 
 export const dynamic = "force-dynamic"
@@ -61,7 +61,7 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json()
     const { pageId, action, value } = body as {
       pageId: string
-      action: "toggleRead" | "updateInterest" | "requestFulltext"
+      action: "toggleRead" | "updateInterest" | "requestFulltext" | "cancelFulltext"
       value: boolean | InterestLevel
     }
 
@@ -76,6 +76,8 @@ export async function PATCH(req: NextRequest) {
     } else if (action === "requestFulltext") {
       await requestFulltext(pageId)
       await publishTrigger(pageId)
+    } else if (action === "cancelFulltext") {
+      await cancelFulltextRequest(pageId)
     }
 
     return NextResponse.json({ ok: true })
