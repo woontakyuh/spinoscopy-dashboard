@@ -38,6 +38,18 @@ export async function requestFulltext(pageId: string): Promise<void> {
   })
 }
 
+/** 요청 취소: 체크박스 해제. 아직 확보 전(요청됨)이면 상태도 비운다. */
+export async function cancelFulltextRequest(pageId: string): Promise<void> {
+  const page = await notionRequest<{ properties: Record<string, Prop> }>(`/pages/${pageId}`)
+  const status = page.properties["원문 상태"]?.select?.name ?? null
+  const properties: Record<string, unknown> = { "원문 요청": { checkbox: false } }
+  if (status === "요청됨" || status === "실패") properties["원문 상태"] = { select: null }
+  await notionRequest(`/pages/${pageId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ properties }),
+  })
+}
+
 /** 확보 성공: 상태 + Dropbox 공유링크 기록. source는 "OA" | "원내망". */
 export async function markAcquired(
   pageId: string,
