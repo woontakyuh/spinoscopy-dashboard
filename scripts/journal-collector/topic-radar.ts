@@ -9,6 +9,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { searchPubmedByTerm, fetchPubmedArticles, titleKey } from "../../lib/journal-alert/pipeline"
+import { alertSubject, alertWrap, articleItem, articleList, escHtml } from "../../lib/journal-alert/mailTemplate"
 
 const DRY = process.env.DRY_RUN === "1"
 const DAYS = Number(process.env.RADAR_DAYS ?? "7")
@@ -122,22 +123,20 @@ async function gateWithLLM(cands: { pmid: string; title: string; abstract: strin
   return out
 }
 
-function esc(s: string) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") }
 
 function buildHtml(kept: Scored[]): string {
-  const items = kept.map((r) => `
-    <li style="margin:0 0 16px 0;line-height:1.5">
-      <a href="${esc(r.doiUrl)}" style="color:#2563eb;text-decoration:none;font-weight:600">${esc(r.title)}</a>
-      ${r.core ? '<span style="background:#eff6ff;color:#1d4ed8;font-size:11px;padding:1px 6px;border-radius:4px;margin-left:6px">핵심술기</span>' : ""}
-      <span style="background:#ecfdf5;color:#047857;font-size:12px;padding:1px 6px;border-radius:4px;margin-left:4px">★${r.score} · IF ${r.impact >= 0 ? r.impact.toFixed(1) : "?"}</span><br>
-      <span style="color:#6b7280;font-size:13px">${esc(r.authors)} · <i>${esc(r.journal)}</i></span><br>
-      <span style="color:#374151;font-size:13px">→ ${esc(r.reason)}</span>
-    </li>`).join("")
-  return `<div style="font-family:-apple-system,Segoe UI,sans-serif;max-width:680px;margin:0 auto;color:#111">
-    <h2 style="font-size:17px;margin:0 0 6px 0">🛰️ Topic Radar — 다른 저널의 주목할 논문</h2>
-    <p style="margin:0 0 16px 0;font-size:13px;color:#6b7280">코어 6개 밖에서 주제(UBE·내시경·PROM·AI) 선별 ${kept.length}건 — 핵심술기 자동통과 + 나머지 LLM ${MIN_SCORE}+, 저널 impact 게이트.</p>
-    <ul style="padding-left:18px;margin:0">${items}</ul>
-  </div>`
+  const items = kept.map((r) => articleItem({
+    href: r.doiUrl,
+    title: r.title,
+    badgesHtml: `${r.core ? '<span style="background:#eff6ff;color:#1d4ed8;font-size:11px;padding:1px 6px;border-radius:4px;margin-left:6px;">핵심술기</span>' : ""}<span style="background:#ecfdf5;color:#047857;font-size:12px;padding:1px 6px;border-radius:4px;margin-left:4px;">★${r.score} · IF ${r.impact >= 0 ? r.impact.toFixed(1) : "?"}</span>`,
+    subHtml: `${escHtml(r.authors)} · <i>${escHtml(r.journal)}</i>`,
+    noteHtml: `→ ${escHtml(r.reason)}`,
+  })).join("")
+  return alertWrap(
+    "🛰️ Topic Radar — 다른 저널의 주목할 논문",
+    [`코어 6개 밖에서 주제(UBE·내시경·PROM·AI) 선별 ${kept.length}건 — 핵심술기 자동통과 + 나머지 LLM ${MIN_SCORE}+, 저널 impact 게이트.`],
+    articleList(items)
+  )
 }
 
 async function main() {
@@ -202,7 +201,7 @@ async function main() {
     port: Number(process.env.JOURNAL_ALERT_SMTP_PORT ?? "587"), secure: false,
     auth: { user, pass: process.env.JOURNAL_ALERT_SMTP_PASS },
   })
-  const info = await transport.sendMail({ from: user, to, cc, subject: `[Scholar] 🛰️ Topic Radar — 주목 논문 ${kept.length}건`, html: buildHtml(kept) })
+  const info = await transport.sendMail({ from: user, to, cc, subject: alertSubject(`🛰️ Topic Radar — 주목 논문 ${kept.length}건`), html: buildHtml(kept) })
   console.log("[radar] 발송 완료:", info.messageId)
 }
 
