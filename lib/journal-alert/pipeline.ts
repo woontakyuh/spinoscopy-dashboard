@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer"
 import { notionRequest } from "@/lib/notion/client"
+import { alertSubject, alertWrap, notionPageUrl, notionIconLink } from "./mailTemplate"
 import {
   JOURNAL_SOURCES,
   LOW_PRIORITY_TYPES,
@@ -7,6 +8,7 @@ import {
   STRONG_METHOD_PUBTYPES,
 } from "@/lib/journal-alert/config"
 import type { ScrapedArticle } from "./journalSite"
+import { extractCountry } from "@/lib/scholar/country"
 
 type InterestLevel = "🔴 필독" | "🟡 관심" | "⚪ 참고"
 
@@ -448,16 +450,19 @@ export async function ingestScrapedArticles(
 
 // 외부 소스(CrossRef 등)에서 이미 메타데이터까지 갖춘 article 들을 적재.
 // PubMed 가 아직 색인 못 한 누락분 보충용 — DOI/제목으로 dedup 후 분류·생성.
+// pages: 이번에 생성된 Notion 페이지들 (메일에서 논문별 Notion 링크용).
 export async function ingestExternalArticles(
   databaseId: string,
   articles: PubmedArticle[],
-): Promise<IngestResult> {
+): Promise<IngestResult & { pages: Array<{ pageId: string; title: string; doiUrl: string }> }> {
   const existing = await loadExistingKeys(databaseId)
+  const pages: Array<{ pageId: string; title: string; doiUrl: string }> = []
   let created = 0, skipped = 0, failed = 0
   for (const a of articles) {
     if (articleAlreadyExists(a, existing)) { skipped++; continue }
     try {
-      await createJournalPage(databaseId, a)
+      const pageId = await createJournalPage(databaseId, a)
+      pages.push({ pageId, title: a.title, doiUrl: a.doiUrl ?? "" })
       created++
       existing.add(titleKey(a.title))
       if (a.doiUrl) existing.add(doiKey(a.doiUrl))
@@ -468,7 +473,7 @@ export async function ingestExternalArticles(
     }
     await new Promise((r) => setTimeout(r, 350))
   }
-  return { scraped: articles.length, created, skipped, enriched: 0, failed }
+  return { scraped: articles.length, created, skipped, enriched: 0, failed, pages }
 }
 
 export function titleKey(title: string): string {
@@ -507,16 +512,18 @@ function interestRank(article: PubmedArticle): number {
   return 1
 }
 
-function selectEmailArticles(articles: PubmedArticle[]): PubmedArticle[] {
+function selectEmailArticles(
+  items: Array<{ article: PubmedArticle; pageId: string }>
+): Array<{ article: PubmedArticle; pageId: string }> {
   // 신규 등록 논문 전부를 이메일에 포함. interest 순 → 날짜 순으로만 정렬.
   // 비상 상한 (Gmail 렌더링 한계 등) 만 환경변수로 둠 — 지정 안 하면 무제한.
   const maxItemsEnv = process.env.JOURNAL_ALERT_MAX_EMAIL_ITEMS
   const cap = maxItemsEnv ? Number(maxItemsEnv) : Number.POSITIVE_INFINITY
 
-  const sorted = [...articles].sort((a, b) => {
-    const rankDiff = interestRank(b) - interestRank(a)
+  const sorted = [...items].sort((a, b) => {
+    const rankDiff = interestRank(b.article) - interestRank(a.article)
     if (rankDiff !== 0) return rankDiff
-    return pubDateMillis(b.pubDate) - pubDateMillis(a.pubDate)
+    return pubDateMillis(b.article.pubDate) - pubDateMillis(a.article.pubDate)
   })
   return Number.isFinite(cap) && cap > 0 ? sorted.slice(0, Math.floor(cap)) : sorted
 }
@@ -601,7 +608,11 @@ function buildArticleProperties(article: PubmedArticle, opts: { forCreate: boole
   if (article.pmid) properties.PMID = { rich_text: [{ text: { content: article.pmid } }] }
   if (article.volume) properties.Vol = { rich_text: [{ text: { content: article.volume.slice(0, 100) } }] }
   if (article.issue) properties.Issue = { rich_text: [{ text: { content: article.issue.slice(0, 100) } }] }
-  if (article.affiliations) properties.Affiliations = { rich_text: [{ text: { content: article.affiliations } }] }
+  if (article.affiliations) {
+    properties.Affiliations = { rich_text: [{ text: { content: article.affiliations } }] }
+    const country = extractCountry(article.affiliations)
+    if (country) properties["국가"] = { select: { name: country } }
+  }
   const keywordOpts = toMultiSelectOptions(article.keywords)
   if (keywordOpts.length > 0) properties.Keywords = { multi_select: keywordOpts }
   const categoryOpts = toMultiSelectOptions(derivedCategories)
@@ -851,33 +862,29 @@ async function sendReclassifyReport(
   if (!user || !pass || !to) return { sent: false, reason: "email_not_configured" }
 
   const today = new Date().toISOString().slice(0, 10)
-  const subject = `[Journal Alert] 관심도 재분류 — ${result.changed}건 변경`
+  const subject = alertSubject(`🔁 관심도 재분류 — ${result.changed}건 변경`)
   const cell = (v: string | number) =>
-    `<td style="padding:6px 10px;border-bottom:1px solid #2a2a2a;">${v}</td>`
+    `<td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${v}</td>`
   const moveRows = Object.entries(movement).sort((a, b) => b[1] - a[1])
-    .map(([k, v]) => `<tr>${cell(k)}${cell(`<span style="color:#fafafa;">${v}</span>건`)}</tr>`).join("")
+    .map(([k, v]) => `<tr>${cell(k)}${cell(`<span style="color:#111827;">${v}</span>건`)}</tr>`).join("")
 
-  const html = `<!doctype html><html><body style="background:#09090b;color:#e5e7eb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-<div style="max-width:680px;margin:0 auto;padding:24px;">
-  <h1 style="margin:0 0 8px;">🔁 Journal 관심도 재분류 완료</h1>
-  <p style="margin:0 0 16px;color:#a1a1aa;">${today}</p>
-  <h3 style="color:#fafafa;border-bottom:1px solid #333;padding-bottom:6px;margin-top:24px;">전체</h3>
+  const html = alertWrap("🔁 관심도 재분류 완료", [today], `
+  <h3 style="color:#111827;border-bottom:1px solid #e5e7eb;padding-bottom:6px;margin-top:24px;">전체</h3>
   <table style="width:100%;border-collapse:collapse;font-size:13px;">
-    <tr>${cell("스캔")}${cell(`<span style="color:#fafafa;">${result.scanned}</span>건`)}</tr>
-    <tr>${cell("변경")}${cell(`<span style="color:#34d399;">${result.changed}</span>건`)}</tr>
-    <tr>${cell("변경 없음")}${cell(`<span style="color:#a1a1aa;">${result.unchanged}</span>건`)}</tr>
-    <tr>${cell("실패")}${cell(`<span style="color:${result.failed > 0 ? "#f87171" : "#a1a1aa"};">${result.failed}</span>건`)}</tr>
+    <tr>${cell("스캔")}${cell(`<span style="color:#111827;">${result.scanned}</span>건`)}</tr>
+    <tr>${cell("변경")}${cell(`<span style="color:#059669;">${result.changed}</span>건`)}</tr>
+    <tr>${cell("변경 없음")}${cell(`<span style="color:#6b7280;">${result.unchanged}</span>건`)}</tr>
+    <tr>${cell("실패")}${cell(`<span style="color:${result.failed > 0 ? "#dc2626" : "#6b7280"};">${result.failed}</span>건`)}</tr>
   </table>
-  <h3 style="color:#fafafa;border-bottom:1px solid #333;padding-bottom:6px;margin-top:24px;">새 분류 분포</h3>
+  <h3 style="color:#111827;border-bottom:1px solid #e5e7eb;padding-bottom:6px;margin-top:24px;">새 분류 분포</h3>
   <table style="width:100%;border-collapse:collapse;font-size:13px;">
-    <tr>${cell("🔴 필독으로 변경")}${cell(`<span style="color:#f87171;">${result.to_must}</span>건`)}</tr>
-    <tr>${cell("🟡 관심으로 변경")}${cell(`<span style="color:#fbbf24;">${result.to_interest}</span>건`)}</tr>
-    <tr>${cell("⚪ 참고로 변경")}${cell(`<span style="color:#a1a1aa;">${result.to_ref}</span>건`)}</tr>
+    <tr>${cell("🔴 필독으로 변경")}${cell(`<span style="color:#dc2626;">${result.to_must}</span>건`)}</tr>
+    <tr>${cell("🟡 관심으로 변경")}${cell(`<span style="color:#d97706;">${result.to_interest}</span>건`)}</tr>
+    <tr>${cell("⚪ 참고로 변경")}${cell(`<span style="color:#6b7280;">${result.to_ref}</span>건`)}</tr>
   </table>
   ${Object.keys(movement).length > 0 ? `
-  <h3 style="color:#fafafa;border-bottom:1px solid #333;padding-bottom:6px;margin-top:24px;">변화 매트릭스 (old → new)</h3>
-  <table style="width:100%;border-collapse:collapse;font-size:13px;">${moveRows}</table>` : ""}
-</div></body></html>`
+  <h3 style="color:#111827;border-bottom:1px solid #e5e7eb;padding-bottom:6px;margin-top:24px;">변화 매트릭스 (old → new)</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">${moveRows}</table>` : ""}`)
   try {
     const transporter = nodemailer.createTransport({
       host, port, secure: port === 465, auth: { user, pass },
@@ -1142,31 +1149,27 @@ async function sendDoiBackfillReport(
   if (!user || !pass || !to) return { sent: false, reason: "email_not_configured" }
 
   const today = new Date().toISOString().slice(0, 10)
-  const subject = `[Journal Alert] DOI Backfill 완료 — ${result.patched}건 패치 (PMID 복구)`
+  const subject = alertSubject(`🔧 DOI Backfill 완료 — ${result.patched}건 패치 (PMID 복구)`)
   const cell = (v: string | number) =>
-    `<td style="padding:6px 10px;border-bottom:1px solid #2a2a2a;">${v}</td>`
+    `<td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${v}</td>`
   const fieldRows = Object.entries(fieldStats)
-    .map(([f, c]) => `<tr>${cell(f)}${cell(`<span style="color:#fafafa;">${c}</span>건`)}</tr>`).join("")
+    .map(([f, c]) => `<tr>${cell(f)}${cell(`<span style="color:#111827;">${c}</span>건`)}</tr>`).join("")
   const typeRows = Object.entries(typeBreakdown).sort((a, b) => b[1] - a[1])
-    .map(([t, c]) => `<tr>${cell(t)}${cell(`<span style="color:#fafafa;">${c}</span>건`)}</tr>`).join("")
-  const html = `<!doctype html><html><body style="background:#09090b;color:#e5e7eb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-<div style="max-width:680px;margin:0 auto;padding:24px;">
-  <h1 style="margin:0 0 8px;">🔧 Journal DOI Backfill 완료</h1>
-  <p style="margin:0 0 16px;color:#a1a1aa;">${today}</p>
-  <h3 style="color:#fafafa;border-bottom:1px solid #333;padding-bottom:6px;margin-top:24px;">전체</h3>
+    .map(([t, c]) => `<tr>${cell(t)}${cell(`<span style="color:#111827;">${c}</span>건`)}</tr>`).join("")
+  const html = alertWrap("🔧 DOI Backfill 완료", [today], `
+  <h3 style="color:#111827;border-bottom:1px solid #e5e7eb;padding-bottom:6px;margin-top:24px;">전체</h3>
   <table style="width:100%;border-collapse:collapse;font-size:13px;">
-    <tr>${cell("DOI 있고 PMID 없던 row")}${cell(`<span style="color:#fafafa;">${result.has_doi}</span>건`)}</tr>
-    <tr>${cell("DOI→PMID 매핑 성공")}${cell(`<span style="color:#34d399;">${result.pmid_resolved}</span>건`)}</tr>
-    <tr>${cell("PMID lookup 실패")}${cell(`<span style="color:${result.failed_pmid_lookup > 0 ? "#f87171" : "#a1a1aa"};">${result.failed_pmid_lookup}</span>건`)}</tr>
-    <tr>${cell("패치 성공")}${cell(`<span style="color:#34d399;">${result.patched}</span>건`)}</tr>
-    <tr>${cell("패치 실패")}${cell(`<span style="color:${result.failed_patch > 0 ? "#f87171" : "#a1a1aa"};">${result.failed_patch}</span>건`)}</tr>
+    <tr>${cell("DOI 있고 PMID 없던 row")}${cell(`<span style="color:#111827;">${result.has_doi}</span>건`)}</tr>
+    <tr>${cell("DOI→PMID 매핑 성공")}${cell(`<span style="color:#059669;">${result.pmid_resolved}</span>건`)}</tr>
+    <tr>${cell("PMID lookup 실패")}${cell(`<span style="color:${result.failed_pmid_lookup > 0 ? "#dc2626" : "#6b7280"};">${result.failed_pmid_lookup}</span>건`)}</tr>
+    <tr>${cell("패치 성공")}${cell(`<span style="color:#059669;">${result.patched}</span>건`)}</tr>
+    <tr>${cell("패치 실패")}${cell(`<span style="color:${result.failed_patch > 0 ? "#dc2626" : "#6b7280"};">${result.failed_patch}</span>건`)}</tr>
   </table>
-  <h3 style="color:#fafafa;border-bottom:1px solid #333;padding-bottom:6px;margin-top:24px;">필드별 채워진 row 수</h3>
+  <h3 style="color:#111827;border-bottom:1px solid #e5e7eb;padding-bottom:6px;margin-top:24px;">필드별 채워진 row 수</h3>
   <table style="width:100%;border-collapse:collapse;font-size:13px;">${fieldRows}</table>
   ${Object.keys(typeBreakdown).length > 0 ? `
-  <h3 style="color:#fafafa;border-bottom:1px solid #333;padding-bottom:6px;margin-top:24px;">Type 분포</h3>
-  <table style="width:100%;border-collapse:collapse;font-size:13px;">${typeRows}</table>` : ""}
-</div></body></html>`
+  <h3 style="color:#111827;border-bottom:1px solid #e5e7eb;padding-bottom:6px;margin-top:24px;">Type 분포</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">${typeRows}</table>` : ""}`)
   try {
     const transporter = nodemailer.createTransport({
       host, port, secure: port === 465, auth: { user, pass },
@@ -1189,6 +1192,8 @@ function buildBackfillPatch(article: PubmedArticle, row: ExistingRow): Record<st
   }
   if (!row.hasAffiliations && article.affiliations) {
     patch.Affiliations = { rich_text: [{ text: { content: article.affiliations } }] }
+    const country = extractCountry(article.affiliations)
+    if (country) patch["국가"] = { select: { name: country } }
   }
   if (!row.hasVol && article.volume) {
     patch.Vol = { rich_text: [{ text: { content: article.volume.slice(0, 100) } }] }
@@ -1262,30 +1267,34 @@ export async function migrateMarkAllAlerted(databaseId: string): Promise<number>
   return marked
 }
 
-function buildEmailHtml(totalInserted: number, articlesForEmail: PubmedArticle[]): { subject: string; html: string } {
+function buildEmailHtml(
+  totalInserted: number,
+  itemsForEmail: Array<{ article: PubmedArticle; pageId: string }>
+): { subject: string; html: string } {
   const today = new Date().toISOString().slice(0, 10)
+  type EmailItem = { article: PubmedArticle; pageId: string }
   const grouped = {
-    must: [] as PubmedArticle[],
-    interest: [] as PubmedArticle[],
-    ref: [] as PubmedArticle[],
+    must: [] as EmailItem[],
+    interest: [] as EmailItem[],
+    ref: [] as EmailItem[],
   }
 
-  for (const article of articlesForEmail) {
-    const interest = classifyInterest(article)
-    if (interest === "🔴 필독") grouped.must.push(article)
-    else if (interest === "🟡 관심") grouped.interest.push(article)
-    else grouped.ref.push(article)
+  for (const item of itemsForEmail) {
+    const interest = classifyInterest(item.article)
+    if (interest === "🔴 필독") grouped.must.push(item)
+    else if (interest === "🟡 관심") grouped.interest.push(item)
+    else grouped.ref.push(item)
   }
 
-  const subject = `[Journal Alert] ${today} 새 논문 ${totalInserted}편`
+  const subject = alertSubject(`📚 새 논문 ${totalInserted}편 — ${today}`)
 
-  const row = (a: PubmedArticle, idx: number) =>
-    `<tr><td style="padding:6px 8px;color:#999;">${idx}</td><td style="padding:6px 8px;"><a href="${a.doiUrl}" style="color:#e5e7eb;text-decoration:none;">${a.title}</a><div style="font-size:11px;color:#a1a1aa;">${a.authors} · ${a.journalName}</div></td></tr>`
+  const row = ({ article: a, pageId }: EmailItem, idx: number) =>
+    `<tr><td style="padding:6px 8px;color:#9ca3af;">${idx}</td><td style="padding:6px 8px;"><a href="${a.doiUrl}" style="color:#2563eb;text-decoration:none;">${a.title}</a>${notionIconLink(notionPageUrl(pageId))}<div style="font-size:11px;color:#6b7280;">${a.authors} · ${a.journalName}</div></td></tr>`
 
-  const section = (title: string, items: PubmedArticle[]) => {
+  const section = (title: string, items: EmailItem[]) => {
     if (items.length === 0) return ""
-    return `<h3 style="color:#fafafa;border-bottom:1px solid #333;padding-bottom:6px;">${title} (${items.length})</h3><table style="width:100%;border-collapse:collapse;">${items
-      .map((article, idx) => row(article, idx + 1))
+    return `<h3 style="color:#111827;border-bottom:1px solid #e5e7eb;padding-bottom:6px;">${title} (${items.length})</h3><table style="width:100%;border-collapse:collapse;">${items
+      .map((item, idx) => row(item, idx + 1))
       .join("")}</table>`
   }
 
@@ -1293,7 +1302,11 @@ function buildEmailHtml(totalInserted: number, articlesForEmail: PubmedArticle[]
   const summaryLine = totalInserted === totalShown
     ? `총 신규 ${totalInserted}편`
     : `총 신규 ${totalInserted}편 중 ${totalShown}편 표시`
-  const html = `<!doctype html><html><body style="background:#09090b;color:#e5e7eb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><div style="max-width:680px;margin:0 auto;padding:24px;"><h1 style="margin:0 0 8px;">📚 Journal Alert</h1><p style="margin:0 0 16px;color:#a1a1aa;">${today}</p><p style="margin:0 0 16px;color:#a1a1aa;font-size:12px;">${summaryLine}</p>${section("🔴 필독", grouped.must)}${section("🟡 관심", grouped.interest)}${section("⚪ 참고", grouped.ref)}</div></body></html>`
+  const html = alertWrap(
+    `📚 새 논문 ${totalInserted}편`,
+    [today, summaryLine],
+    `${section("🔴 필독", grouped.must)}${section("🟡 관심", grouped.interest)}${section("⚪ 참고", grouped.ref)}`
+  )
   return { subject, html }
 }
 
@@ -1311,40 +1324,35 @@ async function sendBackfillReport(
   if (!user || !pass || !to) return { sent: false, reason: "email_not_configured" }
 
   const today = new Date().toISOString().slice(0, 10)
-  const subject = `[Journal Alert] Backfill 완료 — ${result.patched}건 패치`
+  const subject = alertSubject(`🔧 Backfill 완료 — ${result.patched}건 패치`)
 
   const cell = (v: string | number) =>
-    `<td style="padding:6px 10px;border-bottom:1px solid #2a2a2a;">${v}</td>`
+    `<td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${v}</td>`
   const fieldRows = Object.entries(fieldStats)
-    .map(([field, count]) => `<tr>${cell(field)}${cell(`<span style="color:#fafafa;">${count}</span>건`)}</tr>`)
+    .map(([field, count]) => `<tr>${cell(field)}${cell(`<span style="color:#111827;">${count}</span>건`)}</tr>`)
     .join("")
   const typeRows = Object.entries(typeBreakdown)
     .sort((a, b) => b[1] - a[1])
-    .map(([type, count]) => `<tr>${cell(type)}${cell(`<span style="color:#fafafa;">${count}</span>건`)}</tr>`)
+    .map(([type, count]) => `<tr>${cell(type)}${cell(`<span style="color:#111827;">${count}</span>건`)}</tr>`)
     .join("")
 
-  const html = `<!doctype html><html><body style="background:#09090b;color:#e5e7eb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-<div style="max-width:680px;margin:0 auto;padding:24px;">
-  <h1 style="margin:0 0 8px;">🔧 Journal Backfill 완료</h1>
-  <p style="margin:0 0 16px;color:#a1a1aa;">${today}</p>
-
-  <h3 style="color:#fafafa;border-bottom:1px solid #333;padding-bottom:6px;margin-top:24px;">전체</h3>
+  const html = alertWrap("🔧 Backfill 완료", [today], `
+  <h3 style="color:#111827;border-bottom:1px solid #e5e7eb;padding-bottom:6px;margin-top:24px;">전체</h3>
   <table style="width:100%;border-collapse:collapse;font-size:13px;">
-    ${cell("스캔한 row")}${cell(`<span style="color:#fafafa;">${result.scanned}</span>건`)}</tr>
-    <tr>${cell("패치 성공")}${cell(`<span style="color:#34d399;">${result.patched}</span>건`)}</tr>
-    <tr>${cell("이미 풀(스킵)")}${cell(`<span style="color:#a1a1aa;">${result.skipped_full}</span>건`)}</tr>
-    <tr>${cell("PMID 없음(스킵)")}${cell(`<span style="color:#a1a1aa;">${result.skipped_no_pmid}</span>건`)}</tr>
-    <tr>${cell("실패")}${cell(`<span style="color:${result.failed > 0 ? "#f87171" : "#a1a1aa"};">${result.failed}</span>건`)}</tr>
+    ${cell("스캔한 row")}${cell(`<span style="color:#111827;">${result.scanned}</span>건`)}</tr>
+    <tr>${cell("패치 성공")}${cell(`<span style="color:#059669;">${result.patched}</span>건`)}</tr>
+    <tr>${cell("이미 풀(스킵)")}${cell(`<span style="color:#6b7280;">${result.skipped_full}</span>건`)}</tr>
+    <tr>${cell("PMID 없음(스킵)")}${cell(`<span style="color:#6b7280;">${result.skipped_no_pmid}</span>건`)}</tr>
+    <tr>${cell("실패")}${cell(`<span style="color:${result.failed > 0 ? "#dc2626" : "#6b7280"};">${result.failed}</span>건`)}</tr>
   </table>
 
-  <h3 style="color:#fafafa;border-bottom:1px solid #333;padding-bottom:6px;margin-top:24px;">필드별 채워진 row 수</h3>
+  <h3 style="color:#111827;border-bottom:1px solid #e5e7eb;padding-bottom:6px;margin-top:24px;">필드별 채워진 row 수</h3>
   <table style="width:100%;border-collapse:collapse;font-size:13px;">${fieldRows}</table>
 
   ${Object.keys(typeBreakdown).length > 0 ? `
-  <h3 style="color:#fafafa;border-bottom:1px solid #333;padding-bottom:6px;margin-top:24px;">Type 재분류 분포 (Clinical Study 떡칠 → 구체 타입)</h3>
+  <h3 style="color:#111827;border-bottom:1px solid #e5e7eb;padding-bottom:6px;margin-top:24px;">Type 재분류 분포 (Clinical Study 떡칠 → 구체 타입)</h3>
   <table style="width:100%;border-collapse:collapse;font-size:13px;">${typeRows}</table>
-  ` : ""}
-</div></body></html>`
+  ` : ""}`)
 
   try {
     const transporter = nodemailer.createTransport({
@@ -1375,9 +1383,8 @@ async function sendEmailAlert(
     return { sent: false, reason: "email_not_configured", shownCount: 0 }
   }
 
-  const allArticles = insertedWithIds.map(({ article }) => article)
-  const articles = selectEmailArticles(allArticles)
-  const { subject, html } = buildEmailHtml(allArticles.length, articles)
+  const items = selectEmailArticles(insertedWithIds)
+  const { subject, html } = buildEmailHtml(insertedWithIds.length, items)
 
   const transporter = nodemailer.createTransport({
     host,
@@ -1396,7 +1403,7 @@ async function sendEmailAlert(
 
   // 발송 성공 후 전체 삽입 논문 Alerted=true 마크 (재전송 방지)
   await markArticlesAsAlerted(allPageIds)
-  return { sent: true, subject, shownCount: articles.length }
+  return { sent: true, subject, shownCount: items.length }
 }
 
 export interface RunOptions {

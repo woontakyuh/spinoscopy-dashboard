@@ -5,8 +5,9 @@
 // env: NOTION_*, JOURNAL_ALERT_SMTP_*, GAP_DAYS(기본 4). DRY_RUN=1 이면 생성/발송 안 함.
 import nodemailer from "nodemailer"
 import {
-  ingestExternalArticles, classifyInterest, titleKey,
+  ingestExternalArticles, classifyInterest, titleKey, doiKey,
 } from "../../lib/journal-alert/pipeline"
+import { alertSubject, alertWrap, articleItem, articleList, escHtml, notionPageUrl } from "../../lib/journal-alert/mailTemplate"
 
 const DRY = process.env.DRY_RUN === "1"
 const DAYS = Number(process.env.GAP_DAYS ?? "4")
@@ -80,26 +81,31 @@ async function fetchCrossref(j: { name: string; issn: string; prefix: string }):
   return out
 }
 
-function esc(s: string) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") }
-
-async function emailMustReads(must: Article[]) {
+async function emailMustReads(must: Article[], pageIdByKey: Map<string, string>) {
   const clean = (s?: string) => (s || "").replace(/\\n/g, "").replace(/["\r\n]/g, "").trim()
   const user = process.env.JOURNAL_ALERT_SMTP_USER
   const to = clean(process.env.JOURNAL_ALERT_RECIPIENT ?? user) || undefined
   const cc = clean(process.env.JOURNAL_ALERT_CC) || undefined
-  const items = must.map((r) => `<li style="margin:0 0 12px 0;line-height:1.5">
-    <a href="${esc(r.doiUrl)}" style="color:#2563eb;text-decoration:none;font-weight:600">${esc(r.title)}</a><br>
-    <span style="color:#6b7280;font-size:13px">${esc(r.authors)} · <b>${esc(r.journalName)}</b>${r.pubDate ? " · " + esc(r.pubDate) : ""}</span></li>`).join("")
-  const html = `<div style="font-family:-apple-system,Segoe UI,sans-serif;max-width:680px;margin:0 auto;color:#111">
-    <h2 style="font-size:16px;margin:0 0 4px 0">🔴 코어 저널 신규 필독 ${must.length}건 (PubMed 색인 전, CrossRef 포착)</h2>
-    <p style="margin:0 0 14px 0;font-size:13px;color:#6b7280">아직 PubMed 에 안 올라온 핵심 저널 논문입니다. 정식 색인되면 메타데이터가 보강됩니다.</p>
-    <ul style="padding-left:18px;margin:0">${items}</ul></div>`
+  const items = must.map((r) => {
+    const pageId = pageIdByKey.get(r.doiUrl ? doiKey(r.doiUrl) : titleKey(r.title))
+    return articleItem({
+      href: r.doiUrl,
+      title: r.title,
+      notionUrl: pageId ? notionPageUrl(pageId) : undefined,
+      subHtml: `${escHtml(r.authors)} · <b style="color:#111827;">${escHtml(r.journalName)}</b>${r.pubDate ? " · " + escHtml(r.pubDate) : ""}`,
+    })
+  }).join("")
+  const html = alertWrap(
+    `🔴 코어 저널 신규 필독 ${must.length}건`,
+    ["PubMed 색인 전 · CrossRef 포착 — 정식 색인되면 메타데이터가 보강됩니다."],
+    articleList(items)
+  )
   const transport = nodemailer.createTransport({
     host: process.env.JOURNAL_ALERT_SMTP_HOST ?? "smtp.gmail.com",
     port: Number(process.env.JOURNAL_ALERT_SMTP_PORT ?? "587"), secure: false,
     auth: { user, pass: process.env.JOURNAL_ALERT_SMTP_PASS },
   })
-  const info = await transport.sendMail({ from: user, to, cc, subject: `[Scholar] 🔴 코어 저널 신규 필독 ${must.length}건 (PubMed 색인 전)`, html })
+  const info = await transport.sendMail({ from: user, to, cc, subject: alertSubject(`🔴 코어 저널 신규 필독 ${must.length}건 — PubMed 색인 전`), html })
   console.log("[gap] 필독 메일 발송:", info.messageId)
 }
 
@@ -124,8 +130,10 @@ async function main() {
   }
   if (all.length === 0) { console.log("[gap] 신규 없음"); return }
   const res = await ingestExternalArticles(DB, all as any)
-  console.log("[gap] 적재:", JSON.stringify(res))
-  if (must.length > 0) await emailMustReads(must)
+  console.log("[gap] 적재:", JSON.stringify({ ...res, pages: res.pages.length }))
+  const pageIdByKey = new Map<string, string>()
+  for (const p of res.pages) pageIdByKey.set(p.doiUrl ? doiKey(p.doiUrl) : titleKey(p.title), p.pageId)
+  if (must.length > 0) await emailMustReads(must, pageIdByKey)
 }
 
 main().catch((e) => { console.error("[gap] 실패:", e); process.exit(1) })
