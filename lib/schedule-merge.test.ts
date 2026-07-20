@@ -86,7 +86,11 @@ describe("mergeSchedules", () => {
       start: "2026-07-25T17:30:00+09:00", end: "2026-07-25T19:30:00+09:00",
       location: "코리아참숯불정육식당", url: "https://calendar.google.com/event",
     }
-    const result = mergeSchedules([], [{ id: "gcal-1", ...event }, { id: "gcal-2", ...event }], includeAll)
+    const result = mergeSchedules(
+      [],
+      [{ id: "gcal-1", ...event }, { id: "gcal-2", ...event, title: "다이치산고 제주 캠프트리 - 저녁식사" }],
+      includeAll
+    )
 
     expect(result).toHaveLength(1)
     expect(result[0].source).toBe("gcal")

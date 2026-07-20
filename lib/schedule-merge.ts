@@ -21,8 +21,13 @@ function normalizeTitle(text: string): string {
   return text
     .trim()
     .toLowerCase()
+    .replace(/[\u200B-\u200D\uFEFF]/gu, "")
     .replace(/(\d+)\s*회차/gu, "$1")
     .replace(/\s+/gu, " ")
+}
+
+function titleFingerprint(text: string): string {
+  return normalizeTitle(text).replace(/[^a-z0-9가-힣]+/gu, "")
 }
 
 function meaningfulTitleWords(text: string): string[] {
@@ -83,7 +88,7 @@ function canonicalTitle(notionTitle: string, gcalTitle: string): string {
 function dedupeGoogleEvents(events: GoogleCalendarEventSummary[]): GoogleCalendarEventSummary[] {
   return events.reduce<GoogleCalendarEventSummary[]>((unique, event) => {
     const duplicate = unique.some((candidate) => (
-      normalizeTitle(candidate.title) === normalizeTitle(event.title)
+      titleFingerprint(candidate.title) === titleFingerprint(event.title)
       && startsWithinMinutes(candidate.start, event.start, 5)
     ))
     if (!duplicate) unique.push(event)
