@@ -96,6 +96,23 @@ describe("mergeSchedules", () => {
     expect(result[0].source).toBe("gcal")
   })
 
+  it("suppresses a second Google event once the same Notion event is already merged", () => {
+    const result = mergeSchedules(
+      [{
+        page_id: "notion-1", url: "https://notion.so/dinner", name: "제주 캠프트리 저녁식사",
+        date_start: "2026-07-25T17:30:00+09:00", date_end: null, place: "코리아참숯불정육식당", category: "학회", status: "",
+      }],
+      [
+        { id: "gcal-1", title: "제주 캠프트리 저녁식사", start: "2026-07-25T17:30:00+09:00", end: null, location: "코리아참숯불정육식당", url: "https://calendar.google.com/1" },
+        { id: "gcal-2", title: "별도 캘린더 사본", start: "2026-07-25T17:30:00+09:00", end: null, location: "코리아참숯불정육식당", url: "https://calendar.google.com/2" },
+      ],
+      includeAll
+    )
+
+    expect(result).toHaveLength(1)
+    expect(result[0].source).toBe("both")
+  })
+
   it("merges numbered recurring meetings across PROM title variants", () => {
     const result = mergeSchedules(
       [{

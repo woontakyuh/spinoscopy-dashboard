@@ -58,6 +58,13 @@ function startsWithinMinutes(first: string, second: string, minutes: number): bo
   return Math.abs(firstTime - secondTime) <= minutes * 60 * 1000
 }
 
+function sameTimeAndLocation(notion: ScheduleItem, event: GoogleCalendarEventSummary): boolean {
+  return Boolean(notion.date_start)
+    && normalizeLocation(notion.place) !== ""
+    && normalizeLocation(notion.place) === normalizeLocation(event.location)
+    && startsWithinMinutes(notion.date_start!, event.start, 5)
+}
+
 function sameSchedule(notion: ScheduleItem, event: GoogleCalendarEventSummary): boolean {
   if (!notion.date_start || notion.date_start.slice(0, 10) !== event.start.slice(0, 10)) {
     return false
@@ -67,9 +74,7 @@ function sameSchedule(notion: ScheduleItem, event: GoogleCalendarEventSummary): 
   const normalizedGcal = normalizeTitle(event.title)
   if (normalizedNotion === normalizedGcal) return true
 
-  const matchingLocation = normalizeLocation(notion.place) !== ""
-    && normalizeLocation(notion.place) === normalizeLocation(event.location)
-  if (matchingLocation && startsWithinMinutes(notion.date_start, event.start, 5)) return true
+  if (sameTimeAndLocation(notion, event)) return true
 
   if (!sharesMeaning(notion.name, event.title)) return false
 
@@ -116,6 +121,10 @@ export function mergeSchedules(
   const merged: DashboardScheduleItem[] = []
 
   for (const event of filteredGcal) {
+    const duplicateOfMergedSource = filteredNotion.some(
+      (item) => usedNotionIds.has(item.page_id) && sameTimeAndLocation(item, event)
+    )
+    if (duplicateOfMergedSource) continue
 
     const matchedNotion = filteredNotion.find(
       (item) => !usedNotionIds.has(item.page_id) && sameSchedule(item, event)
