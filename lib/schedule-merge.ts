@@ -15,15 +15,25 @@ export interface DashboardScheduleItem {
 
 const GENERIC_TITLE_WORDS = new Set([
   "회의", "모임", "미팅", "zoom", "줌", "online", "온라인",
+  "meeting", "development", "개발미팅", "개발회의",
 ])
 
+const TITLE_ALIASES: ReadonlyArray<readonly [string, string]> = [
+  ["salted", "솔티드"],
+]
+
 function normalizeTitle(text: string): string {
-  return text
+  let normalized = text
     .trim()
     .toLowerCase()
     .replace(/[\u200B-\u200D\uFEFF]/gu, "")
     .replace(/(\d+)\s*회차/gu, "$1")
     .replace(/\s+/gu, " ")
+
+  for (const [alias, canonical] of TITLE_ALIASES) {
+    normalized = normalized.replaceAll(alias, canonical)
+  }
+  return normalized
 }
 
 function titleFingerprint(text: string): string {
@@ -36,14 +46,18 @@ function meaningfulTitleWords(text: string): string[] {
     .filter((word) => word.length > 0 && !GENERIC_TITLE_WORDS.has(word))
 }
 
-function sharesMeaning(firstTitle: string, secondTitle: string): boolean {
+function titleMatchStrength(firstTitle: string, secondTitle: string): number {
   const firstWords = meaningfulTitleWords(firstTitle)
   const secondWords = meaningfulTitleWords(secondTitle)
-  if (firstWords.length === 0 || secondWords.length === 0) return false
+  if (firstWords.length === 0 || secondWords.length === 0) return 0
 
   const secondWordSet = new Set(secondWords)
   const overlap = firstWords.filter((word) => secondWordSet.has(word)).length
-  return overlap / Math.min(firstWords.length, secondWords.length) >= 0.5
+  return overlap / Math.min(firstWords.length, secondWords.length)
+}
+
+function sharesMeaning(firstTitle: string, secondTitle: string): boolean {
+  return titleMatchStrength(firstTitle, secondTitle) >= 0.5
 }
 
 function normalizeLocation(text: string): string {
@@ -83,7 +97,14 @@ function sameSchedule(notion: ScheduleItem, event: GoogleCalendarEventSummary): 
   if (!notion.date_start.includes("T") || !event.start.includes("T")) return true
   const notionTime = Date.parse(notion.date_start)
   const gcalTime = Date.parse(event.start)
-  return Math.abs(notionTime - gcalTime) <= 2 * 60 * 60 * 1000
+  const timeDifference = Math.abs(notionTime - gcalTime)
+  if (timeDifference <= 2 * 60 * 60 * 1000) return true
+
+  // Notion items without an end time often carry a placeholder start time.
+  // Only a full semantic title match earns this wider reconciliation window.
+  return !notion.date_end
+    && titleMatchStrength(notion.name, event.title) === 1
+    && timeDifference <= 6 * 60 * 60 * 1000
 }
 
 function canonicalTitle(notionTitle: string, gcalTitle: string): string {

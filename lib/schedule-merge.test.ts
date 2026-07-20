@@ -129,4 +129,21 @@ describe("mergeSchedules", () => {
     expect(result).toHaveLength(1)
     expect(result[0]).toMatchObject({ title: "PROM 연구 7회차", source: "both" })
   })
+
+  it("merges known English-Korean aliases when a Notion placeholder time differs", () => {
+    const result = mergeSchedules(
+      [{
+        page_id: "notion-1", url: "https://notion.so/salted", name: "Salted 회의 #4",
+        date_start: "2026-07-03T12:00:00+09:00", date_end: null, place: "", category: "회의", status: "",
+      }],
+      [{
+        id: "gcal-1", title: "솔티드 개발미팅 #4", start: "2026-07-03T15:00:00+09:00",
+        end: "2026-07-03T16:00:00+09:00", location: "", url: "https://calendar.google.com/salted",
+      }],
+      includeAll
+    )
+
+    expect(result).toHaveLength(1)
+    expect(result[0]).toMatchObject({ title: "Salted 회의 #4", source: "both" })
+  })
 })
