@@ -18,7 +18,11 @@ const GENERIC_TITLE_WORDS = new Set([
 ])
 
 function normalizeTitle(text: string): string {
-  return text.trim().toLowerCase().replace(/\s+/gu, " ")
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/(\d+)\s*회차/gu, "$1")
+    .replace(/\s+/gu, " ")
 }
 
 function meaningfulTitleWords(text: string): string[] {
@@ -81,7 +85,6 @@ function dedupeGoogleEvents(events: GoogleCalendarEventSummary[]): GoogleCalenda
     const duplicate = unique.some((candidate) => (
       normalizeTitle(candidate.title) === normalizeTitle(event.title)
       && startsWithinMinutes(candidate.start, event.start, 5)
-      && normalizeLocation(candidate.location) === normalizeLocation(event.location)
     ))
     if (!duplicate) unique.push(event)
     return unique

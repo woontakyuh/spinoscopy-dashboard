@@ -22,9 +22,10 @@ function SourceIcon({
     <span
       aria-label={label}
       title={label}
-      className={`inline-flex h-7 w-7 items-center justify-center rounded-md border transition-opacity ${className} ${href ? "hover:opacity-75" : "opacity-55"}`}
+      className={`inline-flex h-7 items-center justify-center gap-1 rounded-md border px-2 text-xs font-medium transition-opacity ${className} ${href ? "hover:opacity-75" : "opacity-55"}`}
     >
       {children}
+      {label}
     </span>
   )
 
@@ -41,7 +42,7 @@ export function ScheduleSourceLinks({ source, notionUrl, gcalUrl }: ScheduleSour
   return (
     <div className="flex shrink-0 items-center gap-1" onClick={(event) => event.stopPropagation()}>
       {(source === "gcal" || source === "both") && (
-        <SourceIcon href={gcalUrl} label="Google Calendar" className="border-green-500/50 text-green-300">
+        <SourceIcon href={gcalUrl} label="GCal" className="border-green-500/50 text-green-300">
           <CalendarDays size={14} strokeWidth={1.8} />
         </SourceIcon>
       )}

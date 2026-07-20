@@ -91,4 +91,21 @@ describe("mergeSchedules", () => {
     expect(result).toHaveLength(1)
     expect(result[0].source).toBe("gcal")
   })
+
+  it("merges numbered recurring meetings across PROM title variants", () => {
+    const result = mergeSchedules(
+      [{
+        page_id: "notion-1", url: "https://notion.so/prom", name: "PROM 연구 7회차",
+        date_start: "2026-07-19T20:00:00+09:00", date_end: null, place: "", category: "회의", status: "",
+      }],
+      [{
+        id: "gcal-1", title: "PROM meeting #7", start: "2026-07-19T20:00:00+09:00",
+        end: "2026-07-19T21:00:00+09:00", location: "", url: "https://calendar.google.com/prom",
+      }],
+      includeAll
+    )
+
+    expect(result).toHaveLength(1)
+    expect(result[0]).toMatchObject({ title: "PROM 연구 7회차", source: "both" })
+  })
 })
