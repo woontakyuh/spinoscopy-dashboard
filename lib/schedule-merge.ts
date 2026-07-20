@@ -27,6 +27,18 @@ function meaningfulTitleWords(text: string): string[] {
     .filter((word) => word.length > 0 && !GENERIC_TITLE_WORDS.has(word))
 }
 
+function normalizeLocation(text: string): string {
+  return normalizeTitle(text).replace(/\s+/gu, "")
+}
+
+function startsWithinMinutes(first: string, second: string, minutes: number): boolean {
+  if (!first.includes("T") || !second.includes("T")) return first === second
+  const firstTime = Date.parse(first)
+  const secondTime = Date.parse(second)
+  if (Number.isNaN(firstTime) || Number.isNaN(secondTime)) return false
+  return Math.abs(firstTime - secondTime) <= minutes * 60 * 1000
+}
+
 function sameSchedule(notion: ScheduleItem, event: GoogleCalendarEventSummary): boolean {
   if (!notion.date_start || notion.date_start.slice(0, 10) !== event.start.slice(0, 10)) {
     return false
@@ -35,6 +47,10 @@ function sameSchedule(notion: ScheduleItem, event: GoogleCalendarEventSummary): 
   const normalizedNotion = normalizeTitle(notion.name)
   const normalizedGcal = normalizeTitle(event.title)
   if (normalizedNotion === normalizedGcal) return true
+
+  const matchingLocation = normalizeLocation(notion.place) !== ""
+    && normalizeLocation(notion.place) === normalizeLocation(event.location)
+  if (matchingLocation && startsWithinMinutes(notion.date_start, event.start, 5)) return true
 
   const notionWords = meaningfulTitleWords(notion.name)
   const gcalWords = meaningfulTitleWords(event.title)
@@ -60,6 +76,18 @@ function canonicalTitle(notionTitle: string, gcalTitle: string): string {
   return notionTitle
 }
 
+function dedupeGoogleEvents(events: GoogleCalendarEventSummary[]): GoogleCalendarEventSummary[] {
+  return events.reduce<GoogleCalendarEventSummary[]>((unique, event) => {
+    const duplicate = unique.some((candidate) => (
+      normalizeTitle(candidate.title) === normalizeTitle(event.title)
+      && startsWithinMinutes(candidate.start, event.start, 5)
+      && normalizeLocation(candidate.location) === normalizeLocation(event.location)
+    ))
+    if (!duplicate) unique.push(event)
+    return unique
+  }, [])
+}
+
 function toMillis(dateValue: string): number {
   const value = Date.parse(dateValue)
   return Number.isNaN(value) ? Number.MAX_SAFE_INTEGER : value
@@ -71,11 +99,11 @@ export function mergeSchedules(
   filterFn: (dateValue: string | null) => boolean
 ): DashboardScheduleItem[] {
   const filteredNotion = notionSchedules.filter((item) => filterFn(item.date_start))
+  const filteredGcal = dedupeGoogleEvents(gcalEvents.filter((event) => filterFn(event.start)))
   const usedNotionIds = new Set<string>()
   const merged: DashboardScheduleItem[] = []
 
-  for (const event of gcalEvents) {
-    if (!filterFn(event.start)) continue
+  for (const event of filteredGcal) {
 
     const matchedNotion = filteredNotion.find(
       (item) => !usedNotionIds.has(item.page_id) && sameSchedule(item, event)

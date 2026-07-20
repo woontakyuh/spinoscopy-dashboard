@@ -44,7 +44,7 @@ describe("mergeSchedules", () => {
         name: "KSOR Steering Committee 회의",
         date_start: "2026-07-21T18:30:00+09:00",
         date_end: "2026-07-21T19:30:00+09:00",
-        place: "Zoom",
+        place: "회의실 A",
         category: "회의",
         status: "",
       }],
@@ -61,5 +61,34 @@ describe("mergeSchedules", () => {
 
     expect(result).toHaveLength(2)
     expect(result.map((item) => item.source).sort()).toEqual(["gcal", "notion"])
+  })
+
+  it("merges differently named records when start time and non-empty location are identical", () => {
+    const result = mergeSchedules(
+      [{
+        page_id: "notion-1", url: "https://notion.so/ksor", name: "KSOR Steering Committee 회의",
+        date_start: "2026-07-21T18:30:00+09:00", date_end: null, place: "Zoom", category: "회의", status: "",
+      }],
+      [{
+        id: "gcal-1", title: "KSOR 미팅 — KOMISS data registry 연구",
+        start: "2026-07-21T18:30:00+09:00", end: "2026-07-21T19:30:00+09:00", location: "Zoom", url: "https://calendar.google.com/ksor",
+      }],
+      includeAll
+    )
+
+    expect(result).toHaveLength(1)
+    expect(result[0].source).toBe("both")
+  })
+
+  it("deduplicates identical events returned from multiple Google calendars", () => {
+    const event = {
+      title: "다이치산고 제주 캠프트리 — 저녁식사",
+      start: "2026-07-25T17:30:00+09:00", end: "2026-07-25T19:30:00+09:00",
+      location: "코리아참숯불정육식당", url: "https://calendar.google.com/event",
+    }
+    const result = mergeSchedules([], [{ id: "gcal-1", ...event }, { id: "gcal-2", ...event }], includeAll)
+
+    expect(result).toHaveLength(1)
+    expect(result[0].source).toBe("gcal")
   })
 })
