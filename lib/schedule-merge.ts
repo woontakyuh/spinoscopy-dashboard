@@ -36,6 +36,16 @@ function meaningfulTitleWords(text: string): string[] {
     .filter((word) => word.length > 0 && !GENERIC_TITLE_WORDS.has(word))
 }
 
+function sharesMeaning(firstTitle: string, secondTitle: string): boolean {
+  const firstWords = meaningfulTitleWords(firstTitle)
+  const secondWords = meaningfulTitleWords(secondTitle)
+  if (firstWords.length === 0 || secondWords.length === 0) return false
+
+  const secondWordSet = new Set(secondWords)
+  const overlap = firstWords.filter((word) => secondWordSet.has(word)).length
+  return overlap / Math.min(firstWords.length, secondWords.length) >= 0.5
+}
+
 function normalizeLocation(text: string): string {
   return normalizeTitle(text).replace(/\s+/gu, "")
 }
@@ -61,14 +71,7 @@ function sameSchedule(notion: ScheduleItem, event: GoogleCalendarEventSummary): 
     && normalizeLocation(notion.place) === normalizeLocation(event.location)
   if (matchingLocation && startsWithinMinutes(notion.date_start, event.start, 5)) return true
 
-  const notionWords = meaningfulTitleWords(notion.name)
-  const gcalWords = meaningfulTitleWords(event.title)
-  if (notionWords.length === 0 || gcalWords.length === 0) return false
-
-  const gcalWordSet = new Set(gcalWords)
-  const overlap = notionWords.filter((word) => gcalWordSet.has(word)).length
-  const sharedMeaning = overlap / Math.min(notionWords.length, gcalWords.length) >= 0.5
-  if (!sharedMeaning) return false
+  if (!sharesMeaning(notion.name, event.title)) return false
 
   // A matching title on the same day is not sufficient for two independent meetings.
   // Timed records must also begin within two hours of one another.
@@ -88,7 +91,8 @@ function canonicalTitle(notionTitle: string, gcalTitle: string): string {
 function dedupeGoogleEvents(events: GoogleCalendarEventSummary[]): GoogleCalendarEventSummary[] {
   return events.reduce<GoogleCalendarEventSummary[]>((unique, event) => {
     const duplicate = unique.some((candidate) => (
-      titleFingerprint(candidate.title) === titleFingerprint(event.title)
+      (titleFingerprint(candidate.title) === titleFingerprint(event.title)
+        || sharesMeaning(candidate.title, event.title))
       && startsWithinMinutes(candidate.start, event.start, 5)
     ))
     if (!duplicate) unique.push(event)

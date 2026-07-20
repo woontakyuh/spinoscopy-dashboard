@@ -88,7 +88,7 @@ describe("mergeSchedules", () => {
     }
     const result = mergeSchedules(
       [],
-      [{ id: "gcal-1", ...event }, { id: "gcal-2", ...event, title: "다이치산고 제주 캠프트리 - 저녁식사" }],
+      [{ id: "gcal-1", ...event }, { id: "gcal-2", ...event, title: "다이치산고 제주 캠프트리" }],
       includeAll
     )
 
