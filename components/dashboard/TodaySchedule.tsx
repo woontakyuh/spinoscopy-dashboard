@@ -2,8 +2,8 @@
 
 import { useState, type FormEvent } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { ScheduleSourceLinks } from "@/components/dashboard/ScheduleSourceLinks"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -113,12 +113,6 @@ function formatUpcomingDate(start: string): string {
   })
 }
 
-function sourceLabel(source: DashboardScheduleItem["source"]): string {
-  if (source === "both") return "Both"
-  if (source === "notion") return "Notion"
-  return "GCal"
-}
-
 export function TodaySchedule() {
   const queryClient = useQueryClient()
   const [quickName, setQuickName] = useState("")
@@ -197,9 +191,11 @@ export function TodaySchedule() {
                     {item.location && <span className="truncate">- {item.location}</span>}
                   </div>
                 </div>
-                <Badge variant="outline" className="border-border text-foreground/90">
-                  {sourceLabel(item.source)}
-                </Badge>
+                <ScheduleSourceLinks
+                  source={item.source}
+                  notionUrl={item.notionUrl}
+                  gcalUrl={item.gcalUrl}
+                />
               </div>
             ))}
           </div>
@@ -223,9 +219,11 @@ export function TodaySchedule() {
                 {upcomingItem.location && <span className="truncate">- {upcomingItem.location}</span>}
               </div>
             </div>
-            <Badge variant="outline" className="border-border text-foreground/90">
-              {sourceLabel(upcomingItem.source)}
-            </Badge>
+            <ScheduleSourceLinks
+              source={upcomingItem.source}
+              notionUrl={upcomingItem.notionUrl}
+              gcalUrl={upcomingItem.gcalUrl}
+            />
           </div>
         </div>
       )}

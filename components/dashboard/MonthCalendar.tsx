@@ -2,8 +2,8 @@
 
 import { useState, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { ScheduleSourceLinks } from "@/components/dashboard/ScheduleSourceLinks"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -150,18 +150,6 @@ function sourceColor(source: DashboardScheduleItem["source"]): string {
   if (source === "notion") return "bg-blue-500"
   if (source === "gcal") return "bg-green-500"
   return "bg-cyan-500"
-}
-
-function sourceBadgeClass(source: DashboardScheduleItem["source"]): string {
-  if (source === "notion") return "border-blue-500/50 text-blue-300"
-  if (source === "gcal") return "border-green-500/50 text-green-300"
-  return "border-cyan-500/50 text-cyan-300"
-}
-
-function sourceLabel(source: DashboardScheduleItem["source"]): string {
-  if (source === "both") return "Both"
-  if (source === "notion") return "Notion"
-  return "GCal"
 }
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"]
@@ -366,17 +354,11 @@ export function MonthCalendar() {
                     </div>
                   </div>
                 </div>
-                {event.notionUrl && (event.source === "notion" || event.source === "both") ? (
-                  <a href={event.notionUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-                    <Badge variant="outline" className={`shrink-0 text-xs cursor-pointer hover:opacity-80 transition-opacity ${sourceBadgeClass(event.source)}`}>
-                      {sourceLabel(event.source)} ↗
-                    </Badge>
-                  </a>
-                ) : (
-                  <Badge variant="outline" className={`shrink-0 text-xs ${sourceBadgeClass(event.source)}`}>
-                    {sourceLabel(event.source)}
-                  </Badge>
-                )}
+                <ScheduleSourceLinks
+                  source={event.source}
+                  notionUrl={event.notionUrl}
+                  gcalUrl={event.gcalUrl}
+                />
               </div>
             ))}
           </div>

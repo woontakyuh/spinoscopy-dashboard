@@ -13,8 +13,51 @@ export interface DashboardScheduleItem {
   gcalUrl?: string
 }
 
+const GENERIC_TITLE_WORDS = new Set([
+  "회의", "모임", "미팅", "zoom", "줌", "online", "온라인",
+])
+
 function normalizeTitle(text: string): string {
-  return text.trim().toLowerCase()
+  return text.trim().toLowerCase().replace(/\s+/gu, " ")
+}
+
+function meaningfulTitleWords(text: string): string[] {
+  return normalizeTitle(text)
+    .split(/[^a-z0-9가-힣]+/u)
+    .filter((word) => word.length > 0 && !GENERIC_TITLE_WORDS.has(word))
+}
+
+function sameSchedule(notion: ScheduleItem, event: GoogleCalendarEventSummary): boolean {
+  if (!notion.date_start || notion.date_start.slice(0, 10) !== event.start.slice(0, 10)) {
+    return false
+  }
+
+  const normalizedNotion = normalizeTitle(notion.name)
+  const normalizedGcal = normalizeTitle(event.title)
+  if (normalizedNotion === normalizedGcal) return true
+
+  const notionWords = meaningfulTitleWords(notion.name)
+  const gcalWords = meaningfulTitleWords(event.title)
+  if (notionWords.length === 0 || gcalWords.length === 0) return false
+
+  const gcalWordSet = new Set(gcalWords)
+  const overlap = notionWords.filter((word) => gcalWordSet.has(word)).length
+  const sharedMeaning = overlap / Math.min(notionWords.length, gcalWords.length) >= 0.5
+  if (!sharedMeaning) return false
+
+  // A matching title on the same day is not sufficient for two independent meetings.
+  // Timed records must also begin within two hours of one another.
+  if (!notion.date_start.includes("T") || !event.start.includes("T")) return true
+  const notionTime = Date.parse(notion.date_start)
+  const gcalTime = Date.parse(event.start)
+  return Math.abs(notionTime - gcalTime) <= 2 * 60 * 60 * 1000
+}
+
+function canonicalTitle(notionTitle: string, gcalTitle: string): string {
+  const notionScore = meaningfulTitleWords(notionTitle).length
+  const gcalScore = meaningfulTitleWords(gcalTitle).length
+  if (gcalScore > notionScore) return gcalTitle
+  return notionTitle
 }
 
 function toMillis(dateValue: string): number {
@@ -28,24 +71,24 @@ export function mergeSchedules(
   filterFn: (dateValue: string | null) => boolean
 ): DashboardScheduleItem[] {
   const filteredNotion = notionSchedules.filter((item) => filterFn(item.date_start))
-  const notionByTitle = new Map(filteredNotion.map((item) => [normalizeTitle(item.name), item]))
   const usedNotionIds = new Set<string>()
   const merged: DashboardScheduleItem[] = []
 
   for (const event of gcalEvents) {
     if (!filterFn(event.start)) continue
 
-    const normalized = normalizeTitle(event.title)
-    const matchedNotion = notionByTitle.get(normalized)
+    const matchedNotion = filteredNotion.find(
+      (item) => !usedNotionIds.has(item.page_id) && sameSchedule(item, event)
+    )
 
     if (matchedNotion) {
       usedNotionIds.add(matchedNotion.page_id)
       merged.push({
         id: matchedNotion.page_id,
-        title: matchedNotion.name,
+        title: canonicalTitle(matchedNotion.name, event.title),
         start: matchedNotion.date_start ?? event.start,
-        end: matchedNotion.date_end,
-        location: matchedNotion.place,
+        end: matchedNotion.date_end ?? event.end,
+        location: matchedNotion.place || event.location,
         category: matchedNotion.category,
         source: "both",
         notionUrl: matchedNotion.url,
