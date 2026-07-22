@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AssetDailyChart } from "./AssetDailyChart"
+import { PortfolioSummary } from "./PortfolioSummary"
+import { HoldingsTable } from "./HoldingsTable"
 import type {
   MarketIndicator,
   PricesResponse,
@@ -55,6 +57,9 @@ export function VaultDashboard({ view }: VaultDashboardProps) {
       {/* ─── Charts view ─── */}
       {view === "charts" && (
         <>
+          {/* Toss 실계좌 연동 */}
+          <PortfolioSummary />
+          <HoldingsTable />
           {/* 시장 지표: 1행 원/달러,공포탐욕,BTC도미넌스 | 2행 NASDAQ,DJI,KOSPI,KOSDAQ */}
           {indicators.length > 0 && (() => {
             const ROW1_KEYS = new Set(["usdkrw", "fng", "btc-dom"])
