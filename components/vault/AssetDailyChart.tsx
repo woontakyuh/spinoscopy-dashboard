@@ -34,7 +34,7 @@ const INTERVALS: { value: ChartInterval; label: string }[] = [
 interface AssetDailyChartProps {
   symbol: string
   title: string
-  currency?: "USD" | "KRW"
+  currency?: "USD" | "KRW" | "POINT"
   height?: number
   defaultPeriod?: BtcChartPeriod
 }
@@ -42,11 +42,16 @@ interface AssetDailyChartProps {
 function getSourceUrl(symbol: string): string {
   if (symbol === "BTC") return "https://www.coingecko.com/en/coins/bitcoin"
   if (symbol === "ETH") return "https://www.coingecko.com/en/coins/ethereum"
+  if (symbol === "NASDAQ") return "https://finance.yahoo.com/quote/%5EIXIC"
+  if (symbol === "KOSPI") return "https://finance.yahoo.com/quote/%5EKS11"
   if (/^\d+$/.test(symbol)) return `https://finance.naver.com/item/main.naver?code=${symbol}`
   return `https://www.google.com/finance/quote/${symbol}:NASDAQ`
 }
 
 function formatPrice(price: number, currency: string): string {
+  if (currency === "POINT") {
+    return price.toLocaleString("en-US", { maximumFractionDigits: 2 })
+  }
   if (currency === "KRW") {
     return price >= 10000
       ? `${(price / 10000).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}만원`

@@ -16,6 +16,13 @@ export const TRACKED_ASSETS: TrackedAsset[] = [
     newsQuery: "Ethereum OR 이더리움",
   },
   {
+    symbol: "NASDAQ",
+    label: "나스닥",
+    category: "stock-us",
+    yahooTicker: "^IXIC",
+    newsQuery: "NASDAQ 나스닥 지수",
+  },
+  {
     symbol: "TSLA",
     label: "테슬라",
     category: "stock-us",
@@ -35,6 +42,13 @@ export const TRACKED_ASSETS: TrackedAsset[] = [
     category: "stock-us",
     yahooTicker: "AAPL",
     newsQuery: "Apple AAPL OR 애플 주가",
+  },
+  {
+    symbol: "KOSPI",
+    label: "코스피",
+    category: "stock-kr",
+    yahooTicker: "^KS11",
+    newsQuery: "KOSPI 코스피 지수",
   },
   {
     symbol: "005930",

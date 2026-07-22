@@ -27,9 +27,11 @@ interface AssetConfig {
 const ASSET_MAP: Record<string, AssetConfig> = {
   BTC: { source: "binance", ticker: "BTCUSDT" },
   ETH: { source: "binance", ticker: "ETHUSDT" },
-  TSLA: { source: "yahoo", ticker: "TSLA" },
+  NASDAQ: { source: "yahoo", ticker: "^IXIC" },
   GOOGL: { source: "yahoo", ticker: "GOOGL" },
+  TSLA: { source: "yahoo", ticker: "TSLA" },
   AAPL: { source: "yahoo", ticker: "AAPL" },
+  KOSPI: { source: "yahoo", ticker: "^KS11" },
   "005930": { source: "yahoo", ticker: "005930.KS" },
   "000660": { source: "yahoo", ticker: "000660.KS" },
   "206650": { source: "yahoo", ticker: "206650.KQ" },
