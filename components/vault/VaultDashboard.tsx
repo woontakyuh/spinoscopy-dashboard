@@ -13,8 +13,22 @@ import type {
   VaultNewsResponse,
 } from "@/lib/types/vault"
 import { TRACKED_ASSETS } from "@/lib/vault/assets"
+import type { TrackedAsset } from "@/lib/types/vault"
 
 type NewsFilter = "all" | string
+
+/** 3행 차트 레이아웃: Crypto / US / KR */
+const CHART_ROWS: [TrackedAsset[], TrackedAsset[], TrackedAsset[]] = [
+  TRACKED_ASSETS.filter((a) => a.category === "crypto"),
+  TRACKED_ASSETS.filter((a) => a.category === "stock-us"),
+  TRACKED_ASSETS.filter((a) => a.category === "stock-kr"),
+]
+
+/** 인덱스 심볼(NASDAQ, KOSPI)은 포인트 단위, 나머지는 통화별 처리 */
+function getCurrency(asset: TrackedAsset): "USD" | "KRW" | "POINT" {
+  if (asset.symbol === "NASDAQ" || asset.symbol === "KOSPI") return "POINT"
+  return asset.category === "stock-kr" ? "KRW" : "USD"
+}
 
 interface VaultDashboardProps {
   view: "charts" | "news"
@@ -103,32 +117,61 @@ export function VaultDashboard({ view }: VaultDashboardProps) {
             )
           })()}
 
-          <div className="border border-border rounded-xl p-3 bg-card space-y-3">
+          <div className="border border-border rounded-xl p-3 bg-card space-y-4">
             <div className="flex items-center justify-between gap-3">
               <p className="text-muted-foreground text-xs font-medium">종목 차트</p>
-              <span className="text-[11px] text-muted-foreground">가격 카드와 같은 종목을 일봉 차트로 같이 표시</span>
+              <span className="text-[11px] text-muted-foreground">1행 Crypto · 2행 US · 3행 KR</span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {TRACKED_ASSETS.map((asset) => {
-                const title = `${asset.symbol} ${asset.label}`
-                const currency = asset.category === "stock-kr" ? "KRW" : "USD"
-                const isBtc = asset.symbol === "BTC"
-                // BTC는 상단 전체폭으로 크게, 나머지는 3열 컴팩트 — 한눈에 보이게
-                const height = isBtc ? 300 : 210
+            {/* 1행 — Crypto: BTC, ETH */}
+            <div>
+              <p className="text-amber-400/70 text-[11px] font-medium mb-2">Crypto</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {CHART_ROWS[0].map((asset) => (
+                  <AssetDailyChart
+                    key={asset.symbol}
+                    symbol={asset.symbol}
+                    title={`${asset.symbol} ${asset.label}`}
+                    currency={getCurrency(asset)}
+                    height={260}
+                    defaultPeriod="3M"
+                  />
+                ))}
+              </div>
+            </div>
 
-                return (
-                  <div key={asset.symbol} className={isBtc ? "md:col-span-2 xl:col-span-3" : ""}>
-                    <AssetDailyChart
-                      symbol={asset.symbol}
-                      title={title}
-                      currency={currency}
-                      height={height}
-                      defaultPeriod={asset.category === "crypto" ? "3M" : "1M"}
-                    />
-                  </div>
-                )
-              })}
+            {/* 2행 — US: NASDAQ, GOOGL, TSLA, AAPL */}
+            <div>
+              <p className="text-blue-400/70 text-[11px] font-medium mb-2">US</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                {CHART_ROWS[1].map((asset) => (
+                  <AssetDailyChart
+                    key={asset.symbol}
+                    symbol={asset.symbol}
+                    title={`${asset.symbol} ${asset.label}`}
+                    currency={getCurrency(asset)}
+                    height={210}
+                    defaultPeriod="1M"
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* 3행 — KR: KOSPI, 삼성전자, SK하이닉스, 유바이오로직스 */}
+            <div>
+              <p className="text-purple-400/70 text-[11px] font-medium mb-2">KR</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                {CHART_ROWS[2].map((asset) => (
+                  <AssetDailyChart
+                    key={asset.symbol}
+                    symbol={asset.symbol}
+                    title={`${asset.symbol} ${asset.label}`}
+                    currency={getCurrency(asset)}
+                    height={210}
+                    defaultPeriod="1M"
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </>
