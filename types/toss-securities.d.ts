@@ -34,10 +34,17 @@ declare module "toss-securities" {
     }
   }
 
-  export function listOfficialAccounts(): Promise<{
+  export interface RequestOptions {
+    baseUrl?: string
+    clientId?: string
+    clientSecret?: string
+    account?: string | number
+  }
+
+  export function listOfficialAccounts(options?: RequestOptions): Promise<{
     data?: { result?: OfficialAccount[] }
   }>
-  export function getHoldings(options: { account: string | number }): Promise<HoldingsResponse>
+  export function getHoldings(options: RequestOptions): Promise<HoldingsResponse>
   export class TossCredentialsError extends Error {}
   export class TossApiError extends Error {
     code: string
