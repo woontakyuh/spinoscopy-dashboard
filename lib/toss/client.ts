@@ -5,6 +5,13 @@ import {
   TossCredentialsError,
 } from "toss-securities"
 
+// toss-securities 라이브러리가 읽을 수 있도록 명시적으로 baseUrl 전달
+// Vercel(미국 IP) → Cloudflare Worker(고정 IP) → Toss API
+const tossOptions = (() => {
+  const baseUrl = process.env.TOSSINVEST_API_BASE_URL
+  return baseUrl ? { baseUrl } : {}
+})()
+
 export { TossCredentialsError }
 
 export interface TossAccountInfo {
@@ -41,7 +48,7 @@ export const hasTossCredentials = (): boolean =>
 
 /** 연결된 계좌 번호 / accountSeq 가져오기 */
 export async function getAccountInfo(): Promise<TossAccountInfo> {
-  const res = await listOfficialAccounts()
+  const res = await listOfficialAccounts(tossOptions as Parameters<typeof listOfficialAccounts>[0])
   const list = res.data?.result ?? []
   if (list.length === 0) {
     throw new Error("연결된 Toss 계좌가 없습니다.")
@@ -57,7 +64,10 @@ export async function getAccountInfo(): Promise<TossAccountInfo> {
 /** 계좌 자산 요약 + 보유 주식 통합 조회 */
 export async function getTossPortfolio() {
   const accountInfo = await getAccountInfo()
-  const res = await tossGetHoldings({ account: accountInfo.accountSeq })
+  const res = await tossGetHoldings({
+    account: accountInfo.accountSeq,
+    ...tossOptions,
+  } as Parameters<typeof tossGetHoldings>[0])
   const result = res.data?.result
 
   if (!result) {
