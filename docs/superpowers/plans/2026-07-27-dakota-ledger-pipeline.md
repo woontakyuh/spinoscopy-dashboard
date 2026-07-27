@@ -2598,3 +2598,42 @@ export function createCodexPromoter(): Promoter {
 - `agent_message`가 없으면 던지고, 메시지에 원본 꼬리가 담긴다
 
 `.env.local`에서 `ANTHROPIC_API_KEY`는 불필요. `DAKOTA_LEDGER_MODEL`은 선택(미설정 시 codex 기본 모델).
+
+---
+
+## Task 1 실행 기록 (2026-07-27) — 함정 2개
+
+실제 실행에서 계획서 초안의 스크립트가 두 번 걸렸다. 재실행하는 사람을 위해 남긴다.
+
+### 1. 기존 select 옵션의 색은 바꿀 수 없다
+
+`Domain` 옵션 9개를 통째로 PATCH하면 이렇게 실패한다.
+
+```
+Notion API error 400: Cannot update color of select with name: AI.
+```
+
+기존 `AI`는 `blue`인데 초안이 `default`를 보냈기 때문이다. 라이브 DB를 확장할 때는
+**현재 옵션을 먼저 읽어 그대로 두고(이름만 넘김) 없는 것만 덧붙여야** 한다.
+`mergedDomainOptions()`가 그 일을 한다.
+
+실행 결과: `기존 Domain 7개 유지, 추가 2개 (Finance, Training)`.
+
+### 2. `tsx -e`는 top-level await를 못 쓴다
+
+계획서의 검증 스니펫들이 top-level `await`를 쓰는데 이렇게 죽는다.
+
+```
+ERROR: Top-level await is currently not supported with the "cjs" output format
+```
+
+`;(async () => { ... })()` 로 감싸야 한다. Task 2·5·8의 검증 스니펫에 모두 해당한다.
+
+### 결과
+
+| 대상 | 상태 |
+|---|---|
+| `Dakota Session Log` | 신규 생성 `3aa908af-25b9-81f5-a451-ca78006d5160`, 속성 12개 |
+| `Dakota Operations` | 속성 21개(신규 8개), Domain 9개, **기존 13행 값 보존** |
+| 역방향 relation | `Related to Dakota Session Log (Operation)` → `Sessions` 개명됨 |
+| formula | `Days Stalled`, `Lead Time` 생성됨 (API로 문제없이 통과) |

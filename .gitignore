@@ -60,3 +60,4 @@ credentials.json
 .claude/worktrees/
 .codex/
 .hermes/runtime/
+!scripts/dakota-ledger-schema.ts
