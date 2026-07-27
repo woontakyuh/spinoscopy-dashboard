@@ -4,7 +4,10 @@ const OPERATIONS_DB_ID_KEY = "NOTION_DAKOTA_OPERATIONS_DB_ID"
 
 export const OPERATION_STATUSES = ["Inbox", "In Progress", "Waiting", "Completed", "Archived"] as const
 export const OPERATION_TYPES = ["Decision", "Execution", "Research", "Automation", "Draft"] as const
-export const OPERATION_DOMAINS = ["Strategy", "Clinical", "Research", "AI", "Family", "Personal", "Operations"] as const
+export const OPERATION_DOMAINS = [
+  "Strategy", "Clinical", "Research", "AI", "Finance",
+  "Training", "Family", "Personal", "Operations",
+] as const
 
 type OperationStatus = (typeof OPERATION_STATUSES)[number]
 type OperationType = (typeof OPERATION_TYPES)[number]
@@ -19,6 +22,8 @@ interface NotionProperty {
   title?: NotionRichText[]
   rich_text?: NotionRichText[]
   select?: { name: string } | null
+  multi_select?: Array<{ name: string }>
+  number?: number | null
   date?: { start: string; end: string | null } | null
   url?: string | null
 }
@@ -42,12 +47,17 @@ export interface OperationItem {
   type: OperationType
   domain: OperationDomain
   priority: string
+  tags: string[]
   context: string
   action_taken: string
   result: string
   next_action: string
   linked_todo_url: string | null
   source_url: string | null
+  started_at: string | null
+  last_touched: string | null
+  session_count: number
+  msg_total: number
   created_at: string
   updated_at: string
   completed_at: string | null
@@ -60,12 +70,17 @@ export interface CreateOperationInput {
   type?: OperationType
   domain?: OperationDomain
   priority?: string
+  tags?: string[]
   context?: string
   action_taken?: string
   result?: string
   next_action?: string
   linked_todo_url?: string | null
   source_url?: string | null
+  started_at?: string | null
+  last_touched?: string | null
+  session_count?: number
+  msg_total?: number
 }
 
 export interface UpdateOperationInput extends Omit<CreateOperationInput, "name"> {
@@ -96,12 +111,17 @@ function toOperation(page: NotionOperationPage): OperationItem {
     type: OPERATION_TYPES.includes(type as OperationType) ? type as OperationType : "Execution",
     domain: OPERATION_DOMAINS.includes(domain as OperationDomain) ? domain as OperationDomain : "Operations",
     priority: p.Priority?.select?.name ?? "Medium",
+    tags: (p.Tags?.multi_select ?? []).map((t) => t.name),
     context: text(p.Context),
     action_taken: text(p["Action Taken"]),
     result: text(p.Result),
     next_action: text(p["Next Action"]),
     linked_todo_url: p["Linked Todo"]?.url ?? null,
     source_url: p.Source?.url ?? null,
+    started_at: p["Started At"]?.date?.start ?? null,
+    last_touched: p["Last Touched"]?.date?.start ?? null,
+    session_count: p["Session Count"]?.number ?? 0,
+    msg_total: p["Msg Total"]?.number ?? 0,
     created_at: dateOnly(page.created_time),
     updated_at: dateOnly(page.last_edited_time),
     completed_at: p["Completed At"]?.date?.start ?? null,
@@ -154,6 +174,11 @@ export async function createOperation(input: CreateOperationInput): Promise<Oper
         Type: { select: { name: input.type ?? "Execution" } },
         Domain: { select: { name: input.domain ?? "Operations" } },
         Priority: { select: { name: input.priority ?? "Medium" } },
+        Tags: { multi_select: (input.tags ?? []).map((name) => ({ name })) },
+        "Started At": { date: dateValue(input.started_at) },
+        "Last Touched": { date: dateValue(input.last_touched) },
+        "Session Count": { number: input.session_count ?? 0 },
+        "Msg Total": { number: input.msg_total ?? 0 },
         Visibility: { select: { name: "Dashboard" } },
         Context: { rich_text: richText(input.context) },
         "Action Taken": { rich_text: richText(input.action_taken) },
@@ -181,6 +206,11 @@ export async function updateOperation(pageId: string, updates: UpdateOperationIn
   if (updates.next_action !== undefined) properties["Next Action"] = { rich_text: richText(updates.next_action) }
   if (updates.linked_todo_url !== undefined) properties["Linked Todo"] = { url: updates.linked_todo_url }
   if (updates.source_url !== undefined) properties.Source = { url: updates.source_url }
+  if (updates.tags !== undefined) properties.Tags = { multi_select: updates.tags.map((name) => ({ name })) }
+  if (updates.started_at !== undefined) properties["Started At"] = { date: dateValue(updates.started_at) }
+  if (updates.last_touched !== undefined) properties["Last Touched"] = { date: dateValue(updates.last_touched) }
+  if (updates.session_count !== undefined) properties["Session Count"] = { number: updates.session_count }
+  if (updates.msg_total !== undefined) properties["Msg Total"] = { number: updates.msg_total }
   if (updates.completed_at !== undefined) properties["Completed At"] = { date: dateValue(updates.completed_at) }
 
   if (Object.keys(properties).length === 0) return
