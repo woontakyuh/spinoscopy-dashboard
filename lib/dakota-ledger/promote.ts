@@ -92,18 +92,36 @@ export function enforceRules(day: DaySessions, result: PromotionResult): Promoti
   const originByKey = new Map(day.sessions.map((s) => [s.sessionKey, s.origin]))
   const newRefs = new Set(result.operations.map((o) => o.ref))
 
-  const sessions = result.sessions
+  // 부수 수정: LLM이 같은 sessionKey를 두 번 내면 두 행이 적재돼 집계가 두 배가 된다.
+  // Map은 같은 키를 다시 set해도 마지막 값으로 덮이므로, 키당 마지막 등장만 남는다.
+  const dedupedByKey = new Map<string, PromotedSession>()
+  for (const s of result.sessions) dedupedByKey.set(s.sessionKey, s)
+  const deduped = [...dedupedByKey.values()]
+
+  // I1: "수행 세션은 신규 과제를 만들 수 없다"는 이 배치에서 지시/논의 세션이 실제로
+  // 참조한 신규 과제까지 막는 게 아니다. 그런 과제는 지시/논의 세션이 "만든" 것이고,
+  // 수행 세션은 거기 "붙는" 것뿐이다 — 지시 1건 + 수행 24건이 같은 날 같은 신규 과제를
+  // 만드는 게 이 기능이 존재하는 이유인 시나리오다.
+  const backedByRealOrigin = new Set(
+    deduped
+      .filter((s) => originByKey.has(s.sessionKey))
+      .filter((s) => effectiveOrigin(originByKey.get(s.sessionKey)!, s.originOverride) !== "수행" && s.operationRef)
+      .map((s) => s.operationRef!)
+  )
+
+  const sessions = deduped
     .filter((s) => originByKey.has(s.sessionKey))
     .map((s) => {
       const origin = effectiveOrigin(originByKey.get(s.sessionKey)!, s.originOverride)
-      // 규칙 2: 수행 세션은 신규 과제를 만들 수 없다.
+      // 규칙 2: 수행 세션은 신규 과제를 "만들" 수 없다 (지시/논의가 만든 신규 과제에 붙는 것은 허용).
       //
       // 판정을 두 겹으로 건다. 어느 하나도 다른 하나를 포함하지 못한다:
       //  - newRefs 멤버십은 operations에 없는 매달린 ref("new:1"만 있고 과제는 없음)를 놓친다.
       //  - "new:" 접두사는 LLM이 규약을 어기고 ref를 "op-new-1" 식으로 낸 경우를 놓친다.
       // 둘 중 하나라도 걸리면 신규로 본다.
       const ref = s.operationRef
-      if (origin === "수행" && ref && (newRefs.has(ref) || ref.startsWith("new:"))) {
+      const isNewRef = ref !== null && (newRefs.has(ref) || ref.startsWith("new:"))
+      if (origin === "수행" && isNewRef && !backedByRealOrigin.has(ref!)) {
         return { ...s, operationRef: null }
       }
       return s
@@ -165,6 +183,10 @@ export function createCodexPromoter(): Promoter {
       stdio: ["ignore", "pipe", "pipe"],   // stdin 차단이 핵심
       encoding: "utf8",
       maxBuffer: 32 * 1024 * 1024,
+      // I2: codex 호출이 멈추면 launchd의 다음 겹침 창이 아직 살아있는 이 프로세스와
+      // 동시에 돌아 세션 로그·과제가 두 번 적힌다. 타임아웃으로 멈춘 호출을 죽여야
+      // 다음 실행이 겹치기 전에 이 프로세스가 끝난다.
+      timeout: 5 * 60 * 1000,
     })
     const message = extractAgentMessage(stdout)
     let parsed: unknown

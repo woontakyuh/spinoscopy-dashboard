@@ -82,7 +82,17 @@ export async function readSessionLogSnapshot(): Promise<SessionLogSnapshot> {
         byOperation.set(operationId, { count: prev.count + 1, msgs: prev.msgs + msgCount })
       }
     }
-    cursor = res.has_more ? res.next_cursor : null
+    // I3: has_more=true인데 next_cursor가 없으면 조용히 멈추던 버그.
+    // 여기서 멈추면 dedup 스냅샷이 반쪽만 채워지고, 다음 런이 잘려나간 세션들을 "신규"로
+    // 착각해 Session Log 행을 하나씩 더 써버린다 — 조용한 진행보다 시끄러운 실패가 낫다.
+    if (res.has_more) {
+      if (!res.next_cursor) {
+        throw new Error("Notion 페이지네이션 오류: has_more=true인데 next_cursor가 없습니다 (Session Log)")
+      }
+      cursor = res.next_cursor
+    } else {
+      cursor = null
+    }
   } while (cursor)
 
   return { keys, byOperation }

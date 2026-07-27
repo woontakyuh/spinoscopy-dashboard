@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from "vitest"
-import { buildPrompt, effectiveOrigin, enforceRules, extractAgentMessage, promoteDay } from "./promote"
+import { execFileSync } from "node:child_process"
+import { buildPrompt, createCodexPromoter, effectiveOrigin, enforceRules, extractAgentMessage, promoteDay } from "./promote"
 import type { PromotedOperation, PromotedSession, PromotionResult } from "./promote"
 import type { ClassifiedSession, DaySessions } from "./types"
+
+vi.mock("node:child_process", () => ({ execFileSync: vi.fn() }))
+vi.mock("node:fs", () => ({ writeFileSync: vi.fn() }))
 
 function session(over: Partial<ClassifiedSession> = {}): ClassifiedSession {
   return {
@@ -65,16 +69,18 @@ describe("effectiveOrigin", () => {
 })
 
 describe("enforceRules", () => {
-  it("수행 세션이 신규 과제를 참조하면 operationRef를 비운다", () => {
+  it("수행 세션이 신규 과제를 참조하면 operationRef를 비운다 (지시/논의가 그 과제를 만들지 않은 경우)", () => {
+    // s-1(지시)은 이 신규 과제를 참조하지 않는다 — new:1은 오직 수행 세션(s-2)만 참조한다.
+    // I1 수정 후에도 "수행이 카드를 만든다"는 여전히 막혀야 한다.
     const result: PromotionResult = {
       operations: [newOp("new:1")],
       sessions: [
-        promoted({ sessionKey: "s-1", operationRef: "new:1" }),
+        promoted({ sessionKey: "s-1", operationRef: null }),
         promoted({ sessionKey: "s-2", operationRef: "new:1" }),
       ],
     }
     const out = enforceRules(DAY, result)
-    expect(out.sessions.find((s) => s.sessionKey === "s-1")!.operationRef).toBe("new:1")
+    expect(out.sessions.find((s) => s.sessionKey === "s-1")!.operationRef).toBeNull()
     expect(out.sessions.find((s) => s.sessionKey === "s-2")!.operationRef).toBeNull()
   })
 
@@ -132,6 +138,61 @@ describe("enforceRules", () => {
       sessions: [],
     }
     expect(enforceRules(DAY, result).operations).toHaveLength(0)
+  })
+
+  // I1: 지시 1건 + 수행 다건이 같은 배치에서 같은 신규 과제를 만드는 시나리오.
+  // "카카오톡 분석 돌려줘" 지시 세션이 new:1을 만들고, 수행 서브에이전트 세션들이 거기 붙는다.
+  const DAY_MIXED_ORIGIN: DaySessions = {
+    date: "2026-07-20",
+    sessions: [
+      session({ sessionKey: "s-instruct", origin: "지시" }),
+      session({ sessionKey: "s-exec-1", origin: "수행" }),
+      session({ sessionKey: "s-exec-2", origin: "수행" }),
+    ],
+  }
+
+  it("(I1) 지시 세션이 참조하는 신규 과제라면 수행 세션도 붙을 수 있다", () => {
+    const result: PromotionResult = {
+      operations: [newOp("new:1")],
+      sessions: [
+        promoted({ sessionKey: "s-instruct", operationRef: "new:1" }),
+        promoted({ sessionKey: "s-exec-1", operationRef: "new:1" }),
+        promoted({ sessionKey: "s-exec-2", operationRef: "new:1" }),
+      ],
+    }
+    const out = enforceRules(DAY_MIXED_ORIGIN, result)
+    expect(out.sessions.find((s) => s.sessionKey === "s-instruct")!.operationRef).toBe("new:1")
+    expect(out.sessions.find((s) => s.sessionKey === "s-exec-1")!.operationRef).toBe("new:1")
+    expect(out.sessions.find((s) => s.sessionKey === "s-exec-2")!.operationRef).toBe("new:1")
+    expect(out.operations).toHaveLength(1)
+  })
+
+  it("(I1) 수행 세션만 참조하는 신규 과제는 여전히 비운다 (지시/논의가 안 만든 카드)", () => {
+    const result: PromotionResult = {
+      operations: [newOp("new:1")],
+      sessions: [
+        promoted({ sessionKey: "s-exec-1", operationRef: "new:1" }),
+        promoted({ sessionKey: "s-exec-2", operationRef: "new:1" }),
+      ],
+    }
+    const out = enforceRules(DAY_MIXED_ORIGIN, result)
+    expect(out.sessions.find((s) => s.sessionKey === "s-exec-1")!.operationRef).toBeNull()
+    expect(out.sessions.find((s) => s.sessionKey === "s-exec-2")!.operationRef).toBeNull()
+    expect(out.operations).toHaveLength(0)
+  })
+
+  it("(부수 수정) 같은 sessionKey가 두 번 나오면 마지막 것만 남긴다", () => {
+    const result: PromotionResult = {
+      operations: [],
+      sessions: [
+        promoted({ sessionKey: "s-2", name: "첫 번째(버려져야 함)", operationRef: "op-1" }),
+        promoted({ sessionKey: "s-2", name: "마지막", operationRef: null }),
+      ],
+    }
+    const out = enforceRules(DAY, result)
+    expect(out.sessions).toHaveLength(1)
+    expect(out.sessions[0].name).toBe("마지막")
+    expect(out.sessions[0].operationRef).toBeNull()
   })
 })
 
@@ -205,5 +266,19 @@ describe("extractAgentMessage", () => {
       '{"type":"item.completed","item":{"type":"error","message":"실패"}}',
     ].join("\n")
     expect(() => extractAgentMessage(jsonl)).toThrow(jsonl.slice(-800))
+  })
+})
+
+describe("createCodexPromoter (I2)", () => {
+  it("execFileSync에 5분 timeout을 넘긴다 (겹쳐 도는 launchd 실행을 막기 위함)", async () => {
+    vi.mocked(execFileSync).mockReturnValue(
+      '{"type":"item.completed","item":{"type":"agent_message","text":"{\\"operations\\":[],\\"sessions\\":[]}"}}'
+    )
+    const promoter = createCodexPromoter()
+    await promoter("prompt")
+
+    expect(execFileSync).toHaveBeenCalledOnce()
+    const options = vi.mocked(execFileSync).mock.calls[0][2] as { timeout?: number }
+    expect(options.timeout).toBe(5 * 60 * 1000)
   })
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { nextOperationCounts, parseArgs } from "./dakota-ledger-sync"
+import { isMainModule, nextOperationCounts, parseArgs } from "./dakota-ledger-sync"
 
 const DAY = 86_400
 
@@ -46,5 +46,19 @@ describe("nextOperationCounts", () => {
 
   it("델타가 0이어도 base를 그대로 보존한다", () => {
     expect(nextOperationCounts({ count: 5, msgs: 100 }, { count: 0, msgs: 0 })).toEqual({ count: 5, msgs: 100 })
+  })
+})
+
+describe("isMainModule (부수 수정)", () => {
+  it("스크립트 자신의 경로면 true다", () => {
+    expect(isMainModule("/repo/scripts/dakota-ledger-sync.ts")).toBe(true)
+  })
+
+  it("테스트 파일 경로는 더 이상 매칭되지 않는다 (예전엔 includes()라 매칭됐다)", () => {
+    expect(isMainModule("/repo/scripts/dakota-ledger-sync.test.ts")).toBe(false)
+  })
+
+  it("argv[1]이 없으면 false다", () => {
+    expect(isMainModule(undefined)).toBe(false)
   })
 })

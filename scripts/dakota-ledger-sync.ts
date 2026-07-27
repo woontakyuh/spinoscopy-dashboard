@@ -161,7 +161,16 @@ async function main() {
   console.log("완료")
 }
 
-if (process.argv[1]?.includes("dakota-ledger-sync")) {
+/**
+ * 부수 수정: 예전엔 argv[1]?.includes("dakota-ledger-sync")였다. 이건 이 파일뿐 아니라
+ * dakota-ledger-sync.test.ts도 매칭해서, 테스트 러너가 이 모듈을 import만 해도 실행 환경에
+ * 따라 main()이 함께 돌 위험이 있었다. 확장자까지 정확히 맞춘다.
+ */
+export function isMainModule(argv1: string | undefined): boolean {
+  return argv1?.endsWith("dakota-ledger-sync.ts") ?? false
+}
+
+if (isMainModule(process.argv[1])) {
   main().catch((e) => {
     console.error(e)
     process.exit(1)

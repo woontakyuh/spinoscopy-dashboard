@@ -20,7 +20,22 @@ describe("classifyOrigin", () => {
 
   it("영어 명령형으로 시작하면 수행", () => {
     expect(classifyOrigin(raw({ firstUserMessage: "Analyze /tmp/kakao.json and report" }))).toBe("수행")
-    expect(classifyOrigin(raw({ firstUserMessage: "Produce a detailed Korean briefing" }))).toBe("수행")
+  })
+
+  // (I5) produce/summarize/compare/draft/generate/collect/research는 더 이상 길이 무관
+  // 강판정이 아니다 — 짧으면 실제 지시일 가능성이 높다.
+  it("(I5) 짧은 produce/summarize/draft 지시는 수행이 아니라 지시로 남는다", () => {
+    expect(classifyOrigin(raw({ firstUserMessage: "Produce a detailed Korean briefing" }))).toBe("지시")
+    expect(classifyOrigin(raw({ firstUserMessage: "Summarize this thread" }))).toBe("지시")
+    expect(classifyOrigin(raw({ firstUserMessage: "Draft an email to 김교수님" }))).toBe("지시")
+  })
+
+  it("(I5) 같은 동사라도 120자를 넘으면 여전히 수행이다", () => {
+    const longSummarize = "Summarize this entire thread into a single Korean paragraph, " +
+      "focusing only on decisions that were actually made, and drop any tangents about " +
+      "unrelated topics so the output stays under one screen of text."
+    expect(longSummarize.length).toBeGreaterThanOrEqual(120)
+    expect(classifyOrigin(raw({ firstUserMessage: longSummarize }))).toBe("수행")
   })
 
   it("페르소나 지정 프롬프트는 수행", () => {
@@ -92,8 +107,34 @@ describe("classifyOrigin", () => {
     expect(classifyOrigin(raw({ firstUserMessage: long }))).toBe("수행")
   })
 
-  it("파일 경로가 섞이면 수행", () => {
-    expect(classifyOrigin(raw({ firstUserMessage: "이거 /tmp/dump.json 봐줘" }))).toBe("수행")
+  // (I5) 이 테스트는 원래 과탐(버그)을 고정하고 있었다: 개발자가 채팅에 실제 경로를
+  // 붙여 넣는 것("이거 /tmp/hermes.log 왜 에러나?")은 실제 지시이지 디스패치가 아니다.
+  // /tmp/ 포함만으로 수행 판정하면 그런 지시가 칸반에서 통째로 사라진다.
+  it("(I5) 짧은 문장에 /tmp/ 경로가 섞여도 지시로 남는다", () => {
+    expect(classifyOrigin(raw({ firstUserMessage: "이거 /tmp/dump.json 봐줘" }))).toBe("지시")
+  })
+
+  it("(I5) 길게 쓰인 /tmp/ 포함 디스패치는 여전히 수행이다", () => {
+    const longTmpDispatch = "Check /tmp/hermes.log for the exact stack trace from the last crash, " +
+      "then cross-reference it against the deploy timestamp and report which commit " +
+      "introduced the regression. Do not modify any files under /tmp/ while investigating."
+    expect(longTmpDispatch.length).toBeGreaterThanOrEqual(120)
+    expect(classifyOrigin(raw({ firstUserMessage: longTmpDispatch }))).toBe("수행")
+  })
+
+  it("(I5) 트림된 길이 119/120 경계", () => {
+    const body119 = `audit ${"x".repeat(113)}` // "audit " 6자 + 113자 = 119
+    const body120 = `audit ${"x".repeat(114)}` // "audit " 6자 + 114자 = 120
+    expect(body119.length).toBe(119)
+    expect(body120.length).toBe(120)
+    // 앞에 공백을 더해도(옛 버그라면 이걸로 게이트를 통과) 트림된 길이만 봐야 한다.
+    expect(classifyOrigin(raw({ firstUserMessage: `   ${body119}` }))).toBe("지시")
+    expect(classifyOrigin(raw({ firstUserMessage: `   ${body120}` }))).toBe("수행")
+  })
+
+  it("(부수 수정) 첫 메시지가 비어 있으면 수행으로 분류한다 (카드를 만들 자격 없음)", () => {
+    expect(classifyOrigin(raw({ firstUserMessage: "" }))).toBe("수행")
+    expect(classifyOrigin(raw({ firstUserMessage: "   " }))).toBe("수행")
   })
 
   it("한글 장문 대화는 논의", () => {

@@ -38,6 +38,8 @@ interface NotionOperationPage {
 
 interface NotionQueryResponse {
   results: NotionOperationPage[]
+  has_more: boolean
+  next_cursor: string | null
 }
 
 export interface OperationItem {
@@ -133,22 +135,43 @@ export function getOperationsDbId(): string | null {
   return process.env[OPERATIONS_DB_ID_KEY] ?? null
 }
 
+/**
+ * (I4) 운영 34건이 하루 대략 한 건씩 늘어나는 추세라 page_size:100 하나로는 곧 부족해진다.
+ * 100건을 넘으면 last_edited_time 역순 정렬상 가장 오래된(휴면) 과제부터 프롬프트에서
+ * 사라져 그 과제 소속 수행 세션이 영영 매칭되지 못하고 고아가 된다. 전수 페이지네이션한다.
+ * Visibility 필터와 정렬은 대시보드 표시용으로 의도된 것이라 그대로 유지한다.
+ */
 export async function getOperations(): Promise<OperationItem[]> {
   const dbId = getOperationsDbId()
   if (!dbId) return []
 
-  const response = await notionRequest<NotionQueryResponse>(`/databases/${dbId}/query`, {
-    method: "POST",
-    body: JSON.stringify({
-      filter: { property: "Visibility", select: { does_not_equal: "Private" } },
-      sorts: [
-        { timestamp: "last_edited_time", direction: "descending" },
-      ],
-      page_size: 100,
-    }),
-  })
+  const results: NotionOperationPage[] = []
+  let cursor: string | null = null
+  do {
+    const response: NotionQueryResponse = await notionRequest<NotionQueryResponse>(`/databases/${dbId}/query`, {
+      method: "POST",
+      body: JSON.stringify({
+        filter: { property: "Visibility", select: { does_not_equal: "Private" } },
+        sorts: [
+          { timestamp: "last_edited_time", direction: "descending" },
+        ],
+        page_size: 100,
+        ...(cursor ? { start_cursor: cursor } : {}),
+      }),
+    })
+    results.push(...response.results)
+    // I3와 같은 이유로 조용한 진행 대신 던진다.
+    if (response.has_more) {
+      if (!response.next_cursor) {
+        throw new Error("Notion 페이지네이션 오류: has_more=true인데 next_cursor가 없습니다 (Operations)")
+      }
+      cursor = response.next_cursor
+    } else {
+      cursor = null
+    }
+  } while (cursor)
 
-  return response.results.map(toOperation)
+  return results.map(toOperation)
 }
 
 interface NotionPageIdResponse {
@@ -177,7 +200,16 @@ export async function listAllOperationPageIds(): Promise<Set<string>> {
       }),
     })
     for (const page of response.results) ids.add(page.id)
-    cursor = response.has_more ? response.next_cursor : null
+    // I3: has_more=true인데 next_cursor가 없으면 조용히 멈추던 버그. 이 함수는 참조 유효성
+    // 판정의 유일한 근거라, 잘려나가면 유효한 ref가 전부 null로 떨어져 되돌릴 수 없다.
+    if (response.has_more) {
+      if (!response.next_cursor) {
+        throw new Error("Notion 페이지네이션 오류: has_more=true인데 next_cursor가 없습니다 (Operations page ids)")
+      }
+      cursor = response.next_cursor
+    } else {
+      cursor = null
+    }
   } while (cursor)
 
   return ids

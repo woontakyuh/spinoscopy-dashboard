@@ -47,7 +47,7 @@ describe("OPERATION_DOMAINS", () => {
 describe("getOperations", () => {
   it("확장 속성을 매핑한다", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true, json: async () => ({ results: [PAGE] }),
+      ok: true, json: async () => ({ results: [PAGE], has_more: false, next_cursor: null }),
     }))
     const [item] = await getOperations()
     expect(item.tags).toEqual(["AI", "Governance"])
@@ -64,7 +64,7 @@ describe("getOperations", () => {
       delete (bare.properties as Record<string, unknown>)[key]
     }
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true, json: async () => ({ results: [bare] }),
+      ok: true, json: async () => ({ results: [bare], has_more: false, next_cursor: null }),
     }))
     const [item] = await getOperations()
     expect(item.tags).toEqual([])
@@ -72,6 +72,54 @@ describe("getOperations", () => {
     expect(item.last_touched).toBeNull()
     expect(item.session_count).toBe(0)
     expect(item.msg_total).toBe(0)
+  })
+
+  it("(I4) 페이지네이션을 따라가며 100건을 넘는 결과를 모두 모은다", async () => {
+    const page2 = { ...PAGE, id: "op-2" }
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ results: [PAGE], has_more: true, next_cursor: "cur-1" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ results: [page2], has_more: false, next_cursor: null }),
+      })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const items = await getOperations()
+    expect(items.map((o) => o.page_id)).toEqual(["op-1", "op-2"])
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).start_cursor).toBeUndefined()
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).start_cursor).toBe("cur-1")
+  })
+
+  it("(I4) 페이지네이션 중에도 Visibility 필터와 정렬을 유지한다", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ results: [PAGE], has_more: true, next_cursor: "cur-1" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ results: [], has_more: false, next_cursor: null }),
+      })
+    vi.stubGlobal("fetch", fetchMock)
+
+    await getOperations()
+    for (const call of fetchMock.mock.calls) {
+      const body = JSON.parse(call[1].body)
+      expect(body.filter).toEqual({ property: "Visibility", select: { does_not_equal: "Private" } })
+      expect(body.sorts).toEqual([{ timestamp: "last_edited_time", direction: "descending" }])
+    }
+  })
+
+  it("(I3) has_more가 true인데 next_cursor가 없으면 던진다", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: [PAGE], has_more: true, next_cursor: null }),
+    }))
+    await expect(getOperations()).rejects.toThrow(/next_cursor/)
   })
 })
 
@@ -122,6 +170,14 @@ describe("listAllOperationPageIds", () => {
     await listAllOperationPageIds()
     const body = JSON.parse(fetchMock.mock.calls[0][1].body)
     expect(body).not.toHaveProperty("filter")
+  })
+
+  it("(I3) has_more가 true인데 next_cursor가 없으면 던진다", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: [{ id: "op-1" }], has_more: true, next_cursor: null }),
+    }))
+    await expect(listAllOperationPageIds()).rejects.toThrow(/next_cursor/)
   })
 })
 

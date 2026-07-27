@@ -2,9 +2,12 @@ import type { ClassifiedSession, DaySessions, LedgerOrigin, RawSession } from ".
 
 /**
  * 디스패치에서만 쓰이는 동사. 길이와 무관하게 수행으로 본다.
+ * (I5) summarize/compare/draft/generate/produce/collect/research는 여기서 제외했다 —
+ * "Summarize this thread", "Draft an email to 김교수님" 같은 실제 짧은 지시가 일상적으로
+ * 이 동사들로 시작해서, 길이 무관 판정이면 그런 지시를 전부 삼킨다.
  */
 const DISPATCH_VERB_STRONG =
-  /^\s*(you are |analyze |deep-digest |summarize |produce |retrieve |research |inspect |use the |collect |compare |draft |generate )/i
+  /^\s*(you are |deep-digest |use the |analyze |retrieve |inspect )/i
 
 /**
  * 일상 영어로도 쓰이는 동사. 이것만으로 수행 판정하면
@@ -15,8 +18,11 @@ const DISPATCH_VERB_STRONG =
  *
  * 실측(2026-07-27, 196세션): 이 동사로 시작하는 실제 디스패치는 최소 193자,
  * 일상 지시로 상정되는 문장은 50자 미만. 120자를 경계로 둔다.
+ *
+ * (I5) summarize/compare/draft/generate/produce/collect/research를 여기로 옮겼다.
  */
-const DISPATCH_VERB_GENERIC = /^\s*(act as |audit |create |design |write |find |review )/i
+const DISPATCH_VERB_GENERIC =
+  /^\s*(act as |audit |create |design |write |find |review |summarize |compare |draft |generate |produce |collect |research )/i
 
 const GENERIC_VERB_MIN_LENGTH = 120
 
@@ -42,13 +48,25 @@ export function classifyOrigin(session: RawSession): LedgerOrigin {
   if (session.channel === "subagent") return "수행"
 
   const text = session.firstUserMessage
+
+  // 부수 수정: 첫 메시지가 비어 있으면(내용 없는 세션) 카드를 만들 수 없는 방향(수행)으로
+  // 분류한다. effectiveOrigin은 LLM이 수행을 지시/논의로 되돌리는 걸 절대 허용하지 않으므로,
+  // 여기서 잘못 판단해도 안전한 쪽(카드 미생성)으로만 실패한다.
+  if (!text.trim()) return "수행"
+
+  // (I5) 길이 게이트는 트림된 길이로 잰다. 안 그러면 "^\s*"가 앞쪽 공백을 다 허용해서
+  // 공백 120자 + 짧은 지시가 게이트를 통과해버린다.
+  const trimmedLength = text.trim().length
+  const isLongEnough = trimmedLength >= GENERIC_VERB_MIN_LENGTH
   const head = text.slice(0, 40)
   if (
     DISPATCH_VERB_STRONG.test(text) ||
-    (DISPATCH_VERB_GENERIC.test(text) && text.length >= GENERIC_VERB_MIN_LENGTH) ||
+    (DISPATCH_VERB_GENERIC.test(text) && isLongEnough) ||
     PERSONA_EN.test(text) ||
     CRON_RELAY.test(text) ||
-    text.includes("/tmp/") ||
+    // (I5) /tmp/ 포함만으로 수행 판정하면 "이거 /tmp/hermes.log 왜 에러나?" 같은
+    // 실제 개발자 지시를 삼킨다. 길이 게이트를 함께 건다.
+    (text.includes("/tmp/") && isLongEnough) ||
     PERSONA_KO.test(head)
   ) {
     return "수행"
