@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { createSessionLog, listExistingSessionKeys } from "./sessionLog"
+import { createSessionLog, readSessionLogSnapshot } from "./sessionLog"
 import type { SessionLogInput } from "./sessionLog"
 
 const OLD_ENV = { ...process.env }
@@ -22,13 +22,33 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe("listExistingSessionKeys", () => {
+function sessionLogPage(overrides: {
+  key?: string
+  msgCount?: number
+  operationId?: string
+}) {
+  return {
+    properties: {
+      "Session Key": {
+        type: "rich_text",
+        rich_text: overrides.key ? [{ plain_text: overrides.key }] : [],
+      },
+      "Msg Count": { type: "number", number: overrides.msgCount ?? 0 },
+      Operation: {
+        type: "relation",
+        relation: overrides.operationId ? [{ id: overrides.operationId }] : [],
+      },
+    },
+  }
+}
+
+describe("readSessionLogSnapshot", () => {
   it("페이지네이션을 따라가며 Session Key를 모은다", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          results: [{ properties: { "Session Key": { type: "rich_text", rich_text: [{ plain_text: "s-1" }] } } }],
+          results: [sessionLogPage({ key: "s-1" })],
           has_more: true,
           next_cursor: "cur-1",
         }),
@@ -36,15 +56,15 @@ describe("listExistingSessionKeys", () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          results: [{ properties: { "Session Key": { type: "rich_text", rich_text: [{ plain_text: "s-2" }] } } }],
+          results: [sessionLogPage({ key: "s-2" })],
           has_more: false,
           next_cursor: null,
         }),
       })
     vi.stubGlobal("fetch", fetchMock)
 
-    const keys = await listExistingSessionKeys()
-    expect(keys).toEqual(new Set(["s-1", "s-2"]))
+    const snapshot = await readSessionLogSnapshot()
+    expect(snapshot.keys).toEqual(new Set(["s-1", "s-2"]))
     expect(fetchMock).toHaveBeenCalledTimes(2)
     // 커서를 실제로 넘겼는지까지 봐야 한다. 호출 횟수만 세면
     // next_cursor를 무시하고 같은 질의를 두 번 보내도 통과한다.
@@ -52,10 +72,43 @@ describe("listExistingSessionKeys", () => {
     expect(JSON.parse(fetchMock.mock.calls[1][1].body).start_cursor).toBe("cur-1")
   })
 
-  it("DB 미설정이면 빈 집합을 준다", async () => {
+  it("DB 미설정이면 빈 스냅샷을 준다", async () => {
     delete process.env.NOTION_DAKOTA_SESSION_LOG_DB_ID
-    const keys = await listExistingSessionKeys()
-    expect(keys.size).toBe(0)
+    const snapshot = await readSessionLogSnapshot()
+    expect(snapshot.keys.size).toBe(0)
+    expect(snapshot.byOperation.size).toBe(0)
+  })
+
+  it("Operation relation이 비어 있으면 keys에는 담고 byOperation에는 담지 않는다", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        results: [sessionLogPage({ key: "s-solo", msgCount: 7 })],
+        has_more: false,
+        next_cursor: null,
+      }),
+    }))
+
+    const snapshot = await readSessionLogSnapshot()
+    expect(snapshot.keys).toEqual(new Set(["s-solo"]))
+    expect(snapshot.byOperation.size).toBe(0)
+  })
+
+  it("같은 과제에 걸린 두 행의 Msg Count를 합산하고 건수를 2로 센다", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        results: [
+          sessionLogPage({ key: "s-a", msgCount: 10, operationId: "op-1" }),
+          sessionLogPage({ key: "s-b", msgCount: 15, operationId: "op-1" }),
+        ],
+        has_more: false,
+        next_cursor: null,
+      }),
+    }))
+
+    const snapshot = await readSessionLogSnapshot()
+    expect(snapshot.byOperation.get("op-1")).toEqual({ count: 2, msgs: 25 })
   })
 })
 

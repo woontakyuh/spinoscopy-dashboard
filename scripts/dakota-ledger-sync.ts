@@ -1,8 +1,8 @@
 import { classifySessions, groupByDay, toSeoulDate } from "../lib/dakota-ledger/classify"
 import { createAnthropicPromoter, effectiveOrigin, promoteDay } from "../lib/dakota-ledger/promote"
 import { readSessions } from "../lib/dakota-ledger/sessionSource"
-import { createOperation, getOperations, updateOperation } from "../lib/notion/operations"
-import { createSessionLog, listExistingSessionKeys } from "../lib/notion/sessionLog"
+import { createOperation, getOperations, listAllOperationPageIds, updateOperation } from "../lib/notion/operations"
+import { createSessionLog, readSessionLogSnapshot } from "../lib/notion/sessionLog"
 
 const DAY_SECONDS = 86_400
 
@@ -26,13 +26,27 @@ export function parseArgs(argv: string[]): { since: number; dryRun: boolean } {
   throw new Error(`--since 값을 해석할 수 없습니다: "${value}" (YYYY-MM-DD | today | yesterday)`)
 }
 
+/**
+ * 과제 하나의 누적 집계에 오늘치 델타를 더한 절대값을 계산한다.
+ * 델타를 계속 누적하는 게 아니라 base(직전 절대값) + delta를 매번 다시 계산하므로,
+ * 다음 런이 스냅샷에서 이 값을 다시 읽으면 크래시 이전 상태로 스스로 바로잡힌다.
+ */
+export function nextOperationCounts(
+  base: { count: number; msgs: number } | undefined,
+  delta: { count: number; msgs: number }
+): { count: number; msgs: number } {
+  const b = base ?? { count: 0, msgs: 0 }
+  return { count: b.count + delta.count, msgs: b.msgs + delta.msgs }
+}
+
 async function main() {
   const { since, dryRun } = parseArgs(process.argv.slice(2))
   const dbPath = process.env.HERMES_STATE_DB ?? `${process.env.HOME}/.hermes/state.db`
 
   const raw = readSessions(dbPath, since)
-  const existingKeys = dryRun ? new Set<string>() : await listExistingSessionKeys()
-  const fresh = raw.filter((s) => !existingKeys.has(s.sessionKey))
+  // I1: 조회는 읽기이므로 dry-run이어도 무조건 수행한다. 건너뛰는 건 아래 쓰기(create/update)뿐이다.
+  const snapshot = await readSessionLogSnapshot()
+  const fresh = raw.filter((s) => !snapshot.keys.has(s.sessionKey))
 
   console.log(`대상 ${raw.length}건 · 기적재 제외 후 ${fresh.length}건${dryRun ? " · DRY RUN" : ""}`)
   if (fresh.length === 0) return
@@ -42,6 +56,11 @@ async function main() {
 
   const promoter = createAnthropicPromoter()
   let operations = await getOperations()
+  // I3: 환각 operationRef 가드 전용 전수 목록. Visibility 필터·100건 제한이 없다.
+  // dry-run은 쓰기가 없어 가드를 타지 않으므로 조회를 건너뛴다.
+  const knownPageIds = dryRun ? new Set<string>() : await listAllOperationPageIds()
+  // I2: 과제별 누적 집계. 스냅샷에서 이어받아 절대값을 쓴다.
+  const running = new Map(snapshot.byOperation)
 
   for (const day of days) {
     const result = await promoteDay(day, operations, promoter)
@@ -64,12 +83,12 @@ async function main() {
         started_at: day.date, last_touched: day.date,
       })
       refToPageId.set(op.ref, created.page_id)
+      knownPageIds.add(created.page_id)
     }
 
-    // 기존 과제 page_id 집합. operationRef가 방금 만든 신규 과제(refToPageId)도,
-    // 기존 과제 목록(knownPageIds)도 아니면 LLM이 지어낸 값이므로 null로 떨군다 —
+    // operationRef가 이번 런에서 만든 신규 과제(refToPageId)도,
+    // 전수 조회한 기존 과제 목록(knownPageIds, I3)도 아니면 LLM이 지어낸 값이므로 null로 떨군다 —
     // 그대로 Notion에 넘기면 존재하지 않는 relation 대상이라 API 호출이 실패한다.
-    const knownPageIds = new Set(operations.map((o) => o.page_id))
 
     // 세션 로그 적재
     const touched = new Map<string, { count: number; msgs: number }>()
@@ -102,13 +121,15 @@ async function main() {
       }
     }
 
-    // 과제 집계·Last Touched 갱신
+    // 과제 집계·Last Touched 갱신. I2: 델타가 아니라 절대값을 쓴다 —
+    // 이전 런이 중간에 죽어도 다음 런의 스냅샷이 스스로 바로잡는다.
     for (const [pageId, delta] of touched) {
-      const before = operations.find((o) => o.page_id === pageId)
+      const next = nextOperationCounts(running.get(pageId), delta)
+      running.set(pageId, next)
       await updateOperation(pageId, {
         last_touched: day.date,
-        session_count: (before?.session_count ?? 0) + delta.count,
-        msg_total: (before?.msg_total ?? 0) + delta.msgs,
+        session_count: next.count,
+        msg_total: next.msgs,
       })
     }
 

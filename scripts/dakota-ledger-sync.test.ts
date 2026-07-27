@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { parseArgs } from "./dakota-ledger-sync"
+import { nextOperationCounts, parseArgs } from "./dakota-ledger-sync"
 
 const DAY = 86_400
 
@@ -32,5 +32,19 @@ describe("parseArgs", () => {
 
   it("알 수 없는 --since 값은 던진다", () => {
     expect(() => parseArgs(["--since", "무엇"])).toThrow("--since")
+  })
+})
+
+describe("nextOperationCounts", () => {
+  it("base가 없으면 0에서 시작해 델타를 더한다", () => {
+    expect(nextOperationCounts(undefined, { count: 2, msgs: 30 })).toEqual({ count: 2, msgs: 30 })
+  })
+
+  it("base 위에 델타를 더한 절대값을 반환한다 (I2: 델타 누적이 아니라 절대값 재계산)", () => {
+    expect(nextOperationCounts({ count: 5, msgs: 100 }, { count: 2, msgs: 30 })).toEqual({ count: 7, msgs: 130 })
+  })
+
+  it("델타가 0이어도 base를 그대로 보존한다", () => {
+    expect(nextOperationCounts({ count: 5, msgs: 100 }, { count: 0, msgs: 0 })).toEqual({ count: 5, msgs: 100 })
   })
 })

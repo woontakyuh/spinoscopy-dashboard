@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { OPERATION_DOMAINS, createOperation, getOperations, updateOperation } from "./operations"
+import { OPERATION_DOMAINS, createOperation, getOperations, listAllOperationPageIds, updateOperation } from "./operations"
 
 const OLD_ENV = { ...process.env }
 
@@ -89,6 +89,39 @@ describe("createOperation", () => {
     expect(body.properties.Domain.select.name).toBe("Finance")
     expect(body.properties.Tags.multi_select).toEqual([{ name: "규제" }, { name: "BTC" }])
     expect(body.properties["Started At"].date).toEqual({ start: "2026-07-18" })
+  })
+})
+
+describe("listAllOperationPageIds", () => {
+  it("페이지네이션을 따라가며 두 페이지의 id를 모두 모은다", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ results: [{ id: "op-1" }], has_more: true, next_cursor: "cur-1" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ results: [{ id: "op-2" }], has_more: false, next_cursor: null }),
+      })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const ids = await listAllOperationPageIds()
+    expect(ids).toEqual(new Set(["op-1", "op-2"]))
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).start_cursor).toBeUndefined()
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).start_cursor).toBe("cur-1")
+  })
+
+  it("Visibility 필터를 걸지 않는다", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: [], has_more: false, next_cursor: null }),
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    await listAllOperationPageIds()
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body).not.toHaveProperty("filter")
   })
 })
 

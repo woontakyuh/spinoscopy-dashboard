@@ -21,10 +21,24 @@ export interface SessionLogInput {
   operationPageId: string | null
 }
 
+interface SessionLogProperty {
+  type: string
+  rich_text?: Array<{ plain_text?: string }>
+  number?: number | null
+  relation?: Array<{ id: string }>
+}
+
 interface QueryResponse {
-  results: Array<{ properties: Record<string, { type: string; rich_text?: Array<{ plain_text?: string }> }> }>
+  results: Array<{ properties: Record<string, SessionLogProperty> }>
   has_more: boolean
   next_cursor: string | null
+}
+
+export interface SessionLogSnapshot {
+  /** 이미 적재된 Session Key 전체 */
+  keys: Set<string>
+  /** 과제 page_id -> 이미 적재된 세션의 집계 */
+  byOperation: Map<string, { count: number; msgs: number }>
 }
 
 export function getSessionLogDbId(): string | null {
@@ -36,11 +50,16 @@ function richText(content: string): Array<{ text: { content: string } }> {
   return safe ? [{ text: { content: safe } }] : []
 }
 
-/** 이미 적재된 Session Key 전체. 중복 적재 방지용. */
-export async function listExistingSessionKeys(): Promise<Set<string>> {
+/**
+ * Session Log 전체를 한 번 훑어 중복 방지 키와 과제별 집계를 함께 반환한다.
+ * 집계를 델타로 누적하지 않고 매 런 실측에서 다시 세우므로,
+ * 이전 런이 도중에 죽어도 다음 런이 스스로 바로잡는다.
+ */
+export async function readSessionLogSnapshot(): Promise<SessionLogSnapshot> {
   const dbId = getSessionLogDbId()
   const keys = new Set<string>()
-  if (!dbId) return keys
+  const byOperation = new Map<string, { count: number; msgs: number }>()
+  if (!dbId) return { keys, byOperation }
 
   let cursor: string | null = null
   do {
@@ -52,14 +71,21 @@ export async function listExistingSessionKeys(): Promise<Set<string>> {
       }),
     })
     for (const page of res.results) {
-      const value = (page.properties["Session Key"]?.rich_text ?? [])
+      const key = (page.properties["Session Key"]?.rich_text ?? [])
         .map((t) => t.plain_text ?? "").join("").trim()
-      if (value) keys.add(value)
+      if (key) keys.add(key)
+
+      const operationId = page.properties.Operation?.relation?.[0]?.id
+      if (operationId) {
+        const msgCount = page.properties["Msg Count"]?.number ?? 0
+        const prev = byOperation.get(operationId) ?? { count: 0, msgs: 0 }
+        byOperation.set(operationId, { count: prev.count + 1, msgs: prev.msgs + msgCount })
+      }
     }
     cursor = res.has_more ? res.next_cursor : null
   } while (cursor)
 
-  return keys
+  return { keys, byOperation }
 }
 
 export async function createSessionLog(input: SessionLogInput): Promise<string> {

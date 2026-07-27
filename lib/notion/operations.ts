@@ -151,6 +151,38 @@ export async function getOperations(): Promise<OperationItem[]> {
   return response.results.map(toOperation)
 }
 
+interface NotionPageIdResponse {
+  results: Array<{ id: string }>
+  has_more: boolean
+  next_cursor: string | null
+}
+
+/**
+ * 가드 전용. Visibility 필터 없이 전수를 페이지네이션해 page_id만 모은다.
+ * getOperations()는 대시보드 표시용이라 Private을 빼고 100건에서 끊기므로
+ * 참조 유효성 판정에는 쓸 수 없다.
+ */
+export async function listAllOperationPageIds(): Promise<Set<string>> {
+  const dbId = getOperationsDbId()
+  const ids = new Set<string>()
+  if (!dbId) return ids
+
+  let cursor: string | null = null
+  do {
+    const response: NotionPageIdResponse = await notionRequest<NotionPageIdResponse>(`/databases/${dbId}/query`, {
+      method: "POST",
+      body: JSON.stringify({
+        page_size: 100,
+        ...(cursor ? { start_cursor: cursor } : {}),
+      }),
+    })
+    for (const page of response.results) ids.add(page.id)
+    cursor = response.has_more ? response.next_cursor : null
+  } while (cursor)
+
+  return ids
+}
+
 function richText(content: string | undefined): Array<{ text: { content: string } }> {
   const safe = content?.trim().slice(0, 1800) ?? ""
   return safe ? [{ text: { content: safe } }] : []
