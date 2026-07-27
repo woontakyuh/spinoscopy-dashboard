@@ -1,8 +1,24 @@
 import type { ClassifiedSession, DaySessions, LedgerOrigin, RawSession } from "./types"
 
-/** 에이전트 디스패치 프롬프트가 시작하는 영어 명령형 동사 */
-const DISPATCH_VERB =
-  /^\s*(you are |act as |analyze |audit |collect |compare |create |deep-digest |design |draft |find |generate |inspect |produce |research |retrieve |review |summarize |use the |write )/i
+/**
+ * 디스패치에서만 쓰이는 동사. 길이와 무관하게 수행으로 본다.
+ */
+const DISPATCH_VERB_STRONG =
+  /^\s*(you are |analyze |deep-digest |summarize |produce |retrieve |research |inspect |use the |collect |compare |draft |generate )/i
+
+/**
+ * 일상 영어로도 쓰이는 동사. 이것만으로 수행 판정하면
+ * "Audit my expenses for July" 같은 실제 지시를 삼켜버린다.
+ *
+ * 강등은 LLM이 지시→수행 단방향으로만 가능하므로, 과탐은 되돌릴 길이 없고
+ * 미탐은 LLM이 건진다. 따라서 휴리스틱은 보수적이어야 한다.
+ *
+ * 실측(2026-07-27, 196세션): 이 동사로 시작하는 실제 디스패치는 최소 193자,
+ * 일상 지시로 상정되는 문장은 50자 미만. 120자를 경계로 둔다.
+ */
+const DISPATCH_VERB_GENERIC = /^\s*(act as |audit |create |design |write |find |review )/i
+
+const GENERIC_VERB_MIN_LENGTH = 120
 
 /** "As Warren, ..." 형태의 영문 페르소나 지정. 대소문자를 구분해야 오탐이 없다. */
 const PERSONA_EN = /^\s*As [A-Z][a-z]+,/
@@ -25,12 +41,14 @@ const HANGUL = /[가-힣]/
 export function classifyOrigin(session: RawSession): LedgerOrigin {
   if (session.channel === "subagent") return "수행"
 
-  const head = session.firstUserMessage.slice(0, 40)
+  const text = session.firstUserMessage
+  const head = text.slice(0, 40)
   if (
-    DISPATCH_VERB.test(session.firstUserMessage) ||
-    PERSONA_EN.test(session.firstUserMessage) ||
-    CRON_RELAY.test(session.firstUserMessage) ||
-    session.firstUserMessage.includes("/tmp/") ||
+    DISPATCH_VERB_STRONG.test(text) ||
+    (DISPATCH_VERB_GENERIC.test(text) && text.length >= GENERIC_VERB_MIN_LENGTH) ||
+    PERSONA_EN.test(text) ||
+    CRON_RELAY.test(text) ||
+    text.includes("/tmp/") ||
     PERSONA_KO.test(head)
   ) {
     return "수행"
