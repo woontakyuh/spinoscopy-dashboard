@@ -89,6 +89,27 @@ describe("enforceRules", () => {
     expect(out.operations).toHaveLength(0)
   })
 
+  it("LLM이 ref 규약을 어겨도 수행 세션은 신규 과제를 못 만든다", () => {
+    // 프롬프트는 "new:1" 형식을 요구하지만 강제할 수단이 없다.
+    // 접두사 판정만 있으면 이 케이스가 빠져나가 잡카드가 생긴다.
+    const result: PromotionResult = {
+      operations: [{ ...newOp("op-new-1") }],
+      sessions: [promoted({ sessionKey: "s-2", operationRef: "op-new-1" })],
+    }
+    const out = enforceRules(DAY, result)
+    expect(out.sessions[0].operationRef).toBeNull()
+    expect(out.operations).toHaveLength(0)
+  })
+
+  it("수행 세션이 매달린 신규 ref를 참조해도 비운다", () => {
+    // operations가 비어 있어 멤버십 판정으로는 안 잡히는 경우
+    const result: PromotionResult = {
+      operations: [],
+      sessions: [promoted({ sessionKey: "s-2", operationRef: "new:9" })],
+    }
+    expect(enforceRules(DAY, result).sessions[0].operationRef).toBeNull()
+  })
+
   it("수행 세션이 기존 과제를 참조하는 것은 허용한다", () => {
     const result: PromotionResult = {
       operations: [],

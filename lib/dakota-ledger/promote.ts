@@ -88,15 +88,20 @@ export function effectiveOrigin(
 /** LLM 출력이 규칙을 어겼을 때 코드로 강제한다. */
 export function enforceRules(day: DaySessions, result: PromotionResult): PromotionResult {
   const originByKey = new Map(day.sessions.map((s) => [s.sessionKey, s.origin]))
+  const newRefs = new Set(result.operations.map((o) => o.ref))
 
   const sessions = result.sessions
     .filter((s) => originByKey.has(s.sessionKey))
     .map((s) => {
       const origin = effectiveOrigin(originByKey.get(s.sessionKey)!, s.originOverride)
       // 규칙 2: 수행 세션은 신규 과제를 만들 수 없다.
-      // "new:" 접두사 자체가 신규 과제 참조임을 나타내므로, LLM이 그 ref에 해당하는
-      // operations 항목을 빠뜨렸더라도(=operations 배열에 없어도) 참조 형태만으로 판정한다.
-      if (origin === "수행" && s.operationRef?.startsWith("new:")) {
+      //
+      // 판정을 두 겹으로 건다. 어느 하나도 다른 하나를 포함하지 못한다:
+      //  - newRefs 멤버십은 operations에 없는 매달린 ref("new:1"만 있고 과제는 없음)를 놓친다.
+      //  - "new:" 접두사는 LLM이 규약을 어기고 ref를 "op-new-1" 식으로 낸 경우를 놓친다.
+      // 둘 중 하나라도 걸리면 신규로 본다.
+      const ref = s.operationRef
+      if (origin === "수행" && ref && (newRefs.has(ref) || ref.startsWith("new:"))) {
         return { ...s, operationRef: null }
       }
       return s
