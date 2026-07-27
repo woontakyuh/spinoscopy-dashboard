@@ -58,15 +58,20 @@ describe("getOperations", () => {
   })
 
   it("확장 속성이 비어 있어도 기본값으로 떨어진다", async () => {
+    // 라이브 DB에는 아직 이 5개 속성이 없다. 다섯 개 전부 폴백을 확인한다.
     const bare = { ...PAGE, properties: { ...PAGE.properties } }
-    delete (bare.properties as Record<string, unknown>).Tags
-    delete (bare.properties as Record<string, unknown>)["Session Count"]
+    for (const key of ["Tags", "Started At", "Last Touched", "Session Count", "Msg Total"]) {
+      delete (bare.properties as Record<string, unknown>)[key]
+    }
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true, json: async () => ({ results: [bare] }),
     }))
     const [item] = await getOperations()
     expect(item.tags).toEqual([])
+    expect(item.started_at).toBeNull()
+    expect(item.last_touched).toBeNull()
     expect(item.session_count).toBe(0)
+    expect(item.msg_total).toBe(0)
   })
 })
 
