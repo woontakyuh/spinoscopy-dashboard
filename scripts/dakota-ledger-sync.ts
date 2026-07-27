@@ -137,10 +137,18 @@ async function main() {
     for (const [pageId, delta] of touched) {
       const next = nextOperationCounts(running.get(pageId), delta)
       running.set(pageId, next)
+
+      // Started At이 비어 있으면 이번에 처음 관측한 날로 채운다.
+      // 날짜 루프가 오름차순이므로 이 값이 우리가 아는 가장 이른 활동일이다.
+      // 이게 없으면 기존 과제들은 타임라인 뷰에 시작점이 없어 아예 그려지지 않는다.
+      const known = operations.find((o) => o.page_id === pageId)
+      const startedAt = known?.started_at ? undefined : day.date
+
       await updateOperation(pageId, {
         last_touched: day.date,
         session_count: next.count,
         msg_total: next.msgs,
+        ...(startedAt ? { started_at: startedAt } : {}),
       })
     }
 
