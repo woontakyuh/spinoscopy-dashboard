@@ -8,11 +8,13 @@ import { PresentationList } from "@/components/dakota/PresentationList"
 import { TodoHistory } from "@/components/dakota/TodoHistory"
 import { ConferenceTab } from "@/components/dakota/ConferenceTab"
 import { DakotaCommandCenter } from "@/components/dakota/DakotaCommandCenter"
+import { OperationsLedger } from "@/components/dakota/OperationsLedger"
 import { getTimeContext, dday } from "@/lib/greeterContext"
 import type { Presentation } from "@/lib/types/presentation"
 
 const TABS = [
   { id: "command", label: "Command Center", icon: "🧠" },
+  { id: "operations", label: "운영 기록", icon: "🗂️" },
   { id: "history", label: "Todo List", icon: "📋" },
   { id: "presentations", label: "발표 관리", icon: "🎤" },
   { id: "conferences", label: "학회", icon: "🏛️" },
@@ -65,6 +67,10 @@ export default function DakotaPage() {
     if (tab === "command") {
       const active = todos.length > 0 ? `할 일 ${todos.length}건` : "운영 큐는 가볍고"
       return `센터장님, Dakota Command Center 열어둘게요. ${active}, specialist 병렬 상태와 지식 승격 큐까지 한 화면에서 보겠습니다.`
+    }
+
+    if (tab === "operations") {
+      return "센터장님, 여기에는 우리가 결정한 일과 실제로 움직인 결과만 남길게요. 대화 원문은 넣지 않고, 맥락·수행·결과·다음 행동이 보이게요."
     }
 
     if (tab === "presentations") {
@@ -160,6 +166,8 @@ export default function DakotaPage() {
         <AgentGreeter image="/dakota.png" name="Dakota" message={message} loading={isTabLoading} />
 
         {activeTab === "command" && <DakotaCommandCenter />}
+
+        {activeTab === "operations" && <OperationsLedger />}
 
         {activeTab === "history" && <TodoHistory />}
 
