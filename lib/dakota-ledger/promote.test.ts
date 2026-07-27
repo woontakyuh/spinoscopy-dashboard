@@ -187,6 +187,18 @@ describe("extractAgentMessage", () => {
     expect(extractAgentMessage(jsonl)).toBe("real")
   })
 
+  it("item.completed이지만 type이 error인 항목은 text가 있어도 무시한다", () => {
+    // message만 있고 text가 없는 error는 truthy 체크만으로도 걸러진다 — 이 케이스는
+    // error 항목에 text까지 채워 넣고, 진짜 agent_message보다 "뒤"에 두어 판별한다.
+    // last를 계속 덮어쓰는 루프 구조상, type 체크가 없으면 뒤에 오는 이 error 항목의
+    // text가 최종값을 덮어써 실패하게 된다 — fixture 순서만으로 우연히 통과하지 않는다.
+    const jsonl = [
+      '{"type":"item.completed","item":{"type":"agent_message","text":"actual"}}',
+      '{"type":"item.completed","item":{"type":"error","message":"오류","text":"real"}}',
+    ].join("\n")
+    expect(extractAgentMessage(jsonl)).toBe("actual")
+  })
+
   it("agent_message가 없으면 던지고, 메시지에 원본 꼬리가 담긴다", () => {
     const jsonl = [
       '{"type":"thread.started","thread_id":"abc"}',

@@ -17,7 +17,10 @@ const DOMAIN_OPTIONS = [
 
 interface NotionDb {
   id: string
-  properties: Record<string, { id: string; type: string; name: string }>
+  properties: Record<
+    string,
+    { id: string; type: string; name: string; relation?: { database_id: string } }
+  >
 }
 
 async function createSessionLogDb(): Promise<NotionDb> {
@@ -81,21 +84,25 @@ async function createSessionLogDb(): Promise<NotionDb> {
 }
 
 /**
- * 기존 select 옵션은 손대지 않고 없는 이름만 덧붙인다.
- * Notion은 이미 존재하는 옵션의 색 변경을 거부하므로("Cannot update color of
- * select with name: AI"), 전체 목록을 통째로 덮어쓰면 실패한다.
+ * 기존 select/multi_select 옵션은 손대지 않고 target에 없는 이름만 덧붙인다.
+ * Notion은 이미 존재하는 옵션의 색 변경을 거부하고("Cannot update color of
+ * select with name: AI"), select/multi_select PATCH는 옵션 목록을 통째로
+ * 교체하므로 현재 값을 그대로 되돌려주지 않으면 값이 사라진다.
+ *
+ * target이 빈 배열이면(Tags처럼 고정 옵션 목록이 없는 속성) 기존 옵션을
+ * 이름만 남겨 그대로 되돌려준다 — PATCH가 사실상 현상 유지가 되어
+ * 그동안 값을 쓰며 자동 생성된 옵션이 보존된다.
  */
-async function mergedDomainOptions(dbId: string): Promise<Array<{ name: string; color?: string }>> {
-  const db = await notionRequest<{
-    properties: Record<string, { type: string; select?: { options: Array<{ name: string; color: string }> } }>
-  }>(`/databases/${dbId}`, { method: "GET" })
-
-  const current = db.properties.Domain?.select?.options ?? []
+function mergedOptions(
+  propName: string,
+  current: Array<{ name: string; color: string }>,
+  target: Array<{ name: string; color?: string }>
+): Array<{ name: string; color?: string }> {
   const existing = new Set(current.map((o) => o.name))
-  const added = DOMAIN_OPTIONS.filter((o) => !existing.has(o.name))
+  const added = target.filter((o) => !existing.has(o.name))
 
   console.log(
-    `      기존 Domain ${current.length}개 유지, 추가 ${added.length}개` +
+    `      기존 ${propName} ${current.length}개 유지, 추가 ${added.length}개` +
       (added.length ? ` (${added.map((o) => o.name).join(", ")})` : "")
   )
   // 기존 항목은 name만 넘겨 색을 건드리지 않는다
@@ -105,13 +112,32 @@ async function mergedDomainOptions(dbId: string): Promise<Array<{ name: string; 
 async function extendOperations(sessionLogDbId: string): Promise<void> {
   if (!OPERATIONS_DB_ID) throw new Error("NOTION_DAKOTA_OPERATIONS_DB_ID 미설정")
 
-  // (1) 단순 속성 + Domain 옵션 확장
+  // (1) 단순 속성 + Domain/Tags 옵션 확장 (보존+추가)
+  const opsBefore = await notionRequest<{
+    properties: Record<
+      string,
+      {
+        type: string
+        select?: { options: Array<{ name: string; color: string }> }
+        multi_select?: { options: Array<{ name: string; color: string }> }
+      }
+    >
+  }>(`/databases/${OPERATIONS_DB_ID}`, { method: "GET" })
+
+  const domainOptions = mergedOptions(
+    "Domain",
+    opsBefore.properties.Domain?.select?.options ?? [],
+    DOMAIN_OPTIONS
+  )
+  // Tags는 고정 목록이 없다 — target을 빈 배열로 주면 기존 옵션만 그대로 되돌아간다.
+  const tagsOptions = mergedOptions("Tags", opsBefore.properties.Tags?.multi_select?.options ?? [], [])
+
   await notionRequest(`/databases/${OPERATIONS_DB_ID}`, {
     method: "PATCH",
     body: JSON.stringify({
       properties: {
-        Domain: { select: { options: await mergedDomainOptions(OPERATIONS_DB_ID) } },
-        Tags: { multi_select: { options: [] } },
+        Domain: { select: { options: domainOptions } },
+        Tags: { multi_select: { options: tagsOptions } },
         "Started At": { date: {} },
         "Last Touched": { date: {} },
         "Session Count": { number: { format: "number" } },
@@ -139,19 +165,24 @@ async function extendOperations(sessionLogDbId: string): Promise<void> {
   })
   console.log("[3/4] Operation relation 생성 완료")
 
-  // (3) 자동 생성된 역방향 속성을 찾아 "Sessions"로 개명
+  // (3) 자동 생성된 역방향 속성을 찾아 "Sessions"로 개명.
+  //     Operations는 여러 기능이 공유하는 성장하는 DB라 이름으로 골라내면
+  //     무관한 relation 속성이 생겼을 때 엉뚱한 속성을 개명할 수 있다.
+  //     대상 DB(Session Log)를 가리키는 relation.database_id로 정확히 짚는다.
   const ops = await notionRequest<NotionDb>(`/databases/${OPERATIONS_DB_ID}`, { method: "GET" })
   const reciprocal = Object.values(ops.properties).find(
-    (p) => p.type === "relation" && p.name !== "Sessions"
+    (p) => p.type === "relation" && p.relation?.database_id === sessionLogDbId
   )
-  if (reciprocal && reciprocal.name !== "Sessions") {
+  if (!reciprocal) {
+    console.log("[4/4] Session Log를 가리키는 역방향 relation을 찾지 못했습니다")
+  } else if (reciprocal.name === "Sessions") {
+    console.log("[4/4] 역방향 relation이 이미 Sessions 입니다")
+  } else {
     await notionRequest(`/databases/${OPERATIONS_DB_ID}`, {
       method: "PATCH",
       body: JSON.stringify({ properties: { [reciprocal.name]: { name: "Sessions" } } }),
     })
     console.log(`[4/4] 역방향 relation "${reciprocal.name}" -> "Sessions" 개명 완료`)
-  } else {
-    console.log("[4/4] 역방향 relation이 이미 Sessions 입니다")
   }
 
   // (4) formula 2종

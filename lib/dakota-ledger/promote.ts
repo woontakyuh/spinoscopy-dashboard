@@ -145,7 +145,11 @@ export function extractAgentMessage(jsonl: string): string {
 
 export function createCodexPromoter(): Promoter {
   const bin = process.env.CODEX_BIN ?? "codex"
-  const schemaPath = path.join(os.tmpdir(), "dakota-ledger-schema.json")
+  // launchd가 하루 5회 + 야간 실행으로 겹쳐 돌 수 있고 backfill은 수 분씩 걸린다.
+  // 내용은 결정적이지만 고정 공유 경로면 한 프로세스의 writeFileSync가 다른
+  // 프로세스의 codex read와 경합해 잘린 스키마를 읽는 간헐적 실패가 난다.
+  // PID로 파일명을 분리해 프로세스 간 경합을 없앤다.
+  const schemaPath = path.join(os.tmpdir(), `dakota-ledger-schema.${process.pid}.json`)
   writeFileSync(schemaPath, JSON.stringify(z.toJSONSchema(promotionSchema, { target: "draft-7" })))
 
   const args = [
@@ -162,6 +166,14 @@ export function createCodexPromoter(): Promoter {
       encoding: "utf8",
       maxBuffer: 32 * 1024 * 1024,
     })
-    return promotionSchema.parse(JSON.parse(extractAgentMessage(stdout)))
+    const message = extractAgentMessage(stdout)
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(message)
+    } catch (e) {
+      const preview = message.length > 300 ? `${message.slice(0, 300)}…` : message
+      throw new Error(`codex agent_message가 JSON이 아닙니다: ${(e as Error).message}\n본문: ${preview}`)
+    }
+    return promotionSchema.parse(parsed)
   }
 }
