@@ -2,10 +2,20 @@ import type { ClassifiedSession, DaySessions, LedgerOrigin, RawSession } from ".
 
 /** 에이전트 디스패치 프롬프트가 시작하는 영어 명령형 동사 */
 const DISPATCH_VERB =
-  /^\s*(you are |analyze |deep-digest |summarize |produce |retrieve |find |research |review |inspect |use the |collect |compare |draft |generate )/i
+  /^\s*(you are |act as |analyze |audit |collect |compare |create |deep-digest |design |draft |find |generate |inspect |produce |research |retrieve |review |summarize |use the |write )/i
 
-/** "Brian으로서", "Andrej로서" 같은 한글 페르소나 지정 */
-const PERSONA_KO = /(으로서|로서)\s/
+/** "As Warren, ..." 형태의 영문 페르소나 지정. 대소문자를 구분해야 오탐이 없다. */
+const PERSONA_EN = /^\s*As [A-Z][a-z]+,/
+
+/**
+ * "Brian으로서" 처럼 영문 이름 뒤에 붙은 경우만 페르소나 지정으로 본다.
+ * "의사로서", "부모로서" 같은 일상 한국어 조사까지 잡으면
+ * 센터장님의 실제 지시가 수행으로 오분류돼 칸반에서 사라진다.
+ */
+const PERSONA_KO = /[A-Z][a-zA-Z]*(으로서|로서)\s/
+
+/** cron 산출물이 텔레그램 세션으로 유입된 것. 장부 대상이 아니다. */
+const CRON_RELAY = /^\s*Cronjob Response:/i
 
 /** 논의로 볼 최소 메시지 수 */
 const DISCUSSION_MIN_MESSAGES = 30
@@ -18,6 +28,8 @@ export function classifyOrigin(session: RawSession): LedgerOrigin {
   const head = session.firstUserMessage.slice(0, 40)
   if (
     DISPATCH_VERB.test(session.firstUserMessage) ||
+    PERSONA_EN.test(session.firstUserMessage) ||
+    CRON_RELAY.test(session.firstUserMessage) ||
     session.firstUserMessage.includes("/tmp/") ||
     PERSONA_KO.test(head)
   ) {

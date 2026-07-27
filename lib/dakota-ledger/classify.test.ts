@@ -26,6 +26,36 @@ describe("classifyOrigin", () => {
   it("페르소나 지정 프롬프트는 수행", () => {
     expect(classifyOrigin(raw({ firstUserMessage: "You are Andrej, AI specialist." }))).toBe("수행")
     expect(classifyOrigin(raw({ firstUserMessage: "Brian으로서 이번 주 논문을 정리해" }))).toBe("수행")
+    expect(classifyOrigin(raw({ firstUserMessage: "As Warren, give a cold view on SpaceX IPO" }))).toBe("수행")
+  })
+
+  it("일상 한국어 '~로서'는 수행이 아니다", () => {
+    // 오탐 시 센터장님의 실제 지시가 칸반에서 사라진다
+    expect(classifyOrigin(raw({ firstUserMessage: "의사로서 이 환자는 수술이 필요해 보이는데 어떻게 생각해?" }))).toBe("지시")
+    expect(classifyOrigin(raw({ firstUserMessage: "부모로서 걱정되는 부분이 있어" }))).toBe("지시")
+  })
+
+  it("cron 산출물이 텔레그램으로 유입된 것은 수행", () => {
+    expect(classifyOrigin(raw({ firstUserMessage: "Cronjob Response: ExoBrain wiki sync ---" }))).toBe("수행")
+  })
+
+  // 실제 state.db에서 '지시'로 오분류됐던 문구들 (2026-07-27 실측)
+  it.each([
+    "Audit the current ExoBrain LLM Wiki sync implementation for correctness",
+    "Write the final standalone report for 에르메스단. Start exactly",
+    "Design a concrete capability and approval policy for six agents.",
+    "Create a concise high-signal AI/social update brief in Korean",
+  ])("실측 오분류 회귀: %s", (text) => {
+    expect(classifyOrigin(raw({ firstUserMessage: text }))).toBe("수행")
+  })
+
+  // 실제 센터장님 발화. 보강한 동사 목록에 걸리면 안 된다.
+  it.each([
+    ["My experience of the Aside was amazing… Thanks for developing this", 5],
+    ["hermes gaitway start", 8],
+    ["chatGPT 서버 터지면서 뻑났었ㄷ는듯?", 8],
+  ])("사용자 발화는 지시로 남는다: %s", (text, count) => {
+    expect(classifyOrigin(raw({ firstUserMessage: text, messageCount: count as number }))).toBe("지시")
   })
 
   it("파일 경로가 섞이면 수행", () => {
