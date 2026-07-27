@@ -61,3 +61,4 @@ credentials.json
 .codex/
 .hermes/runtime/
 !scripts/dakota-ledger-schema.ts
+!scripts/dakota-ledger-cron.sh
