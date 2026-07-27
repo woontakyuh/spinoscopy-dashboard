@@ -67,7 +67,18 @@ async function main() {
     console.log(`[${day.date}] 세션 ${result.sessions.length} · 신규 과제 ${result.operations.length}`)
 
     if (dryRun) {
-      for (const s of result.sessions) console.log(`   - ${s.domain} | ${s.outcome} | ${s.name}`)
+      // 연결 대상을 반드시 보여준다. dry-run의 목적이 "수행 세션이 잡카드를 만들지 않고
+      // 기존 과제에 제대로 붙는가"를 확인하는 것이라, ref를 감추면 아무것도 검증할 수 없다.
+      const opName = new Map(operations.map((o) => [o.page_id, o.name]))
+      for (const s of result.sessions) {
+        const ref = s.operationRef
+        const link = !ref
+          ? "미연결"
+          : (opName.get(ref) ?? (ref.startsWith("new:") ? `신규 ${ref}` : `알 수 없음 ${ref}`))
+        // enforceRules가 그날에 없는 세션 키를 이미 걸러내므로 항상 찾아진다
+        const origin = day.sessions.find((d) => d.sessionKey === s.sessionKey)!.origin
+        console.log(`   - [${effectiveOrigin(origin, s.originOverride)}] ${s.domain} | ${s.outcome} | ${s.name}  ->  ${link}`)
+      }
       for (const o of result.operations) console.log(`   + 신규 과제: ${o.domain} | ${o.name}`)
       continue
     }
