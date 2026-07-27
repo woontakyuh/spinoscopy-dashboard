@@ -8,6 +8,8 @@
     "dakota:manifest": "tsx scripts/generate-dakota-manifest.ts",
     "telegram:bot": "tsx scripts/telegram-bot.ts",
     "telegram:bot:force": "DAKOTA_TELEGRAM_ALLOW_GATEWAY_CONFLICT=1 tsx scripts/telegram-bot.ts",
+    "ledger:schema": "tsx --env-file=.env.local scripts/dakota-ledger-schema.ts",
+    "ledger:sync": "tsx --env-file=.env.local scripts/dakota-ledger-sync.ts",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
@@ -40,7 +42,6 @@
     "react-leaflet": "^5.0.0",
     "recharts": "^3.7.0",
     "tailwind-merge": "^3.5.0",
-    "toss-securities": "^0.5.0",
     "zod": "^4.3.6",
     "zustand": "^5.0.11"
   },
