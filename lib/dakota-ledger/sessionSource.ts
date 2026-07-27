@@ -2,11 +2,18 @@ import { DatabaseSync } from "node:sqlite"
 import { readdirSync, readFileSync } from "node:fs"
 import { LEDGER_CHANNELS, type LedgerChannel, type RawSession } from "./types"
 
+/**
+ * (C1a) 세션을 승격 대상으로 볼 유휴 기준(초). 가장 최근 메시지가 이보다 오래돼야 승격한다.
+ * 진행 중인 세션이 09:00 런에 partial 내용으로 동결되는 것을 막는다 — 아직 활성인 세션은
+ * 그냥 다음 실행을 기다리면 되고, dedup 키가 아직 없으니 잃는 것도 없다.
+ */
+export const IDLE_GATE_SECONDS = 90 * 60 // 5400
+
 interface Row {
   id: string
   source: string
   started_at: number
-  message_count: number
+  msg_count: number
   first_user: string | null
   last_assistant: string | null
   tool_names: string | null
@@ -14,7 +21,8 @@ interface Row {
 
 const QUERY = `
   SELECT
-    s.id, s.source, s.started_at, s.message_count,
+    s.id, s.source, s.started_at,
+    (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id) AS msg_count,
     (SELECT m.content FROM messages m
       WHERE m.session_id = s.id AND m.role = 'user' AND m.content IS NOT NULL
       ORDER BY m.timestamp ASC LIMIT 1) AS first_user,
@@ -27,12 +35,18 @@ const QUERY = `
   WHERE s.source IN ('telegram','cli','tui','subagent')
     AND s.message_count >= 3
     AND s.started_at >= ?
+    AND (SELECT MAX(m.timestamp) FROM messages m WHERE m.session_id = s.id)
+          < strftime('%s','now') - ${IDLE_GATE_SECONDS}
   ORDER BY s.started_at ASC
 `
 
 /**
  * state.db를 읽기 전용으로 열어 승격 대상 세션을 뽑는다.
- * cron source와 message_count < 3 세션은 SQL 단계에서 걸러진다.
+ * cron source, message_count < 3 세션, 그리고 유휴 게이트(C1a)를 통과 못한
+ * (아직 진행 중인) 세션은 SQL 단계에서 걸러진다.
+ *
+ * messageCount는 s.message_count 컬럼이 아니라 messages 테이블의 실제 행 수다(C1b) —
+ * 그 컬럼은 장수명 세션에서 갱신이 밀려 크게 과소평가될 수 있다.
  */
 export function readSessions(dbPath: string, sinceEpoch: number): RawSession[] {
   const db = new DatabaseSync(dbPath, { readOnly: true })
@@ -42,7 +56,7 @@ export function readSessions(dbPath: string, sinceEpoch: number): RawSession[] {
       sessionKey: r.id,
       channel: r.source as LedgerChannel,
       startedAt: new Date(r.started_at * 1000).toISOString(),
-      messageCount: r.message_count,
+      messageCount: r.msg_count,
       firstUserMessage: (r.first_user ?? "").trim(),
       lastAssistantMessage: (r.last_assistant ?? "").trim(),
       toolNames: (r.tool_names ?? "").split(",").filter(Boolean),
@@ -67,6 +81,8 @@ interface JsonSessionDump {
   platform?: string
   /** 타임존 표기가 없는 Asia/Seoul 로컬시각, 예: "2026-04-13T19:32:58.591873" */
   session_start?: string
+  /** session_start와 같은 형식(naive Asia/Seoul). 없으면 오래된 덤프 형식이다(C1a). */
+  last_updated?: string
   message_count?: number
   messages?: JsonMessage[]
 }
@@ -111,8 +127,24 @@ function collectToolNames(messages: JsonMessage[]): string[] {
   return names
 }
 
+/**
+ * (C1a) JSON 덤프에 대해서도 유휴 게이트를 적용한다. state.db와 달리 messages에
+ * 신뢰할 타임스탬프 보장이 없으므로 last_updated(세션 파일이 마지막으로 쓰인 시각)로 판단한다.
+ * last_updated가 없으면 옛 덤프 형식이라 이미 정지된 것으로 보고 승격을 허용한다.
+ */
+function isJsonSessionIdle(dump: JsonSessionDump, nowMs: number): boolean {
+  if (!dump.last_updated) return true
+  let lastUpdated: Date
+  try {
+    lastUpdated = parseSeoulNaive(dump.last_updated)
+  } catch {
+    return true
+  }
+  return nowMs - lastUpdated.getTime() >= IDLE_GATE_SECONDS * 1000
+}
+
 /** 레거시 JSON 덤프에서 세션을 읽는다. state.db로의 이관이 불완전해 여기에만 남은 것이 있다. */
-export function readJsonSessions(dir: string, sinceEpoch: number): RawSession[] {
+export function readJsonSessions(dir: string, sinceEpoch: number, now: Date = new Date()): RawSession[] {
   let files: string[]
   try {
     files = readdirSync(dir)
@@ -134,7 +166,11 @@ export function readJsonSessions(dir: string, sinceEpoch: number): RawSession[] 
     const channel = dump.platform as LedgerChannel
     if (!LEDGER_CHANNELS.includes(channel)) continue
     if (!dump.session_id || !dump.session_start) continue
-    if ((dump.message_count ?? 0) < 3) continue
+
+    const messages = dump.messages ?? []
+    // (C1b) message_count 필드가 아니라 실제 messages 배열 길이를 쓴다 — state.db와 같은 이유.
+    const messageCount = messages.length
+    if (messageCount < 3) continue
 
     let startedAt: Date
     try {
@@ -144,12 +180,13 @@ export function readJsonSessions(dir: string, sinceEpoch: number): RawSession[] 
     }
     if (Math.floor(startedAt.getTime() / 1000) < sinceEpoch) continue
 
-    const messages = dump.messages ?? []
+    if (!isJsonSessionIdle(dump, now.getTime())) continue
+
     sessions.push({
       sessionKey: dump.session_id,
       channel,
       startedAt: startedAt.toISOString(),
-      messageCount: dump.message_count ?? 0,
+      messageCount,
       firstUserMessage: firstUserMessage(messages),
       lastAssistantMessage: lastAssistantMessage(messages),
       toolNames: collectToolNames(messages),
