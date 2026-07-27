@@ -1008,6 +1008,10 @@ describe("listExistingSessionKeys", () => {
     const keys = await listExistingSessionKeys()
     expect(keys).toEqual(new Set(["s-1", "s-2"]))
     expect(fetchMock).toHaveBeenCalledTimes(2)
+    // 커서를 실제로 넘겼는지까지 봐야 한다. 호출 횟수만 세면
+    // next_cursor를 무시하고 같은 질의를 두 번 보내도 통과한다.
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).start_cursor).toBeUndefined()
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).start_cursor).toBe("cur-1")
   })
 
   it("DB 미설정이면 빈 집합을 준다", async () => {
@@ -1042,7 +1046,10 @@ describe("createSessionLog", () => {
     expect(body.properties.Date.date.start).toBe("2026-07-15T13:41:00.000Z")
     expect(body.properties.Channel.select.name).toBe("tui")
     expect(body.properties.Origin.select.name).toBe("지시")
+    expect(body.properties.Agent.select.name).toBe("dakota")
     expect(body.properties.Domain.select.name).toBe("Family")
+    expect(body.properties.Summary.rich_text[0].text.content).toBe("제주패스 로그인 후 렌터카 예약 진행")
+    expect(body.properties.Outcome.select.name).toBe("완료")
     expect(body.properties.Tags.multi_select).toEqual([{ name: "여행" }])
     expect(body.properties["Msg Count"].number).toBe(80)
     expect(body.properties["Session Key"].rich_text[0].text.content).toBe("s-42")
