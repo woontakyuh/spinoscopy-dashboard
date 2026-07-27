@@ -72,6 +72,19 @@ describe("readSessionLogSnapshot", () => {
     expect(JSON.parse(fetchMock.mock.calls[1][1].body).start_cursor).toBe("cur-1")
   })
 
+  it("(I3) has_more가 true인데 next_cursor가 없으면 던진다", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        results: [sessionLogPage({ key: "s-1" })],
+        has_more: true,
+        next_cursor: null,
+      }),
+    }))
+
+    await expect(readSessionLogSnapshot()).rejects.toThrow(/next_cursor/)
+  })
+
   it("DB 미설정이면 빈 스냅샷을 준다", async () => {
     delete process.env.NOTION_DAKOTA_SESSION_LOG_DB_ID
     const snapshot = await readSessionLogSnapshot()
