@@ -2508,3 +2508,93 @@ sync의 가드는 `refToPageId`(이번 런에서 만든 것) 다음으로 이 �
 - `createAnthropicPromoter`의 `generateObject` 에러 처리 없음 — 실패 시 그 날짜에서 런이 죽고,
   다음 런이 이어서 처리한다. I2 수정으로 집계가 자가치유되므로 부분 실패가 안전해졌다.
 - `fresh.length === 0`일 때 `완료`를 안 찍는 로그 불일치 — 정보성.
+
+---
+
+## 변경: LLM을 Anthropic API에서 Codex(ChatGPT OAuth)로
+
+센터장님 결정 — backfill과 sync의 LLM 호출을 API 키가 아니라 이미 로그인된
+ChatGPT OAuth로 수행한다. `ANTHROPIC_API_KEY`는 더 이상 필요 없다.
+
+`createAnthropicPromoter()`를 **삭제하고** `createCodexPromoter()`로 대체한다.
+쓰지 않을 경로를 남기지 않는다.
+
+### 실측 (2026-07-27)
+
+| 항목 | 값 |
+|---|---|
+| codex CLI | `/Users/TakMD/.local/bin/codex` v0.145.0, `~/.codex/auth.json`로 OAuth 인증됨 |
+| 호출당 소요 | 약 7.3초 (`--ignore-user-config` 적용 시. 미적용 시 45초+) |
+| 호출당 입력 토큰 | 약 20.9k (에이전트 기본 프롬프트. 더 줄일 수 없음) |
+| backfill 총량 | 48일 × 7.3초 ≈ 6분 |
+
+두 함정이 있었다. 둘 다 반드시 피해야 한다.
+
+1. **stdin 대기.** 프롬프트를 인자로 줘도 codex는 stdin을 계속 읽어 무한 대기한다.
+   `stdio[0]`을 `"ignore"`로 두어야 한다(셸에서는 `</dev/null`).
+2. **사용자 설정 로딩.** `--ignore-user-config` 없이 돌리면 스킬·플러그인 설명이
+   컨텍스트에 실려 호출이 6배 느려진다. 인증은 이 플래그와 무관하게 유지된다.
+
+### 구현
+
+`lib/dakota-ledger/promote.ts`
+
+```typescript
+/** codex의 JSONL 이벤트 스트림에서 최종 agent_message 본문을 뽑는다. */
+export function extractAgentMessage(jsonl: string): string {
+  let last: string | null = null
+  for (const line of jsonl.split("\n")) {
+    if (!line.trim()) continue
+    let event: { type?: string; item?: { type?: string; text?: string } }
+    try {
+      event = JSON.parse(line)
+    } catch {
+      continue // codex는 사람용 로그 줄을 섞어 낸다
+    }
+    if (event.type === "item.completed" && event.item?.type === "agent_message" && event.item.text) {
+      last = event.item.text
+    }
+  }
+  if (!last) throw new Error(`codex 응답에서 agent_message를 찾지 못했습니다:\n${jsonl.slice(-800)}`)
+  return last
+}
+
+export function createCodexPromoter(): Promoter {
+  const bin = process.env.CODEX_BIN ?? "codex"
+  const schemaPath = path.join(os.tmpdir(), "dakota-ledger-schema.json")
+  writeFileSync(schemaPath, JSON.stringify(z.toJSONSchema(promotionSchema, { target: "draft-7" })))
+
+  const args = [
+    "exec", "--json", "--ignore-user-config",
+    "--output-schema", schemaPath,
+    "--skip-git-repo-check", "--sandbox", "read-only",
+  ]
+  const model = process.env.DAKOTA_LEDGER_MODEL
+  if (model) args.push("--model", model)
+
+  return async (prompt: string) => {
+    const stdout = execFileSync(bin, [...args, prompt], {
+      stdio: ["ignore", "pipe", "pipe"],   // stdin 차단이 핵심
+      encoding: "utf8",
+      maxBuffer: 32 * 1024 * 1024,
+    })
+    return promotionSchema.parse(JSON.parse(extractAgentMessage(stdout)))
+  }
+}
+```
+
+`scripts/dakota-ledger-sync.ts`는 `createAnthropicPromoter()` 대신 `createCodexPromoter()`를 부른다.
+
+`launchd`는 PATH가 빈약하므로 `scripts/dakota-ledger-cron.sh`의 PATH에
+`/Users/TakMD/.local/bin`을 추가하거나 `CODEX_BIN`을 절대경로로 지정한다.
+
+### 테스트
+
+`extractAgentMessage`는 순수 함수이므로 전부 단위 테스트한다. codex는 실행하지 않는다.
+
+- 여러 `agent_message` 중 **마지막** 것을 고른다
+- JSON이 아닌 줄(`Reading additional input from stdin...`)을 건너뛴다
+- `item.completed`이지만 `type`이 `error`인 항목은 무시한다
+- `agent_message`가 없으면 던지고, 메시지에 원본 꼬리가 담긴다
+
+`.env.local`에서 `ANTHROPIC_API_KEY`는 불필요. `DAKOTA_LEDGER_MODEL`은 선택(미설정 시 codex 기본 모델).
