@@ -1619,6 +1619,27 @@ describe("enforceRules", () => {
     expect(out.operations).toHaveLength(0)
   })
 
+  it("LLM이 ref 규약을 어겨도 수행 세션은 신규 과제를 못 만든다", () => {
+    // 프롬프트는 "new:1" 형식을 요구하지만 강제할 수단이 없다.
+    // 접두사 판정만 있으면 이 케이스가 빠져나가 잡카드가 생긴다.
+    const result: PromotionResult = {
+      operations: [{ ...newOp("op-new-1") }],
+      sessions: [promoted({ sessionKey: "s-2", operationRef: "op-new-1" })],
+    }
+    const out = enforceRules(DAY, result)
+    expect(out.sessions[0].operationRef).toBeNull()
+    expect(out.operations).toHaveLength(0)
+  })
+
+  it("수행 세션이 매달린 신규 ref를 참조해도 비운다", () => {
+    // operations가 비어 있어 멤버십 판정으로는 안 잡히는 경우
+    const result: PromotionResult = {
+      operations: [],
+      sessions: [promoted({ sessionKey: "s-2", operationRef: "new:9" })],
+    }
+    expect(enforceRules(DAY, result).sessions[0].operationRef).toBeNull()
+  })
+
   it("수행 세션이 기존 과제를 참조하는 것은 허용한다", () => {
     const result: PromotionResult = {
       operations: [],
@@ -1767,8 +1788,14 @@ export function enforceRules(day: DaySessions, result: PromotionResult): Promoti
     .filter((s) => originByKey.has(s.sessionKey))
     .map((s) => {
       const origin = effectiveOrigin(originByKey.get(s.sessionKey)!, s.originOverride)
-      // 규칙 2: 수행 세션은 신규 과제를 만들 수 없다
-      if (origin === "수행" && s.operationRef && newRefs.has(s.operationRef)) {
+      // 규칙 2: 수행 세션은 신규 과제를 만들 수 없다.
+      //
+      // 판정을 두 겹으로 건다. 어느 하나도 다른 하나를 포함하지 못한다:
+      //  - newRefs 멤버십은 operations에 없는 매달린 ref("new:1"만 있고 과제는 없음)를 놓친다.
+      //  - "new:" 접두사는 LLM이 규약을 어기고 ref를 "op-new-1" 식으로 낸 경우를 놓친다.
+      // 둘 중 하나라도 걸리면 신규로 본다.
+      const ref = s.operationRef
+      if (origin === "수행" && ref && (newRefs.has(ref) || ref.startsWith("new:"))) {
         return { ...s, operationRef: null }
       }
       return s
@@ -1808,7 +1835,7 @@ export function createAnthropicPromoter(): Promoter {
 npm run test -- lib/dakota-ledger/promote.test.ts
 ```
 
-Expected: PASS — 11 passed
+Expected: PASS — 13 passed
 
 - [ ] **Step 5: 커밋**
 
