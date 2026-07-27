@@ -1,152 +1,167 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ArrowUpRight, ChevronRight, Loader2, X } from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
+import { ChevronDown, ChevronUp, ChevronsUpDown, Loader2 } from "lucide-react"
 import type { OperationItem } from "@/lib/notion/operations"
+import { OPERATION_DOMAINS } from "@/lib/notion/operations"
+import { computeStalledDays, isWithinPeriod, PERIOD_FILTERS, type PeriodFilter } from "@/lib/dakota-ledger/period"
+import { OperationDetail } from "./OperationDetail"
+import {
+  DOMAIN_LABEL,
+  DOMAIN_TONE,
+  fetchOperations,
+  PRIORITY_ORDER,
+  PRIORITY_TONE,
+  STATUS_LABEL,
+  STATUS_TONE,
+} from "./operationLabels"
 
-const LANES = [
-  { id: "In Progress", label: "지금 진행", description: "Dakota가 움직이고 있는 일", tone: "border-sky-400/35 bg-sky-500/[0.035]" },
-  { id: "Waiting", label: "센터장님 결정", description: "승인·선택·외부 회신이 필요한 일", tone: "border-amber-400/35 bg-amber-500/[0.035]" },
-  { id: "Inbox", label: "반복 운영", description: "계속 굴러가고 있는 routine", tone: "border-violet-400/35 bg-violet-500/[0.035]" },
-  { id: "Completed", label: "최근 마침", description: "이번 달 닫힌 주요 일", tone: "border-emerald-400/35 bg-emerald-500/[0.035]" },
-] as const
+type DomainFilter = "전체" | OperationItem["domain"]
+const DOMAIN_FILTERS: DomainFilter[] = ["전체", ...OPERATION_DOMAINS]
 
-type OperationStatus = (typeof LANES)[number]["id"] | "Archived"
-type OperationsResponse = { configured: boolean; operations: OperationItem[] }
+const CLOSED_STATUSES = new Set<OperationItem["status"]>(["Completed", "Archived"])
 
-const DOMAIN_LABEL: Record<string, string> = {
-  Strategy: "전략·기회",
-  Clinical: "임상",
-  Research: "KSOR·연구",
-  AI: "AI·시스템",
-  Family: "가족",
-  Personal: "개인",
-  Operations: "운영",
+type SortKey =
+  | "name" | "domain" | "status" | "priority"
+  | "session_count" | "msg_total" | "started_at" | "last_touched"
+  | "stalled_days" | "next_action"
+type SortDirection = "asc" | "desc"
+
+interface SortState {
+  key: SortKey
+  direction: SortDirection
 }
 
-const DOMAIN_TONE: Record<string, string> = {
-  Strategy: "bg-violet-400/10 text-violet-200",
-  Clinical: "bg-orange-400/10 text-orange-200",
-  Research: "bg-blue-400/10 text-blue-200",
-  AI: "bg-cyan-400/10 text-cyan-200",
-  Family: "bg-emerald-400/10 text-emerald-200",
-  Personal: "bg-pink-400/10 text-pink-200",
-  Operations: "bg-zinc-400/10 text-zinc-300",
+interface Column {
+  key: SortKey
+  label: string
+  align?: "right"
 }
 
-const DOMAIN_FILTERS = ["All", "Research", "AI", "Operations", "Family", "Personal", "Strategy", "Clinical"] as const
+const COLUMNS: Column[] = [
+  { key: "name", label: "과제명" },
+  { key: "domain", label: "도메인" },
+  { key: "status", label: "상태" },
+  { key: "priority", label: "우선순위" },
+  { key: "session_count", label: "세션", align: "right" },
+  { key: "msg_total", label: "메시지", align: "right" },
+  { key: "started_at", label: "시작" },
+  { key: "last_touched", label: "최근" },
+  { key: "stalled_days", label: "정체일수", align: "right" },
+  { key: "next_action", label: "다음 행동" },
+]
 
-async function fetchOperations(): Promise<OperationsResponse> {
-  const response = await fetch("/api/dakota/operations")
-  if (!response.ok) throw new Error("운영 기록을 불러오지 못했습니다.")
-  return response.json()
+const DEFAULT_DIRECTION: Record<SortKey, SortDirection> = {
+  name: "asc",
+  domain: "asc",
+  status: "asc",
+  priority: "desc",
+  session_count: "desc",
+  msg_total: "desc",
+  started_at: "desc",
+  last_touched: "desc",
+  stalled_days: "desc",
+  next_action: "asc",
 }
 
-async function updateStatus(pageId: string, status: OperationStatus): Promise<void> {
-  const response = await fetch("/api/dakota/operations", {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ page_id: pageId, status }),
+interface Row {
+  item: OperationItem
+  stalledDays: number | null
+}
+
+/** null은 정렬 방향과 무관하게 항상 맨 뒤로 보낸다. */
+function compareNullableLast<T>(a: T | null, b: T | null, compare: (a: T, b: T) => number): number {
+  if (a === null && b === null) return 0
+  if (a === null) return 1
+  if (b === null) return -1
+  return compare(a, b)
+}
+
+function sortRows(rows: Row[], sort: SortState): Row[] {
+  const dir = sort.direction === "asc" ? 1 : -1
+  return [...rows].sort((ra, rb) => {
+    switch (sort.key) {
+      case "name":
+        return dir * ra.item.name.localeCompare(rb.item.name, "ko")
+      case "domain":
+        return dir * (DOMAIN_LABEL[ra.item.domain] ?? ra.item.domain).localeCompare(DOMAIN_LABEL[rb.item.domain] ?? rb.item.domain, "ko")
+      case "status":
+        return dir * (STATUS_LABEL[ra.item.status] ?? ra.item.status).localeCompare(STATUS_LABEL[rb.item.status] ?? rb.item.status, "ko")
+      case "priority":
+        return dir * ((PRIORITY_ORDER[ra.item.priority] ?? 0) - (PRIORITY_ORDER[rb.item.priority] ?? 0))
+      case "session_count":
+        return dir * (ra.item.session_count - rb.item.session_count)
+      case "msg_total":
+        return dir * (ra.item.msg_total - rb.item.msg_total)
+      case "started_at":
+        return compareNullableLast(ra.item.started_at, rb.item.started_at, (a, b) => dir * (new Date(a).getTime() - new Date(b).getTime()))
+      case "last_touched":
+        return compareNullableLast(ra.item.last_touched, rb.item.last_touched, (a, b) => dir * (new Date(a).getTime() - new Date(b).getTime()))
+      case "stalled_days":
+        return compareNullableLast(ra.stalledDays, rb.stalledDays, (a, b) => dir * (a - b))
+      case "next_action":
+        return dir * ra.item.next_action.localeCompare(rb.item.next_action, "ko")
+      default:
+        return 0
+    }
   })
-  if (!response.ok) throw new Error("상태 변경에 실패했습니다.")
 }
 
-function DetailLine({ label, value, tone = "text-zinc-300" }: { label: string; value: string; tone?: string }) {
-  if (!value) return null
-  return (
-    <section>
-      <p className="mb-1.5 text-[11px] font-medium tracking-wide text-zinc-500">{label}</p>
-      <p className={`whitespace-pre-wrap text-sm leading-6 ${tone}`}>{value}</p>
-    </section>
-  )
+function formatDate(value: string | null): string {
+  return value ? value.slice(0, 10) : "–"
 }
 
-function OperationDetail({ item, close }: { item: OperationItem; close: () => void }) {
-  const queryClient = useQueryClient()
-  const mutation = useMutation({
-    mutationFn: (status: OperationStatus) => updateStatus(item.page_id, status),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dakota-operations"] }),
-  })
-
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/55 p-0 sm:p-4" role="dialog" aria-modal="true" aria-label={`${item.name} 상세`}>
-      <button className="absolute inset-0 cursor-default" onClick={close} aria-label="상세 닫기" />
-      <aside className="relative flex h-full w-full max-w-xl flex-col overflow-y-auto border-l border-zinc-700 bg-zinc-950 p-5 shadow-2xl sm:rounded-2xl sm:border">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <span className={`inline-flex rounded-md px-2 py-1 text-xs font-medium ${DOMAIN_TONE[item.domain] ?? DOMAIN_TONE.Operations}`}>
-              {DOMAIN_LABEL[item.domain] ?? item.domain}
-            </span>
-            <h2 className="mt-3 text-xl font-semibold leading-snug text-white">{item.name}</h2>
-            <p className="mt-2 text-xs text-zinc-500">마지막 업데이트 {item.updated_at}</p>
-          </div>
-          <button onClick={close} className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-800 hover:text-white" aria-label="닫기"><X className="h-5 w-5" /></button>
-        </div>
-
-        <div className="mt-7 space-y-6">
-          <DetailLine label="무슨 일인가" value={item.context} />
-          <DetailLine label="Dakota가 한 일" value={item.action_taken} tone="text-sky-100" />
-          <DetailLine label="현재 결과" value={item.result} tone="text-emerald-100" />
-          <DetailLine label="다음 행동" value={item.next_action} tone="text-amber-100" />
-        </div>
-
-        <div className="mt-auto border-t border-zinc-800 pt-5">
-          <p className="mb-2 text-[11px] font-medium tracking-wide text-zinc-500">상태</p>
-          <div className="flex flex-wrap gap-2">
-            {LANES.map((lane) => (
-              <button
-                key={lane.id}
-                onClick={() => mutation.mutate(lane.id)}
-                disabled={mutation.isPending || item.status === lane.id}
-                className={`rounded-lg border px-3 py-2 text-xs transition-colors ${item.status === lane.id ? "border-white/70 bg-white text-zinc-950" : "border-zinc-700 text-zinc-300 hover:border-zinc-500"}`}
-              >
-                {lane.label}
-              </button>
-            ))}
-          </div>
-          <a href={item.notion_url} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white">
-            Notion에서 열기 <ArrowUpRight className="h-3.5 w-3.5" />
-          </a>
-        </div>
-      </aside>
-    </div>
-  )
+function stalledTextTone(days: number | null): string {
+  if (days === null) return "text-zinc-600"
+  if (days > 30) return "text-red-300 font-semibold"
+  if (days > 14) return "text-amber-300 font-medium"
+  return "text-zinc-300"
 }
 
-function OperationCard({ item, open }: { item: OperationItem; open: () => void }) {
-  const preview = item.result || item.action_taken || item.next_action || item.context
-  return (
-    <button onClick={open} className="group w-full rounded-xl border border-zinc-800 bg-zinc-950/75 p-3.5 text-left transition hover:border-zinc-600 hover:bg-zinc-900">
-      <div className="flex items-start justify-between gap-2">
-        <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium ${DOMAIN_TONE[item.domain] ?? DOMAIN_TONE.Operations}`}>
-          {DOMAIN_LABEL[item.domain] ?? item.domain}
-        </span>
-        <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-zinc-600 transition group-hover:translate-x-0.5 group-hover:text-zinc-300" />
-      </div>
-      <h3 className="mt-3 text-sm font-semibold leading-5 text-zinc-100">{item.name}</h3>
-      {preview && <p className="mt-2 line-clamp-3 text-xs leading-5 text-zinc-400">{preview}</p>}
-      <p className="mt-3 text-[10px] text-zinc-600">{item.updated_at}</p>
-    </button>
-  )
+function SortIcon({ active, direction }: { active: boolean; direction: SortDirection }) {
+  if (!active) return <ChevronsUpDown className="h-3 w-3 text-zinc-600" />
+  return direction === "asc" ? <ChevronUp className="h-3 w-3 text-zinc-200" /> : <ChevronDown className="h-3 w-3 text-zinc-200" />
 }
 
 export function OperationsLedger() {
-  const [domain, setDomain] = useState<(typeof DOMAIN_FILTERS)[number]>("All")
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("전체")
+  const [domainFilter, setDomainFilter] = useState<DomainFilter>("전체")
+  const [sort, setSort] = useState<SortState>({ key: "stalled_days", direction: "desc" })
   const [selected, setSelected] = useState<OperationItem | null>(null)
+
+  const now = useMemo(() => new Date(), [])
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["dakota-operations"],
     queryFn: fetchOperations,
     refetchInterval: 60_000,
   })
 
-  const visible = useMemo(() => (data?.operations ?? []).filter((item) => domain === "All" || item.domain === domain), [data?.operations, domain])
-  const byStatus = useMemo(() => {
-    const groups = new Map<string, OperationItem[]>()
-    LANES.forEach((lane) => groups.set(lane.id, []))
-    visible.forEach((item) => groups.get(item.status)?.push(item))
-    return groups
-  }, [visible])
+  const total = data?.operations.length ?? 0
+
+  const visible = useMemo(
+    () =>
+      (data?.operations ?? []).filter(
+        (item) => (domainFilter === "전체" || item.domain === domainFilter) && isWithinPeriod(item.last_touched, periodFilter, now)
+      ),
+    [data?.operations, domainFilter, periodFilter, now]
+  )
+
+  const rows = useMemo<Row[]>(
+    () =>
+      visible.map((item) => ({
+        item,
+        stalledDays: CLOSED_STATUSES.has(item.status) ? null : computeStalledDays(item.last_touched, now),
+      })),
+    [visible, now]
+  )
+
+  const sortedRows = useMemo(() => sortRows(rows, sort), [rows, sort])
+
+  function toggleSort(key: SortKey) {
+    setSort((prev) => (prev.key === key ? { key, direction: prev.direction === "asc" ? "desc" : "asc" } : { key, direction: DEFAULT_DIRECTION[key] }))
+  }
 
   if (isLoading) return <div className="flex h-48 items-center justify-center text-sm text-zinc-400"><Loader2 className="mr-2 h-4 w-4 animate-spin" />기록을 여는 중입니다.</div>
   if (error) return <p className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-200">{error.message}</p>
@@ -154,41 +169,93 @@ export function OperationsLedger() {
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-col gap-4 border-b border-zinc-800 pb-5 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-xs font-medium tracking-[0.18em] text-zinc-500">DAKOTA · OPERATING REVIEW</p>
-          <h1 className="mt-1 text-xl font-semibold text-white">이번 달, 우리가 실제로 한 일</h1>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {DOMAIN_FILTERS.map((filter) => (
-            <button key={filter} onClick={() => setDomain(filter)} className={`rounded-md px-2.5 py-1.5 text-xs transition ${domain === filter ? "bg-white text-zinc-950" : "text-zinc-400 hover:bg-zinc-900 hover:text-white"}`}>
-              {filter === "All" ? "전체" : DOMAIN_LABEL[filter] ?? filter}
+      <header className="border-b border-zinc-800 pb-5">
+        <p className="text-xs font-medium tracking-[0.18em] text-zinc-500">DAKOTA · OPERATING REVIEW</p>
+        <h1 className="mt-1 text-xl font-semibold text-white">Dakota가 실제로 한 일</h1>
+      </header>
+
+      <div className="flex flex-col gap-3 border-b border-zinc-800 pb-4">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-[11px] font-medium tracking-wide text-zinc-500">기간</span>
+          {PERIOD_FILTERS.map((filter) => (
+            <button
+              key={filter}
+              onClick={() => setPeriodFilter(filter)}
+              className={`rounded-md px-2.5 py-1.5 text-xs transition ${periodFilter === filter ? "bg-white text-zinc-950" : "text-zinc-400 hover:bg-zinc-900 hover:text-white"}`}
+            >
+              {filter}
             </button>
           ))}
         </div>
-      </header>
-
-      <section className="overflow-x-auto pb-2">
-        <div className="grid min-w-[1040px] grid-cols-4 gap-3">
-          {LANES.map((lane) => {
-            const items = byStatus.get(lane.id) ?? []
-            return (
-              <section key={lane.id} className={`rounded-2xl border p-3 ${lane.tone}`}>
-                <div className="mb-3 border-b border-white/5 px-1 pb-3">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-semibold text-zinc-100">{lane.label}</h2>
-                    <span className="rounded-full bg-zinc-950/70 px-2 py-0.5 text-xs text-zinc-400">{items.length}</span>
-                  </div>
-                  <p className="mt-1 text-[11px] text-zinc-500">{lane.description}</p>
-                </div>
-                <div className="space-y-2.5">
-                  {items.length === 0 ? <p className="px-1 py-5 text-xs text-zinc-600">없음</p> : items.map((item) => <OperationCard key={item.page_id} item={item} open={() => setSelected(item)} />)}
-                </div>
-              </section>
-            )
-          })}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-[11px] font-medium tracking-wide text-zinc-500">도메인</span>
+          {DOMAIN_FILTERS.map((filter) => (
+            <button
+              key={filter}
+              onClick={() => setDomainFilter(filter)}
+              className={`rounded-md px-2.5 py-1.5 text-xs transition ${domainFilter === filter ? "bg-white text-zinc-950" : "text-zinc-400 hover:bg-zinc-900 hover:text-white"}`}
+            >
+              {filter === "전체" ? "전체" : DOMAIN_LABEL[filter] ?? filter}
+            </button>
+          ))}
+          <span className="ml-auto shrink-0 text-xs text-zinc-500">{sortedRows.length} / {total}</span>
         </div>
-      </section>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-zinc-800">
+        <table className="w-full min-w-[980px] border-collapse text-xs">
+          <thead>
+            <tr className="border-b border-zinc-800 bg-zinc-950/60 text-zinc-500">
+              {COLUMNS.map((col) => (
+                <th key={col.key} className={`whitespace-nowrap px-3 py-2.5 font-medium ${col.align === "right" ? "text-right" : "text-left"}`}>
+                  <button
+                    onClick={() => toggleSort(col.key)}
+                    className={`inline-flex items-center gap-1 hover:text-zinc-200 ${col.align === "right" ? "flex-row-reverse" : ""}`}
+                  >
+                    {col.label}
+                    <SortIcon active={sort.key === col.key} direction={sort.direction} />
+                  </button>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sortedRows.length === 0 && (
+              <tr>
+                <td colSpan={COLUMNS.length} className="px-3 py-8 text-center text-zinc-600">조건에 맞는 기록이 없습니다.</td>
+              </tr>
+            )}
+            {sortedRows.map(({ item, stalledDays }) => (
+              <tr
+                key={item.page_id}
+                onClick={() => setSelected(item)}
+                className="cursor-pointer border-b border-zinc-900 last:border-0 hover:bg-zinc-900/50"
+              >
+                <td className="max-w-[240px] truncate px-3 py-2.5 font-medium text-zinc-100" title={item.name}>{item.name}</td>
+                <td className="px-3 py-2.5">
+                  <span className={`inline-flex whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10px] font-medium ${DOMAIN_TONE[item.domain] ?? DOMAIN_TONE.Operations}`}>
+                    {DOMAIN_LABEL[item.domain] ?? item.domain}
+                  </span>
+                </td>
+                <td className="px-3 py-2.5">
+                  <span className={`inline-flex whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10px] font-medium ${STATUS_TONE[item.status] ?? STATUS_TONE.Inbox}`}>
+                    {STATUS_LABEL[item.status] ?? item.status}
+                  </span>
+                </td>
+                <td className={`whitespace-nowrap px-3 py-2.5 ${PRIORITY_TONE[item.priority] ?? "text-zinc-400"}`}>{item.priority}</td>
+                <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-zinc-300">{item.session_count}</td>
+                <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-zinc-300">{item.msg_total}</td>
+                <td className="whitespace-nowrap px-3 py-2.5 text-zinc-400">{formatDate(item.started_at)}</td>
+                <td className="whitespace-nowrap px-3 py-2.5 text-zinc-400">{formatDate(item.last_touched)}</td>
+                <td className={`whitespace-nowrap px-3 py-2.5 text-right tabular-nums ${stalledTextTone(stalledDays)}`}>
+                  {stalledDays === null ? "–" : `${stalledDays}일`}
+                </td>
+                <td className="max-w-[280px] truncate px-3 py-2.5 text-zinc-400" title={item.next_action}>{item.next_action || "–"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {selected && <OperationDetail item={selected} close={() => setSelected(null)} />}
     </div>
