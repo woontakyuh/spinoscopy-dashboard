@@ -8,6 +8,8 @@
     "dakota:manifest": "tsx scripts/generate-dakota-manifest.ts",
     "telegram:bot": "tsx scripts/telegram-bot.ts",
     "telegram:bot:force": "DAKOTA_TELEGRAM_ALLOW_GATEWAY_CONFLICT=1 tsx scripts/telegram-bot.ts",
+    "ledger:schema": "tsx --env-file=.env.local scripts/dakota-ledger-schema.ts",
+    "ledger:sync": "tsx --env-file=.env.local scripts/dakota-ledger-sync.ts",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",

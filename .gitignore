@@ -46,6 +46,8 @@ scripts/*
 !scripts/social-collector
 !scripts/journal-collector
 !scripts/fulltext-worker
+!scripts/dakota-ledger-sync.ts
+!scripts/dakota-ledger-sync.test.ts
 
 # legacy planning tool
 .sisyphus/
@@ -58,3 +60,4 @@ credentials.json
 .claude/worktrees/
 .codex/
 .hermes/runtime/
+!scripts/dakota-ledger-schema.ts
