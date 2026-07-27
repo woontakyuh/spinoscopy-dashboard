@@ -618,6 +618,36 @@ describe("classifyOrigin", () => {
   it("페르소나 지정 프롬프트는 수행", () => {
     expect(classifyOrigin(raw({ firstUserMessage: "You are Andrej, AI specialist." }))).toBe("수행")
     expect(classifyOrigin(raw({ firstUserMessage: "Brian으로서 이번 주 논문을 정리해" }))).toBe("수행")
+    expect(classifyOrigin(raw({ firstUserMessage: "As Warren, give a cold view on SpaceX IPO" }))).toBe("수행")
+  })
+
+  it("일상 한국어 '~로서'는 수행이 아니다", () => {
+    // 오탐 시 센터장님의 실제 지시가 칸반에서 사라진다
+    expect(classifyOrigin(raw({ firstUserMessage: "의사로서 이 환자는 수술이 필요해 보이는데 어떻게 생각해?" }))).toBe("지시")
+    expect(classifyOrigin(raw({ firstUserMessage: "부모로서 걱정되는 부분이 있어" }))).toBe("지시")
+  })
+
+  it("cron 산출물이 텔레그램으로 유입된 것은 수행", () => {
+    expect(classifyOrigin(raw({ firstUserMessage: "Cronjob Response: ExoBrain wiki sync ---" }))).toBe("수행")
+  })
+
+  // 실제 state.db에서 '지시'로 오분류됐던 문구들 (2026-07-27 실측)
+  it.each([
+    "Audit the current ExoBrain LLM Wiki sync implementation for correctness",
+    "Write the final standalone report for 에르메스단. Start exactly",
+    "Design a concrete capability and approval policy for six agents.",
+    "Create a concise high-signal AI/social update brief in Korean",
+  ])("실측 오분류 회귀: %s", (text) => {
+    expect(classifyOrigin(raw({ firstUserMessage: text }))).toBe("수행")
+  })
+
+  // 실제 센터장님 발화. 보강한 동사 목록에 걸리면 안 된다.
+  it.each([
+    ["My experience of the Aside was amazing… Thanks for developing this", 5],
+    ["hermes gaitway start", 8],
+    ["chatGPT 서버 터지면서 뻑났었ㄷ는듯?", 8],
+  ])("사용자 발화는 지시로 남는다: %s", (text, count) => {
+    expect(classifyOrigin(raw({ firstUserMessage: text, messageCount: count as number }))).toBe("지시")
   })
 
   it("파일 경로가 섞이면 수행", () => {
@@ -713,10 +743,20 @@ import type { ClassifiedSession, DaySessions, LedgerOrigin, RawSession } from ".
 
 /** 에이전트 디스패치 프롬프트가 시작하는 영어 명령형 동사 */
 const DISPATCH_VERB =
-  /^\s*(you are |analyze |deep-digest |summarize |produce |retrieve |find |research |review |inspect |use the |collect |compare |draft |generate )/i
+  /^\s*(you are |act as |analyze |audit |collect |compare |create |deep-digest |design |draft |find |generate |inspect |produce |research |retrieve |review |summarize |use the |write )/i
 
-/** "Brian으로서", "Andrej로서" 같은 한글 페르소나 지정 */
-const PERSONA_KO = /(으로서|로서)\s/
+/** "As Warren, ..." 형태의 영문 페르소나 지정. 대소문자를 구분해야 오탐이 없다. */
+const PERSONA_EN = /^\s*As [A-Z][a-z]+,/
+
+/**
+ * "Brian으로서" 처럼 영문 이름 뒤에 붙은 경우만 페르소나 지정으로 본다.
+ * "의사로서", "부모로서" 같은 일상 한국어 조사까지 잡으면
+ * 센터장님의 실제 지시가 수행으로 오분류돼 칸반에서 사라진다.
+ */
+const PERSONA_KO = /[A-Z][a-zA-Z]*(으로서|로서)\s/
+
+/** cron 산출물이 텔레그램 세션으로 유입된 것. 장부 대상이 아니다. */
+const CRON_RELAY = /^\s*Cronjob Response:/i
 
 /** 논의로 볼 최소 메시지 수 */
 const DISCUSSION_MIN_MESSAGES = 30
@@ -729,6 +769,8 @@ export function classifyOrigin(session: RawSession): LedgerOrigin {
   const head = session.firstUserMessage.slice(0, 40)
   if (
     DISPATCH_VERB.test(session.firstUserMessage) ||
+    PERSONA_EN.test(session.firstUserMessage) ||
+    CRON_RELAY.test(session.firstUserMessage) ||
     session.firstUserMessage.includes("/tmp/") ||
     PERSONA_KO.test(head)
   ) {
@@ -817,7 +859,7 @@ export function buildDayContext(
 npm run test -- lib/dakota-ledger/classify.test.ts
 ```
 
-Expected: PASS — 14 passed
+Expected: PASS — 23 passed
 
 - [ ] **Step 5: 실제 데이터로 Origin 분포 확인**
 
@@ -833,7 +875,10 @@ console.log("활동일:", groupByDay(s).length)
 '
 ```
 
-Expected: `Origin: { 지시: 64, 논의: 84, 수행: 48 }`, `활동일: 48` (이후 세션이 더 쌓였다면 값이 커질 수 있다. 세 키가 모두 존재하고 합이 세션 수와 같으면 정상)
+Expected: 세 Origin 키가 모두 존재하고 합이 세션 수와 같다. 활동일 48일 내외.
+
+휴리스틱 보강 전 실측은 `{ 지시: 64, 논의: 84, 수행: 48 }`였으나, 그 `지시` 64건에 디스패치 19건이 섞여 있었다.
+보강 후에는 `수행`이 60건대로 늘고 `지시`가 그만큼 줄어야 정상이다. `수행`이 48에서 늘지 않았다면 보강이 먹지 않은 것이다.
 
 - [ ] **Step 6: 커밋**
 
@@ -1383,7 +1428,7 @@ git commit -m "feat(ledger): Operations 확장 속성 매핑 + Finance/Training 
 - Consumes: `DaySessions` from `./types`; `buildDayContext` from `./classify`; `OperationItem` from `@/lib/notion/operations`
 - Produces:
   - `const promotionSchema` (zod)
-  - `interface PromotedSession { sessionKey: string; name: string; summary: string; domain: LedgerDomain; tags: string[]; outcome: LedgerOutcome; agent: LedgerAgent; operationRef: string | null }`
+  - `interface PromotedSession { sessionKey: string; name: string; summary: string; domain: LedgerDomain; tags: string[]; outcome: LedgerOutcome; agent: LedgerAgent; operationRef: string | null; originOverride: "수행" | null }`
   - `interface PromotedOperation { ref: string; name: string; domain: LedgerDomain; tags: string[]; type: string; status: string; priority: string; context: string; actionTaken: string; result: string; nextAction: string }`
   - `interface PromotionResult { sessions: PromotedSession[]; operations: PromotedOperation[] }`
   - `type Promoter = (prompt: string) => Promise<PromotionResult>`
@@ -1398,8 +1443,8 @@ git commit -m "feat(ledger): Operations 확장 속성 매핑 + Finance/Training 
 
 ```typescript
 import { describe, expect, it, vi } from "vitest"
-import { buildPrompt, enforceRules, promoteDay } from "./promote"
-import type { PromotionResult } from "./promote"
+import { buildPrompt, effectiveOrigin, enforceRules, promoteDay } from "./promote"
+import type { PromotedOperation, PromotedSession, PromotionResult } from "./promote"
 import type { ClassifiedSession, DaySessions } from "./types"
 
 function session(over: Partial<ClassifiedSession> = {}): ClassifiedSession {
@@ -1433,17 +1478,43 @@ describe("buildPrompt", () => {
   })
 })
 
+function promoted(over: Partial<PromotedSession> = {}): PromotedSession {
+  return {
+    sessionKey: "s-1", name: "a", summary: "", domain: "AI", tags: [],
+    outcome: "완료", agent: "dakota", operationRef: null, originOverride: null, ...over,
+  }
+}
+
+function newOp(ref: string): PromotedOperation {
+  return {
+    ref, name: "새 과제", domain: "AI", tags: [], type: "Execution",
+    status: "In Progress", priority: "Medium", context: "", actionTaken: "",
+    result: "", nextAction: "",
+  }
+}
+
+describe("effectiveOrigin", () => {
+  it("지시를 수행으로 강등한다", () => {
+    expect(effectiveOrigin("지시", "수행")).toBe("수행")
+  })
+
+  it("논의를 수행으로 강등한다", () => {
+    expect(effectiveOrigin("논의", "수행")).toBe("수행")
+  })
+
+  it("override가 없으면 휴리스틱을 그대로 쓴다", () => {
+    expect(effectiveOrigin("지시", null)).toBe("지시")
+    expect(effectiveOrigin("수행", null)).toBe("수행")
+  })
+})
+
 describe("enforceRules", () => {
   it("수행 세션이 신규 과제를 참조하면 operationRef를 비운다", () => {
     const result: PromotionResult = {
-      operations: [{
-        ref: "new:1", name: "새 과제", domain: "AI", tags: [], type: "Execution",
-        status: "In Progress", priority: "Medium", context: "", actionTaken: "",
-        result: "", nextAction: "",
-      }],
+      operations: [newOp("new:1")],
       sessions: [
-        { sessionKey: "s-1", name: "a", summary: "", domain: "AI", tags: [], outcome: "완료", agent: "dakota", operationRef: "new:1" },
-        { sessionKey: "s-2", name: "b", summary: "", domain: "AI", tags: [], outcome: "완료", agent: "dakota", operationRef: "new:1" },
+        promoted({ sessionKey: "s-1", operationRef: "new:1" }),
+        promoted({ sessionKey: "s-2", operationRef: "new:1" }),
       ],
     }
     const out = enforceRules(DAY, result)
@@ -1451,12 +1522,21 @@ describe("enforceRules", () => {
     expect(out.sessions.find((s) => s.sessionKey === "s-2")!.operationRef).toBeNull()
   })
 
+  it("LLM이 지시 세션을 수행으로 강등하면 신규 과제를 못 만든다", () => {
+    // s-1은 휴리스틱상 지시지만 LLM이 디스패치로 판정
+    const result: PromotionResult = {
+      operations: [newOp("new:1")],
+      sessions: [promoted({ sessionKey: "s-1", operationRef: "new:1", originOverride: "수행" })],
+    }
+    const out = enforceRules(DAY, result)
+    expect(out.sessions[0].operationRef).toBeNull()
+    expect(out.operations).toHaveLength(0)
+  })
+
   it("수행 세션이 기존 과제를 참조하는 것은 허용한다", () => {
     const result: PromotionResult = {
       operations: [],
-      sessions: [
-        { sessionKey: "s-2", name: "b", summary: "", domain: "AI", tags: [], outcome: "완료", agent: "dakota", operationRef: "op-1" },
-      ],
+      sessions: [promoted({ sessionKey: "s-2", operationRef: "op-1" })],
     }
     expect(enforceRules(DAY, result).sessions[0].operationRef).toBe("op-1")
   })
@@ -1464,19 +1544,14 @@ describe("enforceRules", () => {
   it("그날에 없는 세션 키는 버린다", () => {
     const result: PromotionResult = {
       operations: [],
-      sessions: [
-        { sessionKey: "s-999", name: "환각", summary: "", domain: "AI", tags: [], outcome: "완료", agent: "dakota", operationRef: null },
-      ],
+      sessions: [promoted({ sessionKey: "s-999", name: "환각" })],
     }
     expect(enforceRules(DAY, result).sessions).toHaveLength(0)
   })
 
   it("아무 세션도 참조하지 않는 신규 과제는 버린다", () => {
     const result: PromotionResult = {
-      operations: [{
-        ref: "new:9", name: "고아 과제", domain: "AI", tags: [], type: "Execution",
-        status: "Inbox", priority: "Low", context: "", actionTaken: "", result: "", nextAction: "",
-      }],
+      operations: [newOp("new:9")],
       sessions: [],
     }
     expect(enforceRules(DAY, result).operations).toHaveLength(0)
@@ -1487,9 +1562,7 @@ describe("promoteDay", () => {
   it("promoter 결과에 규칙을 적용해 돌려준다", async () => {
     const promoter = vi.fn().mockResolvedValue({
       operations: [],
-      sessions: [
-        { sessionKey: "s-2", name: "b", summary: "", domain: "AI", tags: [], outcome: "완료", agent: "dakota", operationRef: "new:1" },
-      ],
+      sessions: [promoted({ sessionKey: "s-2", operationRef: "new:1" })],
     } satisfies PromotionResult)
 
     const out = await promoteDay(DAY, EXISTING, promoter)
@@ -1517,7 +1590,7 @@ import { generateObject } from "ai"
 import { z } from "zod"
 import type { OperationItem } from "@/lib/notion/operations"
 import { buildDayContext } from "./classify"
-import { LEDGER_DOMAINS, type DaySessions, type LedgerDomain } from "./types"
+import { LEDGER_DOMAINS, type DaySessions, type LedgerDomain, type LedgerOrigin } from "./types"
 
 const promotedSessionSchema = z.object({
   sessionKey: z.string(),
@@ -1528,6 +1601,11 @@ const promotedSessionSchema = z.object({
   outcome: z.enum(["완료", "진행", "보류", "단발조회"]),
   agent: z.enum(["dakota", "elon", "brian", "andrej", "warren", "lo"]),
   operationRef: z.string().nullable(),
+  /**
+   * 휴리스틱이 지시/논의로 봤지만 본문상 명백한 에이전트 실행이면 "수행"을 넣는다.
+   * 강등 전용이다 — 수행을 지시/논의로 올리는 방향은 enforceRules가 무시한다.
+   */
+  originOverride: z.enum(["수행"]).nullable(),
 })
 
 const promotedOperationSchema = z.object({
@@ -1573,12 +1651,25 @@ export function buildPrompt(day: DaySessions, existing: OperationItem[]): string
 7. tags는 domain을 가로지르는 성격을 넣습니다. 예: 연구 과제인데 AI 성격이면 tags에 "AI".
 8. name은 한국어 한 줄, summary는 한국어 3~5줄로 씁니다.
 9. 입력에 있는 sessionKey만 사용하세요. 없는 키를 지어내지 마세요.
+10. 각 세션에는 이미 Origin(지시/논의/수행)이 붙어 있습니다. 그런데 지시나 논의로 붙은 것 중 본문을 보면 명백히 에이전트에게 내린 실행 프롬프트인 경우가 있습니다(정형화된 영어 명령문, 페르소나 지정, 산출물 형식 지정 등). 그런 세션은 originOverride에 "수행"을 넣으세요. 그 외에는 전부 null입니다. 수행으로 붙은 것을 지시나 논의로 되돌리는 값은 넣을 수 없습니다.
 
 ## 기존 과제 (page_id | 이름 | domain | status)
 ${existingList}
 
 ## 오늘의 세션
 ${buildDayContext(day)}`
+}
+
+/**
+ * 세션의 실효 Origin. LLM은 지시/논의를 수행으로 강등만 할 수 있고,
+ * 수행을 지시/논의로 올릴 수는 없다. 휴리스틱이 놓친 디스패치를 LLM이 잡되,
+ * 휴리스틱이 이미 수행으로 판정한 것은 LLM이 되돌리지 못하게 한다.
+ */
+export function effectiveOrigin(
+  heuristic: LedgerOrigin,
+  override: "수행" | null
+): LedgerOrigin {
+  return override === "수행" ? "수행" : heuristic
 }
 
 /** LLM 출력이 규칙을 어겼을 때 코드로 강제한다. */
@@ -1589,7 +1680,7 @@ export function enforceRules(day: DaySessions, result: PromotionResult): Promoti
   const sessions = result.sessions
     .filter((s) => originByKey.has(s.sessionKey))
     .map((s) => {
-      const origin = originByKey.get(s.sessionKey)
+      const origin = effectiveOrigin(originByKey.get(s.sessionKey)!, s.originOverride)
       // 규칙 2: 수행 세션은 신규 과제를 만들 수 없다
       if (origin === "수행" && s.operationRef && newRefs.has(s.operationRef)) {
         return { ...s, operationRef: null }
@@ -1631,7 +1722,7 @@ export function createAnthropicPromoter(): Promoter {
 npm run test -- lib/dakota-ledger/promote.test.ts
 ```
 
-Expected: PASS — 7 passed
+Expected: PASS — 11 passed
 
 - [ ] **Step 5: 커밋**
 
@@ -1712,7 +1803,7 @@ Expected: FAIL — `Failed to resolve import "./dakota-ledger-sync"`
 
 ```typescript
 import { classifySessions, groupByDay, toSeoulDate } from "../lib/dakota-ledger/classify"
-import { createAnthropicPromoter, promoteDay } from "../lib/dakota-ledger/promote"
+import { createAnthropicPromoter, effectiveOrigin, promoteDay } from "../lib/dakota-ledger/promote"
 import { readSessions } from "../lib/dakota-ledger/sessionSource"
 import { createOperation, getOperations, updateOperation } from "../lib/notion/operations"
 import { createSessionLog, listExistingSessionKeys } from "../lib/notion/sessionLog"
@@ -1787,7 +1878,9 @@ async function main() {
 
       await createSessionLog({
         name: s.name, date: source.startedAt, channel: source.channel,
-        origin: source.origin, agent: s.agent, domain: s.domain, tags: s.tags,
+        // 휴리스틱이 아니라 LLM 강등이 반영된 실효 Origin을 기록한다
+        origin: effectiveOrigin(source.origin, s.originOverride),
+        agent: s.agent, domain: s.domain, tags: s.tags,
         summary: s.summary, outcome: s.outcome, msgCount: source.messageCount,
         sessionKey: s.sessionKey, operationPageId: pageId,
       })
