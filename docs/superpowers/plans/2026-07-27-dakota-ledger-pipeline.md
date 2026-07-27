@@ -2419,3 +2419,92 @@ backfill 결과를 보고 대시보드 카테고리 렌즈를 설계한다. 실�
 - 정체 과제가 몇 건인지 → 경보 패널의 형태
 
 차트는 이미 의존성에 있는 `recharts`를 쓴다. 착수 전 `dataviz` 스킬을 읽는다.
+
+---
+
+## 수정 웨이브: sync 견고성 (Task 7 리뷰 후속)
+
+Task 7 리뷰에서 Important 3건이 나왔다. 이 스크립트는 되돌릴 수 없는 Notion 쓰기를
+하루 6번 수행하므로 셋 다 수정한다. 아래가 최종 상태이며, Task 4·5·7의 해당 부분을 대체한다.
+
+### I1 — dry-run이 기적재 조회를 건너뛴다
+
+`--dry-run`에서 `listExistingSessionKeys()`를 호출하지 않아 "기적재 제외 후 N건"이
+항상 원본 개수와 같고, 이미 적재된 세션까지 LLM에 다시 넣는다. 조회는 읽기이므로
+무조건 수행하고 **쓰기만** 건너뛴다.
+
+### I2 — 집계를 델타로 누적해 크래시 시 영구 어긋남
+
+`session_count`/`msg_total`을 "기존값 + 오늘치"로 갱신하는데, 하루 처리 도중 크래시하면
+이미 적재된 세션은 다음 런에서 `Session Key`로 영구 제외되므로 그 공수가 절대 반영되지 않는다.
+
+**절대값 재계산으로 바꾼다.** 이미 Session Log 전체를 훑고 있으므로 그 순회에서
+과제별 집계도 함께 모은다. 추가 API 호출은 없다.
+
+`lib/notion/sessionLog.ts`에서 `listExistingSessionKeys()`를 아래로 대체한다.
+
+```typescript
+export interface SessionLogSnapshot {
+  /** 이미 적재된 Session Key 전체 */
+  keys: Set<string>
+  /** 과제 page_id -> 이미 적재된 세션의 집계 */
+  byOperation: Map<string, { count: number; msgs: number }>
+}
+
+/**
+ * Session Log 전체를 한 번 훑어 중복 방지 키와 과제별 집계를 함께 반환한다.
+ * 집계를 델타로 누적하지 않고 매 런 실측에서 다시 세우므로,
+ * 이전 런이 도중에 죽어도 다음 런이 스스로 바로잡는다.
+ */
+export async function readSessionLogSnapshot(): Promise<SessionLogSnapshot>
+```
+
+`Session Key`에 더해 `Msg Count`(number)와 `Operation`(relation의 첫 id)을 읽는다.
+`Operation`이 비어 있으면 `byOperation`에 넣지 않는다.
+
+`scripts/dakota-ledger-sync.ts`는 스냅샷을 런 시작에 한 번 읽고,
+런 안에서 누적되는 사본을 유지하며 **절대값**을 쓴다.
+
+```typescript
+const snapshot = await readSessionLogSnapshot()
+const running = new Map(snapshot.byOperation)
+// ... 날짜 루프 안에서
+for (const [pageId, delta] of touched) {
+  const base = running.get(pageId) ?? { count: 0, msgs: 0 }
+  const next = { count: base.count + delta.count, msgs: base.msgs + delta.msgs }
+  running.set(pageId, next)
+  await updateOperation(pageId, {
+    last_touched: day.date,
+    session_count: next.count,
+    msg_total: next.msgs,
+  })
+}
+```
+
+`getOperations()`에서 baseline을 읽던 `before?.session_count` 경로는 제거한다. 그것이 드리프트의 원인이었다.
+
+### I3 — 가드가 필터·페이지 제한이 걸린 목록을 본다
+
+환각 `operationRef`를 막는 가드가 `getOperations()` 결과를 기준으로 삼는데,
+그 함수는 `Visibility != Private` 필터와 `page_size: 100`(페이지네이션 없음)이 걸려 있다.
+따라서 Private 과제나 100건을 넘어간 과제를 정당하게 참조해도 조용히 연결이 끊긴다.
+한 번 끊기면 그 세션은 다음 런에서 제외되므로 복구 경로가 없다.
+
+`lib/notion/operations.ts`에 가드 전용 조회를 추가한다.
+
+```typescript
+/**
+ * 가드 전용. Visibility 필터 없이 전수를 페이지네이션해 page_id만 모은다.
+ * getOperations()는 대시보드 표시용이라 Private을 빼고 100건에서 끊기므로
+ * 참조 유효성 판정에는 쓸 수 없다.
+ */
+export async function listAllOperationPageIds(): Promise<Set<string>>
+```
+
+sync의 가드는 `refToPageId`(이번 런에서 만든 것) 다음으로 이 집합을 본다.
+
+### 남기는 것
+
+- `createAnthropicPromoter`의 `generateObject` 에러 처리 없음 — 실패 시 그 날짜에서 런이 죽고,
+  다음 런이 이어서 처리한다. I2 수정으로 집계가 자가치유되므로 부분 실패가 안전해졌다.
+- `fresh.length === 0`일 때 `완료`를 안 찍는 로그 불일치 — 정보성.
