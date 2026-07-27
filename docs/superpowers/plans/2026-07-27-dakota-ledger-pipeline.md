@@ -315,6 +315,12 @@ git commit -m "feat(ledger): Notion 스키마 구축 스크립트 — Session Lo
 
 **Interfaces:**
 - Consumes: `node:sqlite`의 `DatabaseSync`
+
+> **주의:** 이 저장소에는 `@types/node@20`이 깔려 있어 `node:sqlite` 타입이 없고,
+> 대신 손으로 쓴 shim `types/node-sqlite.d.ts`가 있다. 그런데 그 shim이
+> `constructor(filename?: string)`만 선언해서 `{ readOnly: true }` 인자가 타입 에러가 난다.
+> 런타임(Node 22.22.3)은 옵션을 정상 처리한다. **shim을 실제 API에 맞게 넓혀야 한다** —
+> 안 하면 `next build`의 타입체크가 실패해 Vercel 배포가 깨진다.
 - Produces:
   - `type LedgerOrigin = "지시" | "논의" | "수행"`
   - `type LedgerChannel = "telegram" | "cli" | "tui" | "subagent"`
@@ -323,6 +329,22 @@ git commit -m "feat(ledger): Notion 스키마 구축 스크립트 — Session Lo
   - `type LedgerOutcome = "완료" | "진행" | "보류" | "단발조회"`
   - `interface RawSession { sessionKey: string; channel: LedgerChannel; startedAt: string; messageCount: number; firstUserMessage: string; lastAssistantMessage: string; toolNames: string[] }`
   - `readSessions(dbPath: string, sinceEpoch: number): RawSession[]`
+
+- [ ] **Step 0: `node:sqlite` 타입 shim 넓히기**
+
+`types/node-sqlite.d.ts`의 `DatabaseSync` 생성자를 Node 22의 실제 시그니처에 맞춘다.
+두 번째 인자가 선택적이므로 기존 `new DatabaseSync(path)` 호출은 그대로 통과한다.
+
+```typescript
+  export class DatabaseSync {
+    constructor(filename?: string, options?: { readOnly?: boolean; open?: boolean })
+    exec(sql: string): void
+    prepare(sql: string): StatementSync
+    close(): void
+  }
+```
+
+확인: `npx tsc --noEmit`에 `sessionSource.ts` 관련 에러가 없어야 한다.
 
 - [ ] **Step 1: 타입 파일 작성**
 
@@ -1275,15 +1297,20 @@ describe("getOperations", () => {
   })
 
   it("확장 속성이 비어 있어도 기본값으로 떨어진다", async () => {
+    // 라이브 DB에는 아직 이 5개 속성이 없다. 다섯 개 전부 폴백을 확인한다.
     const bare = { ...PAGE, properties: { ...PAGE.properties } }
-    delete (bare.properties as Record<string, unknown>).Tags
-    delete (bare.properties as Record<string, unknown>)["Session Count"]
+    for (const key of ["Tags", "Started At", "Last Touched", "Session Count", "Msg Total"]) {
+      delete (bare.properties as Record<string, unknown>)[key]
+    }
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true, json: async () => ({ results: [bare] }),
     }))
     const [item] = await getOperations()
     expect(item.tags).toEqual([])
+    expect(item.started_at).toBeNull()
+    expect(item.last_touched).toBeNull()
     expect(item.session_count).toBe(0)
+    expect(item.msg_total).toBe(0)
   })
 })
 
