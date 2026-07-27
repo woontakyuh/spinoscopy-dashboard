@@ -1,6 +1,7 @@
+import path from "node:path"
 import { classifySessions, groupByDay, toSeoulDate } from "../lib/dakota-ledger/classify"
 import { createCodexPromoter, effectiveOrigin, promoteDay } from "../lib/dakota-ledger/promote"
-import { readSessions } from "../lib/dakota-ledger/sessionSource"
+import { readAllSessions } from "../lib/dakota-ledger/sessionSource"
 import { createOperation, getOperations, listAllOperationPageIds, updateOperation } from "../lib/notion/operations"
 import { createSessionLog, readSessionLogSnapshot } from "../lib/notion/sessionLog"
 
@@ -42,8 +43,9 @@ export function nextOperationCounts(
 async function main() {
   const { since, dryRun } = parseArgs(process.argv.slice(2))
   const dbPath = process.env.HERMES_STATE_DB ?? `${process.env.HOME}/.hermes/state.db`
+  const jsonDir = process.env.HERMES_SESSIONS_DIR ?? `${path.dirname(dbPath)}/sessions`
 
-  const raw = readSessions(dbPath, since)
+  const raw = readAllSessions(dbPath, jsonDir, since)
   // I1: 조회는 읽기이므로 dry-run이어도 무조건 수행한다. 건너뛰는 건 아래 쓰기(create/update)뿐이다.
   const snapshot = await readSessionLogSnapshot()
   const fresh = raw.filter((s) => !snapshot.keys.has(s.sessionKey))
