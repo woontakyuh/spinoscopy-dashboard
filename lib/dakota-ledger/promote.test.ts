@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import { buildPrompt, effectiveOrigin, enforceRules, promoteDay } from "./promote"
+import { buildPrompt, effectiveOrigin, enforceRules, extractAgentMessage, promoteDay } from "./promote"
 import type { PromotedOperation, PromotedSession, PromotionResult } from "./promote"
 import type { ClassifiedSession, DaySessions } from "./types"
 
@@ -145,5 +145,53 @@ describe("promoteDay", () => {
     const out = await promoteDay(DAY, EXISTING, promoter)
     expect(promoter).toHaveBeenCalledOnce()
     expect(out.sessions[0].operationRef).toBeNull()
+  })
+})
+
+describe("extractAgentMessage", () => {
+  // 실측 codex --json 출력 (2026-07-27)
+  const REAL_OUTPUT = [
+    "Reading additional input from stdin...",
+    '{"type":"thread.started","thread_id":"019fa3cd-86c5-7ba3-a4a2-4e8131f754ee"}',
+    '{"type":"turn.started"}',
+    '{"type":"item.completed","item":{"id":"item_0","type":"error","message":"Skill descriptions were shortened to fit the 2% skills context budget."}}',
+    '{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"{\\"sessions\\":[]}"}}',
+    '{"type":"turn.completed","usage":{"input_tokens":20934,"output_tokens":37}}',
+  ].join("\n")
+
+  it("실측 출력에서 agent_message 본문을 뽑는다", () => {
+    expect(extractAgentMessage(REAL_OUTPUT)).toBe('{"sessions":[]}')
+  })
+
+  it("여러 agent_message 중 마지막 것을 고른다", () => {
+    const jsonl = [
+      '{"type":"item.completed","item":{"type":"agent_message","text":"first"}}',
+      '{"type":"item.completed","item":{"type":"agent_message","text":"second"}}',
+    ].join("\n")
+    expect(extractAgentMessage(jsonl)).toBe("second")
+  })
+
+  it("JSON이 아닌 줄을 건너뛴다", () => {
+    const jsonl = [
+      "Reading additional input from stdin...",
+      '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}',
+    ].join("\n")
+    expect(extractAgentMessage(jsonl)).toBe("ok")
+  })
+
+  it("item.completed이지만 type이 error인 항목은 무시한다", () => {
+    const jsonl = [
+      '{"type":"item.completed","item":{"type":"error","message":"오류"}}',
+      '{"type":"item.completed","item":{"type":"agent_message","text":"real"}}',
+    ].join("\n")
+    expect(extractAgentMessage(jsonl)).toBe("real")
+  })
+
+  it("agent_message가 없으면 던지고, 메시지에 원본 꼬리가 담긴다", () => {
+    const jsonl = [
+      '{"type":"thread.started","thread_id":"abc"}',
+      '{"type":"item.completed","item":{"type":"error","message":"실패"}}',
+    ].join("\n")
+    expect(() => extractAgentMessage(jsonl)).toThrow(jsonl.slice(-800))
   })
 })

@@ -1,5 +1,5 @@
 import { classifySessions, groupByDay, toSeoulDate } from "../lib/dakota-ledger/classify"
-import { createAnthropicPromoter, effectiveOrigin, promoteDay } from "../lib/dakota-ledger/promote"
+import { createCodexPromoter, effectiveOrigin, promoteDay } from "../lib/dakota-ledger/promote"
 import { readSessions } from "../lib/dakota-ledger/sessionSource"
 import { createOperation, getOperations, listAllOperationPageIds, updateOperation } from "../lib/notion/operations"
 import { createSessionLog, readSessionLogSnapshot } from "../lib/notion/sessionLog"
@@ -54,7 +54,7 @@ async function main() {
   const days = groupByDay(classifySessions(fresh))
   console.log(`활동일 ${days.length}일`)
 
-  const promoter = createAnthropicPromoter()
+  const promoter = createCodexPromoter()
   let operations = await getOperations()
   // I3: 환각 operationRef 가드 전용 전수 목록. Visibility 필터·100건 제한이 없다.
   // dry-run은 쓰기가 없어 가드를 타지 않으므로 조회를 건너뛴다.

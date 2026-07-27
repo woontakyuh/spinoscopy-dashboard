@@ -1,5 +1,7 @@
-import { anthropic } from "@ai-sdk/anthropic"
-import { generateObject } from "ai"
+import { execFileSync } from "node:child_process"
+import { writeFileSync } from "node:fs"
+import * as os from "node:os"
+import * as path from "node:path"
 import { z } from "zod"
 import type { OperationItem } from "@/lib/notion/operations"
 import { buildDayContext } from "./classify"
@@ -122,14 +124,44 @@ export async function promoteDay(
   return enforceRules(day, raw)
 }
 
-export function createAnthropicPromoter(): Promoter {
-  const model = process.env.DAKOTA_LEDGER_MODEL ?? "claude-sonnet-5"
+/** codex의 JSONL 이벤트 스트림에서 최종 agent_message 본문을 뽑는다. */
+export function extractAgentMessage(jsonl: string): string {
+  let last: string | null = null
+  for (const line of jsonl.split("\n")) {
+    if (!line.trim()) continue
+    let event: { type?: string; item?: { type?: string; text?: string } }
+    try {
+      event = JSON.parse(line)
+    } catch {
+      continue // codex는 사람용 로그 줄을 섞어 낸다
+    }
+    if (event.type === "item.completed" && event.item?.type === "agent_message" && event.item.text) {
+      last = event.item.text
+    }
+  }
+  if (!last) throw new Error(`codex 응답에서 agent_message를 찾지 못했습니다:\n${jsonl.slice(-800)}`)
+  return last
+}
+
+export function createCodexPromoter(): Promoter {
+  const bin = process.env.CODEX_BIN ?? "codex"
+  const schemaPath = path.join(os.tmpdir(), "dakota-ledger-schema.json")
+  writeFileSync(schemaPath, JSON.stringify(z.toJSONSchema(promotionSchema, { target: "draft-7" })))
+
+  const args = [
+    "exec", "--json", "--ignore-user-config",
+    "--output-schema", schemaPath,
+    "--skip-git-repo-check", "--sandbox", "read-only",
+  ]
+  const model = process.env.DAKOTA_LEDGER_MODEL
+  if (model) args.push("--model", model)
+
   return async (prompt: string) => {
-    const { object } = await generateObject({
-      model: anthropic(model),
-      schema: promotionSchema,
-      prompt,
+    const stdout = execFileSync(bin, [...args, prompt], {
+      stdio: ["ignore", "pipe", "pipe"],   // stdin 차단이 핵심
+      encoding: "utf8",
+      maxBuffer: 32 * 1024 * 1024,
     })
-    return object
+    return promotionSchema.parse(JSON.parse(extractAgentMessage(stdout)))
   }
 }
