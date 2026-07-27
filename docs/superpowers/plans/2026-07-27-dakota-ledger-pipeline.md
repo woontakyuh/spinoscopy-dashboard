@@ -631,13 +631,24 @@ describe("classifyOrigin", () => {
     expect(classifyOrigin(raw({ firstUserMessage: "Cronjob Response: ExoBrain wiki sync ---" }))).toBe("수행")
   })
 
-  // 실제 state.db에서 '지시'로 오분류됐던 문구들 (2026-07-27 실측)
+  // 실제 state.db에서 '지시'로 오분류됐던 문구들 (2026-07-27 실측).
+  // 실제 본문은 193~674자다. 길이 게이트를 지나야 하므로 발췌가 아니라
+  // 실측 길이대에 맞춘 전문을 쓴다.
   it.each([
-    "Audit the current ExoBrain LLM Wiki sync implementation for correctness",
-    "Write the final standalone report for 에르메스단. Start exactly",
-    "Design a concrete capability and approval policy for six agents.",
-    "Create a concise high-signal AI/social update brief in Korean",
+    "Audit the current ExoBrain LLM Wiki sync implementation for correctness. " +
+      "Report the exact input delta and the outputs created, and confirm the legacy " +
+      "compiler was not invoked at any point during the run.",
+    "Write the final standalone report for 에르메스단. Start exactly with the header " +
+      "and cover the last 24 hours only. Exclude 잡담, 레퍼럴, 모집, and repeated model praise. " +
+      "Keep every claim traceable to a message in the transcript.",
+    "Design a concrete capability and approval policy for six agents. Identify which " +
+      "actions each agent may take unattended, which require approval, and which are " +
+      "forbidden outright. Justify each boundary in one sentence.",
+    "Create a concise high-signal AI/social update brief in Korean from the collected " +
+      "transcripts. Drop anything promotional or repetitive, and keep at most two items " +
+      "per source so the brief stays readable in a single screen.",
   ])("실측 오분류 회귀: %s", (text) => {
+    expect(text.length).toBeGreaterThanOrEqual(120)
     expect(classifyOrigin(raw({ firstUserMessage: text }))).toBe("수행")
   })
 
@@ -648,6 +659,29 @@ describe("classifyOrigin", () => {
     ["chatGPT 서버 터지면서 뻑났었ㄷ는듯?", 8],
   ])("사용자 발화는 지시로 남는다: %s", (text, count) => {
     expect(classifyOrigin(raw({ firstUserMessage: text, messageCount: count as number }))).toBe("지시")
+  })
+
+  // 일상 영어 동사로 시작하는 짧은 지시. 길이 게이트가 없으면 수행으로 삼켜진다.
+  // 강등은 단방향(지시->수행)이라 과탐은 되돌릴 수 없다.
+  it.each([
+    "Create a to-do for tomorrow OR list",
+    "Design a workout split for this week",
+    "Write this down: call the hospital at 3pm",
+    "Audit my expenses for July",
+    "Act as devil advocate on this plan",
+    "Find my Jeju rental car booking",
+    "Review my schedule for Friday",
+  ])("짧은 일상 영어 지시는 지시로 남는다: %s", (text) => {
+    expect(classifyOrigin(raw({ firstUserMessage: text }))).toBe("지시")
+  })
+
+  it("같은 동사라도 충분히 길면 디스패치로 본다", () => {
+    // 실측 디스패치는 최소 193자
+    const long = "Audit the current ExoBrain LLM Wiki sync implementation for correctness, " +
+      "then report the exact input delta and the outputs created. Do not run the legacy " +
+      "compiler and do not write to the legacy directory under any circumstance."
+    expect(long.length).toBeGreaterThanOrEqual(120)
+    expect(classifyOrigin(raw({ firstUserMessage: long }))).toBe("수행")
   })
 
   it("파일 경로가 섞이면 수행", () => {
@@ -741,9 +775,25 @@ Expected: FAIL — `Failed to resolve import "./classify"`
 ```typescript
 import type { ClassifiedSession, DaySessions, LedgerOrigin, RawSession } from "./types"
 
-/** 에이전트 디스패치 프롬프트가 시작하는 영어 명령형 동사 */
-const DISPATCH_VERB =
-  /^\s*(you are |act as |analyze |audit |collect |compare |create |deep-digest |design |draft |find |generate |inspect |produce |research |retrieve |review |summarize |use the |write )/i
+/**
+ * 디스패치에서만 쓰이는 동사. 길이와 무관하게 수행으로 본다.
+ */
+const DISPATCH_VERB_STRONG =
+  /^\s*(you are |analyze |deep-digest |summarize |produce |retrieve |research |inspect |use the |collect |compare |draft |generate )/i
+
+/**
+ * 일상 영어로도 쓰이는 동사. 이것만으로 수행 판정하면
+ * "Audit my expenses for July" 같은 실제 지시를 삼켜버린다.
+ *
+ * 강등은 LLM이 지시→수행 단방향으로만 가능하므로, 과탐은 되돌릴 길이 없고
+ * 미탐은 LLM이 건진다. 따라서 휴리스틱은 보수적이어야 한다.
+ *
+ * 실측(2026-07-27, 196세션): 이 동사로 시작하는 실제 디스패치는 최소 193자,
+ * 일상 지시로 상정되는 문장은 50자 미만. 120자를 경계로 둔다.
+ */
+const DISPATCH_VERB_GENERIC = /^\s*(act as |audit |create |design |write |find |review )/i
+
+const GENERIC_VERB_MIN_LENGTH = 120
 
 /** "As Warren, ..." 형태의 영문 페르소나 지정. 대소문자를 구분해야 오탐이 없다. */
 const PERSONA_EN = /^\s*As [A-Z][a-z]+,/
@@ -766,12 +816,14 @@ const HANGUL = /[가-힣]/
 export function classifyOrigin(session: RawSession): LedgerOrigin {
   if (session.channel === "subagent") return "수행"
 
-  const head = session.firstUserMessage.slice(0, 40)
+  const text = session.firstUserMessage
+  const head = text.slice(0, 40)
   if (
-    DISPATCH_VERB.test(session.firstUserMessage) ||
-    PERSONA_EN.test(session.firstUserMessage) ||
-    CRON_RELAY.test(session.firstUserMessage) ||
-    session.firstUserMessage.includes("/tmp/") ||
+    DISPATCH_VERB_STRONG.test(text) ||
+    (DISPATCH_VERB_GENERIC.test(text) && text.length >= GENERIC_VERB_MIN_LENGTH) ||
+    PERSONA_EN.test(text) ||
+    CRON_RELAY.test(text) ||
+    text.includes("/tmp/") ||
     PERSONA_KO.test(head)
   ) {
     return "수행"
@@ -859,7 +911,7 @@ export function buildDayContext(
 npm run test -- lib/dakota-ledger/classify.test.ts
 ```
 
-Expected: PASS — 23 passed
+Expected: PASS — 31 passed
 
 - [ ] **Step 5: 실제 데이터로 Origin 분포 확인**
 
