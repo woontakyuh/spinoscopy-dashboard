@@ -70,7 +70,7 @@ export default function DakotaPage() {
     }
 
     if (tab === "operations") {
-      return "센터장님, 여기에는 우리가 결정한 일과 실제로 움직인 결과만 남길게요. 대화 원문은 넣지 않고, 맥락·수행·결과·다음 행동이 보이게요."
+      return ""
     }
 
     if (tab === "presentations") {
@@ -163,7 +163,9 @@ export default function DakotaPage() {
 
       {/* Content */}
       <div className="flex-1 min-w-0 p-3 md:p-6">
-        <AgentGreeter image="/dakota.png" name="Dakota" message={message} loading={isTabLoading} />
+        {activeTab !== "operations" && (
+          <AgentGreeter image="/dakota.png" name="Dakota" message={message} loading={isTabLoading} />
+        )}
 
         {activeTab === "command" && <DakotaCommandCenter />}
 

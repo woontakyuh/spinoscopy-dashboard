@@ -2,29 +2,40 @@
 
 import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Check, CircleDot, ExternalLink, Loader2, Plus, ShieldCheck } from "lucide-react"
+import { ArrowUpRight, ChevronRight, Loader2, X } from "lucide-react"
 import type { OperationItem } from "@/lib/notion/operations"
 
-const BOARD_COLUMNS = [
-  { id: "Inbox", label: "정리 전", tone: "border-zinc-700 bg-zinc-900/45" },
-  { id: "In Progress", label: "진행 중", tone: "border-blue-500/40 bg-blue-500/5" },
-  { id: "Waiting", label: "대기 · 확인", tone: "border-amber-500/40 bg-amber-500/5" },
-  { id: "Completed", label: "완료", tone: "border-emerald-500/35 bg-emerald-500/5" },
+const LANES = [
+  { id: "In Progress", label: "지금 진행", description: "Dakota가 움직이고 있는 일", tone: "border-sky-400/35 bg-sky-500/[0.035]" },
+  { id: "Waiting", label: "센터장님 결정", description: "승인·선택·외부 회신이 필요한 일", tone: "border-amber-400/35 bg-amber-500/[0.035]" },
+  { id: "Inbox", label: "반복 운영", description: "계속 굴러가고 있는 routine", tone: "border-violet-400/35 bg-violet-500/[0.035]" },
+  { id: "Completed", label: "최근 마침", description: "이번 달 닫힌 주요 일", tone: "border-emerald-400/35 bg-emerald-500/[0.035]" },
 ] as const
 
-type OperationStatus = (typeof BOARD_COLUMNS)[number]["id"] | "Archived"
-
+type OperationStatus = (typeof LANES)[number]["id"] | "Archived"
 type OperationsResponse = { configured: boolean; operations: OperationItem[] }
 
-const domainTone: Record<string, string> = {
-  Strategy: "text-violet-300 border-violet-400/30",
-  Clinical: "text-orange-300 border-orange-400/30",
-  Research: "text-indigo-300 border-indigo-400/30",
-  AI: "text-cyan-300 border-cyan-400/30",
-  Family: "text-emerald-300 border-emerald-400/30",
-  Personal: "text-pink-300 border-pink-400/30",
-  Operations: "text-zinc-300 border-zinc-500/30",
+const DOMAIN_LABEL: Record<string, string> = {
+  Strategy: "전략·기회",
+  Clinical: "임상",
+  Research: "KSOR·연구",
+  AI: "AI·시스템",
+  Family: "가족",
+  Personal: "개인",
+  Operations: "운영",
 }
+
+const DOMAIN_TONE: Record<string, string> = {
+  Strategy: "bg-violet-400/10 text-violet-200",
+  Clinical: "bg-orange-400/10 text-orange-200",
+  Research: "bg-blue-400/10 text-blue-200",
+  AI: "bg-cyan-400/10 text-cyan-200",
+  Family: "bg-emerald-400/10 text-emerald-200",
+  Personal: "bg-pink-400/10 text-pink-200",
+  Operations: "bg-zinc-400/10 text-zinc-300",
+}
+
+const DOMAIN_FILTERS = ["All", "Research", "AI", "Operations", "Family", "Personal", "Strategy", "Clinical"] as const
 
 async function fetchOperations(): Promise<OperationsResponse> {
   const response = await fetch("/api/dakota/operations")
@@ -32,7 +43,7 @@ async function fetchOperations(): Promise<OperationsResponse> {
   return response.json()
 }
 
-async function updateOperation(pageId: string, status: OperationStatus): Promise<void> {
+async function updateStatus(pageId: string, status: OperationStatus): Promise<void> {
   const response = await fetch("/api/dakota/operations", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -41,201 +52,145 @@ async function updateOperation(pageId: string, status: OperationStatus): Promise
   if (!response.ok) throw new Error("상태 변경에 실패했습니다.")
 }
 
-async function createOperation(name: string): Promise<void> {
-  const response = await fetch("/api/dakota/operations", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, status: "Inbox", type: "Execution", domain: "Operations" }),
-  })
-  if (!response.ok) throw new Error("운영 항목 생성에 실패했습니다.")
-}
-
-function OperationCard({ item }: { item: OperationItem }) {
-  const queryClient = useQueryClient()
-  const mutation = useMutation({
-    mutationFn: (status: OperationStatus) => updateOperation(item.page_id, status),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dakota-operations"] }),
-  })
-
+function DetailLine({ label, value, tone = "text-zinc-300" }: { label: string; value: string; tone?: string }) {
+  if (!value) return null
   return (
-    <article className="rounded-xl border border-border/90 bg-card/80 p-3 shadow-sm">
-      <div className="flex items-start gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <span className={`rounded-full border px-1.5 py-0.5 ${domainTone[item.domain] ?? domainTone.Operations}`}>{item.domain}</span>
-            <span>{item.type}</span>
-            {item.priority === "High" && <span className="text-red-300">High</span>}
-          </div>
-          <h3 className="mt-2 text-sm font-semibold leading-snug text-foreground">{item.name}</h3>
-        </div>
-        <a href={item.notion_url} target="_blank" rel="noreferrer" className="mt-0.5 text-muted-foreground hover:text-foreground" aria-label="Notion에서 열기">
-          <ExternalLink className="h-3.5 w-3.5" />
-        </a>
-      </div>
-
-      {item.action_taken && (
-        <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
-          <span className="font-medium text-foreground/75">수행 </span>{item.action_taken}
-        </p>
-      )}
-      {item.result && (
-        <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-emerald-200/80">
-          <span className="font-medium">결과 </span>{item.result}
-        </p>
-      )}
-      {item.next_action && item.status !== "Completed" && (
-        <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-blue-200/80">
-          <span className="font-medium">다음 </span>{item.next_action}
-        </p>
-      )}
-
-      <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/60 pt-2.5">
-        <span className="text-[10px] text-muted-foreground">업데이트 {item.updated_at}</span>
-        <select
-          value={item.status}
-          onChange={(event) => mutation.mutate(event.target.value as OperationStatus)}
-          disabled={mutation.isPending}
-          className="rounded-md border border-border bg-muted px-1.5 py-1 text-[11px] text-foreground outline-none focus:border-blue-500 disabled:opacity-50"
-          aria-label={`${item.name} 상태`}
-        >
-          {BOARD_COLUMNS.map((column) => <option key={column.id} value={column.id}>{column.label}</option>)}
-          <option value="Archived">보관</option>
-        </select>
-      </div>
-    </article>
-  )
-}
-
-function SetupState() {
-  return (
-    <section className="rounded-2xl border border-dashed border-blue-400/40 bg-blue-500/5 p-5">
-      <div className="flex items-start gap-3">
-        <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-blue-300" />
-        <div>
-          <h2 className="font-semibold text-foreground">Dakota Operations DB 연결이 필요합니다</h2>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            이 보드는 원문 대화를 복제하지 않습니다. Dakota가 정리한 결정·수행·결과·다음 행동만 Notion에 남기고, Dashboard는 그 기록을 읽습니다.
-          </p>
-          <div className="mt-4 rounded-lg bg-background/70 p-3 font-mono text-xs leading-6 text-muted-foreground">
-            NOTION_DAKOTA_OPERATIONS_DB_ID<br />
-            Name · Status · Type · Domain · Context · Action Taken · Result · Next Action · Visibility
-          </div>
-        </div>
-      </div>
+    <section>
+      <p className="mb-1.5 text-[11px] font-medium tracking-wide text-zinc-500">{label}</p>
+      <p className={`whitespace-pre-wrap text-sm leading-6 ${tone}`}>{value}</p>
     </section>
   )
 }
 
-export function OperationsLedger() {
+function OperationDetail({ item, close }: { item: OperationItem; close: () => void }) {
   const queryClient = useQueryClient()
-  const [draft, setDraft] = useState("")
+  const mutation = useMutation({
+    mutationFn: (status: OperationStatus) => updateStatus(item.page_id, status),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dakota-operations"] }),
+  })
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/55 p-0 sm:p-4" role="dialog" aria-modal="true" aria-label={`${item.name} 상세`}>
+      <button className="absolute inset-0 cursor-default" onClick={close} aria-label="상세 닫기" />
+      <aside className="relative flex h-full w-full max-w-xl flex-col overflow-y-auto border-l border-zinc-700 bg-zinc-950 p-5 shadow-2xl sm:rounded-2xl sm:border">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className={`inline-flex rounded-md px-2 py-1 text-xs font-medium ${DOMAIN_TONE[item.domain] ?? DOMAIN_TONE.Operations}`}>
+              {DOMAIN_LABEL[item.domain] ?? item.domain}
+            </span>
+            <h2 className="mt-3 text-xl font-semibold leading-snug text-white">{item.name}</h2>
+            <p className="mt-2 text-xs text-zinc-500">마지막 업데이트 {item.updated_at}</p>
+          </div>
+          <button onClick={close} className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-800 hover:text-white" aria-label="닫기"><X className="h-5 w-5" /></button>
+        </div>
+
+        <div className="mt-7 space-y-6">
+          <DetailLine label="무슨 일인가" value={item.context} />
+          <DetailLine label="Dakota가 한 일" value={item.action_taken} tone="text-sky-100" />
+          <DetailLine label="현재 결과" value={item.result} tone="text-emerald-100" />
+          <DetailLine label="다음 행동" value={item.next_action} tone="text-amber-100" />
+        </div>
+
+        <div className="mt-auto border-t border-zinc-800 pt-5">
+          <p className="mb-2 text-[11px] font-medium tracking-wide text-zinc-500">상태</p>
+          <div className="flex flex-wrap gap-2">
+            {LANES.map((lane) => (
+              <button
+                key={lane.id}
+                onClick={() => mutation.mutate(lane.id)}
+                disabled={mutation.isPending || item.status === lane.id}
+                className={`rounded-lg border px-3 py-2 text-xs transition-colors ${item.status === lane.id ? "border-white/70 bg-white text-zinc-950" : "border-zinc-700 text-zinc-300 hover:border-zinc-500"}`}
+              >
+                {lane.label}
+              </button>
+            ))}
+          </div>
+          <a href={item.notion_url} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white">
+            Notion에서 열기 <ArrowUpRight className="h-3.5 w-3.5" />
+          </a>
+        </div>
+      </aside>
+    </div>
+  )
+}
+
+function OperationCard({ item, open }: { item: OperationItem; open: () => void }) {
+  const preview = item.result || item.action_taken || item.next_action || item.context
+  return (
+    <button onClick={open} className="group w-full rounded-xl border border-zinc-800 bg-zinc-950/75 p-3.5 text-left transition hover:border-zinc-600 hover:bg-zinc-900">
+      <div className="flex items-start justify-between gap-2">
+        <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium ${DOMAIN_TONE[item.domain] ?? DOMAIN_TONE.Operations}`}>
+          {DOMAIN_LABEL[item.domain] ?? item.domain}
+        </span>
+        <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-zinc-600 transition group-hover:translate-x-0.5 group-hover:text-zinc-300" />
+      </div>
+      <h3 className="mt-3 text-sm font-semibold leading-5 text-zinc-100">{item.name}</h3>
+      {preview && <p className="mt-2 line-clamp-3 text-xs leading-5 text-zinc-400">{preview}</p>}
+      <p className="mt-3 text-[10px] text-zinc-600">{item.updated_at}</p>
+    </button>
+  )
+}
+
+export function OperationsLedger() {
+  const [domain, setDomain] = useState<(typeof DOMAIN_FILTERS)[number]>("All")
+  const [selected, setSelected] = useState<OperationItem | null>(null)
   const { data, isLoading, error } = useQuery({
     queryKey: ["dakota-operations"],
     queryFn: fetchOperations,
     refetchInterval: 60_000,
   })
-  const createMutation = useMutation({
-    mutationFn: () => createOperation(draft.trim()),
-    onSuccess: () => {
-      setDraft("")
-      queryClient.invalidateQueries({ queryKey: ["dakota-operations"] })
-    },
-  })
 
-  const operations = data?.operations
+  const visible = useMemo(() => (data?.operations ?? []).filter((item) => domain === "All" || item.domain === domain), [data?.operations, domain])
   const byStatus = useMemo(() => {
     const groups = new Map<string, OperationItem[]>()
-    BOARD_COLUMNS.forEach((column) => groups.set(column.id, []))
-    ;(operations ?? []).filter((item) => item.status !== "Archived").forEach((item) => groups.get(item.status)?.push(item))
+    LANES.forEach((lane) => groups.set(lane.id, []))
+    visible.forEach((item) => groups.get(item.status)?.push(item))
     return groups
-  }, [operations])
+  }, [visible])
 
-  if (isLoading) {
-    return <div className="flex h-48 items-center justify-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" />운영 기록을 불러오는 중입니다.</div>
-  }
-  if (error) {
-    return <p className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-200">{error.message}</p>
-  }
-  if (!data?.configured) return <SetupState />
-
-  const completed = (operations ?? []).filter((item) => item.status === "Completed").slice(0, 8)
+  if (isLoading) return <div className="flex h-48 items-center justify-center text-sm text-zinc-400"><Loader2 className="mr-2 h-4 w-4 animate-spin" />기록을 여는 중입니다.</div>
+  if (error) return <p className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-200">{error.message}</p>
+  if (!data?.configured) return <p className="rounded-xl border border-zinc-800 bg-zinc-950 p-5 text-sm text-zinc-400">운영 기록 DB 연결이 필요합니다.</p>
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-2xl border border-border bg-card/60 p-4 md:p-5">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-blue-300">Dakota Operations Ledger</p>
-            <h2 className="mt-1 text-lg font-semibold">대화는 편하게, 실행은 흔적이 남게</h2>
-            <p className="mt-1 text-sm text-muted-foreground">원문 대신 결정·수행·결과·다음 행동을 정리합니다. Todo는 계속 Notion To-Do List가 기준입니다.</p>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <CircleDot className="h-4 w-4 text-blue-300" />
-            진행 {byStatus.get("In Progress")?.length ?? 0}건
-            <Check className="ml-2 h-4 w-4 text-emerald-300" />
-            완료 {completed.length}건
-          </div>
+    <div className="space-y-5">
+      <header className="flex flex-col gap-4 border-b border-zinc-800 pb-5 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-xs font-medium tracking-[0.18em] text-zinc-500">DAKOTA · OPERATING REVIEW</p>
+          <h1 className="mt-1 text-xl font-semibold text-white">이번 달, 우리가 실제로 한 일</h1>
         </div>
-        <form
-          className="mt-4 flex gap-2"
-          onSubmit={(event) => {
-            event.preventDefault()
-            if (draft.trim()) createMutation.mutate()
-          }}
-        >
-          <input
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder="새 운영 항목 — 예: KSOR registry data dictionary 확정"
-            className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-blue-500"
-          />
-          <button type="submit" disabled={!draft.trim() || createMutation.isPending} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50">
-            <Plus className="h-4 w-4" />추가
-          </button>
-        </form>
-      </section>
+        <div className="flex flex-wrap gap-1.5">
+          {DOMAIN_FILTERS.map((filter) => (
+            <button key={filter} onClick={() => setDomain(filter)} className={`rounded-md px-2.5 py-1.5 text-xs transition ${domain === filter ? "bg-white text-zinc-950" : "text-zinc-400 hover:bg-zinc-900 hover:text-white"}`}>
+              {filter === "All" ? "전체" : DOMAIN_LABEL[filter] ?? filter}
+            </button>
+          ))}
+        </div>
+      </header>
 
       <section className="overflow-x-auto pb-2">
-        <div className="grid min-w-[960px] grid-cols-4 gap-3">
-          {BOARD_COLUMNS.map((column) => {
-            const items = byStatus.get(column.id) ?? []
+        <div className="grid min-w-[1040px] grid-cols-4 gap-3">
+          {LANES.map((lane) => {
+            const items = byStatus.get(lane.id) ?? []
             return (
-              <div key={column.id} className={`rounded-2xl border p-3 ${column.tone}`}>
-                <div className="mb-3 flex items-center justify-between px-1">
-                  <h3 className="text-sm font-semibold">{column.label}</h3>
-                  <span className="rounded-full bg-background/70 px-2 py-0.5 text-xs text-muted-foreground">{items.length}</span>
+              <section key={lane.id} className={`rounded-2xl border p-3 ${lane.tone}`}>
+                <div className="mb-3 border-b border-white/5 px-1 pb-3">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-semibold text-zinc-100">{lane.label}</h2>
+                    <span className="rounded-full bg-zinc-950/70 px-2 py-0.5 text-xs text-zinc-400">{items.length}</span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-zinc-500">{lane.description}</p>
                 </div>
-                <div className="space-y-3">
-                  {items.length === 0 ? <p className="rounded-xl border border-dashed border-border/70 p-3 text-xs text-muted-foreground">항목 없음</p> : items.map((item) => <OperationCard key={item.page_id} item={item} />)}
+                <div className="space-y-2.5">
+                  {items.length === 0 ? <p className="px-1 py-5 text-xs text-zinc-600">없음</p> : items.map((item) => <OperationCard key={item.page_id} item={item} open={() => setSelected(item)} />)}
                 </div>
-              </div>
+              </section>
             )
           })}
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border bg-card/60 p-4 md:p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-emerald-300">Recent outcomes</p>
-            <h2 className="mt-1 text-base font-semibold">최근 완료·결정 로그</h2>
-          </div>
-          <span className="text-xs text-muted-foreground">최근 업데이트순</span>
-        </div>
-        <div className="mt-4 divide-y divide-border">
-          {completed.length === 0 ? (
-            <p className="py-6 text-sm text-muted-foreground">아직 완료된 운영 기록이 없습니다.</p>
-          ) : completed.map((item) => (
-            <div key={item.page_id} className="grid gap-2 py-3 md:grid-cols-[132px_1fr]">
-              <div className="text-xs text-muted-foreground">{item.completed_at ?? item.updated_at} · {item.domain}</div>
-              <div>
-                <div className="flex items-center gap-2"><p className="text-sm font-medium">{item.name}</p><a href={item.notion_url} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground"><ExternalLink className="h-3.5 w-3.5" /></a></div>
-                {item.result && <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{item.result}</p>}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      {selected && <OperationDetail item={selected} close={() => setSelected(null)} />}
     </div>
   )
 }
