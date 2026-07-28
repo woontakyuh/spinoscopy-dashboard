@@ -20,6 +20,8 @@ interface NotionPage {
 
 interface NotionQueryResponse {
   results: NotionPage[]
+  has_more?: boolean
+  next_cursor?: string | null
 }
 
 interface NotionDatabaseProperty {
@@ -184,12 +186,23 @@ export async function getAllTodos(options: TodoQueryOptions = {}): Promise<TodoI
         { timestamp: "last_edited_time" as const, direction: "descending" as const },
       ]
 
-  const response = await notionRequest<NotionQueryResponse>(`/databases/${dbId}/query`, {
-    method: "POST",
-    body: JSON.stringify({ filter, sorts, page_size: 100 }),
-  })
+  // 페이지네이션 필수. page_size 100에서 끊으면 완료 항목이 조용히 누락된다 —
+  // 실측(2026-07-28) 완료 to-do 118건 중 18건이 이 한도 밖이었다.
+  const results: NotionQueryResponse["results"] = []
+  let cursor: string | null = null
+  do {
+    const response: NotionQueryResponse = await notionRequest<NotionQueryResponse>(`/databases/${dbId}/query`, {
+      method: "POST",
+      body: JSON.stringify({ filter, sorts, page_size: 100, ...(cursor ? { start_cursor: cursor } : {}) }),
+    })
+    results.push(...response.results)
+    if (response.has_more && !response.next_cursor) {
+      throw new Error("Notion 페이지네이션 커서 누락 — 부분 결과를 조용히 반환하지 않는다")
+    }
+    cursor = response.has_more ? (response.next_cursor ?? null) : null
+  } while (cursor)
 
-  return response.results.map(toTodoItem)
+  return results.map(toTodoItem)
 }
 
 export async function createTodo(input: TodoCreateInput): Promise<{ page_id: string; url: string }> {
