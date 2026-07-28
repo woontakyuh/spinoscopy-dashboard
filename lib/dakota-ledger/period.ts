@@ -16,13 +16,13 @@ export interface PeriodRange {
   end: Date
 }
 
-interface SeoulYMD {
+export interface SeoulYMD {
   y: number
   m: number
   d: number
 }
 
-function seoulYMD(date: Date): SeoulYMD {
+export function seoulYMD(date: Date): SeoulYMD {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Seoul",
     year: "numeric",
@@ -34,7 +34,7 @@ function seoulYMD(date: Date): SeoulYMD {
 }
 
 /** KST 자정 인스턴트를 나타내는 Date를 만든다. */
-function seoulMidnight({ y, m, d }: SeoulYMD): Date {
+export function seoulMidnight({ y, m, d }: SeoulYMD): Date {
   return new Date(`${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}T00:00:00+09:00`)
 }
 
@@ -47,13 +47,38 @@ function fromCalendarUTC(date: Date): SeoulYMD {
   return { y: date.getUTCFullYear(), m: date.getUTCMonth() + 1, d: date.getUTCDate() }
 }
 
-function addCalendarDays(ymd: SeoulYMD, days: number): SeoulYMD {
+export function addCalendarDays(ymd: SeoulYMD, days: number): SeoulYMD {
   return fromCalendarUTC(new Date(calendarUTC(ymd).getTime() + days * 86_400_000))
+}
+
+/** 월 단위로 달력 날짜를 이동한다. 일(day)은 그대로 유지한다 (버킷 경계용이라 말일 클램프는 하지 않는다). */
+export function addCalendarMonths(ymd: SeoulYMD, months: number): SeoulYMD {
+  const totalMonths = ymd.m - 1 + months
+  const y = ymd.y + Math.floor(totalMonths / 12)
+  const m = (((totalMonths % 12) + 12) % 12) + 1
+  return { y, m, d: ymd.d }
 }
 
 /** 0=일 ... 6=토. 시간대와 무관한 순수 달력 요일. */
 function calendarWeekday(ymd: SeoulYMD): number {
   return calendarUTC(ymd).getUTCDay()
+}
+
+/**
+ * ISO 타임스탬프를 KST 기준 요일(0=일...6=토)과 시(0-23)로 분해한다.
+ * "리듬" 히트맵(요일 x 시간대)의 유일한 근거 — KST 자정 근처에서 UTC 날짜와
+ * 어긋나는 경우를 여기서 한 번에 바로잡는다.
+ */
+export function getSeoulWeekdayHour(iso: string): { weekday: number; hour: number } {
+  const date = new Date(iso)
+  const ymd = seoulYMD(date)
+  const hourStr = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Seoul",
+    hour: "2-digit",
+    hour12: false,
+  }).format(date)
+  const hour = Number(hourStr) % 24
+  return { weekday: calendarWeekday(ymd), hour }
 }
 
 export function getSeoulQuarter(now: Date): number {

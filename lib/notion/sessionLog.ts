@@ -41,6 +41,100 @@ export interface SessionLogSnapshot {
   byOperation: Map<string, { count: number; msgs: number }>
 }
 
+/** 대시보드 읽기 경로용 세션 로그 항목. */
+export interface SessionLogItem {
+  sessionKey: string
+  name: string
+  /** ISO 8601 (Notion Date 프로퍼티), 없으면 null */
+  date: string | null
+  channel: LedgerChannel | null
+  origin: LedgerOrigin | null
+  agent: LedgerAgent | null
+  domain: LedgerDomain | null
+  tags: string[]
+  summary: string
+  outcome: LedgerOutcome | null
+  msgCount: number
+  operationPageId: string | null
+}
+
+interface NotionSessionLogProperty {
+  type: string
+  title?: Array<{ plain_text?: string }>
+  rich_text?: Array<{ plain_text?: string }>
+  select?: { name: string } | null
+  multi_select?: Array<{ name: string }>
+  number?: number | null
+  date?: { start: string; end: string | null } | null
+  relation?: Array<{ id: string }>
+}
+
+interface NotionSessionLogPage {
+  id: string
+  properties: Record<string, NotionSessionLogProperty>
+}
+
+interface NotionSessionLogQueryResponse {
+  results: NotionSessionLogPage[]
+  has_more: boolean
+  next_cursor: string | null
+}
+
+function plainText(values: Array<{ plain_text?: string }> | undefined): string {
+  return (values ?? []).map((v) => v.plain_text ?? "").join("").trim()
+}
+
+function toSessionLogItem(page: NotionSessionLogPage): SessionLogItem {
+  const p = page.properties
+  return {
+    sessionKey: plainText(p["Session Key"]?.rich_text),
+    name: plainText(p.Name?.title),
+    date: p.Date?.date?.start ?? null,
+    channel: (p.Channel?.select?.name as LedgerChannel | undefined) ?? null,
+    origin: (p.Origin?.select?.name as LedgerOrigin | undefined) ?? null,
+    agent: (p.Agent?.select?.name as LedgerAgent | undefined) ?? null,
+    domain: (p.Domain?.select?.name as LedgerDomain | undefined) ?? null,
+    tags: (p.Tags?.multi_select ?? []).map((t) => t.name),
+    summary: plainText(p.Summary?.rich_text),
+    outcome: (p.Outcome?.select?.name as LedgerOutcome | undefined) ?? null,
+    msgCount: p["Msg Count"]?.number ?? 0,
+    operationPageId: p.Operation?.relation?.[0]?.id ?? null,
+  }
+}
+
+/**
+ * Session Log 전체를 읽어 대시보드 집계용으로 반환한다. readSessionLogSnapshot과 달리
+ * dedup 키/과제별 합계가 아니라 세션 하나하나의 온전한 레코드가 필요할 때 쓴다.
+ */
+export async function listSessionLogs(): Promise<SessionLogItem[]> {
+  const dbId = getSessionLogDbId()
+  if (!dbId) return []
+
+  const results: NotionSessionLogPage[] = []
+  let cursor: string | null = null
+  do {
+    const res: NotionSessionLogQueryResponse = await notionRequest<NotionSessionLogQueryResponse>(`/databases/${dbId}/query`, {
+      method: "POST",
+      body: JSON.stringify({
+        page_size: 100,
+        ...(cursor ? { start_cursor: cursor } : {}),
+      }),
+    })
+    results.push(...res.results)
+    // I3와 같은 이유로 조용한 진행 대신 던진다.
+    if (res.has_more) {
+      if (!res.next_cursor) {
+        throw new Error("Notion 페이지네이션 오류: has_more=true인데 next_cursor가 없습니다 (Session Log list)")
+      }
+      cursor = res.next_cursor
+    } else {
+      cursor = null
+    }
+  } while (cursor)
+
+  return results.map(toSessionLogItem)
+}
+
 export function getSessionLogDbId(): string | null {
   return process.env[SESSION_LOG_DB_ID_KEY] ?? null
 }
