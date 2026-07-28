@@ -26,7 +26,7 @@ function dDayLabel(dateStr: string | null): { text: string; color: string } | nu
   const today = new Date(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" }) + "T00:00:00+09:00")
   const diff = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 
-  if (diff < 0) return { text: `D+${Math.abs(diff)}`, color: "text-zinc-500" }
+  if (diff < 0) return { text: `D+${Math.abs(diff)}`, color: "text-muted-foreground" }
   if (diff === 0) return { text: "D-Day", color: "text-blue-400 font-bold" }
   if (diff <= 7) return { text: `D-${diff}`, color: "text-amber-400" }
   if (diff <= 30) return { text: `D-${diff}`, color: "text-muted-foreground" }
