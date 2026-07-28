@@ -3,7 +3,8 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts"
 import type { DomainShareSlice } from "@/lib/dakota-ledger/stats"
 import { DOMAIN_CHART_COLOR, DOMAIN_LABEL } from "../operationLabels"
-import { CHART_SURFACE, CHART_TOOLTIP_LABEL_STYLE, CHART_TOOLTIP_STYLE, ChartEmpty, ChartPanel } from "./ChartPanel"
+import { ChartEmpty, ChartPanel } from "./ChartPanel"
+import { chartTooltipLabelStyle, chartTooltipStyle, useChartTokens } from "./useChartTokens"
 
 function domainColor(domain: string): string {
   return DOMAIN_CHART_COLOR[domain] ?? DOMAIN_CHART_COLOR.Training
@@ -11,6 +12,7 @@ function domainColor(domain: string): string {
 
 export function DomainShareChart({ shares }: { shares: DomainShareSlice[] }) {
   const total = shares.reduce((sum, s) => sum + s.count, 0)
+  const tokens = useChartTokens()
 
   return (
     <ChartPanel title="비중" subtitle="선택한 기간의 도메인별 세션 점유율">
@@ -30,7 +32,7 @@ export function DomainShareChart({ shares }: { shares: DomainShareSlice[] }) {
                   innerRadius={58}
                   outerRadius={86}
                   paddingAngle={2}
-                  stroke={CHART_SURFACE}
+                  stroke={tokens.surface}
                   strokeWidth={2}
                   isAnimationActive={false}
                 >
@@ -39,8 +41,8 @@ export function DomainShareChart({ shares }: { shares: DomainShareSlice[] }) {
                   ))}
                 </Pie>
                 <Tooltip
-                  contentStyle={CHART_TOOLTIP_STYLE}
-                  labelStyle={CHART_TOOLTIP_LABEL_STYLE}
+                  contentStyle={chartTooltipStyle(tokens)}
+                  labelStyle={chartTooltipLabelStyle(tokens)}
                   formatter={(value, _name, entry) => {
                     const payload = entry.payload as DomainShareSlice
                     return [`${value ?? 0} (${Math.round(payload.pct * 100)}%)`, DOMAIN_LABEL[payload.domain] ?? payload.domain]
@@ -49,11 +51,11 @@ export function DomainShareChart({ shares }: { shares: DomainShareSlice[] }) {
               </PieChart>
             </ResponsiveContainer>
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xl font-semibold text-white">{total}</span>
-              <span className="text-[10px] text-zinc-500">세션</span>
+              <span className="text-xl font-semibold text-foreground">{total}</span>
+              <span className="text-[10px] text-muted-foreground">세션</span>
             </div>
           </div>
-          <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-400">
+          <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
             {shares.map((s) => (
               <li key={s.domain} className="inline-flex items-center gap-1.5">
                 <span className="inline-block h-2 w-2 shrink-0" style={{ backgroundColor: domainColor(s.domain) }} />

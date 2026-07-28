@@ -2,6 +2,7 @@
 
 import { BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from "recharts"
 import type { TodoItem } from "@/lib/notion/todo"
+import { chartTooltipLabelStyle, chartTooltipStyle, useChartTokens } from "./charts/useChartTokens"
 
 interface TodoStatsProps {
   activeTodos: TodoItem[]
@@ -24,7 +25,12 @@ function getWeeklyData(doneTodos: TodoItem[]): { day: string; count: number }[] 
   return days
 }
 
+/** 완료 막대 색 — dataviz 검증 결과 green-400(#4ade80)은 라이트 표면 대비 1.7:1로 WARN이라
+ * green-600(#16a34a)으로 교체했다. 라이트/다크 표면 모두 3:1 이상 통과. */
+const DONE_BAR_COLOR = "#16a34a"
+
 export function TodoStatsCards({ activeTodos, doneTodos }: TodoStatsProps) {
+  const tokens = useChartTokens()
   const activeCount = activeTodos.length
   const doneCount = doneTodos.length
   const total = activeCount + doneCount
@@ -40,14 +46,14 @@ export function TodoStatsCards({ activeTodos, doneTodos }: TodoStatsProps) {
         <div className="flex items-baseline justify-between mb-2">
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">완료율</span>
           <span className="text-sm text-foreground/90 num">
-            <span className="text-green-400 font-medium">{doneCount}</span>
+            <span className="text-green-700 dark:text-green-400 font-medium">{doneCount}</span>
             <span className="text-muted-foreground"> / {total}건</span>
             <span className="text-muted-foreground ml-1.5 font-semibold">{pct}%</span>
           </span>
         </div>
         <div className="h-2.5 rounded-full bg-muted overflow-hidden">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-green-500 to-emerald-400 transition-all duration-500"
+            className="h-full rounded-full bg-gradient-to-r from-green-600 to-emerald-500 dark:from-green-500 dark:to-emerald-400 transition-all duration-500"
             style={{ width: `${pct}%` }}
           />
         </div>
@@ -69,15 +75,15 @@ export function TodoStatsCards({ activeTodos, doneTodos }: TodoStatsProps) {
               dataKey="day"
               axisLine={false}
               tickLine={false}
-              tick={{ fill: "#71717a", fontSize: 10 }}
+              tick={{ fill: tokens.mutedText, fontSize: 10 }}
             />
             <Tooltip
-              contentStyle={{ background: "#27272a", border: "1px solid #3f3f46", borderRadius: 8, fontSize: 12 }}
-              labelStyle={{ color: "#a1a1aa" }}
-              itemStyle={{ color: "#4ade80" }}
+              contentStyle={chartTooltipStyle(tokens)}
+              labelStyle={chartTooltipLabelStyle(tokens)}
+              itemStyle={{ color: DONE_BAR_COLOR }}
               formatter={(value) => [`${value}건`, "완료"]}
             />
-            <Bar dataKey="count" fill="#4ade80" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="count" fill={DONE_BAR_COLOR} radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

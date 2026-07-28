@@ -36,10 +36,10 @@ export function TimelineChart({ rows }: { rows: TimelineRow[] }) {
           const widthPct = Math.max(0.6, endPct - startPct)
           return (
             <div key={row.pageId} className="flex items-center gap-2 text-[11px]">
-              <span className="w-32 shrink-0 truncate text-zinc-400 sm:w-40" title={row.name}>
+              <span className="w-32 shrink-0 truncate text-muted-foreground sm:w-40" title={row.name}>
                 {row.name}
               </span>
-              <div className="relative h-3 flex-1 bg-zinc-900">
+              <div className="relative h-3 flex-1 bg-muted">
                 <div
                   className="absolute top-0 h-full"
                   style={{ left: `${startPct}%`, width: `${widthPct}%`, backgroundColor: domainColor(row.domain) }}

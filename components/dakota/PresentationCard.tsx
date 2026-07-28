@@ -18,7 +18,7 @@ function formatDateRange(start: string | null, end: string | null): string {
 const ATTENDANCE_STYLE: Record<string, string> = {
   "발표예정": "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
   "준비 완료": "border-blue-500/30 bg-blue-500/10 text-blue-400",
-  "참석만": "border-zinc-500/30 bg-zinc-500/10 text-muted-foreground",
+  "참석만": "border-border bg-muted text-muted-foreground",
   "불참": "border-border/30 bg-muted/30 text-muted-foreground",
 }
 
