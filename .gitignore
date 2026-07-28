@@ -62,3 +62,6 @@ credentials.json
 .hermes/runtime/
 !scripts/dakota-ledger-schema.ts
 !scripts/dakota-ledger-cron.sh
+!scripts/dakota-ledger-backfill-surface.ts
+!scripts/dakota-todo-sync.ts
+!scripts/dakota-conversation-sync.ts

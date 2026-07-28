@@ -18,6 +18,7 @@ function session(over: Partial<SessionLogItem> = {}): SessionLogItem {
     sessionKey: "k1", name: "세션", date: "2026-07-20T04:00:00.000Z",
     channel: "cli", origin: "수행", agent: "dakota", domain: "AI",
     tags: [], summary: "", outcome: "완료", msgCount: 3, operationPageId: null,
+    surface: null,
     ...over,
   }
 }

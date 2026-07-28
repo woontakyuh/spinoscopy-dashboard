@@ -5,13 +5,19 @@ import { useQuery } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
 import type { OperationItem } from "@/lib/notion/operations"
 import { isWithinPeriod, PERIOD_FILTERS, type PeriodFilter } from "@/lib/dakota-ledger/period"
+import { LEDGER_SURFACES } from "@/lib/dakota-ledger/types"
 import { LedgerCharts } from "./LedgerCharts"
 import { LedgerMatrix } from "./LedgerMatrix"
 import { OperationDetail } from "./OperationDetail"
 import { fetchOperations, fetchSessions } from "./operationLabels"
 
+/** "전체" + Surface 세 값. 세션에만 적용된다 — 과제(Operation)에는 surface가 없다. */
+const SURFACE_FILTERS = ["전체", ...LEDGER_SURFACES] as const
+type SurfaceFilter = (typeof SURFACE_FILTERS)[number]
+
 export function OperationsLedger() {
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("전체")
+  const [surfaceFilter, setSurfaceFilter] = useState<SurfaceFilter>("전체")
   const [selected, setSelected] = useState<OperationItem | null>(null)
 
   const now = useMemo(() => new Date(), [])
@@ -34,8 +40,11 @@ export function OperationsLedger() {
   )
 
   const visibleSessions = useMemo(
-    () => (sessionsQuery.data?.sessions ?? []).filter((s) => isWithinPeriod(s.date, periodFilter, now)),
-    [sessionsQuery.data?.sessions, periodFilter, now]
+    () =>
+      (sessionsQuery.data?.sessions ?? [])
+        .filter((s) => isWithinPeriod(s.date, periodFilter, now))
+        .filter((s) => surfaceFilter === "전체" || s.surface === surfaceFilter),
+    [sessionsQuery.data?.sessions, periodFilter, surfaceFilter, now]
   )
 
   const isLoading = operationsQuery.isLoading || sessionsQuery.isLoading
@@ -71,6 +80,17 @@ export function OperationsLedger() {
             {filter}
           </button>
         ))}
+        <span className="mx-1 text-border">|</span>
+        <span className="mr-1 text-[11px] font-medium tracking-wide text-muted-foreground">표면</span>
+        {SURFACE_FILTERS.map((filter) => (
+          <button
+            key={filter}
+            onClick={() => setSurfaceFilter(filter)}
+            className={`rounded-md px-2.5 py-1.5 text-xs transition ${surfaceFilter === filter ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+          >
+            {filter}
+          </button>
+        ))}
         <span className="ml-auto shrink-0 text-xs text-muted-foreground">
           {visibleSessions.length}세션 · {visibleOperations.length}과제
         </span>
@@ -78,6 +98,11 @@ export function OperationsLedger() {
 
       <section className="space-y-2">
         <h2 className="text-sm font-semibold text-foreground">카테고리별 현황</h2>
+        {surfaceFilter !== "전체" && (
+          <p className="text-[11px] text-muted-foreground">
+            이 매트릭스와 정체·리드타임·타임라인 차트는 과제(Operation) 기반이라 표면 필터의 영향을 받지 않습니다 — 아래는 전체 표면의 과제입니다.
+          </p>
+        )}
         <LedgerMatrix operations={visibleOperations} onSelect={setSelected} />
       </section>
 
