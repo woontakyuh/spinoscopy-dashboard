@@ -18,11 +18,11 @@ export const STATUS_LABEL: Record<string, string> = {
 }
 
 export const STATUS_TONE: Record<string, string> = {
-  Inbox: "bg-violet-400/10 text-violet-200",
-  "In Progress": "bg-sky-400/10 text-sky-200",
-  Waiting: "bg-amber-400/10 text-amber-200",
-  Completed: "bg-emerald-400/10 text-emerald-200",
-  Archived: "bg-zinc-400/10 text-zinc-400",
+  Inbox: "bg-violet-400/10 text-violet-700 dark:text-violet-200",
+  "In Progress": "bg-sky-400/10 text-sky-700 dark:text-sky-200",
+  Waiting: "bg-amber-400/10 text-amber-700 dark:text-amber-200",
+  Completed: "bg-emerald-400/10 text-emerald-700 dark:text-emerald-200",
+  Archived: "bg-muted text-muted-foreground",
 }
 
 export const DOMAIN_LABEL: Record<string, string> = {
@@ -38,23 +38,23 @@ export const DOMAIN_LABEL: Record<string, string> = {
 }
 
 export const DOMAIN_TONE: Record<string, string> = {
-  Strategy: "bg-violet-400/10 text-violet-200",
-  Clinical: "bg-orange-400/10 text-orange-200",
-  Research: "bg-blue-400/10 text-blue-200",
-  AI: "bg-cyan-400/10 text-cyan-200",
-  Finance: "bg-lime-400/10 text-lime-200",
-  Training: "bg-fuchsia-400/10 text-fuchsia-200",
-  Family: "bg-emerald-400/10 text-emerald-200",
-  Personal: "bg-pink-400/10 text-pink-200",
-  Operations: "bg-zinc-400/10 text-zinc-300",
+  Strategy: "bg-violet-400/10 text-violet-700 dark:text-violet-200",
+  Clinical: "bg-orange-400/10 text-orange-700 dark:text-orange-200",
+  Research: "bg-blue-400/10 text-blue-700 dark:text-blue-200",
+  AI: "bg-cyan-400/10 text-cyan-700 dark:text-cyan-200",
+  Finance: "bg-lime-400/10 text-lime-700 dark:text-lime-200",
+  Training: "bg-fuchsia-400/10 text-fuchsia-700 dark:text-fuchsia-200",
+  Family: "bg-emerald-400/10 text-emerald-700 dark:text-emerald-200",
+  Personal: "bg-pink-400/10 text-pink-700 dark:text-pink-200",
+  Operations: "bg-muted text-muted-foreground",
 }
 
 export const PRIORITY_ORDER: Record<string, number> = { High: 3, Medium: 2, Low: 1 }
 
 export const PRIORITY_TONE: Record<string, string> = {
-  High: "text-red-300",
-  Medium: "text-amber-200",
-  Low: "text-zinc-400",
+  High: "text-red-700 dark:text-red-300",
+  Medium: "text-amber-700 dark:text-amber-200",
+  Low: "text-muted-foreground",
 }
 
 /**
@@ -72,7 +72,12 @@ export const MATRIX_STATUS_LABEL: Record<OperationStatus, string> = {
 }
 
 /**
- * 차트 계열 색상. dataviz 스킬의 카테고리 8슬롯(고정 순서, 다크모드용)을 그대로 쓴다.
+ * 차트 계열 색상. dataviz 스킬의 카테고리 8슬롯(고정 순서)을 그대로 쓴다.
+ * 원래 값은 다크 표면(#282623) 기준으로만 골라져 있었다 — 라이트 표면(#fdfcf8)에 대고
+ * validate_palette.js를 돌려보면 AI 슬롯(#c98500)만 대비 2.99:1로 3:1 기준에 살짝 못
+ * 미친다(WARN). 같은 팔레트를 두 표면 모두에 재검증해 AI 슬롯만 #b87a00으로 조정했고,
+ * 그 결과 다른 7개 색은 그대로 둔 채 라이트/다크 모두 ALL CHECKS PASS(대비/CVD 분리/
+ * 크로마 하한 전부 통과)로 나온다 — 별도 라이트/다크 쌍이 아니라 단일 팔레트를 쓴다.
  * Training은 라이브 데이터에 사실상 나타나지 않는 9번째 도메인이라 전용 슬롯을 주지 않고
  * 중립색으로 폴백한다 — "9번째 계열은 생성색이 아니라 기타로 접는다" 규칙.
  */
@@ -80,7 +85,7 @@ export const DOMAIN_CHART_COLOR: Record<string, string> = {
   Strategy: "#3987e5", // slot 1 blue
   Clinical: "#d95926", // slot 2 orange
   Research: "#199e70", // slot 3 aqua
-  AI: "#c98500", // slot 4 yellow
+  AI: "#b87a00", // slot 4 yellow — 라이트 표면 대비 확보를 위해 #c98500에서 조정
   Finance: "#d55181", // slot 5 magenta
   Family: "#008300", // slot 6 green
   Personal: "#9085e9", // slot 7 violet

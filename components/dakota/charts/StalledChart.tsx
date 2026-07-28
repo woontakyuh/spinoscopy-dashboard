@@ -6,11 +6,17 @@ import { ChartEmpty, ChartPanel } from "./ChartPanel"
 
 const TOP_N = 8
 
+/**
+ * 정체 톤. 이 값들은 recharts가 아니라 일반 DOM(span/div) style에 들어가므로
+ * "var(--token)" 문자열이 그대로 해석된다 — 별도 런타임 리졸브 없이도 테마 전환에
+ * 자동으로 반응한다. critical/warning은 app/globals.css의 status 토큰(라이트/다크 쌍이
+ * 이미 dataviz 대비 기준을 만족하도록 정의돼 있다)을 재사용한다.
+ */
 function tone(days: number | null): string {
-  if (days === null) return "#52525b" // zinc-600, neutral
-  if (days > 30) return "#d03b3b" // status critical
-  if (days > 14) return "#fab219" // status warning
-  return "#3987e5" // categorical slot 1, default
+  if (days === null) return "var(--muted-foreground)" // neutral
+  if (days > 30) return "var(--status-hold-text)" // status critical (red)
+  if (days > 14) return "var(--status-revision-text)" // status warning (amber)
+  return "#3987e5" // categorical slot 1, default — dataviz 검증 결과 라이트/다크 모두 통과
 }
 
 export function StalledChart({ rows }: { rows: StalledRow[] }) {
@@ -26,20 +32,20 @@ export function StalledChart({ rows }: { rows: StalledRow[] }) {
           {top.map((row) => (
             <li key={row.pageId}>
               <div className="flex items-baseline justify-between gap-2 text-[11px]">
-                <span className="truncate text-zinc-300" title={row.name}>
+                <span className="truncate text-foreground" title={row.name}>
                   {DOMAIN_LABEL[row.domain] ?? row.domain} · {row.name}
                 </span>
                 <span className="shrink-0 tabular-nums" style={{ color: tone(row.stalledDays) }}>
                   {row.stalledDays}일
                 </span>
               </div>
-              <div className="mt-1 h-1.5 w-full bg-zinc-900">
+              <div className="mt-1 h-1.5 w-full bg-muted">
                 <div
                   className="h-full"
                   style={{ width: `${Math.max(4, ((row.stalledDays ?? 0) / max) * 100)}%`, backgroundColor: tone(row.stalledDays) }}
                 />
               </div>
-              {row.nextAction && <p className="mt-1 truncate text-[10px] text-zinc-600" title={row.nextAction}>다음: {row.nextAction}</p>}
+              {row.nextAction && <p className="mt-1 truncate text-[10px] text-muted-foreground/70" title={row.nextAction}>다음: {row.nextAction}</p>}
             </li>
           ))}
         </ul>

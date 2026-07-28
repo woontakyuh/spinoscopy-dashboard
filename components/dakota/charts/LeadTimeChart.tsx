@@ -3,13 +3,16 @@
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import type { LeadTimeRow } from "@/lib/dakota-ledger/stats"
 import { DOMAIN_CHART_COLOR, DOMAIN_LABEL } from "../operationLabels"
-import { CHART_GRID, CHART_MUTED_TEXT, CHART_TOOLTIP_LABEL_STYLE, CHART_TOOLTIP_STYLE, ChartEmpty, ChartPanel } from "./ChartPanel"
+import { ChartEmpty, ChartPanel } from "./ChartPanel"
+import { chartTooltipLabelStyle, chartTooltipStyle, useChartTokens } from "./useChartTokens"
 
 function domainColor(domain: string): string {
   return DOMAIN_CHART_COLOR[domain] ?? DOMAIN_CHART_COLOR.Training
 }
 
 export function LeadTimeChart({ rows }: { rows: LeadTimeRow[] }) {
+  const tokens = useChartTokens()
+
   return (
     <ChartPanel title="리드타임" subtitle="도메인별 착수 ~ 완료 중앙값 (일)">
       {rows.length === 0 ? (
@@ -17,20 +20,20 @@ export function LeadTimeChart({ rows }: { rows: LeadTimeRow[] }) {
       ) : (
         <ResponsiveContainer width="100%" height={Math.max(120, rows.length * 34)}>
           <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 24, left: 0, bottom: 0 }}>
-            <CartesianGrid stroke={CHART_GRID} strokeDasharray="0" horizontal={false} />
-            <XAxis type="number" allowDecimals tick={{ fill: CHART_MUTED_TEXT, fontSize: 10 }} axisLine={{ stroke: CHART_GRID }} tickLine={false} unit="일" />
+            <CartesianGrid stroke={tokens.grid} strokeDasharray="0" horizontal={false} />
+            <XAxis type="number" allowDecimals tick={{ fill: tokens.mutedText, fontSize: 10 }} axisLine={{ stroke: tokens.grid }} tickLine={false} unit="일" />
             <YAxis
               type="category"
               dataKey="domain"
               tickFormatter={(domain: string) => DOMAIN_LABEL[domain] ?? domain}
-              tick={{ fill: CHART_MUTED_TEXT, fontSize: 11 }}
+              tick={{ fill: tokens.mutedText, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               width={64}
             />
             <Tooltip
-              contentStyle={CHART_TOOLTIP_STYLE}
-              labelStyle={CHART_TOOLTIP_LABEL_STYLE}
+              contentStyle={chartTooltipStyle(tokens)}
+              labelStyle={chartTooltipLabelStyle(tokens)}
               formatter={(value, _name, entry) => {
                 const payload = entry.payload as LeadTimeRow
                 return [`${value ?? 0}일 (완료 ${payload.count}건)`, "중앙값"]
