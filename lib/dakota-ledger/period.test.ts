@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest"
 import {
+  addCalendarMonths,
   computeStalledDays,
   getPeriodRange,
   getSeoulQuarter,
+  getSeoulWeekdayHour,
   isWithinPeriod,
 } from "./period"
 
@@ -163,5 +165,30 @@ describe("computeStalledDays", () => {
     const lastTouched = "2026-07-28T01:00:00+09:00"
     const now = new Date("2026-07-28T23:00:00+09:00")
     expect(computeStalledDays(lastTouched, now)).toBe(0)
+  })
+})
+
+describe("getSeoulWeekdayHour", () => {
+  it("KST 자정 근처: UTC로는 토요일 밤이지만 KST로는 일요일 새벽으로 판정된다", () => {
+    // UTC 2026-07-18T15:30 (토) = KST 2026-07-19T00:30 (일)
+    const { weekday, hour } = getSeoulWeekdayHour("2026-07-18T15:30:00.000Z")
+    expect(weekday).toBe(0) // 일요일
+    expect(hour).toBe(0)
+  })
+
+  it("평범한 낮 시각은 그대로 KST 요일·시로 떨어진다", () => {
+    const { weekday, hour } = getSeoulWeekdayHour("2026-07-20T05:00:00.000Z") // KST 월 14:00
+    expect(weekday).toBe(1) // 월요일
+    expect(hour).toBe(14)
+  })
+})
+
+describe("addCalendarMonths", () => {
+  it("연도를 넘어간다", () => {
+    expect(addCalendarMonths({ y: 2026, m: 11, d: 1 }, 3)).toEqual({ y: 2027, m: 2, d: 1 })
+  })
+
+  it("음수 이동도 가능하다", () => {
+    expect(addCalendarMonths({ y: 2026, m: 1, d: 1 }, -1)).toEqual({ y: 2025, m: 12, d: 1 })
   })
 })
