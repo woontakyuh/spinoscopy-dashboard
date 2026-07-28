@@ -1,6 +1,6 @@
 import { notionRequest } from "./client"
 import type {
-  LedgerAgent, LedgerChannel, LedgerDomain, LedgerOrigin, LedgerOutcome,
+  LedgerAgent, LedgerChannel, LedgerDomain, LedgerOrigin, LedgerOutcome, LedgerSurface,
 } from "@/lib/dakota-ledger/types"
 
 const SESSION_LOG_DB_ID_KEY = "NOTION_DAKOTA_SESSION_LOG_DB_ID"
@@ -19,6 +19,7 @@ export interface SessionLogInput {
   msgCount: number
   sessionKey: string
   operationPageId: string | null
+  surface: LedgerSurface
 }
 
 interface SessionLogProperty {
@@ -56,6 +57,7 @@ export interface SessionLogItem {
   outcome: LedgerOutcome | null
   msgCount: number
   operationPageId: string | null
+  surface: LedgerSurface | null
 }
 
 interface NotionSessionLogProperty {
@@ -99,6 +101,7 @@ function toSessionLogItem(page: NotionSessionLogPage): SessionLogItem {
     outcome: (p.Outcome?.select?.name as LedgerOutcome | undefined) ?? null,
     msgCount: p["Msg Count"]?.number ?? 0,
     operationPageId: p.Operation?.relation?.[0]?.id ?? null,
+    surface: (p.Surface?.select?.name as LedgerSurface | undefined) ?? null,
   }
 }
 
@@ -213,6 +216,7 @@ export async function createSessionLog(input: SessionLogInput): Promise<string> 
         "Msg Count": { number: input.msgCount },
         "Session Key": { rich_text: richText(input.sessionKey) },
         Operation: { relation: input.operationPageId ? [{ id: input.operationPageId }] : [] },
+        Surface: { select: { name: input.surface } },
       },
     }),
   })

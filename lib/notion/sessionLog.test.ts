@@ -131,7 +131,7 @@ describe("createSessionLog", () => {
     channel: "tui", origin: "지시", agent: "dakota", domain: "Family",
     tags: ["여행"], summary: "제주패스 로그인 후 렌터카 예약 진행",
     outcome: "완료", msgCount: 80, sessionKey: "s-42",
-    operationPageId: "op-1",
+    operationPageId: "op-1", surface: "Hermes",
   }
 
   it("page_id를 반환한다", async () => {
@@ -158,6 +158,7 @@ describe("createSessionLog", () => {
     expect(body.properties["Msg Count"].number).toBe(80)
     expect(body.properties["Session Key"].rich_text[0].text.content).toBe("s-42")
     expect(body.properties.Operation.relation).toEqual([{ id: "op-1" }])
+    expect(body.properties.Surface.select.name).toBe("Hermes")
   })
 
   it("operationPageId가 없으면 relation을 빈 배열로 보낸다", async () => {

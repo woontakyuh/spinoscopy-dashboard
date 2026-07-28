@@ -1,6 +1,6 @@
 export type LedgerOrigin = "지시" | "논의" | "수행"
 
-export type LedgerChannel = "telegram" | "cli" | "tui" | "subagent"
+export type LedgerChannel = "telegram" | "cli" | "tui" | "subagent" | "dashboard"
 
 export type LedgerDomain =
   | "Strategy" | "Clinical" | "Research" | "AI" | "Finance"
@@ -10,7 +10,12 @@ export type LedgerAgent = "dakota" | "elon" | "brian" | "andrej" | "warren" | "l
 
 export type LedgerOutcome = "완료" | "진행" | "보류" | "단발조회"
 
-export const LEDGER_CHANNELS: LedgerChannel[] = ["telegram", "cli", "tui", "subagent"]
+/** Dakota가 운영되는 표면. 세션이 어디서 발생했는지 (과제/Operation에는 표면이 없다). */
+export type LedgerSurface = "Hermes" | "Dashboard" | "Claude Desktop"
+
+export const LEDGER_SURFACES: LedgerSurface[] = ["Hermes", "Dashboard", "Claude Desktop"]
+
+export const LEDGER_CHANNELS: LedgerChannel[] = ["telegram", "cli", "tui", "subagent", "dashboard"]
 
 export const LEDGER_DOMAINS: LedgerDomain[] = [
   "Strategy", "Clinical", "Research", "AI", "Finance",

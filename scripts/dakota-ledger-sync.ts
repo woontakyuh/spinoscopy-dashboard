@@ -126,6 +126,7 @@ async function main() {
         agent: s.agent, domain: s.domain, tags: s.tags,
         summary: s.summary, outcome: s.outcome, msgCount: source.messageCount,
         sessionKey: s.sessionKey, operationPageId: pageId,
+        surface: "Hermes",
       })
 
       if (pageId) {

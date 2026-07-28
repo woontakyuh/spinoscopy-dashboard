@@ -15,6 +15,20 @@ const DOMAIN_OPTIONS = [
   { name: "Operations", color: "gray" },
 ]
 
+const SURFACE_OPTIONS = [
+  { name: "Hermes", color: "blue" },
+  { name: "Dashboard", color: "green" },
+  { name: "Claude Desktop", color: "purple" },
+]
+
+const CHANNEL_OPTIONS = [
+  { name: "telegram", color: "blue" },
+  { name: "cli", color: "gray" },
+  { name: "tui", color: "brown" },
+  { name: "subagent", color: "purple" },
+  { name: "dashboard", color: "green" },
+]
+
 interface NotionDb {
   id: string
   properties: Record<
@@ -32,16 +46,7 @@ async function createSessionLogDb(): Promise<NotionDb> {
       properties: {
         Name: { title: {} },
         Date: { date: {} },
-        Channel: {
-          select: {
-            options: [
-              { name: "telegram", color: "blue" },
-              { name: "cli", color: "gray" },
-              { name: "tui", color: "brown" },
-              { name: "subagent", color: "purple" },
-            ],
-          },
-        },
+        Channel: { select: { options: CHANNEL_OPTIONS } },
         Origin: {
           select: {
             options: [
@@ -78,9 +83,41 @@ async function createSessionLogDb(): Promise<NotionDb> {
         },
         "Msg Count": { number: { format: "number" } },
         "Session Key": { rich_text: {} },
+        Surface: { select: { options: SURFACE_OPTIONS } },
       },
     }),
   })
+}
+
+/**
+ * 이미 있는 Session Log DB에 Surface 속성을 추가하고 Channel 옵션에 "dashboard"를
+ * 얹는다. mergedOptions로 기존 옵션(색 포함)을 보존한 채 없는 이름만 덧붙인다 —
+ * DOMAIN_OPTIONS와 같은 이유(색 변경 거부, PATCH가 옵션 목록을 통째로 교체).
+ */
+async function extendSessionLog(dbId: string): Promise<void> {
+  const before = await notionRequest<{
+    properties: Record<
+      string,
+      {
+        type: string
+        select?: { options: Array<{ name: string; color: string }> }
+      }
+    >
+  }>(`/databases/${dbId}`, { method: "GET" })
+
+  const surfaceOptions = mergedOptions("Surface", before.properties.Surface?.select?.options ?? [], SURFACE_OPTIONS)
+  const channelOptions = mergedOptions("Channel", before.properties.Channel?.select?.options ?? [], CHANNEL_OPTIONS)
+
+  await notionRequest(`/databases/${dbId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      properties: {
+        Surface: { select: { options: surfaceOptions } },
+        Channel: { select: { options: channelOptions } },
+      },
+    }),
+  })
+  console.log("[1b/4] Session Log Surface/Channel 옵션 확장 완료")
 }
 
 /**
@@ -212,6 +249,7 @@ async function main() {
     dbId = db.id
     console.log(`[1/4] Session Log DB 생성됨: ${dbId}`)
   }
+  await extendSessionLog(dbId!)
   await extendOperations(dbId!)
   console.log("")
   console.log("=== .env.local 에 아래 줄을 추가하세요 ===")
