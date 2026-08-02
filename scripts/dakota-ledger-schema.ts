@@ -239,6 +239,78 @@ async function extendOperations(sessionLogDbId: string): Promise<void> {
   console.log("formula 2종 추가 완료")
 }
 
+const WIKI_STATUS_OPTIONS = [
+  { name: "changed", color: "green" },
+  { name: "unchanged", color: "gray" },
+]
+
+async function createWikiStateDb(): Promise<NotionDb> {
+  return notionRequest<NotionDb>("/databases", {
+    method: "POST",
+    body: JSON.stringify({
+      parent: { type: "page_id", page_id: PARENT_PAGE_ID },
+      title: [{ text: { content: "Dakota Wiki State" } }],
+      properties: {
+        Name: { title: {} },
+        "Event Key": { rich_text: {} },
+        Date: { date: {} },
+        Status: { select: { options: WIKI_STATUS_OPTIONS } },
+        Created: { number: { format: "number" } },
+        Updated: { number: { format: "number" } },
+        Deleted: { number: { format: "number" } },
+        "Total Pages": { number: { format: "number" } },
+        "Total Sources": { number: { format: "number" } },
+        Layers: { rich_text: {} },
+        Kinds: { rich_text: {} },
+        Compiler: { rich_text: {} },
+      },
+    }),
+  })
+}
+
+/**
+ * 이미 있는 Wiki State DB의 Status 옵션을 mergedOptions로 보존+확장한다.
+ * Session Log/Operations와 같은 이유(색 변경 거부, PATCH가 옵션 목록을 통째로
+ * 교체)로 스키마 스크립트를 재실행해도 안전하게 만든다.
+ */
+async function extendWikiState(dbId: string): Promise<void> {
+  const before = await notionRequest<{
+    properties: Record<
+      string,
+      {
+        type: string
+        select?: { options: Array<{ name: string; color: string }> }
+      }
+    >
+  }>(`/databases/${dbId}`, { method: "GET" })
+
+  const statusOptions = mergedOptions("Status", before.properties.Status?.select?.options ?? [], WIKI_STATUS_OPTIONS)
+
+  await notionRequest(`/databases/${dbId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      properties: {
+        Status: { select: { options: statusOptions } },
+      },
+    }),
+  })
+  console.log("[Wiki 2/2] Status 옵션 확장 완료")
+}
+
+async function ensureWikiStateDb(): Promise<string> {
+  const existing = process.env.NOTION_DAKOTA_WIKI_DB_ID
+  let dbId = existing
+  if (dbId) {
+    console.log(`[Wiki 1/2] Dakota Wiki State DB 이미 존재: ${dbId} (생성 건너뜀)`)
+  } else {
+    const db = await createWikiStateDb()
+    dbId = db.id
+    console.log(`[Wiki 1/2] Dakota Wiki State DB 생성됨: ${dbId}`)
+  }
+  await extendWikiState(dbId!)
+  return dbId!
+}
+
 async function main() {
   const existing = process.env.NOTION_DAKOTA_SESSION_LOG_DB_ID
   let dbId = existing
@@ -251,9 +323,11 @@ async function main() {
   }
   await extendSessionLog(dbId!)
   await extendOperations(dbId!)
+  const wikiDbId = await ensureWikiStateDb()
   console.log("")
   console.log("=== .env.local 에 아래 줄을 추가하세요 ===")
   console.log(`NOTION_DAKOTA_SESSION_LOG_DB_ID=${dbId}`)
+  console.log(`NOTION_DAKOTA_WIKI_DB_ID=${wikiDbId}`)
 }
 
 main().catch((e) => {

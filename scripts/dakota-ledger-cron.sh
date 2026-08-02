@@ -58,7 +58,7 @@ else
   echo "  경고: origin/main 동기화 실패, 현재 체크아웃으로 진행 — $(git log --oneline -1)"
 fi
 
-# 세 면을 모두 돌린다. 하나가 실패해도 나머지는 시도한다.
+# 네 면을 모두 돌린다. 하나가 실패해도 나머지는 시도한다.
 run() {
   local label="$1"; shift
   echo "--- $label ---"
@@ -68,3 +68,4 @@ run() {
 run "Hermes"       npx tsx --env-file=.env.local scripts/dakota-ledger-sync.ts --since "$SINCE"
 run "To-Do"        npx tsx --env-file=.env.local scripts/dakota-todo-sync.ts
 run "Conversation" npx tsx --env-file=.env.local scripts/dakota-conversation-sync.ts
+run "Wiki"         npx tsx --env-file=.env.local scripts/dakota-wiki-sync.ts

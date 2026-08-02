@@ -10,6 +10,7 @@ import { LedgerCharts } from "./LedgerCharts"
 import { LedgerMatrix } from "./LedgerMatrix"
 import { OperationDetail } from "./OperationDetail"
 import { fetchOperations, fetchSessions } from "./operationLabels"
+import { WikiPanel } from "./WikiPanel"
 
 /** "전체" + Surface 세 값. 세션에만 적용된다 — 과제(Operation)에는 surface가 없다. */
 const SURFACE_FILTERS = ["전체", ...LEDGER_SURFACES] as const
@@ -110,6 +111,8 @@ export function OperationsLedger() {
         <h2 className="text-sm font-semibold text-foreground">분석</h2>
         <LedgerCharts operations={visibleOperations} sessions={visibleSessions} period={periodFilter} now={now} />
       </section>
+
+      <WikiPanel />
 
       {selected && <OperationDetail item={selected} close={() => setSelected(null)} />}
     </div>

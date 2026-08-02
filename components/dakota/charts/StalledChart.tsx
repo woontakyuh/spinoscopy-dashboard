@@ -12,7 +12,11 @@ const TOP_N = 8
  * 자동으로 반응한다. critical/warning은 app/globals.css의 status 토큰(라이트/다크 쌍이
  * 이미 dataviz 대비 기준을 만족하도록 정의돼 있다)을 재사용한다.
  */
-function tone(days: number | null): string {
+/**
+ * export해서 WikiPanel처럼 "얼마나 오래 방치됐는가"를 보여주는 다른 화면에서도
+ * 재사용한다 — 14일/30일 문턱값을 여기저기서 따로 베끼지 않기 위해서다.
+ */
+export function tone(days: number | null): string {
   if (days === null) return "var(--muted-foreground)" // neutral
   if (days > 30) return "var(--status-hold-text)" // status critical (red)
   if (days > 14) return "var(--status-revision-text)" // status warning (amber)

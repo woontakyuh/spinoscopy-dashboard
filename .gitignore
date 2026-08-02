@@ -65,3 +65,4 @@ credentials.json
 !scripts/dakota-ledger-backfill-surface.ts
 !scripts/dakota-todo-sync.ts
 !scripts/dakota-conversation-sync.ts
+!scripts/dakota-wiki-sync.ts
