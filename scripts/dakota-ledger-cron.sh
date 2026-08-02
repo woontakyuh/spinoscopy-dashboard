@@ -1,10 +1,16 @@
 #!/bin/bash
-# launchd에서 호출되는 래퍼. launchd의 PATH는 빈약하므로 필요한 경로를 명시한다.
-# codex는 ~/.local/bin 에 있고 이게 없으면 LLM 호출이 통째로 실패한다.
+# launchd에서 호출되는 래퍼.
+#
+# 전용 러너 워크트리에서 돈다. 주 체크아웃(spinoscopy-dashboard)은 센터장님이
+# 브랜치를 옮겨가며 작업하는 곳이라, 거기서 돌리면 낡은 코드로 적재된다 —
+# 실제로 2026-08-01에 그 일이 나서 세션 14건이 Surface 없이 들어갔다.
+# 러너는 매 실행마다 origin/main으로 맞춘다.
+#
+# launchd의 PATH는 빈약하다. codex는 ~/.local/bin 에 있고 없으면 LLM 호출이 통째로 실패한다.
 set -euo pipefail
 
-REPO="/Users/TakMD/workspace/spinoscopy-dashboard"
-cd "$REPO"
+RUNNER="/Users/TakMD/workspace/spinoscopy-dashboard-ledger-runner"
+cd "$RUNNER"
 
 export PATH="/Users/TakMD/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 
@@ -24,15 +30,12 @@ acquire_lock() {
     trap 'rm -rf "$LOCK_DIR"' EXIT
     return 0
   fi
-
-  # 락이 남아 있다. 그 프로세스가 살아 있으면 양보하고, 죽었으면(크래시·강제종료) 회수한다.
   local old
   old="$(cat "$LOCK_DIR/pid" 2>/dev/null || true)"
   if [ -n "$old" ] && kill -0 "$old" 2>/dev/null; then
     echo "=== $STAMP --since $SINCE : 이전 실행(pid $old)이 아직 돌고 있어 건너뜁니다 ==="
     return 1
   fi
-
   echo "=== $STAMP : 죽은 락 회수 (pid ${old:-unknown}) ==="
   rm -rf "$LOCK_DIR"
   if mkdir "$LOCK_DIR" 2>/dev/null; then
@@ -47,4 +50,21 @@ acquire_lock() {
 acquire_lock || exit 0
 
 echo "=== $STAMP --since $SINCE ==="
-npx tsx --env-file=.env.local scripts/dakota-ledger-sync.ts --since "$SINCE"
+
+# 러너를 origin/main에 맞춘다. 실패해도 이전 코드로 계속 돈다(적재가 멈추는 것보다 낫다).
+if git fetch -q origin main 2>/dev/null && git checkout -q --detach origin/main 2>/dev/null; then
+  echo "  코드: $(git log --oneline -1)"
+else
+  echo "  경고: origin/main 동기화 실패, 현재 체크아웃으로 진행 — $(git log --oneline -1)"
+fi
+
+# 세 면을 모두 돌린다. 하나가 실패해도 나머지는 시도한다.
+run() {
+  local label="$1"; shift
+  echo "--- $label ---"
+  if ! "$@"; then echo "  ! $label 실패 (계속 진행)"; fi
+}
+
+run "Hermes"       npx tsx --env-file=.env.local scripts/dakota-ledger-sync.ts --since "$SINCE"
+run "To-Do"        npx tsx --env-file=.env.local scripts/dakota-todo-sync.ts
+run "Conversation" npx tsx --env-file=.env.local scripts/dakota-conversation-sync.ts
