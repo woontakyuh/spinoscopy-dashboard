@@ -5,9 +5,10 @@
 import { scrapeTsjRaw } from "./scrape-tsj.mjs"
 import { parseTsjCitation } from "../../lib/journal-alert/journalSite"
 import { ingestScrapedArticles } from "../../lib/journal-alert/pipeline"
+import { notionEnv } from "../../lib/notion/client"
 
 async function main() {
-  const databaseId = process.env.NOTION_JOURNAL_DB_ID?.trim()
+  const databaseId = notionEnv("NOTION_JOURNAL_DB_ID")
   if (!databaseId) throw new Error("NOTION_JOURNAL_DB_ID 환경변수 없음")
 
   // 1) TSJ Articles in Press DOM 추출 (Aside + Chrome)

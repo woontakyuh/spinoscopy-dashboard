@@ -1,15 +1,16 @@
 // scripts/journal-collector/topic-radar.ts
 // 코어 6개 저널 "밖"에서 가끔 나오는 좋은 논문을 줍는다 — 저널이 아닌 "주제" 기준.
 // 좁은 관심 쿼리로 전(全) PubMed 검색(코어 6개 제외) → Notion/seen 중복 제거
-// → Groq LLM 이 관련성·품질 점수화 → 통과분만 별도 다이제스트 메일.
-// 재발송 방지: seen-state 파일(PMID). DRY_RUN=1 이면 발송/seen 갱신 안 함.
+// → Groq LLM 이 관련성·품질 점수화 → 통과분을 Notion 에 적재하고 별도 다이제스트 메일.
+// 재발송 방지: seen-state 파일(PMID). DRY_RUN=1 이면 적재/발송/seen 갱신 안 함.
 // env: NOTION_TOKEN, NOTION_JOURNAL_DB_ID, GROQ_API_KEY, JOURNAL_ALERT_SMTP_*, RADAR_DAYS(기본7), RADAR_MIN_SCORE(기본7)
 import nodemailer from "nodemailer"
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { searchPubmedByTerm, fetchPubmedArticles, titleKey } from "../../lib/journal-alert/pipeline"
+import { searchPubmedByTerm, fetchPubmedArticles, titleKey, ingestExternalArticles } from "../../lib/journal-alert/pipeline"
 import { alertSubject, alertWrap, articleItem, articleList, escHtml } from "../../lib/journal-alert/mailTemplate"
+import { notionEnv } from "../../lib/notion/client"
 
 const DRY = process.env.DRY_RUN === "1"
 const DAYS = Number(process.env.RADAR_DAYS ?? "7")
@@ -35,7 +36,7 @@ const EXCLUDE_CORE =
   'OR "hip "[ti] OR knee[ti] OR dental[ti] OR pulmonary[ti])'
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN
-const DB = process.env.NOTION_JOURNAL_DB_ID?.trim()
+const DB = notionEnv("NOTION_JOURNAL_DB_ID")
 const NH = { Authorization: `Bearer ${NOTION_TOKEN}`, "Notion-Version": "2022-06-28", "Content-Type": "application/json" }
 
 async function loadNotionKeys(): Promise<Set<string>> {
@@ -191,6 +192,18 @@ async function main() {
   writeFileSync(SEEN_PATH, JSON.stringify(updatedSeen.slice(-5000)))
 
   if (kept.length === 0) { console.log("[radar] 통과 0건 — 발송 안 함"); return }
+
+  // 게이트 통과분은 Notion 에도 적재한다. 메일만 보내던 시절엔 레이더가 주운 논문이
+  // 어디에도 안 남아 나중에 찾을 수가 없었다. dedup 은 ingestExternalArticles 가 한다.
+  const keptPmids = new Set(kept.map((k) => k.pmid))
+  const keptArticles = cands.filter((a) => keptPmids.has(a.pmid))
+  try {
+    const ing = await ingestExternalArticles(DB, keptArticles)
+    console.log(`[radar] Notion 적재: 생성 ${ing.created} · 중복스킵 ${ing.skipped} · 실패 ${ing.failed}`)
+  } catch (e) {
+    // 적재가 실패해도 메일은 나가야 한다 — 알림이 더 중요하다.
+    console.error("[radar] Notion 적재 실패(메일은 계속):", e instanceof Error ? e.message : e)
+  }
 
   const clean = (s?: string) => (s || "").replace(/\\n/g, "").replace(/["\r\n]/g, "").trim()
   const user = process.env.JOURNAL_ALERT_SMTP_USER

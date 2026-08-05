@@ -15,9 +15,13 @@ const MIN_GAP_MS = 30_000
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const jitter = () => MIN_GAP_MS + Math.floor(Math.random() * 15_000)
 
+// 출판사 PDF 엔드포인트는 UA 없는 요청을 막는 경우가 있다.
+const BROWSER_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+
 async function downloadOA(url: string): Promise<Buffer | null> {
   try {
-    const res = await fetch(url)
+    const res = await fetch(url, { headers: { "User-Agent": BROWSER_UA } })
     if (!res.ok) return null
     const buf = Buffer.from(await res.arrayBuffer())
     return isPdfBuffer(buf) ? buf : null

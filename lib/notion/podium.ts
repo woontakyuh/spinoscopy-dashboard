@@ -1,4 +1,4 @@
-import { notionRequest } from "./client"
+import { notionRequest, notionEnv } from "./client"
 import type { Presentation, PresentationFilter } from "@/lib/types/presentation"
 
 interface NotionProperty {
@@ -33,7 +33,7 @@ function getMultiSelect(prop: NotionProperty | undefined): string[] {
 }
 
 function getScheduleDbId(): string {
-  return process.env.NOTION_SCHEDULE_DB_ID ?? ""
+  return notionEnv("NOTION_SCHEDULE_DB_ID")
 }
 
 export function toPresentation(page: NotionPage): Presentation {

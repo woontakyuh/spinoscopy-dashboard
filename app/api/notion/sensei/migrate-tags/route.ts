@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { notionRequest } from "@/lib/notion/client"
+import { notionRequest, notionEnv } from "@/lib/notion/client"
 import { BJJ_TAG_REFERENCE } from "@/lib/ai/bjjTags"
 
 // v1 → v2 태그 매핑: 구 약어/풀네임 → 새 약어
@@ -194,7 +194,7 @@ function dedupTags(tags: string[]): string[] {
 
 export async function POST() {
   try {
-    const dbId = process.env.NOTION_BJJ_DB_ID ?? "2e7908af25b980978098c857bdc0acbe"
+    const dbId = notionEnv("NOTION_BJJ_DB_ID") || "2e7908af25b980978098c857bdc0acbe"
 
     let allPages: NotionPage[] = []
     let cursor: string | null = null

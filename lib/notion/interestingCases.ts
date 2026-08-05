@@ -1,4 +1,4 @@
-import { notionRequest } from "./client"
+import { notionRequest, notionEnv } from "./client"
 
 interface NotionRichText { plain_text?: string }
 interface NotionProperty {
@@ -73,7 +73,7 @@ function toCase(page: NotionPage): InterestingCase {
 
 /** Patient DB에서 DB 컬럼에 "Interesting case" 태그가 있는 환자를 반환한다. */
 export async function listInterestingCases(limit = 100): Promise<InterestingCase[]> {
-  const dbId = process.env.NOTION_PATIENT_DB_ID
+  const dbId = notionEnv("NOTION_PATIENT_DB_ID")
   if (!dbId) throw new Error("NOTION_PATIENT_DB_ID is not configured")
 
   const all: NotionPage[] = []

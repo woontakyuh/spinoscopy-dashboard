@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer"
-import { notionRequest } from "@/lib/notion/client"
+import { notionRequest, notionEnv } from "@/lib/notion/client"
 import { alertSubject, alertWrap, notionPageUrl, notionIconLink } from "./mailTemplate"
 import {
   JOURNAL_SOURCES,
@@ -797,7 +797,7 @@ function notionTypeToPubTypes(notionType: string): string[] {
 }
 
 export async function runReclassifyInterest(): Promise<ReclassifyResult> {
-  const databaseId = process.env.NOTION_JOURNAL_DB_ID?.trim()
+  const databaseId = notionEnv("NOTION_JOURNAL_DB_ID")
   if (!databaseId) throw new Error("NOTION_JOURNAL_DB_ID missing")
 
   const result: ReclassifyResult = {
@@ -897,7 +897,7 @@ async function sendReclassifyReport(
 }
 
 export async function runBackfillFields(): Promise<BackfillResult & { emailed: boolean; emailSkippedReason?: string }> {
-  const databaseId = process.env.NOTION_JOURNAL_DB_ID?.trim()
+  const databaseId = notionEnv("NOTION_JOURNAL_DB_ID")
   if (!databaseId) throw new Error("NOTION_JOURNAL_DB_ID missing")
 
   // 필드별 patch 카운트를 따로 트래킹 — 메일 리포트에 어떤 필드가 얼마나 채워졌는지 보여줌
@@ -1047,7 +1047,7 @@ export async function runDoiBackfill(options: { sendEmail?: boolean } = {}): Pro
   // 매일 도는 백그라운드 정비 잡 — 기본은 메일 OFF (패치가 거의 매일 있어 노이즈).
   // 디버그/수동 실행 시 sendEmail:true 로 리포트 받을 수 있음.
   const shouldEmail = options.sendEmail === true
-  const databaseId = process.env.NOTION_JOURNAL_DB_ID?.trim()
+  const databaseId = notionEnv("NOTION_JOURNAL_DB_ID")
   if (!databaseId) throw new Error("NOTION_JOURNAL_DB_ID missing")
 
   const result: DoiBackfillResult = {
@@ -1425,7 +1425,7 @@ export async function runJournalAlertPipeline(days: number, options: RunOptions 
     }
   }
   const shouldSendEmail = options.sendEmail !== false
-  const databaseId = process.env.NOTION_JOURNAL_DB_ID?.trim()
+  const databaseId = notionEnv("NOTION_JOURNAL_DB_ID")
   if (!databaseId) throw new Error("NOTION_JOURNAL_DB_ID missing")
 
   const existing = await loadExistingKeys(databaseId)

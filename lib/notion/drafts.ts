@@ -1,4 +1,4 @@
-import { notionRequest } from "./client"
+import { notionRequest, notionEnv } from "./client"
 import type { MemoCategory, MemoDraft } from "@/lib/types/draft"
 
 interface NotionProperty {
@@ -74,7 +74,7 @@ function toRichText(content: string) {
 }
 
 function getDraftsDbId() {
-  const dbId = process.env.NOTION_DRAFTS_DB_ID
+  const dbId = notionEnv("NOTION_DRAFTS_DB_ID")
   if (!dbId) {
     throw new Error("NOTION_DRAFTS_DB_ID missing")
   }

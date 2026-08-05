@@ -1,4 +1,4 @@
-import { notionRequest } from "./client"
+import { notionRequest, notionEnv } from "./client"
 import type { ScheduleCreateInput, ScheduleItem } from "../types/schedule"
 
 interface NotionPage {
@@ -70,7 +70,7 @@ function addDaysSeoul(days: number): string {
 }
 
 export async function getUpcomingSchedules(days = 7): Promise<ScheduleItem[]> {
-  const dbId = process.env.NOTION_SCHEDULE_DB_ID
+  const dbId = notionEnv("NOTION_SCHEDULE_DB_ID")
   const todayStr = todaySeoul()
   const futureStr = addDaysSeoul(days)
 
@@ -138,7 +138,7 @@ function toScheduleRich(page: NotionPage): ScheduleRich {
 }
 
 export async function getSchedulesRichInRange(startDate: string, endDate: string, limit = 50): Promise<ScheduleRich[]> {
-  const dbId = process.env.NOTION_SCHEDULE_DB_ID
+  const dbId = notionEnv("NOTION_SCHEDULE_DB_ID")
   const response = await notionRequest<NotionQueryResponse>(
     `/databases/${dbId}/query`,
     {
@@ -159,7 +159,7 @@ export async function getSchedulesRichInRange(startDate: string, endDate: string
 }
 
 export async function getSchedulesInRange(startDate: string, endDate: string): Promise<ScheduleItem[]> {
-  const dbId = process.env.NOTION_SCHEDULE_DB_ID
+  const dbId = notionEnv("NOTION_SCHEDULE_DB_ID")
 
   const response = await notionRequest<NotionQueryResponse>(
     `/databases/${dbId}/query`,
@@ -182,7 +182,7 @@ export async function getSchedulesInRange(startDate: string, endDate: string): P
 }
 
 export async function findDuplicateSchedule(name: string, dateStart: string): Promise<ScheduleItem | null> {
-  const dbId = process.env.NOTION_SCHEDULE_DB_ID
+  const dbId = notionEnv("NOTION_SCHEDULE_DB_ID")
 
   const response = await notionRequest<NotionQueryResponse>(
     `/databases/${dbId}/query`,
@@ -205,7 +205,7 @@ export async function findDuplicateSchedule(name: string, dateStart: string): Pr
 }
 
 export async function createSchedule(input: ScheduleCreateInput): Promise<{ page_id: string; url: string }> {
-  const dbId = process.env.NOTION_SCHEDULE_DB_ID
+  const dbId = notionEnv("NOTION_SCHEDULE_DB_ID")
 
   const properties: Record<string, unknown> = {
     Name: {

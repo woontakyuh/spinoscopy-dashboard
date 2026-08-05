@@ -1,4 +1,4 @@
-import { notionRequest } from "./client"
+import { notionRequest, notionEnv } from "./client"
 import { parseVAS, parseODI, parseNDI, parseJOA, parseEQ5D } from "../prom/calculator"
 
 interface NotionProperty {
@@ -85,7 +85,7 @@ interface NotionDatabaseSchema {
 export type DimensionSchema = Record<Dimension, { name: string; color: string }[]>
 
 export async function getAllDimensionOptions(): Promise<DimensionSchema> {
-  const dbId = process.env.NOTION_PATIENT_DB_ID
+  const dbId = notionEnv("NOTION_PATIENT_DB_ID")
   const db = await notionRequest<NotionDatabaseSchema>(`/databases/${dbId}`)
 
   const result = {} as DimensionSchema
@@ -105,7 +105,7 @@ export async function getOpCategoryOptions(): Promise<{ name: string; color: str
 export type DimensionFilters = Partial<Record<Dimension, string[]>>
 
 async function fetchAllPatients(filters?: DimensionFilters, query?: string): Promise<NotionPage[]> {
-  const dbId = process.env.NOTION_PATIENT_DB_ID
+  const dbId = notionEnv("NOTION_PATIENT_DB_ID")
   const all: NotionPage[] = []
   let cursor: string | undefined = undefined
 

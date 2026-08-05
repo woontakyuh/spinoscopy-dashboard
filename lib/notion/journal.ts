@@ -1,4 +1,4 @@
-import { notionRequest } from "./client"
+import { notionRequest, notionEnv } from "./client"
 import type {
   JournalArticle,
   JournalFilter,
@@ -90,7 +90,7 @@ function toArticle(page: NotionPage): JournalArticle {
   }
 }
 
-const JOURNAL_DB_ID = process.env.NOTION_JOURNAL_DB_ID ?? ""
+const JOURNAL_DB_ID = notionEnv("NOTION_JOURNAL_DB_ID")
 
 function buildFilter(filter: JournalFilter) {
   const conditions: Record<string, unknown>[] = []
