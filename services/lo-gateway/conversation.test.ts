@@ -117,4 +117,61 @@ describe("Lo gateway Hermes conversation adapter", () => {
     })).rejects.toThrow("provider unavailable")
     expect(appendTurn).not.toHaveBeenCalled()
   })
+
+  it("discards terminal citation failures and persists a fixed safe fallback", async () => {
+    const appendTurn = vi.fn().mockReturnValue({
+      turnId: "turn-1",
+      sessionId: "session-1",
+      surface: "dashboard",
+      contextKey: "dashboard:conversation-1",
+      externalTurnId: "dashboard:turn-1",
+      userText: "내 하프가드 우선순위 알려줘",
+      assistantText: "Tak, 이번 답변은 근거 연결이 정확하지 않아서 보내지 않았어. 같은 질문을 한 번만 다시 해줘.",
+      createdAt: "2026-08-05T12:00:00.000Z",
+    })
+    const invalidOutput = {
+      output: [{
+        type: "message",
+        content: [{
+          type: "output_text",
+          text: "<script>alert(1)</script> 없는 사실 [citation:notion:memory:other-request]",
+        }],
+      }],
+    }
+    const respond = vi.fn()
+      .mockResolvedValueOnce(invalidOutput)
+      .mockResolvedValueOnce(invalidOutput)
+    const conversation = createLoGatewayConversationService({
+      service: {
+        executeTool: vi.fn().mockResolvedValue({
+          tool: "lo.memory.search",
+          data: [{ pageId: "memory-1", content: "Prioritize the underhook." }],
+          citations: [memoryCitation],
+        }),
+      },
+      provider: { respond },
+      store: {
+        appendTurn,
+        recentMessages: vi.fn().mockReturnValue([]),
+        countTurns: vi.fn(),
+        close: vi.fn(),
+      },
+      candidates: { considerTurn: vi.fn() },
+    })
+
+    const result = await conversation.respond({
+      message: "내 하프가드 우선순위 알려줘",
+      surface: "dashboard",
+      contextKey: "dashboard:conversation-1",
+      externalTurnId: "dashboard:turn-1",
+    })
+
+    expect(result).toBe("Tak, 이번 답변은 근거 연결이 정확하지 않아서 보내지 않았어. 같은 질문을 한 번만 다시 해줘.")
+    expect(result).not.toContain("<script>")
+    expect(result).not.toContain("other-request")
+    expect(respond).toHaveBeenCalledTimes(2)
+    expect(appendTurn).toHaveBeenCalledWith(expect.objectContaining({
+      assistantText: result,
+    }))
+  })
 })
