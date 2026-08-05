@@ -13,6 +13,7 @@ export type EditorialStatus =
   | "3rd Revision"
   | "Accepted"
   | "Rejected"
+  | "Declined"   // 리뷰 요청 자체를 거절한 건
   // 레거시 호환 (옛 row 에 남아 있을 수 있음)
   | "Under Review"
   | "Under Revision"
