@@ -37,9 +37,16 @@ interface AgentChatProps {
   image: string
   name: string
   greeting: string
+  api?: string
 }
 
-export function AgentChat({ agentId, image, name, greeting }: AgentChatProps) {
+export function AgentChat({
+  agentId,
+  image,
+  name,
+  greeting,
+  api = "/api/ai/chat",
+}: AgentChatProps) {
   const [inputValue, setInputValue] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
   const [focused, setFocused] = useState(false)
@@ -48,7 +55,7 @@ export function AgentChat({ agentId, image, name, greeting }: AgentChatProps) {
 
   const { messages, sendMessage, status, error, setMessages } = useChat({
     transport: new TextStreamChatTransport({
-      api: "/api/ai/chat",
+      api,
       body: { agentId },
     }),
     onError: (err) => console.error(`[${name}Chat] error:`, err),

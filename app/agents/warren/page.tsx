@@ -126,7 +126,13 @@ export default function VaultPage() {
 
       {/* Content */}
       <div className="flex-1 min-w-0 p-3 md:p-6 max-w-[1680px] w-full">
-        <AgentChat agentId="warren" image="/warren.png" name="Warren" greeting={isTabLoading ? "..." : message} />
+        <AgentChat
+          agentId="warren"
+          image="/warren.png"
+          name="Warren"
+          greeting={isTabLoading ? "..." : message}
+          api="/api/warren/conversation"
+        />
         <VaultDashboard view={activeTab} />
       </div>
     </div>
