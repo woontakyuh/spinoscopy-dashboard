@@ -1,6 +1,7 @@
 import { notionRequest, notionEnv } from "./client"
 import { findDoiInText } from "../fulltext/pdf"
 import { fetchCrossref } from "../fulltext/crossref"
+import { fetchPubmedMetaByDoi } from "../fulltext/pubmed"
 
 export interface FulltextFields {
   requested: boolean
@@ -164,18 +165,28 @@ export async function addFulltextRequestByDoi(input: string): Promise<AddByDoiRe
     return { pageId: page.id, created: false, title: title || doiLower, doi: doiLower }
   }
 
-  // CrossRef 메타로 새 행 생성
+  // CrossRef 메타로 새 행 생성. CrossRef 에 제목이 없는 논문(중국·일본계 저널에
+  // 종종 있다)은 PubMed 로 한 번 더 찾는다 — 안 그러면 제목 자리에 DOI 문자열이
+  // 박히고, 야간 doi-backfill 은 Title 을 고치지 않아 영구히 남는다.
   const meta = await fetchCrossref(doiLower)
-  const title = meta?.title || doiLower
+  const pubmed = meta?.title ? null : await fetchPubmedMetaByDoi(doiLower)
+
+  const title = meta?.title || pubmed?.title || doiLower
+  const authors = meta?.authors || pubmed?.authors || ""
+  const journal = meta?.journal || pubmed?.journal || ""
+  const pubDate = meta?.pubDate || pubmed?.pubDate || null
+
   const props: Record<string, unknown> = {
     Title: { title: [{ text: { content: title.slice(0, 2000) } }] },
     DOI: { url },
     "원문 요청": { checkbox: true },
     "원문 상태": { select: { name: "요청됨" } },
   }
-  if (meta?.authors) props.Author = { rich_text: [{ text: { content: meta.authors.slice(0, 2000) } }] }
-  if (meta?.journal) props["Journal Name"] = { select: { name: meta.journal.slice(0, 100) } }
-  if (meta?.pubDate) props["Publication Date"] = { date: { start: meta.pubDate } }
+  if (authors) props.Author = { rich_text: [{ text: { content: authors.slice(0, 2000) } }] }
+  if (journal) props["Journal Name"] = { select: { name: journal.slice(0, 100) } }
+  if (pubDate) props["Publication Date"] = { date: { start: pubDate } }
+  // PubMed 까지 갔다면 PMID 는 공짜로 얻은 셈 — 넣어두면 backfill 이 또 찾지 않는다.
+  if (pubmed?.pmid) props.PMID = { rich_text: [{ text: { content: pubmed.pmid } }] }
 
   const created = await notionRequest<{ id: string }>("/pages", {
     method: "POST",
