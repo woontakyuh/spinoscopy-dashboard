@@ -258,12 +258,18 @@ export async function runLoConversation(
     .map((message) => `${message.role}: ${message.content}`)
     .join("\n")
   const readOnlyTools = LO_TOOL_NAMES.filter((name) => name !== "lo.memory.save")
-  return runLoToolLoop({
+  const loopInput = {
     prompt,
     toolNames: readOnlyTools,
     seedResults,
     ...dependencies,
-  })
+  }
+  try {
+    return await runLoToolLoop(loopInput)
+  } catch (error) {
+    if (!(error instanceof LoChatCitationError)) throw error
+    return runLoToolLoop(loopInput)
+  }
 }
 
 /**
