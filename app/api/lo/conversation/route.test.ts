@@ -61,6 +61,41 @@ describe("POST /api/lo/conversation", () => {
     await expect(response.text()).resolves.toBe("최근 훈련 요약입니다.")
   })
 
+  it("accepts AI SDK metadata parts from an earlier assistant turn", async () => {
+    const callGateway = vi.fn().mockResolvedValue("언더훅부터 고쳐.")
+    const POST = createLoConversationPostHandler({
+      gatewayConfig: () => gatewayConfig,
+      callGateway,
+    })
+    const followUpMessages = [
+      ...messages,
+      {
+        id: "message-2",
+        role: "assistant",
+        parts: [
+          { type: "step-start" },
+          { type: "text", text: "7월은 하프가드 분기를 만든 달이야." },
+        ],
+      },
+      {
+        id: "message-3",
+        role: "user",
+        parts: [{ type: "text", text: "그중에서 뭐부터 고칠까?" }],
+      },
+    ]
+
+    const response = await POST(request(JSON.stringify({ messages: followUpMessages })))
+
+    expect(response.status).toBe(200)
+    expect(callGateway).toHaveBeenCalledWith("그중에서 뭐부터 고칠까?", expect.objectContaining({
+      turn: {
+        surface: "dashboard",
+        contextKey: "dashboard:message-1",
+        externalTurnId: "message-3",
+      },
+    }))
+  })
+
   it("returns gateway_unavailable when remote gateway configuration is incomplete", async () => {
     const callGateway = vi.fn()
     const POST = createLoConversationPostHandler({

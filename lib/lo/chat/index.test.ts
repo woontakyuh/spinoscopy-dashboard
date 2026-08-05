@@ -180,6 +180,35 @@ describe("Lo chat tool loop", () => {
     expect(result.answer).toContain("[citation:notion:memory:memory-1]")
   })
 
+  it("repairs a repeated invalid citation with current-request citations", async () => {
+    const adapter: LoToolAdapter = {
+      execute: vi.fn().mockResolvedValue({
+        tool: "lo.memory.search",
+        data: [{ pageId: "memory-1", content: "Prioritize the underhook." }],
+        citations: [{
+          id: "notion:memory:memory-1",
+          source: "notion" as const,
+          label: "Lo Memory: underhook priority",
+        }],
+      }),
+    }
+    const invalidResponse = [
+      answer("언더훅이 우선이야. [citation:notion:memory:other-request]"),
+    ]
+    const provider = createProvider(invalidResponse, invalidResponse)
+
+    const result = await runLoConversation([
+      { role: "user", content: "내 하프가드 우선순위 알려줘" },
+    ], { adapter, provider })
+
+    expect(provider.respond).toHaveBeenCalledTimes(2)
+    expect(result.answer).toContain("[citation:notion:memory:memory-1]")
+    expect(result.answer).not.toContain("other-request")
+    expect(result.citations).toEqual([
+      expect.objectContaining({ id: "notion:memory:memory-1" }),
+    ])
+  })
+
   it("routes a model function call through the bounded dashboard adapter and preserves its citation", async () => {
     const adapter = createAdapter()
     const provider = createProvider(

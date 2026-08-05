@@ -10,15 +10,18 @@ import { resolveLoGatewaySecret } from "@/services/lo-gateway/contract"
 
 export const dynamic = "force-dynamic"
 
-const textPartSchema = z.looseObject({
-  type: z.literal("text"),
-  text: z.string().trim().min(1).max(8_000),
-})
+const messagePartSchema = z.looseObject({
+  type: z.string().trim().min(1).max(100),
+  text: z.string().max(8_000).optional(),
+}).refine(
+  (part) => part.type !== "text" || Boolean(part.text?.trim()),
+  "Text parts must contain text",
+)
 
 const messageSchema = z.looseObject({
   id: z.string().trim().min(1).max(200),
   role: z.enum(["user", "assistant"]),
-  parts: z.array(textPartSchema).min(1).max(20),
+  parts: z.array(messagePartSchema).min(1).max(20),
 })
 
 const conversationRequestSchema = z.looseObject({
@@ -44,12 +47,17 @@ export function createLoConversationPostHandler(dependencies: LoConversationRout
 
     const latestUser = parsed.data.messages.findLast((message) => message.role === "user")
     if (!latestUser) return json({ error: "invalid_request" }, 400)
+    const latestText = latestUser.parts
+      .flatMap((part) => part.type === "text" && part.text ? [part.text] : [])
+      .join("")
+      .trim()
+    if (!latestText) return json({ error: "invalid_request" }, 400)
     const config = dependencies.gatewayConfig()
     if (!config) return json({ error: "gateway_unavailable" }, 503)
 
     try {
       const answer = formatLoAnswerForDisplay(await dependencies.callGateway(
-        latestUser.parts.map((part) => part.text).join(""),
+        latestText,
         {
           ...config,
           turn: {
