@@ -10,6 +10,7 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import { searchPubmedByTerm, fetchPubmedArticles, titleKey } from "../../lib/journal-alert/pipeline"
 import { alertSubject, alertWrap, articleItem, articleList, escHtml } from "../../lib/journal-alert/mailTemplate"
+import { notionEnv } from "../../lib/notion/client"
 
 const DRY = process.env.DRY_RUN === "1"
 const DAYS = Number(process.env.RADAR_DAYS ?? "7")
@@ -35,7 +36,7 @@ const EXCLUDE_CORE =
   'OR "hip "[ti] OR knee[ti] OR dental[ti] OR pulmonary[ti])'
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN
-const DB = process.env.NOTION_JOURNAL_DB_ID?.trim()
+const DB = notionEnv("NOTION_JOURNAL_DB_ID")
 const NH = { Authorization: `Bearer ${NOTION_TOKEN}`, "Notion-Version": "2022-06-28", "Content-Type": "application/json" }
 
 async function loadNotionKeys(): Promise<Set<string>> {

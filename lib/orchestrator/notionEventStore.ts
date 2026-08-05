@@ -1,4 +1,4 @@
-import { notionRequest } from "@/lib/notion/client"
+import { notionRequest, notionEnv } from "@/lib/notion/client"
 import type { AgentEvent } from "./types"
 
 interface NotionRichText {
@@ -30,7 +30,7 @@ interface NotionQueryResponse {
 function getDbId(): string | null {
   // 장기기억 DB(NOTION_DAKOTA_MEMORY_DB_ID)에 raw 이벤트를 쌓지 않는다.
   // 전용 이벤트 DB가 설정된 경우에만 Notion에 기록하고, 아니면 파일 스토어만 쓴다.
-  const dbId = process.env.NOTION_DAKOTA_EVENT_DB_ID?.trim()
+  const dbId = notionEnv("NOTION_DAKOTA_EVENT_DB_ID")
   const token = process.env.NOTION_TOKEN?.trim()
   if (!dbId || !token) return null
   return dbId

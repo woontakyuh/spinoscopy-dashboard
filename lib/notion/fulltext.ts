@@ -1,4 +1,4 @@
-import { notionRequest } from "./client"
+import { notionRequest, notionEnv } from "./client"
 import { findDoiInText } from "../fulltext/pdf"
 import { fetchCrossref } from "../fulltext/crossref"
 
@@ -23,7 +23,7 @@ export function readFulltext(props: Record<string, Prop>): FulltextFields {
   }
 }
 
-const JOURNAL_DB_ID = process.env.NOTION_JOURNAL_DB_ID ?? ""
+const JOURNAL_DB_ID = notionEnv("NOTION_JOURNAL_DB_ID")
 
 /** 대시보드/Notion 어느 쪽이든 요청을 큐에 넣는다. */
 export async function requestFulltext(pageId: string): Promise<void> {

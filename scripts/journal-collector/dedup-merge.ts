@@ -7,9 +7,10 @@
 //   미리보기:  set -a; . ./.env.local; set +a; npx tsx scripts/journal-collector/dedup-merge.ts
 //   실제적용:  set -a; . ./.env.local; set +a; DEDUP_APPLY=1 npx tsx scripts/journal-collector/dedup-merge.ts
 import { doiKey, titleKey } from "../../lib/journal-alert/pipeline"
+import { notionEnv } from "../../lib/notion/client"
 
 const TOKEN = process.env.NOTION_TOKEN
-const DB = process.env.NOTION_JOURNAL_DB_ID?.trim()
+const DB = notionEnv("NOTION_JOURNAL_DB_ID")
 const APPLY = process.env.DEDUP_APPLY === "1"
 if (!TOKEN || !DB) { console.error("NOTION_TOKEN / NOTION_JOURNAL_DB_ID missing"); process.exit(1) }
 

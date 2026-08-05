@@ -8,6 +8,7 @@ import {
   ingestExternalArticles, classifyInterest, titleKey, doiKey,
 } from "../../lib/journal-alert/pipeline"
 import { alertSubject, alertWrap, articleItem, articleList, escHtml, notionPageUrl } from "../../lib/journal-alert/mailTemplate"
+import { notionEnv } from "../../lib/notion/client"
 
 const DRY = process.env.DRY_RUN === "1"
 const DAYS = Number(process.env.GAP_DAYS ?? "4")
@@ -26,7 +27,7 @@ const JUNK = /^(table of contents|editorial board|meetings? calendar|masthead|co
 const stripTags = (s: string) => (s || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN
-const DB = process.env.NOTION_JOURNAL_DB_ID?.trim()
+const DB = notionEnv("NOTION_JOURNAL_DB_ID")
 const NH = { Authorization: `Bearer ${NOTION_TOKEN}`, "Notion-Version": "2022-06-28", "Content-Type": "application/json" }
 
 interface Article {

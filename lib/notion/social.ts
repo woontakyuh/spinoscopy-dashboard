@@ -1,4 +1,4 @@
-import { notionRequest } from "./client"
+import { notionRequest, notionEnv } from "./client"
 import { accountLang } from "@/lib/radar/socialSources"
 import type { SocialItem, SocialPlatform } from "@/lib/types/social"
 
@@ -56,7 +56,7 @@ function toSocialItem(page: NotionPage): SocialItem | null {
 const DEFAULT_SOCIAL_DB_ID = "387908af-25b9-818e-a68b-ef7555b364e0"
 
 export async function querySocialItems(limit = 40): Promise<SocialItem[]> {
-  const dbId = process.env.NOTION_SOCIAL_DB_ID ?? DEFAULT_SOCIAL_DB_ID
+  const dbId = notionEnv("NOTION_SOCIAL_DB_ID") || DEFAULT_SOCIAL_DB_ID
   if (!dbId) return []
 
   const data = await notionRequest<NotionQueryResponse>(`/databases/${dbId}/query`, {

@@ -43,7 +43,7 @@ import { isTakWorking, isWaitingOnJournal, isResearchTerminal } from "@/lib/rese
 // MY_PAPERS hardcoded list 는 Research DB (Published / Accepted) 로 대체됨.
 const TAK_NAME = "여운탁"
 import { getAllPatientRows } from "@/lib/notion/analytics"
-import { notionRequest } from "@/lib/notion/client"
+import { notionRequest, notionEnv } from "@/lib/notion/client"
 import {
   listGoogleCalendarEventsForRange,
   createGoogleCalendarEvent,
@@ -195,7 +195,7 @@ interface SurgeryItem { name: string; op_name: string; hospital: string }
 
 async function fetchTodaySurgeries(today: string): Promise<SurgeryItem[]> {
   try {
-    const dbId = process.env.NOTION_PATIENT_DB_ID
+    const dbId = notionEnv("NOTION_PATIENT_DB_ID")
     if (!dbId) return []
     const response = await notionRequest<{ results: Array<{ properties: Record<string, unknown> }> }>(
       `/databases/${dbId}/query`,

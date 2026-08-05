@@ -1,4 +1,4 @@
-import { notionRequest } from "./client"
+import { notionRequest, notionEnv } from "./client"
 import type { PatientSearchResult, PromScores, NewCaseInput } from "../types/patient"
 
 interface NotionPage {
@@ -51,7 +51,7 @@ function toPatientResult(page: NotionPage): PatientSearchResult {
 }
 
 export async function searchPatients(query: string): Promise<PatientSearchResult[]> {
-  const dbId = process.env.NOTION_PATIENT_DB_ID
+  const dbId = notionEnv("NOTION_PATIENT_DB_ID")
   const q = query.trim()
   if (!q) return []
   const response = await notionRequest<NotionQueryResponse>(
@@ -278,7 +278,7 @@ export async function updateProm(
 }
 
 export async function createCase(input: NewCaseInput): Promise<string> {
-  const dbId = process.env.NOTION_PATIENT_DB_ID
+  const dbId = notionEnv("NOTION_PATIENT_DB_ID")
   const properties: Record<string, unknown> = {
     Name: { title: [{ text: { content: input.name } }] },
     "Pt No": { rich_text: [{ text: { content: input.pt_no } }] },

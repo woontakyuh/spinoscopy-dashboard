@@ -2,10 +2,11 @@
 // 사용: npx tsx scripts/seed-dakota-memory.ts
 
 import { config } from "dotenv"
+import { notionEnv } from "../lib/notion/client"
 config({ path: ".env.local" })
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN
-const DB_ID = process.env.NOTION_DAKOTA_MEMORY_DB_ID
+const DB_ID = notionEnv("NOTION_DAKOTA_MEMORY_DB_ID")
 
 if (!NOTION_TOKEN || !DB_ID) {
   console.error("NOTION_TOKEN / NOTION_DAKOTA_MEMORY_DB_ID 환경변수 필요")

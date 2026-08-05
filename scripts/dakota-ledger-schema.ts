@@ -1,6 +1,6 @@
-import { notionRequest } from "../lib/notion/client"
+import { notionRequest, notionEnv } from "../lib/notion/client"
 
-const OPERATIONS_DB_ID = process.env.NOTION_DAKOTA_OPERATIONS_DB_ID
+const OPERATIONS_DB_ID = notionEnv("NOTION_DAKOTA_OPERATIONS_DB_ID")
 const PARENT_PAGE_ID = "310908af-25b9-81c0-a93c-c3d65131f17e" // Jarvis To-Do
 
 const DOMAIN_OPTIONS = [
@@ -203,7 +203,7 @@ async function extendOperations(sessionLogDbId: string): Promise<void> {
 }
 
 async function main() {
-  const existing = process.env.NOTION_DAKOTA_SESSION_LOG_DB_ID
+  const existing = notionEnv("NOTION_DAKOTA_SESSION_LOG_DB_ID")
   let dbId = existing
   if (dbId) {
     console.log(`[1/4] Session Log DB 이미 존재: ${dbId} (생성 건너뜀)`)

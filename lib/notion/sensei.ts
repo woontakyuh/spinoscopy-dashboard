@@ -1,4 +1,4 @@
-import { notionRequest } from "./client"
+import { notionRequest, notionEnv } from "./client"
 import type { SenseiEntry, StructuredBjjNote } from "@/lib/types/sensei"
 
 interface NotionProperty {
@@ -53,7 +53,7 @@ function getMulti(prop: NotionProperty | undefined): string[] {
 }
 
 function getDbId() {
-  return process.env.NOTION_BJJ_DB_ID ?? "2e7908af25b980978098c857bdc0acbe"
+  return notionEnv("NOTION_BJJ_DB_ID") || "2e7908af25b980978098c857bdc0acbe"
 }
 
 function buildRichText(content: string): RichTextItem[] {

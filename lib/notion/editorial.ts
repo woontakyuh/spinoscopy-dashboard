@@ -1,4 +1,4 @@
-import { notionRequest } from "./client"
+import { notionRequest, notionEnv } from "./client"
 import type {
   EditorialItem,
   EditorialRole,
@@ -39,7 +39,7 @@ function getText(prop?: NotionProperty): string {
   return ""
 }
 
-const DB_ID = process.env.NOTION_EDITORIAL_DB_ID ?? ""
+const DB_ID = notionEnv("NOTION_EDITORIAL_DB_ID")
 
 function mapPage(page: NotionPage): EditorialItem {
   const p = page.properties

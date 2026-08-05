@@ -7,13 +7,14 @@ import nodemailer from "nodemailer"
 import { existsSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
+import { notionEnv } from "../../lib/notion/client"
 
 const RECOVERY_FROM = "2026-06-24T00:00:00.000Z" // 복구 batch 가 생성된 시점(UTC)
 const SENTINEL = join(homedir(), ".journal-catchup-sent")
 const DRY = process.env.DRY_RUN === "1"
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN
-const DB = process.env.NOTION_JOURNAL_DB_ID?.trim()
+const DB = notionEnv("NOTION_JOURNAL_DB_ID")
 const NH = { Authorization: `Bearer ${NOTION_TOKEN}`, "Notion-Version": "2022-06-28", "Content-Type": "application/json" }
 
 interface Row { title: string; authors: string; journal: string; link: string; pubDate: string; interest: string }

@@ -1,4 +1,4 @@
-import { notionRequest } from "./client"
+import { notionRequest, notionEnv } from "./client"
 import type {
   ResearchProject,
   ResearchStatus,
@@ -35,7 +35,7 @@ interface NotionCreatePageResponse {
   url: string
 }
 
-const DB_ID = () => process.env.NOTION_RESEARCH_DB_ID!
+const DB_ID = () => notionEnv("NOTION_RESEARCH_DB_ID")
 
 function getText(prop: NotionProperty | undefined): string {
   if (!prop) return ""
