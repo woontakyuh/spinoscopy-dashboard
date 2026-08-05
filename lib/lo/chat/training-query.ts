@@ -4,8 +4,26 @@ export interface TrainingDateRange {
   readonly limit: 20
 }
 
+interface TrainingQuestionMessage {
+  readonly role: "user" | "assistant"
+  readonly content: string
+}
+
 const TRAINING_INTENT = /(?:수련|훈련|주짓수|bjj|세션)/iu
 const EXPLICIT_MONTH = /(?:(20\d{2})년?\s*)?(1[0-2]|0?[1-9])\s*월/u
+
+export function trainingDateRangeFromMessages(
+  messages: readonly TrainingQuestionMessage[],
+  now: Date,
+): TrainingDateRange | null {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index]
+    if (message?.role !== "user") continue
+    const range = trainingDateRangeFromQuestion(message.content, now)
+    if (range) return range
+  }
+  return null
+}
 
 export function trainingDateRangeFromQuestion(
   question: string,

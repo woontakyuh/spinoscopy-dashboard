@@ -15,7 +15,7 @@ import {
   type LoMemoryCreateInput,
 } from "@/lib/types/lo-v2"
 import { loPersonaInstructions } from "./persona"
-import { trainingDateRangeFromQuestion } from "./training-query"
+import { trainingDateRangeFromMessages } from "./training-query"
 
 export const LO_CHAT_MODEL = "gpt-5.6-luna"
 export const LO_CHAT_MAX_ROUNDS = 3
@@ -248,8 +248,8 @@ export async function runLoConversation(
     name: "lo.memory.search",
     input: { query: latestUserMessage.content.slice(0, 200), limit: 5 },
   }]
-  const trainingRange = trainingDateRangeFromQuestion(
-    latestUserMessage.content,
+  const trainingRange = trainingDateRangeFromMessages(
+    messages,
     dependencies.now?.() ?? new Date(),
   )
   if (trainingRange) seedCalls.push({ name: "lo.training.recent", input: trainingRange })
