@@ -44,6 +44,13 @@ export const TRACKED_ASSETS: TrackedAsset[] = [
     newsQuery: "Apple AAPL OR 애플 주가",
   },
   {
+    symbol: "SPCX",
+    label: "SpaceX",
+    category: "stock-us",
+    yahooTicker: "SPCX",
+    newsQuery: "SpaceX SPCX OR 스페이스X",
+  },
+  {
     symbol: "KOSPI",
     label: "코스피",
     category: "stock-kr",
