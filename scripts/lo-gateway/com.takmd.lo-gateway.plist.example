@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.takmd.lo-gateway</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__DASHBOARD_ROOT__/node_modules/.bin/tsx</string>
+    <string>--env-file=__DASHBOARD_ROOT__/.env.local</string>
+    <string>__DASHBOARD_ROOT__/scripts/lo-gateway/server.ts</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>__DASHBOARD_ROOT__</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>__HOME__/Library/Logs/lo-gateway.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__HOME__/Library/Logs/lo-gateway.err.log</string>
+</dict>
+</plist>
