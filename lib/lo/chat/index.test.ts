@@ -115,6 +115,43 @@ describe("Lo chat tool loop", () => {
       name: "lo.training.recent",
       input: { from: "2026-07-01", to: "2026-07-31", limit: 20 },
     })
+    expect(provider.respond).toHaveBeenCalledTimes(1)
+    expect(result.citations).toEqual([trainingCitation])
+  })
+
+  it("reuses the latest month-specific training range for a follow-up question", async () => {
+    const adapter: LoToolAdapter = {
+      execute: vi.fn()
+        .mockResolvedValueOnce({
+          tool: "lo.memory.search",
+          data: [],
+          citations: [],
+        })
+        .mockResolvedValueOnce({
+          tool: "lo.training.recent",
+          data: [{ pageId: "training-1", name: "Half guard class", date: "2026-07-31" }],
+          citations: [trainingCitation],
+        }),
+    }
+    const citedResponse = [
+      answer("언더훅이 막힐 때의 제2엔진부터 고쳐. [citation:notion:training:training-1]"),
+    ]
+    const provider = createProvider(citedResponse, citedResponse)
+
+    const result = await runLoConversation([
+      { role: "user", content: "7월 수련 현황좀 알려줄래" },
+      { role: "assistant", content: "7월은 하프가드 분기를 만든 달이야." },
+      { role: "user", content: "그중에서 뭐부터 고칠까?" },
+    ], {
+      adapter,
+      provider,
+      now: () => new Date("2026-08-05T06:00:00.000Z"),
+    })
+
+    expect(adapter.execute).toHaveBeenNthCalledWith(2, {
+      name: "lo.training.recent",
+      input: { from: "2026-07-01", to: "2026-07-31", limit: 20 },
+    })
     expect(result.citations).toEqual([trainingCitation])
   })
 
