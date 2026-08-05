@@ -180,7 +180,7 @@ describe("Lo chat tool loop", () => {
     expect(result.answer).toContain("[citation:notion:memory:memory-1]")
   })
 
-  it("repairs a repeated invalid citation with current-request citations", async () => {
+  it("rejects a conversation after two invalid citation attempts", async () => {
     const adapter: LoToolAdapter = {
       execute: vi.fn().mockResolvedValue({
         tool: "lo.memory.search",
@@ -197,16 +197,11 @@ describe("Lo chat tool loop", () => {
     ]
     const provider = createProvider(invalidResponse, invalidResponse)
 
-    const result = await runLoConversation([
+    await expect(runLoConversation([
       { role: "user", content: "내 하프가드 우선순위 알려줘" },
-    ], { adapter, provider })
+    ], { adapter, provider })).rejects.toBeInstanceOf(LoChatCitationError)
 
     expect(provider.respond).toHaveBeenCalledTimes(2)
-    expect(result.answer).toContain("[citation:notion:memory:memory-1]")
-    expect(result.answer).not.toContain("other-request")
-    expect(result.citations).toEqual([
-      expect.objectContaining({ id: "notion:memory:memory-1" }),
-    ])
   })
 
   it("routes a model function call through the bounded dashboard adapter and preserves its citation", async () => {

@@ -10,22 +10,32 @@ import { resolveLoGatewaySecret } from "@/services/lo-gateway/contract"
 
 export const dynamic = "force-dynamic"
 
-const messagePartSchema = z.looseObject({
-  type: z.string().trim().min(1).max(100),
-  text: z.string().max(8_000).optional(),
-}).refine(
-  (part) => part.type !== "text" || Boolean(part.text?.trim()),
-  "Text parts must contain text",
-)
+const textPartSchema = z.looseObject({
+  type: z.literal("text"),
+  text: z.string().trim().min(1).max(8_000),
+})
 
-const messageSchema = z.looseObject({
+const stepStartPartSchema = z.strictObject({
+  type: z.literal("step-start"),
+})
+
+const userMessageSchema = z.looseObject({
   id: z.string().trim().min(1).max(200),
-  role: z.enum(["user", "assistant"]),
-  parts: z.array(messagePartSchema).min(1).max(20),
+  role: z.literal("user"),
+  parts: z.array(textPartSchema).min(1).max(20),
+})
+
+const assistantMessageSchema = z.looseObject({
+  id: z.string().trim().min(1).max(200),
+  role: z.literal("assistant"),
+  parts: z.array(z.union([textPartSchema, stepStartPartSchema])).min(1).max(20),
 })
 
 const conversationRequestSchema = z.looseObject({
-  messages: z.array(messageSchema).min(1).max(50),
+  messages: z.array(z.discriminatedUnion("role", [
+    userMessageSchema,
+    assistantMessageSchema,
+  ])).min(1).max(50),
 })
 
 interface LoConversationRouteDependencies {
@@ -45,13 +55,11 @@ export function createLoConversationPostHandler(dependencies: LoConversationRout
     const parsed = conversationRequestSchema.safeParse(body)
     if (!parsed.success) return json({ error: "invalid_request" }, 400)
 
-    const latestUser = parsed.data.messages.findLast((message) => message.role === "user")
+    const latestUser = parsed.data.messages.findLast(
+      (message): message is z.infer<typeof userMessageSchema> => message.role === "user",
+    )
     if (!latestUser) return json({ error: "invalid_request" }, 400)
-    const latestText = latestUser.parts
-      .flatMap((part) => part.type === "text" && part.text ? [part.text] : [])
-      .join("")
-      .trim()
-    if (!latestText) return json({ error: "invalid_request" }, 400)
+    const latestText = latestUser.parts.map((part) => part.text).join("").trim()
     const config = dependencies.gatewayConfig()
     if (!config) return json({ error: "gateway_unavailable" }, 503)
 

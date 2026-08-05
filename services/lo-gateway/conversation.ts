@@ -1,5 +1,6 @@
 import {
   createDashboardLoToolAdapter,
+  LoChatCitationError,
   runLoConversation,
   type LoChatProvider,
   type LoDashboardToolService,
@@ -7,6 +8,8 @@ import {
 import { formatLoAnswerForDisplay } from "@/lib/lo/chat/persona"
 import type { LoMemoryCandidateQueue } from "@/lib/lo/episodic/candidates"
 import type { LoConversationSurface, LoEpisodicStore } from "@/lib/lo/episodic/store"
+
+const CITATION_FALLBACK = "Tak, 이번 답변은 근거 연결이 정확하지 않아서 보내지 않았어. 같은 질문을 한 번만 다시 해줘."
 
 export interface LoGatewayConversationInput {
   message: string
@@ -43,11 +46,17 @@ export function createLoGatewayConversationService({
         contextKey: input.contextKey,
         limit: 20,
       })
-      const result = await runLoConversation([
-        ...recent,
-        { role: "user", content: input.message },
-      ], { adapter, provider })
-      const answer = formatLoAnswerForDisplay(result.answer)
+      let answer: string
+      try {
+        const result = await runLoConversation([
+          ...recent,
+          { role: "user", content: input.message },
+        ], { adapter, provider })
+        answer = formatLoAnswerForDisplay(result.answer)
+      } catch (error) {
+        if (!(error instanceof LoChatCitationError)) throw error
+        answer = CITATION_FALLBACK
+      }
       const turn = store.appendTurn({
         surface: input.surface,
         contextKey: input.contextKey,

@@ -74,7 +74,7 @@ describe("POST /api/lo/conversation", () => {
         role: "assistant",
         parts: [
           { type: "step-start" },
-          { type: "text", text: "7월은 하프가드 분기를 만든 달이야." },
+          { type: "text", text: "7월은 하프가드 분기를 만든 달이야.", state: "done" },
         ],
       },
       {
@@ -94,6 +94,32 @@ describe("POST /api/lo/conversation", () => {
         externalTurnId: "message-3",
       },
     }))
+  })
+
+  it("rejects unsupported AI SDK message part types", async () => {
+    const callGateway = vi.fn()
+    const POST = createLoConversationPostHandler({
+      gatewayConfig: () => gatewayConfig,
+      callGateway,
+    })
+    const unsupportedMessages = [
+      ...messages,
+      {
+        id: "message-2",
+        role: "assistant",
+        parts: [{ type: "tool-call", toolName: "unknown" }],
+      },
+      {
+        id: "message-3",
+        role: "user",
+        parts: [{ type: "text", text: "계속해줘" }],
+      },
+    ]
+
+    const response = await POST(request(JSON.stringify({ messages: unsupportedMessages })))
+
+    expect(response.status).toBe(400)
+    expect(callGateway).not.toHaveBeenCalled()
   })
 
   it("returns gateway_unavailable when remote gateway configuration is incomplete", async () => {

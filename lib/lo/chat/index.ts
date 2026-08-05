@@ -268,7 +268,7 @@ export async function runLoConversation(
     return await runLoToolLoop(loopInput)
   } catch (error) {
     if (!(error instanceof LoChatCitationError)) throw error
-    return runLoToolLoop({ ...loopInput, repairInvalidCitations: true })
+    return runLoToolLoop(loopInput)
   }
 }
 
@@ -281,7 +281,6 @@ export async function runLoToolLoop({
   toolNames,
   initialTool,
   seedResults = [],
-  repairInvalidCitations = false,
   adapter,
   provider,
 }: {
@@ -289,7 +288,6 @@ export async function runLoToolLoop({
   toolNames: readonly LoToolName[]
   initialTool?: LoToolName
   seedResults?: readonly LoToolResult[]
-  repairInvalidCitations?: boolean
   adapter: LoToolAdapter
   provider: LoChatProvider
 }): Promise<LoChatResult> {
@@ -325,7 +323,7 @@ export async function runLoToolLoop({
     if (calls.length === 0) {
       const text = responseText(response.output)
       if (!text) throw new LoChatResponseError()
-      return citedAnswer(text, requestCitations, repairInvalidCitations)
+      return citedAnswer(text, requestCitations)
     }
 
     const toolOutputs: Record<string, unknown>[] = []
@@ -413,23 +411,10 @@ function isOutputText(value: unknown): value is { type: "output_text"; text: str
   return isRecord(value) && value.type === "output_text" && typeof value.text === "string"
 }
 
-function citedAnswer(
-  answer: string,
-  citations: ReadonlyMap<string, LoCitation>,
-  repairInvalidCitations = false,
-): LoChatResult {
+function citedAnswer(answer: string, citations: ReadonlyMap<string, LoCitation>): LoChatResult {
   const citedIds = [...answer.matchAll(/\[citation:([^\]\s]+)\]/g)].map((match) => match[1])
   if (citedIds.length === 0 && citations.size === 0) return { answer, citations: [] }
-  if (citedIds.length === 0 || citedIds.some((id) => !citations.has(id))) {
-    if (!repairInvalidCitations || citations.size === 0) throw new LoChatCitationError()
-    const selected = [...citations.values()]
-    const cleaned = answer.replace(/[ \t]*\[citation:[^\]\s]+\]/g, "").trim()
-    const markers = selected.map((citation) => `[citation:${citation.id}]`).join(" ")
-    return {
-      answer: `${cleaned} ${markers}`.trim(),
-      citations: selected,
-    }
-  }
+  if (citedIds.length === 0 || citedIds.some((id) => !citations.has(id))) throw new LoChatCitationError()
 
   const selected = [...new Set(citedIds)]
     .map((id) => citations.get(id))
