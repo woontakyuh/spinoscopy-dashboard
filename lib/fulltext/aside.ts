@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process"
-import { buildFetchScript, parseAsideResult, isPdfBuffer } from "./pdf"
+import { buildFetchScript, parseAsideResult, isPdfBuffer, describeAsideFailure } from "./pdf"
 
 /**
  * aside repl로 로그인 Chrome을 구동해 논문 페이지에서 PDF를 in-page fetch한다.
@@ -20,8 +20,10 @@ export function fetchPdfViaAside(articleUrl: string): { pdf: Buffer | null; reas
     return { pdf: null, reason: `aside 실행 실패: ${e instanceof Error ? e.message : String(e)}` }
   }
   const res = parseAsideResult(stdout)
-  if (!res.ok || !res.b64) return { pdf: null, reason: res.reason ?? "결과 없음" }
+  if (!res.ok || !res.b64) return { pdf: null, reason: describeAsideFailure(res) }
   const pdf = Buffer.from(res.b64, "base64")
-  if (!isPdfBuffer(pdf)) return { pdf: null, reason: "PDF 아님(구독 벽/challenge 추정)" }
+  if (!isPdfBuffer(pdf)) {
+    return { pdf: null, reason: describeAsideFailure({ ...res, reason: "PDF 아님(구독 벽/challenge 추정)" }) }
+  }
   return { pdf }
 }
