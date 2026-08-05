@@ -9,7 +9,7 @@ import type {
   EditorialRole,
 } from "@/lib/types/editorial"
 import { ChevronDown } from "lucide-react"
-import { REVISION_STATUSES, REVIEW_DONE_STATUSES } from "@/lib/editorial/status"
+import { laneFor } from "@/lib/editorial/status"
 import type { EditorialStatus } from "@/lib/types/editorial"
 
 // ── Helpers ──────────────────────────────────────────────
@@ -60,6 +60,7 @@ const STATUS_BADGE: Record<string, string> = {
   "Under Revision": "bg-blue-500/15 text-blue-300 border-blue-500/30",     // legacy
   "Accepted": "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
   "Rejected": "bg-red-500/15 text-red-300 border-red-500/30",
+  "Declined": "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",  // 내가 리뷰를 거절한 건
 }
 
 const REC_BADGE: Record<string, string> = {
@@ -199,12 +200,8 @@ export function Editorial() {
     }
 
     for (const item of filtered) {
-      // Lane 분류는 status 그대로
-      if (item.status === "Accepted") laneItems.accepted.push(item)
-      else if (item.status === "Rejected") laneItems.rejected.push(item)
-      else if ((REVIEW_DONE_STATUSES as readonly string[]).includes(item.status)) laneItems.review_done.push(item)
-      else if ((REVISION_STATUSES as readonly string[]).includes(item.status)) laneItems.revision.push(item)
-      else laneItems.review.push(item)  // Received + *Review (+ legacy Under Review)
+      // 레인 분류는 lib/editorial/status 의 laneFor 한 곳에서만 정한다
+      laneItems[laneFor(item.status)].push(item)
 
       // Urgent — Under Review 레인 + deadline overdue/soon 인 것만
       if (laneItems.review.includes(item)) {

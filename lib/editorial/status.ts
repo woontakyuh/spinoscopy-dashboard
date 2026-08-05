@@ -32,6 +32,7 @@ export const REVISION_STATUSES: readonly EditorialStatus[] = [
 export const TERMINAL_STATUSES: readonly EditorialStatus[] = [
   "Accepted",
   "Rejected",
+  "Declined", // 리뷰 요청 자체를 거절 — 내 손 떠난 건이라 종료로 본다
 ] as const
 
 // Recommendation 만으로도 결론이 난 케이스. Status 가 아직 review/revision 라도
@@ -102,4 +103,18 @@ export function outcomeCategory(item: StateInput): OutcomeCategory | null {
   if (item.recommendation === "Accept") return "Accept"
   if (item.recommendation === "Reject") return "Reject"
   return "Reject"
+}
+
+// ─── 보드 레인 분류 ───────────────────────────────────────────
+// Editorial 탭의 5개 레인. 분류가 UI 안에 if/else 체인으로 박혀 있으면
+// 새 상태가 생길 때마다 폴백(review)으로 새어 들어간다 — Declined 가 실제로
+// 그렇게 "Under Review" 에 살아남았다. 여기 한 곳에서만 정한다.
+export type LaneId = "review" | "review_done" | "revision" | "accepted" | "rejected"
+
+export function laneFor(status: EditorialStatus): LaneId {
+  if (status === "Accepted") return "accepted"
+  if (status === "Rejected" || status === "Declined") return "rejected"
+  if (inList(REVIEW_DONE_STATUSES, status)) return "review_done"
+  if (inList(REVISION_STATUSES, status)) return "revision"
+  return "review"
 }
