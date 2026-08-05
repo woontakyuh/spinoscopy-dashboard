@@ -123,7 +123,9 @@ const WARREN_INSTRUCTIONS = `당신은 Tak의 자산 파트너 Warren입니다.
 Tak을 "여선생"이라 부르고 한국어로 답하세요. 장기적 관점, 가치, 현금흐름, 기회비용, 하방 위험을 중심으로 판단합니다.
 제공된 dashboard_market_snapshot은 현재 Warren 대시보드가 보여주는 시세·지표·뉴스입니다. capturedAt을 기준으로 신선도를 판단하고, 이 데이터와 웹 자료가 다르면 시점과 출처 차이를 설명하세요.
 경제, 시장, 금리, 정책, 기업, 산업, 주식, 가상자산에 관한 사실 질문은 반드시 web_search를 사용해 최신 자료를 확인한 뒤 답하세요. 중앙은행·정부·거래소·기업 공시 같은 1차 자료를 우선하고, 상충하는 근거와 불확실성도 함께 비교하세요.
-답변은 결론, 근거, 반대 근거 또는 변수, 여선생에게 의미하는 바 순서로 간결하게 reasoning 하세요. 확인되지 않은 수치나 미래 가격을 단정하지 말고 필요한 경우 투자 권유가 아님을 밝히세요.`
+웹 조사는 답변 뒤에서 조용히 수행하세요. 사용자가 출처·링크·원문을 명시적으로 요구하지 않으면 출처명, URL, 인용표시, 출처 목록을 답변에 쓰지 마세요.
+기본 답변은 보고서가 아니라 대화입니다. 제목과 고정된 결론·근거·반대근거 목차를 만들지 말고, 핵심 판단과 이유를 자연스러운 2~5개 짧은 문단으로 말하세요. 목록은 정말 필요할 때만 사용하세요.
+확인되지 않은 수치나 미래 가격을 단정하지 말고 필요한 경우 투자 권유가 아님을 밝히세요.`
 
 type FetchLike = typeof fetch
 
@@ -188,7 +190,7 @@ export function createOpenAIWarrenProvider({
         if (error instanceof Error) throw new WarrenChatResponseError()
         throw error
       }
-      return parseOpenAIAnswer(payload)
+      return parseOpenAIAnswer(payload, userRequestedSources(request.messages))
     },
   }
 }
@@ -231,7 +233,7 @@ async function fetchJson(url: string, fetchImpl: FetchLike): Promise<unknown> {
   }
 }
 
-function parseOpenAIAnswer(payload: unknown): string {
+function parseOpenAIAnswer(payload: unknown, includeSources: boolean): string {
   const parsed = responseSchema.safeParse(payload)
   if (!parsed.success) throw new WarrenChatResponseError()
 
@@ -253,10 +255,29 @@ function parseOpenAIAnswer(payload: unknown): string {
     }
   }
 
-  const answer = textParts.join("").trim()
+  const answer = cleanAnswerText(textParts.join(""))
   if (!answer) throw new WarrenChatResponseError()
-  if (sources.size === 0) return answer
+  if (!includeSources || sources.size === 0) return answer
 
   const sourceLines = [...sources].map(([url, title]) => `- ${title}: ${url}`)
   return `${answer}\n\n출처:\n${sourceLines.join("\n")}`
+}
+
+function userRequestedSources(messages: readonly WarrenConversationMessage[]): boolean {
+  const latestUser = messages.findLast((message) => message.role === "user")?.content ?? ""
+  const mentionsSources = /(출처|링크|원문|기사\s*주소|url|source|citation)/i.test(latestUser)
+  const suppressesSources =
+    /(출처|링크|원문|url).{0,16}(말하지|빼|제외|숨겨|필요\s*없|달지|보이지)/i.test(latestUser)
+  return mentionsSources && !suppressesSources
+}
+
+function cleanAnswerText(text: string): string {
+  return text
+    .replace(/\s*\(\[[^\]]+]\(https?:\/\/[^)\s]+\)\)/g, "")
+    .replace(/\s*\[[^\]]+]\(https?:\/\/[^)\s]+\)/g, "")
+    .replace(/\s*https?:\/\/\S+/g, "")
+    .replace(/\n{1,2}출처:\s*[\s\S]*$/i, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
 }

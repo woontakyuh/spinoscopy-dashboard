@@ -32,13 +32,13 @@ const market: WarrenMarketSnapshot = {
 }
 
 describe("OpenAI Warren provider", () => {
-  it("sends dashboard context with web search and returns cited research", async () => {
+  it("uses web search without exposing citations by default", async () => {
     const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       output: [{
         type: "message",
         content: [{
           type: "output_text",
-          text: "금리 기대와 위험선호가 함께 움직였습니다.",
+          text: "금리 기대와 위험선호가 함께 움직였습니다. ([Federal Reserve](https://www.federalreserve.gov/example))",
           annotations: [{
             type: "url_citation",
             title: "Federal Reserve release",
@@ -75,8 +75,36 @@ describe("OpenAI Warren provider", () => {
       role: "user",
       content: [{ type: "input_text", text: "오늘 시장이 오른 이유를 조사해줘" }],
     })
+    expect(answer).toBe("금리 기대와 위험선호가 함께 움직였습니다.")
+  })
+
+  it("shows a clean source list only when the user explicitly asks", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      output: [{
+        type: "message",
+        content: [{
+          type: "output_text",
+          text: "확인했습니다. ([Federal Reserve](https://www.federalreserve.gov/example))",
+          annotations: [{
+            type: "url_citation",
+            title: "Federal Reserve release",
+            url: "https://www.federalreserve.gov/example",
+          }],
+        }],
+      }],
+    }), { status: 200 }))
+    const provider = createOpenAIWarrenProvider({
+      apiKey: "openai-test-key",
+      fetchImpl,
+    })
+
+    const answer = await provider.respond({
+      messages: [{ role: "user", content: "그 내용의 출처 링크를 알려줘" }],
+      market,
+    })
+
     expect(answer).toBe([
-      "금리 기대와 위험선호가 함께 움직였습니다.",
+      "확인했습니다.",
       "",
       "출처:",
       "- Federal Reserve release: https://www.federalreserve.gov/example",
