@@ -1,3 +1,6 @@
 .codegraph
+.debug
+.debug-journal.md
+.omo
 .pi
 .mcp.json

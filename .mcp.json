@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "lo": {
+      "command": "/Users/TakMD/workspace/spinoscopy-dashboard/node_modules/.bin/tsx",
+      "args": [
+        "/Users/TakMD/workspace/spinoscopy-dashboard/mcp-server/lo.ts"
+      ]
+    }
+  }
+}

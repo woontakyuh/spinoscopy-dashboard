@@ -11,10 +11,12 @@ import { HomeOverview } from "@/components/lo/HomeOverview"
 import { ConceptsFeed } from "@/components/lo/ConceptsFeed"
 import { NavMapWrapper } from "@/components/lo/NavMapWrapper"
 import { CompetitionsView } from "@/components/lo/CompetitionsView"
+import { MemoryView } from "@/components/lo/MemoryView"
 import { getTimeContext } from "@/lib/greeterContext"
+import { formatLoAnswerForDisplay } from "@/lib/lo/chat/persona"
 import type { BjjStats, BjjAttributes, SenseiEntry } from "@/lib/types/sensei"
 
-type LoTab = "home" | "character" | "navmap" | "training" | "competitions" | "concepts"
+type LoTab = "home" | "character" | "navmap" | "training" | "competitions" | "concepts" | "memory"
 
 const TABS: { id: LoTab; label: string; icon: string }[] = [
   { id: "home", label: "Home", icon: "🏠" },
@@ -23,6 +25,7 @@ const TABS: { id: LoTab; label: string; icon: string }[] = [
   { id: "training", label: "Training", icon: "📓" },
   { id: "competitions", label: "Competitions", icon: "🏆" },
   { id: "concepts", label: "Concepts", icon: "💡" },
+  { id: "memory", label: "Memory", icon: "🧠" },
 ]
 
 function getHighLow(attrs: BjjAttributes): { highest: string; lowest: string } {
@@ -101,10 +104,22 @@ export default function LoPage() {
       return "Tak, 개념 노트 쌓이는 공간이야. Desktop에서 적어둔 거 여기서 다시 보자."
     }
 
+    if (tab === "memory") {
+      return "Tak, 개념 노트와 오래 남길 기억을 같이 확인하자."
+    }
+
     // fallback — time context 기반
     if (tc.bucket === "morning") return "Tak, 오늘 아침 훈련 가능해? 한 라운드면 충분해."
     if (tc.bucket === "evening") return "Tak, 오늘 하루 어땠어? 매트 위에서 정리하고 가자."
     return "Tak, 오늘도 매트에서 보자."
+  }
+
+  function navigateFromCharacter(tab: string) {
+    if (tab === "map" || tab === "navmap") {
+      setActiveTab("navmap")
+    } else if (tab === "training" || tab === "competitions") {
+      setActiveTab(tab)
+    }
   }
 
   const message = getMessageForTab(activeTab)
@@ -146,12 +161,20 @@ export default function LoPage() {
 
       {/* Content */}
       <div className="flex-1 min-w-0 p-3 md:p-6">
-        <AgentChat agentId="lo" image="/lo.png" name="Lo" greeting={isTabLoading ? "..." : message} />
+        <AgentChat
+          agentId="lo"
+          image="/lo.png"
+          name="Lo"
+          greeting={isTabLoading ? "..." : message}
+          compact
+          api="/api/lo/conversation"
+          formatMessage={formatLoAnswerForDisplay}
+        />
 
         {activeTab === "home" && <HomeOverview goTo={(t) => setActiveTab(t as LoTab)} />}
 
         {activeTab === "character" && (
-          <SenseiDashboard onNavigate={(t) => setActiveTab(t as LoTab)} />
+          <SenseiDashboard onNavigate={navigateFromCharacter} />
         )}
 
         {activeTab === "navmap" && <NavMapWrapper />}
@@ -167,6 +190,8 @@ export default function LoPage() {
         {activeTab === "competitions" && <CompetitionsView />}
 
         {activeTab === "concepts" && <ConceptsFeed />}
+
+        {activeTab === "memory" && <MemoryView />}
       </div>
     </div>
   )

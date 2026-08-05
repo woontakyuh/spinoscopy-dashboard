@@ -37,7 +37,9 @@ interface AgentChatProps {
   image: string
   name: string
   greeting: string
+  compact?: boolean
   api?: string
+  formatMessage?: (text: string) => string
 }
 
 export function AgentChat({
@@ -45,7 +47,9 @@ export function AgentChat({
   image,
   name,
   greeting,
+  compact,
   api = "/api/ai/chat",
+  formatMessage,
 }: AgentChatProps) {
   const [inputValue, setInputValue] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -175,7 +179,8 @@ export function AgentChat({
   }
 
   const messageList = messages.map((m) => {
-    const text = getChatText(m.parts)
+    const rawText = getChatText(m.parts)
+    const text = formatMessage ? formatMessage(rawText) : rawText
     if (!text) return null
     return (
       <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -249,7 +254,7 @@ export function AgentChat({
 
   // ─── Focus overlay ──────────────
   const focusedOverlay = focused ? (
-    <div className="fixed inset-0 z-50 bg-background backdrop-blur-sm overflow-hidden flex items-stretch md:items-center justify-center md:p-6">
+    <div className="fixed inset-0 z-[1100] bg-background backdrop-blur-sm overflow-hidden flex items-stretch md:items-center justify-center md:p-6">
       <div className="w-full h-full md:max-w-5xl md:h-[80vh] flex flex-col md:flex-row md:gap-6 overflow-hidden">
         <div className="shrink-0 flex justify-center md:items-center pt-3 md:pt-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -289,7 +294,11 @@ export function AgentChat({
             )}
           </div>
           <div className="shrink-0 flex flex-col gap-1.5">
-            {error && <div className="text-xs text-red-400 px-1">{error.message}</div>}
+            {error && (
+              <div role="alert" className="text-xs text-red-400 px-1">
+                응답을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
+              </div>
+            )}
             {inputForm}
             {messages.length > 0 && (
               <button type="button" onClick={clearChat} className="text-[10px] text-muted-foreground/60 hover:text-muted-foreground self-end">
@@ -306,26 +315,31 @@ export function AgentChat({
   ) : null
 
   // ─── Normal inline ──────────────
+  const isCompact = compact ?? false
+
   return (
-    <div className="flex items-start gap-3 md:gap-4 mb-4 md:mb-6 animate-fade-in-up">
+    <div className={`flex items-start ${isCompact ? "gap-2" : "gap-3 md:gap-4"} mb-4 md:mb-6 animate-fade-in-up`}>
       {typeof document !== "undefined" && focusedOverlay && createPortal(focusedOverlay, document.body)}
-      <div className="flex flex-col items-center shrink-0">
+      <div className={`flex ${isCompact ? "items-center gap-1.5" : "flex-col items-center"} shrink-0`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={image}
           alt={name}
           onClick={() => setFocused(true)}
-          className="w-16 h-16 md:w-24 md:h-24 rounded-full object-cover border border-border shadow-md cursor-pointer hover:opacity-90 transition-opacity"
+          className={`${isCompact ? "w-10 h-10 md:w-12 md:h-12" : "w-16 h-16 md:w-24 md:h-24"} rounded-full object-cover border border-border shadow-md cursor-pointer hover:opacity-90 transition-opacity`}
           draggable={false}
         />
-        <span className="mt-1.5 text-xs md:text-sm font-semibold text-foreground/90">{name}</span>
+        {isCompact && <span className="text-xs font-semibold text-foreground/90">{name}</span>}
+        {!isCompact && <span className="mt-1.5 text-xs md:text-sm font-semibold text-foreground/90">{name}</span>}
       </div>
       <div
-        className="relative flex-1 min-w-0 mt-1 md:mt-2 cursor-pointer"
+        className={`relative cursor-pointer ${isCompact ? "max-w-[60ch]" : "flex-1 min-w-0 mt-1 md:mt-2"}`}
         onClick={() => setFocused(true)}
       >
-        <div className="relative bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 md:px-5 md:py-4 shadow-lg hover:bg-card/90 transition-colors">
-          <span aria-hidden className="absolute -left-2 top-3 w-3 h-3 rotate-45 bg-card border-l border-t border-border" />
+        <div className={`relative bg-card border border-border rounded-2xl rounded-tl-sm ${isCompact ? "px-2.5 py-2 md:px-3 md:py-2.5" : "px-4 py-3 md:px-5 md:py-4"} shadow-lg hover:bg-card/90 transition-colors`}>
+          {!isCompact && (
+            <span aria-hidden className="absolute -left-2 top-3 w-3 h-3 rotate-45 bg-card border-l border-t border-border" />
+          )}
           <p className="text-foreground/90 text-sm md:text-base leading-relaxed">{greeting}</p>
         </div>
       </div>
