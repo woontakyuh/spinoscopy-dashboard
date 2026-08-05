@@ -204,6 +204,45 @@ describe("Lo chat tool loop", () => {
     expect(provider.respond).toHaveBeenCalledTimes(2)
   })
 
+  it("uses server-authored training rows when both model attempts omit citations", async () => {
+    const adapter: LoToolAdapter = {
+      execute: vi.fn(async (call) => call.name === "lo.memory.search"
+        ? { tool: "lo.memory.search" as const, data: [], citations: [] }
+        : {
+            tool: "lo.training.recent" as const,
+            data: [{
+              pageId: "training-1",
+              name: "Half guard class",
+              date: "2026-07-31",
+              classTags: ["하프", "언더훅"],
+              sparringTags: ["크로스페이스"],
+              studyTags: [],
+              todayFocus: "언더훅이 막히면 기무라로 전환",
+            }],
+            citations: [trainingCitation],
+          }),
+    }
+    const invalidResponse = [
+      answer("<script>alert(1)</script> 없는 사실을 말할게."),
+    ]
+    const provider = createProvider(invalidResponse, invalidResponse)
+
+    const result = await runLoConversation([
+      { role: "user", content: "7월 수련 현황좀 알려줄래" },
+    ], {
+      adapter,
+      provider,
+      now: () => new Date("2026-08-05T06:00:00.000Z"),
+    })
+
+    expect(provider.respond).toHaveBeenCalledTimes(2)
+    expect(result.answer).toContain("2026-07-31 · Half guard class")
+    expect(result.answer).toContain("하프, 언더훅, 크로스페이스")
+    expect(result.answer).not.toContain("<script>")
+    expect(result.answer).not.toContain("없는 사실")
+    expect(result.citations).toEqual([trainingCitation])
+  })
+
   it("routes a model function call through the bounded dashboard adapter and preserves its citation", async () => {
     const adapter = createAdapter()
     const provider = createProvider(

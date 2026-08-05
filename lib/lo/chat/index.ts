@@ -12,6 +12,7 @@ import {
 import {
   LO_MEMORY_CATEGORIES,
   LO_MEMORY_SOURCE_KINDS,
+  type LoBjjTrainingSession,
   type LoMemoryCreateInput,
 } from "@/lib/types/lo-v2"
 import { loPersonaInstructions } from "./persona"
@@ -268,7 +269,14 @@ export async function runLoConversation(
     return await runLoToolLoop(loopInput)
   } catch (error) {
     if (!(error instanceof LoChatCitationError)) throw error
-    return runLoToolLoop(loopInput)
+    try {
+      return await runLoToolLoop(loopInput)
+    } catch (retryError) {
+      if (!(retryError instanceof LoChatCitationError)) throw retryError
+      const fallback = groundedTrainingFallback(seedResults)
+      if (fallback) return fallback
+      throw retryError
+    }
   }
 }
 
@@ -420,6 +428,58 @@ function citedAnswer(answer: string, citations: ReadonlyMap<string, LoCitation>)
     .map((id) => citations.get(id))
     .filter((citation): citation is LoCitation => Boolean(citation))
   return { answer, citations: selected }
+}
+
+function groundedTrainingFallback(seedResults: readonly LoToolResult[]): LoChatResult | null {
+  const result = seedResults.find((item) => item.tool === "lo.training.recent")
+  if (!result || !Array.isArray(result.data)) return null
+
+  const lines: string[] = []
+  const selected: LoCitation[] = []
+  for (const value of result.data.slice(0, 8)) {
+    if (!isTrainingSession(value)) continue
+    const citation = result.citations.find(
+      (item) => item.id === `notion:training:${value.pageId}`,
+    )
+    if (!citation) continue
+    const tags = [
+      ...value.classTags,
+      ...value.sparringTags,
+      ...value.studyTags,
+    ].slice(0, 4)
+    const details = [
+      tags.length > 0 ? tags.join(", ") : null,
+      value.todayFocus?.trim() || null,
+    ].filter((item): item is string => Boolean(item))
+    lines.push(
+      `- ${value.date ?? "날짜 미상"} · ${value.name}${details.length > 0 ? ` — ${details.join(" / ")}` : ""} [citation:${citation.id}]`,
+    )
+    selected.push(citation)
+  }
+  if (lines.length === 0) return null
+
+  return {
+    answer: [
+      "Tak, 모델 답변의 근거 표기가 맞지 않아 이번에는 확인된 수련 기록만 정리할게.",
+      ...lines,
+    ].join("\n"),
+    citations: selected,
+  }
+}
+
+function isTrainingSession(value: unknown): value is LoBjjTrainingSession {
+  if (!value || typeof value !== "object") return false
+  const session = value as Partial<LoBjjTrainingSession>
+  return typeof session.pageId === "string"
+    && typeof session.name === "string"
+    && (session.date === null || typeof session.date === "string")
+    && Array.isArray(session.classTags)
+    && session.classTags.every((tag) => typeof tag === "string")
+    && Array.isArray(session.sparringTags)
+    && session.sparringTags.every((tag) => typeof tag === "string")
+    && Array.isArray(session.studyTags)
+    && session.studyTags.every((tag) => typeof tag === "string")
+    && (session.todayFocus === null || typeof session.todayFocus === "string")
 }
 
 function sanitizeToolResult(result: LoToolResult): LoToolResult {
