@@ -5,7 +5,7 @@ vi.mock("./client", () => ({
   notionEnv: vi.fn(() => "test-journal-db"),
 }))
 
-import { readFulltext, addFulltextRequestByDoi } from "./fulltext"
+import { readFulltext, addFulltextRequestByDoi, requestFulltext } from "./fulltext"
 import { notionRequest } from "./client"
 
 describe("readFulltext", () => {
@@ -109,5 +109,40 @@ describe("addFulltextRequestByDoi — 제목 확보", () => {
     fetchMock.mockResolvedValue({ ok: false, json: async () => ({}) })
     const r = await addFulltextRequestByDoi(DOI)
     expect(r.title).toBe(DOI.toLowerCase())
+  })
+})
+
+describe("requestFulltext — 접근불가 저널 차단", () => {
+  const nr = vi.mocked(notionRequest)
+  beforeEach(() => nr.mockReset())
+
+  function pageWithJournal(name: string) {
+    nr.mockResolvedValueOnce({ properties: { "Journal Name": { type: "select", select: { name } } } } as never)
+    nr.mockResolvedValueOnce({} as never)
+  }
+  function patchBody() {
+    return JSON.parse(nr.mock.calls[1][1]!.body as string).properties
+  }
+
+  it("접근 가능한 저널은 기존대로 요청됨으로 건다", async () => {
+    pageWithJournal("Spine")
+    await requestFulltext("page-1")
+    const p = patchBody()
+    expect(p["원문 요청"].checkbox).toBe(true)
+    expect(p["원문 상태"].select.name).toBe("요청됨")
+  })
+
+  // TSJ 는 경북대 미구독 — 요청을 걸어봐야 Aside 가 열기만 하고 실패로 쌓인다.
+  it("TSJ 는 요청을 걸지 않고 접근불가로 표시한 뒤 알린다", async () => {
+    pageWithJournal("TSJ")
+    await expect(requestFulltext("page-2")).rejects.toThrow(/구독/)
+    const p = patchBody()
+    expect(p["원문 요청"].checkbox).toBe(false)
+    expect(p["원문 상태"].select.name).toBe("접근불가")
+  })
+
+  it("full name 표기(The Spine Journal)도 막는다", async () => {
+    pageWithJournal("The Spine Journal")
+    await expect(requestFulltext("page-3")).rejects.toThrow()
   })
 })

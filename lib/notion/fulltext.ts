@@ -2,6 +2,7 @@ import { notionRequest, notionEnv } from "./client"
 import { findDoiInText } from "../fulltext/pdf"
 import { fetchCrossref } from "../fulltext/crossref"
 import { fetchPubmedMetaByDoi } from "../fulltext/pubmed"
+import { isNoAccessJournal, NO_ACCESS_REASON, NO_ACCESS_STATUS } from "../fulltext/access"
 
 export interface FulltextFields {
   requested: boolean
@@ -28,6 +29,24 @@ const JOURNAL_DB_ID = notionEnv("NOTION_JOURNAL_DB_ID")
 
 /** 대시보드/Notion 어느 쪽이든 요청을 큐에 넣는다. */
 export async function requestFulltext(pageId: string): Promise<void> {
+  const page = await notionRequest<{ properties: Record<string, Prop> }>(`/pages/${pageId}`)
+  const journal = page.properties["Journal Name"]?.select?.name ?? null
+
+  // 구독이 없는 저널은 요청을 받지 않는다. 걸어봐야 Aside 가 논문 페이지를 열기만 하고
+  // PDF 를 못 찾아 "실패" 로 쌓이고, 그때마다 맥스튜디오 브라우저를 헛돌린다.
+  if (isNoAccessJournal(journal)) {
+    await notionRequest(`/pages/${pageId}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        properties: {
+          "원문 요청": { checkbox: false },
+          "원문 상태": { select: { name: NO_ACCESS_STATUS } },
+        },
+      }),
+    })
+    throw new Error(NO_ACCESS_REASON(journal as string))
+  }
+
   await notionRequest(`/pages/${pageId}`, {
     method: "PATCH",
     body: JSON.stringify({
@@ -63,6 +82,19 @@ export async function markAcquired(
       properties: {
         "원문 상태": { select: { name: source === "OA" ? "OA 확보" : "Aside 확보" } },
         "원문 PDF": { url: shareUrl },
+      },
+    }),
+  })
+}
+
+/** 구독이 없어 애초에 받을 수 없는 저널: 요청 해제 + 접근불가 표시. */
+export async function markNoAccess(pageId: string): Promise<void> {
+  await notionRequest(`/pages/${pageId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      properties: {
+        "원문 요청": { checkbox: false },
+        "원문 상태": { select: { name: NO_ACCESS_STATUS } },
       },
     }),
   })

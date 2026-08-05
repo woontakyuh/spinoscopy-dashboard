@@ -99,22 +99,41 @@ export function buildFilename(p: FileNameParts): string {
 export function buildFetchScript(articleUrl: string): string {
   return `
 const p = await openTab(${JSON.stringify(articleUrl)});
-await sleep(8000);
+
+// 고정 대기는 못 믿는다. Cloudflare 챌린지("Just a moment...")가 끝나기 전에 읽으면
+// DOM 이 텅 비어 no-pdf-url 로 오판한다 — 같은 SAGE 페이지가 9초에 통과했다 실패했다 한다.
+// 실제 문서가 뜰 때까지 폴링하되, 안 풀려도 일단 진행해 진단정보는 남긴다.
+for (let i = 0; i < 20; i++) {
+  await sleep(3000);
+  const s = await p.evaluate(() => ({ t: document.title || '', r: document.readyState }));
+  const challenging = /just a moment|attention required|checking your browser|请稍候/i.test(s.t);
+  if (!challenging && s.r === 'complete' && s.t.length > 3) break;
+}
+
 const res = await p.evaluate(async () => {
+  const diag = { url: location.href, title: (document.title || '').slice(0, 120) };
+  const abs = (u) => { try { return new URL(u, location.href).href } catch (e) { return null } };
+
   const meta = document.querySelector('meta[name="citation_pdf_url"]');
-  let pdfUrl = meta ? meta.getAttribute('content') : null;
+  let pdfUrl = meta ? abs(meta.getAttribute('content')) : null;
+
+  // 링크 후보를 넓게 훑는다: .pdf 로 끝나거나, 경로에 /pdf|/epdf 가 있거나,
+  // 다운로드 속성이 붙은 앵커. 첫 번째만 보던 기존 방식은 놓치는 게 많았다.
   if (!pdfUrl) {
-    const a = document.querySelector('a[href$=".pdf"], a[href*="/pdf"]');
-    pdfUrl = a ? a.href : null;
+    const cands = Array.from(document.querySelectorAll('a[href]'))
+      .map((a) => a.getAttribute('href'))
+      .filter((h) => h && /\\.pdf($|[?#])|\\/e?pdf\\/|pdfft|type=printable|\\/pdfdirect\\//i.test(h));
+    pdfUrl = cands.length ? abs(cands[0]) : null;
   }
-  if (!pdfUrl) return { ok:false, reason:'no-pdf-url' };
+
+  if (!pdfUrl) return { ok:false, reason:'no-pdf-url', ...diag };
   try {
     const r = await fetch(pdfUrl, { credentials:'include' });
-    if (!r.ok) return { ok:false, reason:'fetch-'+r.status };
+    if (!r.ok) return { ok:false, reason:'fetch-'+r.status, ...diag };
     const buf = new Uint8Array(await r.arrayBuffer());
     let bin=''; for (let i=0;i<buf.length;i++) bin+=String.fromCharCode(buf[i]);
     return { ok:true, b64: btoa(bin) };
-  } catch(e) { return { ok:false, reason:String(e && e.message || e) }; }
+  } catch(e) { return { ok:false, reason:String(e && e.message || e), ...diag }; }
 });
 try { await p.close(); } catch(e) {}
 console.log('ASIDE_RESULT '+JSON.stringify(res));
@@ -125,6 +144,20 @@ export interface AsideResult {
   ok: boolean
   b64?: string
   reason?: string
+  /** 실패 진단용 — 브라우저가 실제로 도착한 URL과 페이지 제목. */
+  url?: string
+  title?: string
+}
+
+/**
+ * 실패 사유를 사람이 읽을 수 있게 만든다. 진단정보를 함께 붙이는 게 핵심 —
+ * `no-pdf-url` 한 마디만 남으면 챌린지에 막힌 건지, 구독 벽인지, 선택자가 안 맞은
+ * 건지 원격에서 구분할 방법이 없다.
+ */
+export function describeAsideFailure(res: AsideResult): string {
+  const base = res.reason ?? "결과 없음"
+  const bits = [res.url, res.title].filter(Boolean)
+  return bits.length ? `${base} (${bits.join(" · ")})` : base
 }
 
 export function parseAsideResult(stdout: string): AsideResult {

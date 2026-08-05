@@ -1,7 +1,8 @@
 // scripts/fulltext-worker/drain.ts
 // 큐를 한 번 소진 — OA fast-path → 원내망 Aside → Dropbox 저장 → Notion 갱신.
 // daemon.ts가 트리거/폴링 시 호출. 처리 건수를 반환.
-import { queryFulltextQueue, markAcquired, markFailed } from "../../lib/notion/fulltext"
+import { queryFulltextQueue, markAcquired, markFailed, markNoAccess } from "../../lib/notion/fulltext"
+import { isNoAccessJournal } from "../../lib/fulltext/access"
 import { getArticle } from "../../lib/notion/journal"
 import { resolveOA } from "../../lib/fulltext/oa"
 import { fetchPdfViaAside } from "../../lib/fulltext/aside"
@@ -43,6 +44,14 @@ export async function drainQueue(): Promise<number> {
     const doi = extractDoi(item.doiUrl)
     // 사람이 읽는 파일명(발행연월_저널_저자_키워드)을 위해 전체 메타 조회
     const art = await getArticle(item.pageId)
+
+    // 구독 없는 저널은 브라우저를 띄우지 않는다 — 열어봐야 PDF 가 없다.
+    if (isNoAccessJournal(art.journal_name)) {
+      await markNoAccess(item.pageId)
+      console.log(`  → 건너뜀(구독 없음): ${art.journal_name}`)
+      continue
+    }
+
     const name = buildFilename({
       pubDate: art.pub_date,
       journal: art.journal_name,

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import {
-  extractDoi, safeName, isPdfBuffer, buildFetchScript, parseAsideResult,
+  extractDoi, safeName, isPdfBuffer, buildFetchScript, parseAsideResult, describeAsideFailure,
   firstAuthorSurname, titleKeyword, doiTail, buildFilename, findDoiInText,
 } from "./pdf"
 
@@ -124,6 +124,20 @@ describe("buildFetchScript", () => {
     expect(s).toContain("citation_pdf_url")
     expect(s).toContain("ASIDE_RESULT")
   })
+
+  // 고정 8초 대기로는 Cloudflare 챌린지가 안 끝난 채로 읽는 일이 실측으로 확인됐다
+  // (같은 SAGE 페이지가 한 번은 통과, 한 번은 "Just a moment..." 상태에서 실패).
+  it("고정 대기 대신 준비될 때까지 폴링한다", () => {
+    const s = buildFetchScript("https://doi.org/10.1/x")
+    expect(s).toMatch(/just a moment/i)
+    expect(s).toMatch(/for\s*\(/)
+  })
+
+  it("실패 시 진단정보(최종 URL·제목)를 실어보낸다", () => {
+    const s = buildFetchScript("https://doi.org/10.1/x")
+    expect(s).toContain("location.href")
+    expect(s).toContain("document.title")
+  })
 })
 
 describe("parseAsideResult", () => {
@@ -133,5 +147,24 @@ describe("parseAsideResult", () => {
   })
   it("라인이 없으면 ok:false", () => {
     expect(parseAsideResult("nothing here").ok).toBe(false)
+  })
+  it("진단정보를 그대로 통과시킨다", () => {
+    const out = 'ASIDE_RESULT {"ok":false,"reason":"no-pdf-url","url":"https://x/a","title":"T"}'
+    expect(parseAsideResult(out)).toMatchObject({ ok: false, reason: "no-pdf-url", url: "https://x/a", title: "T" })
+  })
+})
+
+describe("describeAsideFailure", () => {
+  it("사유에 최종 URL과 페이지 제목을 붙인다 — 원격에서 원인을 보려면 이게 필요하다", () => {
+    const s = describeAsideFailure({ ok: false, reason: "no-pdf-url", url: "https://journals.sagepub.com/doi/10.1/x", title: "Some Article" })
+    expect(s).toContain("no-pdf-url")
+    expect(s).toContain("journals.sagepub.com")
+    expect(s).toContain("Some Article")
+  })
+  it("진단정보가 없으면 사유만 준다", () => {
+    expect(describeAsideFailure({ ok: false, reason: "타임아웃" })).toBe("타임아웃")
+  })
+  it("사유조차 없으면 기본 문구", () => {
+    expect(describeAsideFailure({ ok: false })).toBe("결과 없음")
   })
 })
