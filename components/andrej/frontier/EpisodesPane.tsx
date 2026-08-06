@@ -1,12 +1,11 @@
 "use client"
 
 // AI Frontier Episodes 목록 패널.
-// 목록은 부모가 준 데이터만 그린다. 본문(blocks)은 펼친 줄에서만 지연 로딩한다.
+// 목록은 부모가 준 데이터만 그린다. 긴 본문은 Notion 원문으로 연결한다.
 
-import { useQuery } from "@tanstack/react-query"
 import { useState } from "react"
 
-import type { AiFrontierConcept, AiFrontierEpisode, AiFrontierEpisodeDetail } from "@/lib/types/ai-frontier"
+import type { AiFrontierConcept, AiFrontierEpisode } from "@/lib/types/ai-frontier"
 import { cn } from "@/lib/utils"
 
 import { conceptsForEpisode, sortEpisodes } from "./frontier-view"
@@ -18,8 +17,6 @@ export interface EpisodesPaneProps {
   readonly onConceptNavigate: (concept: AiFrontierConcept) => void
 }
 
-/** 한 화면에 밀어 넣을 수 있는 본문 상한. 넘으면 잘렸다고 표시한다. */
-const MAX_BLOCKS = 40
 const MAX_TOPICS = 2
 
 /** http(s)만 링크로 만든다. javascript: 같은 스킴은 링크가 아니라 글자로 남긴다. */
@@ -38,85 +35,64 @@ function notionUrl(pageId: string): string {
   return `https://www.notion.so/${pageId.replace(/-/g, "")}`
 }
 
-async function fetchEpisodeDetail(pageId: string): Promise<AiFrontierEpisodeDetail> {
-  const response = await fetch(`/api/andrej/frontier/episodes/${encodeURIComponent(pageId)}`)
-  if (!response.ok) throw new Error(`episode detail ${response.status}`)
-  return (await response.json()) as AiFrontierEpisodeDetail
-}
-
 const linkClass =
-  "rounded border border-border bg-card px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
+  "inline-flex min-h-9 items-center rounded-md border px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
 
-function ExternalLink({ href, label }: { readonly href: string; readonly label: string }) {
+function ExternalLink({
+  href,
+  label,
+  primary = false,
+}: {
+  readonly href: string
+  readonly label: string
+  readonly primary?: boolean
+}) {
   return (
-    <a href={href} target="_blank" rel="noreferrer noopener" className={linkClass}>
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer noopener"
+      className={cn(
+        linkClass,
+        primary
+          ? "border-purple-400/50 bg-purple-500/20 text-purple-100 hover:bg-purple-500/30"
+          : "border-border bg-card text-zinc-200 hover:border-zinc-500 hover:bg-zinc-800"
+      )}
+    >
       {label}
     </a>
   )
 }
 
-/** 펼쳤을 때만 마운트된다. 즉 이 컴포넌트의 존재 자체가 "펼침 후 요청" 규칙이다. */
+/** 대시보드는 출처와 연결만 정리하고, 긴 본문은 canonical source인 Notion에서 읽는다. */
 function EpisodeDetail({ episode }: { readonly episode: AiFrontierEpisode }) {
-  const { data, isPending, isError } = useQuery({
-    queryKey: ["andrej-frontier-episode", episode.id],
-    queryFn: () => fetchEpisodeDetail(episode.id),
-    // 지난 방송 본문은 바뀌지 않는다. 다시 펼칠 때 재요청하지 않도록 stale 처리를 끈다.
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-  })
-
-  if (isPending) {
-    return <p className="text-xs text-muted-foreground">본문을 불러오는 중…</p>
-  }
-
-  if (isError || data === undefined) {
-    // 본문만 실패한 것이므로 목록은 그대로 쓸 수 있게 이 줄 안에서만 알린다.
-    return <p className="text-xs text-red-300">본문을 불러오지 못했습니다.</p>
-  }
-
-  const youtube = safeHttpUrl(data.youtube)
-  const transcript = (data.transcriptSource ?? "").trim()
-  const transcriptHref = safeHttpUrl(data.transcriptSource)
-  const blocks = data.blocks.slice(0, MAX_BLOCKS)
+  const youtube = safeHttpUrl(episode.youtube)
+  const transcript = (episode.transcriptSource ?? "").trim()
+  const transcriptHref = safeHttpUrl(episode.transcriptSource)
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <ExternalLink href={notionUrl(data.id)} label="Notion" />
-        {youtube !== null && <ExternalLink href={youtube} label="YouTube" />}
-        {transcriptHref !== null && <ExternalLink href={transcriptHref} label="전사 원문" />}
+    <div
+      data-testid={`frontier-episode-source-summary-${episode.id}`}
+      className="rounded-lg border border-purple-400/25 bg-purple-500/[0.07] p-3"
+    >
+      <p className="text-sm font-semibold text-zinc-100">원문과 전체 정리</p>
+      <p className="mt-1 text-xs leading-relaxed text-zinc-300">
+        긴 본문은 Notion에서 읽고, 대시보드에서는 핵심 주제와 연결된 개념을 빠르게 확인하세요.
+      </p>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <ExternalLink href={notionUrl(episode.id)} label="Notion에서 본문 읽기" primary />
+        {youtube !== null && <ExternalLink href={youtube} label="YouTube 보기" />}
+        {transcriptHref !== null && <ExternalLink href={transcriptHref} label="전사 원문 보기" />}
         {transcriptHref === null && transcript !== "" && (
           <span
-            data-testid={`frontier-episode-transcript-${data.id}`}
-            className="rounded border border-border bg-card px-1.5 py-0.5 text-[11px] text-muted-foreground"
+            data-testid={`frontier-episode-transcript-${episode.id}`}
+            className="text-xs text-zinc-400"
           >
             전사 출처: {transcript}
           </span>
         )}
       </div>
-
-      {blocks.length > 0 && (
-        <div className="space-y-1">
-          {blocks.map((block) => (
-            <p
-              key={block.id}
-              data-testid={`frontier-episode-block-${block.id}`}
-              className="text-xs leading-relaxed text-foreground/90"
-            >
-              {block.text}
-            </p>
-          ))}
-        </div>
-      )}
-
-      {(data.truncated || data.blocks.length > MAX_BLOCKS) && (
-        <p
-          data-testid={`frontier-episode-truncated-${data.id}`}
-          className="text-[11px] text-muted-foreground"
-        >
-          본문이 길어 일부만 표시했습니다. 전체는 Notion에서 확인하세요.
-        </p>
-      )}
     </div>
   )
 }
@@ -133,17 +109,26 @@ function ConceptChips({
   if (concepts.length === 0) return null
 
   return (
-    <div data-testid={`frontier-episode-concepts-${episodeId}`} className="flex flex-wrap gap-1.5">
-      {concepts.map((concept) => (
-        <button
-          key={concept.id}
-          type="button"
-          onClick={() => onNavigate(concept)}
-          className="rounded-full border border-purple-400/40 bg-purple-500/10 px-2.5 py-1 text-xs text-purple-200 transition-colors hover:bg-purple-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
-        >
-          {concept.term}
-        </button>
-      ))}
+    <div data-testid={`frontier-episode-concepts-${episodeId}`} className="space-y-2">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
+        관련 개념 <span className="num text-zinc-300">{concepts.length}</span>
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {concepts.map((concept) => {
+          const korean = concept.korean?.trim() ?? ""
+          return (
+            <button
+              key={concept.id}
+              type="button"
+              onClick={() => onNavigate(concept)}
+              className="rounded-md border border-purple-400/35 bg-purple-500/10 px-2.5 py-1.5 text-left text-xs font-medium text-purple-100 transition-colors hover:border-purple-300/60 hover:bg-purple-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
+            >
+              {concept.term}
+              {korean !== "" && <span className="ml-1.5 font-normal text-zinc-300">{korean}</span>}
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -164,7 +149,8 @@ function EpisodeRow({
   const regionId = `episode-detail-${episode.id}`
   const titleId = `episode-title-${episode.id}`
   const date = episode.published ?? episode.recorded
-  const hiddenTopics = episode.topics.length - MAX_TOPICS
+  const topics = episode.topics.map((topic) => topic.trim()).filter((topic) => topic !== "")
+  const hiddenTopics = topics.length - MAX_TOPICS
 
   return (
     <li
@@ -197,27 +183,25 @@ function EpisodeRow({
         </span>
 
         <span className="mt-1 flex flex-wrap items-center gap-1.5">
-          {episode.topics.length > 0 && (
+          {topics.length > 0 && (
             <span
               data-testid={`frontier-episode-topics-${episode.id}`}
-              className="flex flex-wrap items-center gap-1.5"
+              className="flex min-w-0 items-baseline gap-1.5"
             >
-              {episode.topics.slice(0, MAX_TOPICS).map((topic) => (
-                <span
-                  key={topic}
-                  className="rounded border border-border bg-card px-1.5 py-0.5 text-[11px] text-muted-foreground"
-                >
-                  {topic}
-                </span>
-              ))}
-              {hiddenTopics > 0 && <span className="num text-[11px] text-muted-foreground">+{hiddenTopics}</span>}
+              <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                주제
+              </span>
+              <span className="truncate text-xs text-zinc-300">
+                {topics.slice(0, MAX_TOPICS).join(" · ")}
+              </span>
+              {hiddenTopics > 0 && <span className="num text-[11px] text-zinc-400">+{hiddenTopics}</span>}
             </span>
           )}
           <span
             data-testid={`frontier-episode-concept-count-${episode.id}`}
-            className="text-[11px] text-muted-foreground"
+            className="text-[11px] text-zinc-400"
           >
-            Concepts <span className="num">{linked.length}</span>
+            관련 개념 <span className="num text-zinc-300">{linked.length}</span>
           </span>
         </span>
       </button>
@@ -229,8 +213,8 @@ function EpisodeRow({
           aria-labelledby={titleId}
           className="space-y-2 border-t border-border px-3 py-2"
         >
-          <ConceptChips episodeId={episode.id} concepts={linked} onNavigate={onConceptNavigate} />
           <EpisodeDetail episode={episode} />
+          <ConceptChips episodeId={episode.id} concepts={linked} onNavigate={onConceptNavigate} />
         </div>
       )}
     </li>

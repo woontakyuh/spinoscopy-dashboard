@@ -28,7 +28,7 @@ function trimmed(value: string | null): string | null {
 }
 
 const chipBase =
-  "rounded-full border px-2.5 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
+  "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
 
 function CategoryChips({
   counts,
@@ -49,7 +49,7 @@ function CategoryChips({
           chipBase,
           current === null
             ? "border-purple-400/40 bg-purple-500/15 text-purple-200"
-            : "border-border bg-muted text-muted-foreground hover:text-foreground"
+            : "border-zinc-700 bg-zinc-900/70 text-zinc-300 hover:border-zinc-500 hover:text-zinc-100"
         )}
       >
         전체
@@ -67,10 +67,11 @@ function CategoryChips({
               chipBase,
               active
                 ? "border-purple-400/40 bg-purple-500/15 text-purple-200"
-                : "border-border bg-muted text-muted-foreground hover:text-foreground"
+                : "border-zinc-700 bg-zinc-900/70 text-zinc-300 hover:border-zinc-500 hover:text-zinc-100"
             )}
           >
-            {category} <span className="num text-muted-foreground">{count}</span>
+            {category}{" "}
+            <span className={cn("num", active ? "text-purple-100/80" : "text-zinc-400")}>{count}</span>
           </button>
         )
       })}
@@ -91,7 +92,7 @@ function EpisodeChip({
       <button
         type="button"
         disabled
-        className={cn(chipBase, "cursor-not-allowed border-border bg-muted/60 text-muted-foreground")}
+        className={cn(chipBase, "cursor-not-allowed border-zinc-800 bg-zinc-900/50 text-zinc-500")}
       >
         {episodeRef.ref} · 현재 DB에 없음
       </button>
@@ -115,8 +116,8 @@ function EpisodeChip({
 function DetailBlock({ label, value }: { readonly label: string; readonly value: string }) {
   return (
     <div className="space-y-0.5">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="text-xs leading-relaxed text-foreground/90">{value}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">{label}</p>
+      <p className="text-xs leading-relaxed text-zinc-200">{value}</p>
     </div>
   )
 }
@@ -161,7 +162,7 @@ function ConceptCard({
           <span id={termId} className="text-sm font-semibold text-foreground">
             {concept.term}
           </span>
-          {korean !== null && <span className="text-xs text-muted-foreground">{korean}</span>}
+          {korean !== null && <span className="text-xs text-zinc-300">{korean}</span>}
         </span>
 
         <span className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -174,7 +175,7 @@ function ConceptCard({
             // Verified는 사실 검증이 아니라 출처 라벨이므로 초록 계열을 쓰지 않는다.
             <span
               data-testid={`concept-verified-${concept.id}`}
-              className="rounded border border-border bg-card px-1.5 py-0.5 text-[11px] text-muted-foreground"
+              className="rounded-md border border-zinc-700 bg-zinc-900/70 px-2 py-1 text-[11px] text-zinc-300"
             >
               {verified}
             </span>
@@ -186,6 +187,7 @@ function ConceptCard({
             data-testid={`concept-oneline-${concept.id}`}
             className={cn(
               "mt-1 block text-xs leading-relaxed text-muted-foreground",
+              "text-zinc-300",
               !expanded && "line-clamp-2"
             )}
           >

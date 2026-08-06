@@ -1,16 +1,10 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { fireEvent, render, screen, within } from "@testing-library/react"
 import type { ComponentProps } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import type {
-  AiFrontierBlock,
-  AiFrontierConcept,
-  AiFrontierEpisode,
-  AiFrontierEpisodeDetail,
-} from "@/lib/types/ai-frontier"
+import type { AiFrontierConcept, AiFrontierEpisode } from "@/lib/types/ai-frontier"
 
 import { EpisodesPane } from "./EpisodesPane"
 
@@ -52,22 +46,6 @@ function makeConcept(overrides: Partial<AiFrontierConcept> = {}): AiFrontierConc
   }
 }
 
-function makeBlocks(count: number): AiFrontierBlock[] {
-  return Array.from({ length: count }, (_, index) => ({
-    id: `b${index}`,
-    type: "paragraph",
-    text: `본문 ${index}`,
-  }))
-}
-
-function makeDetail(overrides: Partial<AiFrontierEpisodeDetail> = {}): AiFrontierEpisodeDetail {
-  return { ...makeEpisode(), blocks: makeBlocks(3), truncated: false, ...overrides }
-}
-
-function jsonResponse(body: unknown, ok = true, status = 200): Response {
-  return { ok, status, json: async () => body } as unknown as Response
-}
-
 const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>()
 vi.stubGlobal("fetch", fetchMock)
 
@@ -77,26 +55,62 @@ afterEach(() => {
 
 function renderPane(overrides: Partial<ComponentProps<typeof EpisodesPane>> = {}) {
   const onConceptNavigate = vi.fn()
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
-  })
 
   render(
-    <QueryClientProvider client={queryClient}>
-      <EpisodesPane
-        episodes={[older, makeEpisode()]}
-        concepts={[makeConcept()]}
-        selectedEpisodeId={null}
-        onConceptNavigate={onConceptNavigate}
-        {...overrides}
-      />
-    </QueryClientProvider>
+    <EpisodesPane
+      episodes={[older, makeEpisode()]}
+      concepts={[makeConcept()]}
+      selectedEpisodeId={null}
+      onConceptNavigate={onConceptNavigate}
+      {...overrides}
+    />
   )
 
-  return { onConceptNavigate, queryClient }
+  return { onConceptNavigate }
 }
 
 const row = (label: RegExp) => screen.getByRole("button", { name: label })
+
+describe("EpisodesPane dashboard readability", () => {
+  it("주제를 빈 타원형 칩 없이 이름 붙은 한 줄로 정리한다", () => {
+    renderPane({
+      episodes: [makeEpisode({ topics: ["", "  ", "Scaling", "Agents"] })],
+      concepts: [],
+    })
+
+    const summary = screen.getByTestId("frontier-episode-topics-ep-12")
+    expect(summary).toHaveTextContent("주제")
+    expect(summary).toHaveTextContent("Scaling · Agents")
+    expect(summary.querySelectorAll('[data-empty-chip="true"]')).toHaveLength(0)
+  })
+
+  it("본문을 가져오지 않고 Notion 원문으로 명확하게 연결한다", () => {
+    renderPane()
+
+    fireEvent.click(row(/EP12/))
+
+    const notion = screen.getByRole("link", { name: "Notion에서 본문 읽기" })
+    expect(notion).toHaveAttribute("href", "https://www.notion.so/ep12")
+    expect(screen.getByRole("link", { name: "YouTube 보기" })).toHaveAttribute(
+      "href",
+      "https://youtu.be/abc123"
+    )
+    expect(screen.getByRole("link", { name: "전사 원문 보기" })).toHaveAttribute(
+      "href",
+      "https://example.com/ep12.txt"
+    )
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(screen.queryByText("본문을 불러오는 중…")).not.toBeInTheDocument()
+  })
+
+  it("관련 개념은 영문명과 한글명을 함께 읽을 수 있다", () => {
+    renderPane()
+
+    fireEvent.click(row(/EP12/))
+
+    expect(screen.getByRole("button", { name: /Transformer.*트랜스포머/ })).toBeInTheDocument()
+  })
+})
 
 describe("EpisodesPane 목록", () => {
   it("최신 published가 위로 오도록 날짜 내림차순으로 줄을 세운다", () => {
@@ -129,8 +143,7 @@ describe("EpisodesPane 목록", () => {
     renderPane()
 
     const topics = within(screen.getByTestId("frontier-episode-topics-ep-12"))
-    expect(topics.getByText("Scaling")).toBeInTheDocument()
-    expect(topics.getByText("RL")).toBeInTheDocument()
+    expect(topics.getByText("Scaling · RL")).toBeInTheDocument()
     expect(topics.queryByText("Agents")).not.toBeInTheDocument()
     expect(topics.getByText("+2")).toBeInTheDocument()
   })
@@ -149,71 +162,21 @@ describe("EpisodesPane 목록", () => {
   })
 })
 
-describe("EpisodesPane 펼치기와 지연 로딩", () => {
-  it("펼치기 전에는 상세 요청을 보내지 않는다", () => {
+describe("EpisodesPane 펼치기와 원문 이동", () => {
+  it("펼치기 전에는 요약 영역을 만들지 않는다", () => {
     renderPane()
 
     expect(row(/EP12/)).toHaveAttribute("aria-expanded", "false")
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(screen.queryByTestId("frontier-episode-source-summary-ep-12")).not.toBeInTheDocument()
   })
 
-  it("펼칠 때 약속된 경로로 한 번만 요청한다", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(makeDetail()))
-    renderPane()
-
-    fireEvent.click(row(/EP12/))
-
-    expect(row(/EP12/)).toHaveAttribute("aria-expanded", "true")
-    await screen.findByText("본문 0")
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(String(fetchMock.mock.calls[0][0])).toBe("/api/andrej/frontier/episodes/ep-12")
-  })
-
-  it("React Query 키를 pageId 기준으로 캐싱해 다시 펼쳐도 재요청하지 않는다", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(makeDetail()))
-    const { queryClient } = renderPane()
-
-    fireEvent.click(row(/EP12/))
-    await screen.findByText("본문 0")
-
-    expect(queryClient.getQueryData(["andrej-frontier-episode", "ep-12"])).toBeDefined()
-
-    fireEvent.click(row(/EP12/))
-    fireEvent.click(row(/EP12/))
-    await screen.findByText("본문 0")
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-  })
-
-  it("선택된 에피소드는 처음부터 펼쳐진 채로 그 에피소드만 불러온다", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(makeDetail()))
+  it("선택된 에피소드는 처음부터 펼쳐 원문 이동을 보여준다", () => {
     renderPane({ selectedEpisodeId: "ep-12" })
 
     expect(row(/EP12/)).toHaveAttribute("aria-expanded", "true")
     expect(row(/EP11/)).toHaveAttribute("aria-expanded", "false")
-
-    await screen.findByText("본문 0")
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-  })
-
-  it("불러오는 동안 그 줄 안에서 진행 상태를 알린다", async () => {
-    fetchMock.mockReturnValue(new Promise<Response>(() => {}))
-    renderPane()
-
-    fireEvent.click(row(/EP12/))
-
-    expect(await screen.findByText("본문을 불러오는 중…")).toBeInTheDocument()
-  })
-
-  it("본문은 상한까지만 그리고 잘렸다는 사실을 숨기지 않는다", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(makeDetail({ blocks: makeBlocks(60), truncated: true })))
-    renderPane()
-
-    fireEvent.click(row(/EP12/))
-    await screen.findByText("본문 0")
-
-    const blocks = screen.getAllByTestId(/^frontier-episode-block-/)
-    expect(blocks.length).toBeLessThanOrEqual(40)
-    expect(screen.getByTestId("frontier-episode-truncated-ep-12")).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "Notion에서 본문 읽기" })).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it("키보드로 도달 가능한 네이티브 button이다", () => {
@@ -230,51 +193,31 @@ describe("EpisodesPane 펼치기와 지연 로딩", () => {
   })
 })
 
-describe("EpisodesPane 실패와 결측", () => {
-  it("상세 로딩이 실패해도 목록은 계속 쓸 수 있다", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ error: "notion down" }, false, 500))
-    renderPane()
-
-    fireEvent.click(row(/EP12/))
-
-    expect(await screen.findByText("본문을 불러오지 못했습니다.")).toBeInTheDocument()
-
-    fireEvent.click(row(/EP11/))
-    expect(row(/EP11/)).toHaveAttribute("aria-expanded", "true")
-    expect(row(/EP12/)).toHaveTextContent("스케일링 법칙의 끝")
-  })
-
-  it("YouTube/전사 링크가 없으면 링크를 만들지 않는다", async () => {
-    fetchMock.mockResolvedValue(
-      jsonResponse(makeDetail({ youtube: null, transcriptSource: null, blocks: [], truncated: false }))
-    )
+describe("EpisodesPane 출처 결측", () => {
+  it("YouTube/전사 링크가 없으면 링크를 만들지 않는다", () => {
     renderPane({ episodes: [makeEpisode({ youtube: null, transcriptSource: null, topics: [] })] })
 
     fireEvent.click(row(/EP12/))
-    await screen.findByRole("link", { name: /Notion/ })
 
     expect(screen.queryByRole("link", { name: /YouTube/ })).not.toBeInTheDocument()
     expect(screen.queryByRole("link", { name: /전사/ })).not.toBeInTheDocument()
     expect(screen.queryByTestId("frontier-episode-topics-ep-12")).not.toBeInTheDocument()
   })
 
-  it("http(s)가 아닌 전사 출처는 링크 대신 글자로 남긴다", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(makeDetail({ transcriptSource: "javascript:alert(1)" })))
-    renderPane()
+  it("http(s)가 아닌 전사 출처는 링크 대신 글자로 남긴다", () => {
+    renderPane({ episodes: [makeEpisode({ transcriptSource: "javascript:alert(1)" })] })
 
     fireEvent.click(row(/EP12/))
-    await screen.findByText("본문 0")
 
     expect(screen.queryByRole("link", { name: /전사/ })).not.toBeInTheDocument()
     expect(screen.getByTestId("frontier-episode-transcript-ep-12")).toHaveTextContent("javascript:alert(1)")
   })
 
-  it("외부 링크는 새 탭에서 안전하게 연다", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(makeDetail()))
+  it("외부 링크는 새 탭에서 안전하게 연다", () => {
     renderPane()
 
     fireEvent.click(row(/EP12/))
-    const youtube = await screen.findByRole("link", { name: /YouTube/ })
+    const youtube = screen.getByRole("link", { name: "YouTube 보기" })
 
     expect(youtube).toHaveAttribute("href", "https://youtu.be/abc123")
     expect(youtube).toHaveAttribute("target", "_blank")
@@ -284,24 +227,21 @@ describe("EpisodesPane 실패와 결측", () => {
 })
 
 describe("EpisodesPane Concept 이동", () => {
-  it("연결된 Concept 칩은 전달받은 네비게이션을 호출한다", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(makeDetail()))
+  it("연결된 Concept 카드는 전달받은 네비게이션을 호출한다", () => {
     const { onConceptNavigate } = renderPane()
 
     fireEvent.click(row(/EP12/))
-    const chip = await screen.findByRole("button", { name: /Transformer/ })
+    const chip = screen.getByRole("button", { name: /Transformer.*트랜스포머/ })
     fireEvent.click(chip)
 
-    await waitFor(() => expect(onConceptNavigate).toHaveBeenCalledTimes(1))
+    expect(onConceptNavigate).toHaveBeenCalledTimes(1)
     expect(onConceptNavigate).toHaveBeenCalledWith(expect.objectContaining({ id: "c1" }))
   })
 
-  it("연결된 Concept이 없으면 칩 줄을 만들지 않는다", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(makeDetail()))
+  it("연결된 Concept이 없으면 관련 개념 영역을 만들지 않는다", () => {
     renderPane({ concepts: [] })
 
     fireEvent.click(row(/EP12/))
-    await screen.findByText("본문 0")
 
     expect(screen.queryByTestId("frontier-episode-concepts-ep-12")).not.toBeInTheDocument()
   })

@@ -328,7 +328,9 @@ describe("FrontierDashboard 교차 이동", () => {
     await renderReady()
 
     fireEvent.click(within(panel("episodes")).getByRole("button", { name: /스케일링 법칙의 끝/ }))
-    fireEvent.click(await within(panel("episodes")).findByRole("button", { name: "Transformer" }))
+    fireEvent.click(
+      await within(panel("episodes")).findByRole("button", { name: /Transformer.*트랜스포머/ })
+    )
 
     const card = within(panel("concepts")).getByRole("button", { name: /Transformer/ })
     expect(tab(/개념/)).toHaveAttribute("aria-selected", "true")
