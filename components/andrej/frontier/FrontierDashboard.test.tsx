@@ -1,0 +1,437 @@
+// @vitest-environment jsdom
+import "@testing-library/jest-dom/vitest"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { afterEach, describe, expect, it, vi } from "vitest"
+
+import type {
+  AiFrontierConcept,
+  AiFrontierEpisode,
+  AiFrontierEpisodeDetail,
+  AiFrontierIndex,
+} from "@/lib/types/ai-frontier"
+
+import { FrontierDashboard } from "./FrontierDashboard"
+
+const INDEX_URL = "/api/andrej/frontier"
+
+function makeEpisodes(): AiFrontierEpisode[] {
+  const base: AiFrontierEpisode = {
+    id: "ep-12",
+    name: "스케일링 법칙의 끝",
+    episodeNumber: 12,
+    status: "Published",
+    published: "2026-05-02",
+    recorded: null,
+    reviewed: true,
+    topics: ["Scaling"],
+    models: ["GPT-5"],
+    people: ["Karpathy"],
+    youtube: null,
+    transcriptSource: null,
+    duration: null,
+    keyTerms: [],
+  }
+  return [
+    base,
+    {
+      ...base,
+      id: "ep-11",
+      name: "에이전트 루프",
+      episodeNumber: 11,
+      published: "2026-04-01",
+      reviewed: false,
+      topics: ["Agents"],
+    },
+  ]
+}
+
+function makeConcepts(): AiFrontierConcept[] {
+  const base: AiFrontierConcept = {
+    id: "c1",
+    term: "Transformer",
+    korean: "트랜스포머",
+    category: "Architecture",
+    verified: "전사 기반",
+    oneLine: "어텐션 기반 구조.",
+    intuition: null,
+    whyItMatters: null,
+    source: null,
+    episodes: [{ ref: "EP12", available: true, pageId: "ep-12" }],
+  }
+  return [
+    base,
+    {
+      ...base,
+      id: "c2",
+      term: "Chain of Thought",
+      korean: "사고 사슬",
+      category: "Reasoning",
+      oneLine: "중간 추론을 밖으로 꺼내는 방식.",
+      episodes: [{ ref: "EP11", available: true, pageId: "ep-11" }],
+    },
+  ]
+}
+
+function makeIndex(overrides: Partial<AiFrontierIndex> = {}): AiFrontierIndex {
+  return {
+    status: "ok",
+    sources: { episodes: "ok", concepts: "ok" },
+    episodes: makeEpisodes(),
+    concepts: makeConcepts(),
+    episodeIndex: { EP12: "ep-12", EP11: "ep-11" },
+    ...overrides,
+  }
+}
+
+function makeDetail(): AiFrontierEpisodeDetail {
+  return { ...makeEpisodes()[0], blocks: [], truncated: false }
+}
+
+function jsonResponse(body: unknown, ok = true, status = 200): Response {
+  return { ok, status, json: async () => body } as unknown as Response
+}
+
+const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>()
+vi.stubGlobal("fetch", fetchMock)
+
+/** index 응답만 갈아끼우고, 에피소드 상세 요청은 항상 성공시킨다. */
+function mockIndex(index: AiFrontierIndex | Promise<never> | null = makeIndex()) {
+  fetchMock.mockImplementation(async (input) => {
+    const url = String(input)
+    if (url.startsWith(`${INDEX_URL}/episodes/`)) return jsonResponse(makeDetail())
+    if (index === null) return jsonResponse({ error: "down" }, false, 500)
+    if (index instanceof Promise) return index
+    return jsonResponse(index)
+  })
+}
+
+function indexCalls(): number {
+  return fetchMock.mock.calls.filter((call) => String(call[0]) === INDEX_URL).length
+}
+
+afterEach(() => {
+  fetchMock.mockReset()
+})
+
+function renderDashboard() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+  const view = render(
+    <QueryClientProvider client={queryClient}>
+      <FrontierDashboard />
+    </QueryClientProvider>
+  )
+  return { queryClient, ...view }
+}
+
+/**
+ * 마운트된 컴포넌트가 실제로 등록한 쿼리 옵션.
+ * Query.options 는 QueryOptions 로 좁혀져 있어 staleTime/refetchInterval 을 들고 있지 않다.
+ * observer.options 는 QueryObserverOptions 라 두 필드를 그대로 갖는다.
+ */
+function mountedQueryOptions(queryClient: QueryClient) {
+  return queryClient.getQueryCache().find({ queryKey: ["andrej-frontier"] })?.observers[0]?.options
+}
+
+const panel = (section: "episodes" | "concepts") => screen.getByTestId(`frontier-panel-${section}`)
+const tab = (name: RegExp) => screen.getByRole("tab", { name })
+
+async function renderReady() {
+  mockIndex()
+  const result = renderDashboard()
+  await screen.findByTestId("frontier-status")
+  return result
+}
+
+describe("FrontierDashboard 데이터 연결", () => {
+  it("약속된 경로로 index를 한 번만 요청한다", async () => {
+    await renderReady()
+
+    expect(indexCalls()).toBe(1)
+    expect(String(fetchMock.mock.calls[0][0])).toBe(INDEX_URL)
+  })
+
+  it("andrej-frontier 키로 캐싱하고 10분 staleTime을 쓴다", async () => {
+    const { queryClient } = await renderReady()
+
+    expect(queryClient.getQueryData(["andrej-frontier"])).toBeDefined()
+    expect(mountedQueryOptions(queryClient)?.staleTime).toBe(10 * 60 * 1000)
+  })
+
+  it("주기적으로 다시 부르지 않는다", async () => {
+    const { queryClient } = await renderReady()
+
+    expect(mountedQueryOptions(queryClient)?.refetchInterval).toBeUndefined()
+    expect(indexCalls()).toBe(1)
+  })
+
+  it("stale 하지 않으면 다시 마운트해도 재요청하지 않는다", async () => {
+    mockIndex()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+    const tree = (
+      <QueryClientProvider client={queryClient}>
+        <FrontierDashboard />
+      </QueryClientProvider>
+    )
+
+    const first = render(tree)
+    await screen.findByTestId("frontier-status")
+    first.unmount()
+    render(tree)
+    await screen.findByTestId("frontier-status")
+
+    expect(indexCalls()).toBe(1)
+  })
+
+  it("불러오는 동안 양쪽 자리에 스켈레톤을 세워 둔다", () => {
+    mockIndex(new Promise<never>(() => {}))
+    renderDashboard()
+
+    expect(screen.getAllByTestId(/^frontier-skeleton-/)).toHaveLength(2)
+    // 로딩 자리와 목록 자리는 이름을 나눠 쓴다. 같은 이름이면 pending 중에 잡은 요소에
+    // 패널이 없어 조용히 헛짚게 된다.
+    expect(screen.getByTestId("frontier-loading-columns").className).toContain("md:grid-cols-2")
+    expect(screen.queryByTestId("frontier-columns")).not.toBeInTheDocument()
+  })
+})
+
+describe("FrontierDashboard 상태 줄", () => {
+  it("최신 EP·개수·미검토·동기화 시각을 한 줄에 모은다", async () => {
+    await renderReady()
+
+    const status = screen.getByTestId("frontier-status")
+    expect(status).toHaveTextContent("EP12")
+    expect(status).toHaveTextContent("에피소드 2")
+    expect(status).toHaveTextContent("개념 2")
+    expect(status).toHaveTextContent("미검토 1")
+    expect(screen.getByTestId("frontier-last-sync")).toHaveTextContent(/\d{2}:\d{2}/)
+  })
+
+  it("한쪽 소스만 끊기면 부분 연결임을 상태 줄에서 알린다", async () => {
+    mockIndex(makeIndex({ status: "partial", sources: { episodes: "unavailable", concepts: "ok" }, episodes: [] }))
+    renderDashboard()
+
+    expect(await screen.findByTestId("frontier-status")).toHaveTextContent("일부 연결 실패")
+  })
+})
+
+describe("FrontierDashboard 검색과 필터", () => {
+  it("검색 입력에 이름표가 붙어 있다", async () => {
+    await renderReady()
+
+    expect(screen.getByLabelText(/검색/)).toBeInTheDocument()
+  })
+
+  it("한글 검색어가 양쪽 목록에 함께 걸린다", async () => {
+    await renderReady()
+
+    fireEvent.change(screen.getByLabelText(/검색/), { target: { value: "사고" } })
+
+    expect(within(panel("concepts")).getByText("Chain of Thought")).toBeInTheDocument()
+    expect(within(panel("concepts")).queryByText("Transformer")).not.toBeInTheDocument()
+    expect(within(panel("episodes")).getByText("표시할 에피소드가 없습니다.")).toBeInTheDocument()
+  })
+
+  it("에피소드 제목 검색은 에피소드 쪽만 남긴다", async () => {
+    await renderReady()
+
+    fireEvent.change(screen.getByLabelText(/검색/), { target: { value: "스케일링" } })
+
+    expect(within(panel("episodes")).getByText("스케일링 법칙의 끝")).toBeInTheDocument()
+    expect(within(panel("episodes")).queryByText("에이전트 루프")).not.toBeInTheDocument()
+    expect(within(panel("concepts")).getByText("표시할 개념이 없습니다.")).toBeInTheDocument()
+  })
+
+  it("카테고리 칩은 개념만 좁히고 에피소드는 건드리지 않는다", async () => {
+    await renderReady()
+
+    // 개념 카드의 접근 이름에도 카테고리가 섞여 있어, 칩 줄 안으로 좁혀서 누른다.
+    fireEvent.click(within(screen.getByTestId("frontier-category-chips")).getByRole("button", { name: /Architecture/ }))
+
+    expect(within(panel("concepts")).getByText("Transformer")).toBeInTheDocument()
+    expect(within(panel("concepts")).queryByText("Chain of Thought")).not.toBeInTheDocument()
+    expect(within(panel("episodes")).getAllByTestId(/^frontier-episode-row-/)).toHaveLength(2)
+  })
+})
+
+describe("FrontierDashboard 레이아웃", () => {
+  it("md 이상에서 두 열로 나눈다", async () => {
+    await renderReady()
+
+    expect(screen.getByTestId("frontier-columns").className).toContain("md:grid-cols-2")
+    // 데이터가 온 뒤에는 로딩 자리가 남아 있지 않다.
+    expect(screen.queryByTestId("frontier-loading-columns")).not.toBeInTheDocument()
+    expect(within(screen.getByTestId("frontier-columns")).getAllByRole("tabpanel")).toHaveLength(2)
+  })
+
+  it("모바일 세그먼트는 `에피소드 N | 개념 N` 한 줄로 읽힌다", async () => {
+    await renderReady()
+
+    const tablist = screen.getByRole("tablist")
+    expect(tab(/에피소드/)).toHaveTextContent("2")
+    expect(tab(/개념/)).toHaveTextContent("2")
+    expect(tablist.textContent?.replace(/\s+/g, " ").trim()).toBe("에피소드 2 | 개념 2")
+    expect(tablist.className).toContain("md:hidden")
+  })
+
+  it("두 세그먼트 사이의 구분자는 눈에만 보이고 읽히지는 않는다", async () => {
+    await renderReady()
+
+    const separator = screen.getByTestId("frontier-segment-separator")
+    expect(separator).toHaveTextContent("|")
+    expect(separator).toHaveAttribute("aria-hidden", "true")
+    // 구분자가 실제로 두 세그먼트 사이에 있어야 한 줄로 읽힌다.
+    expect(separator.previousElementSibling).toBe(tab(/에피소드/))
+    expect(separator.nextElementSibling).toBe(tab(/개념/))
+  })
+
+  it("세그먼트는 테두리 상자가 아니라 글자 줄로 붙어 있다", async () => {
+    await renderReady()
+
+    // 활성 표시는 색만이 아니라 밑줄로도 준다(색 구분이 어려운 경우 대비).
+    expect(tab(/에피소드/).className).not.toContain("border")
+    expect(tab(/에피소드/).className).toContain("underline")
+    expect(tab(/개념/).className).not.toContain("underline")
+  })
+
+  it("모바일에서는 선택된 쪽 한 패널만 보인다", async () => {
+    await renderReady()
+
+    expect(tab(/에피소드/)).toHaveAttribute("aria-selected", "true")
+    expect(panel("episodes").className).not.toContain("hidden")
+    expect(panel("concepts").className).toContain("hidden")
+
+    fireEvent.click(tab(/개념/))
+
+    expect(tab(/개념/)).toHaveAttribute("aria-selected", "true")
+    expect(tab(/에피소드/)).toHaveAttribute("aria-selected", "false")
+    expect(panel("concepts").className).not.toContain("hidden")
+    expect(panel("episodes").className).toContain("hidden")
+    expect(panel("episodes").className).toContain("md:block")
+  })
+})
+
+describe("FrontierDashboard 교차 이동", () => {
+  it("개념의 EP 칩은 에피소드 쪽으로 옮겨 펼치고 초점을 준다", async () => {
+    await renderReady()
+
+    fireEvent.click(within(panel("concepts")).getByRole("button", { name: "EP12" }))
+
+    const row = within(panel("episodes")).getByRole("button", { name: /스케일링 법칙의 끝/ })
+    expect(tab(/에피소드/)).toHaveAttribute("aria-selected", "true")
+    expect(row).toHaveAttribute("aria-expanded", "true")
+    expect(row).toHaveFocus()
+    expect(panel("episodes")).toHaveAttribute("data-target", "true")
+  })
+
+  it("에피소드의 개념 칩은 개념 쪽으로 옮겨 펼치고 초점을 준다", async () => {
+    await renderReady()
+
+    fireEvent.click(within(panel("episodes")).getByRole("button", { name: /스케일링 법칙의 끝/ }))
+    fireEvent.click(await within(panel("episodes")).findByRole("button", { name: "Transformer" }))
+
+    const card = within(panel("concepts")).getByRole("button", { name: /Transformer/ })
+    expect(tab(/개념/)).toHaveAttribute("aria-selected", "true")
+    expect(card).toHaveAttribute("aria-expanded", "true")
+    expect(card).toHaveFocus()
+    expect(panel("concepts")).toHaveAttribute("data-target", "true")
+  })
+
+  it("끊긴 참조로는 이동하지 않고 그 사실을 알린다", async () => {
+    const orphan = makeConcepts()[0]
+    mockIndex(
+      makeIndex({ concepts: [{ ...orphan, episodes: [{ ref: "EP45", available: true, pageId: "ep-45" }] }] })
+    )
+    renderDashboard()
+    await screen.findByTestId("frontier-status")
+
+    // 모바일에서 개념 쪽을 보고 있던 사용자가 끊긴 칩을 누른 상황.
+    fireEvent.click(tab(/개념/))
+    fireEvent.click(within(panel("concepts")).getByRole("button", { name: "EP45" }))
+
+    expect(screen.getByTestId("frontier-crosslink-unavailable")).toHaveTextContent("EP45")
+    // 이동에 실패했으므로 보던 쪽에 그대로 남는다.
+    expect(tab(/개념/)).toHaveAttribute("aria-selected", "true")
+    expect(panel("episodes")).not.toHaveAttribute("data-target")
+  })
+
+  it("Escape는 선택만 풀어 준다", async () => {
+    await renderReady()
+
+    fireEvent.click(within(panel("concepts")).getByRole("button", { name: "EP12" }))
+    fireEvent.keyDown(window, { key: "Escape" })
+
+    const row = within(panel("episodes")).getByRole("button", { name: /스케일링 법칙의 끝/ })
+    expect(row).toHaveAttribute("aria-expanded", "false")
+    expect(panel("episodes")).not.toHaveAttribute("data-target")
+  })
+})
+
+describe("FrontierDashboard 실패와 재시도", () => {
+  it("에피소드 소스만 끊기면 개념 목록은 그대로 쓴다", async () => {
+    mockIndex(makeIndex({ status: "partial", sources: { episodes: "unavailable", concepts: "ok" }, episodes: [] }))
+    renderDashboard()
+    await screen.findByTestId("frontier-status")
+
+    expect(within(panel("episodes")).getByTestId("frontier-error-episodes")).toBeInTheDocument()
+    expect(within(panel("episodes")).queryByText("표시할 에피소드가 없습니다.")).not.toBeInTheDocument()
+    expect(within(panel("concepts")).getByText("Transformer")).toBeInTheDocument()
+  })
+
+  it("개념 소스만 끊기면 에피소드 목록은 그대로 쓴다", async () => {
+    mockIndex(makeIndex({ status: "partial", sources: { episodes: "ok", concepts: "unavailable" }, concepts: [] }))
+    renderDashboard()
+    await screen.findByTestId("frontier-status")
+
+    expect(within(panel("concepts")).getByTestId("frontier-error-concepts")).toBeInTheDocument()
+    expect(within(panel("concepts")).queryByText("표시할 개념이 없습니다.")).not.toBeInTheDocument()
+    expect(within(panel("episodes")).getByText("스케일링 법칙의 끝")).toBeInTheDocument()
+  })
+
+  it("양쪽 다 끊기면 양쪽 다 실패라고 말한다", async () => {
+    mockIndex(
+      makeIndex({
+        status: "unavailable",
+        sources: { episodes: "unavailable", concepts: "unavailable" },
+        episodes: [],
+        concepts: [],
+      })
+    )
+    renderDashboard()
+    await screen.findByTestId("frontier-status")
+
+    expect(screen.getByTestId("frontier-error-episodes")).toBeInTheDocument()
+    expect(screen.getByTestId("frontier-error-concepts")).toBeInTheDocument()
+  })
+
+  it("요청 자체가 실패하면 재시도로 다시 살아난다", async () => {
+    mockIndex(null)
+    renderDashboard()
+
+    const retry = await screen.findByRole("button", { name: /재시도/ })
+    mockIndex()
+    fireEvent.click(retry)
+
+    await waitFor(() => expect(screen.getByTestId("frontier-status")).toBeInTheDocument())
+    expect(within(panel("episodes")).getByText("스케일링 법칙의 끝")).toBeInTheDocument()
+  })
+
+  it("소스 실패 자리의 재시도는 index를 다시 부른다", async () => {
+    mockIndex(makeIndex({ status: "partial", sources: { episodes: "unavailable", concepts: "ok" }, episodes: [] }))
+    renderDashboard()
+    await screen.findByTestId("frontier-status")
+
+    fireEvent.click(within(screen.getByTestId("frontier-error-episodes")).getByRole("button", { name: /재시도/ }))
+
+    await waitFor(() => expect(indexCalls()).toBe(2))
+  })
+
+  it("에피소드가 정말 비어 있으면 비어 있다고 말한다", async () => {
+    mockIndex(makeIndex({ episodes: [] }))
+    renderDashboard()
+    await screen.findByTestId("frontier-status")
+
+    expect(within(panel("episodes")).getByText("표시할 에피소드가 없습니다.")).toBeInTheDocument()
+    expect(screen.queryByTestId("frontier-error-episodes")).not.toBeInTheDocument()
+  })
+})
