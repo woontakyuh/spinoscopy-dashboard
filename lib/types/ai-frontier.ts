@@ -37,6 +37,8 @@ export interface AiFrontierEpisode {
   transcriptSource: string | null
   /** Notion `Duration` (표시용 원문 보존) */
   duration: string | null
+  /** Notion `한줄요약` */
+  summary: string | null
   /** Notion `Key Terms` */
   keyTerms: string[]
 }

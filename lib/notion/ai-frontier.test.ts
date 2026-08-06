@@ -34,6 +34,10 @@ const fullEpisode = page("ep-1", {
     rich_text: [{ plain_text: "YouTube 자동 자막" }],
   },
   Duration: { type: "rich_text", rich_text: [{ plain_text: "2h 14m" }] },
+  한줄요약: {
+    type: "rich_text",
+    rich_text: [{ plain_text: "스케일링 법칙과 RL의 연결을 한눈에 정리한다." }],
+  },
   "Key Terms": {
     type: "multi_select",
     multi_select: [{ name: "pretraining" }, { name: "RLHF" }],
@@ -77,6 +81,7 @@ describe("toAiFrontierEpisode", () => {
       youtube: "https://youtu.be/abc",
       transcriptSource: "YouTube 자동 자막",
       duration: "2h 14m",
+      summary: "스케일링 법칙과 RL의 연결을 한눈에 정리한다.",
       keyTerms: ["pretraining", "RLHF"],
     })
   })
@@ -106,6 +111,7 @@ describe("toAiFrontierEpisode", () => {
     expect(mapped?.published).toBeNull()
     expect(mapped?.youtube).toBeNull()
     expect(mapped?.duration).toBeNull()
+    expect(mapped?.summary).toBeNull()
     expect(mapped?.topics).toEqual([])
     expect(mapped?.keyTerms).toEqual([])
   })

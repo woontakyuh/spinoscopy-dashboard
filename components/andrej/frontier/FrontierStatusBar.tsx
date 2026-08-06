@@ -65,19 +65,19 @@ export function FrontierStatusBar({
         <StatusItem
           label="최신"
           value={latestEpisodeNumber === null ? "—" : `EP${latestEpisodeNumber}`}
-          tone="text-purple-200"
+          tone="text-purple-700 dark:text-purple-200"
         />
         <StatusItem label="에피소드" value={String(episodeCount)} />
         <StatusItem label="개념" value={String(conceptCount)} />
         <StatusItem
           label="미검토"
           value={String(unreviewedCount)}
-          tone={unreviewedCount > 0 ? "text-amber-300" : undefined}
+          tone={unreviewedCount > 0 ? "text-amber-700 dark:text-amber-300" : undefined}
         />
         <span data-testid="frontier-last-sync">
           동기화 <span className="num text-foreground">{formatSyncedAt(syncedAt)}</span>
         </span>
-        {partial && <span className="text-red-300">일부 연결 실패</span>}
+        {partial && <span className="text-red-700 dark:text-red-300">일부 연결 실패</span>}
       </p>
 
       <input

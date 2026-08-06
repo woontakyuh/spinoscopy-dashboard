@@ -53,6 +53,15 @@ const toggle = () => screen.getByRole("button", { name: /Transformer/ })
 const chips = () => within(screen.getByTestId("frontier-category-chips"))
 
 describe("ConceptsPane 카테고리 칩", () => {
+  it("비활성 필터는 light/dark 공통 semantic color를 쓴다", () => {
+    renderPane()
+
+    const inactive = chips().getByRole("button", { name: /Architecture/ })
+    expect(inactive).toHaveClass("bg-muted")
+    expect(inactive).toHaveClass("text-foreground/80")
+    expect(inactive).not.toHaveClass("bg-zinc-900/70")
+  })
+
   it("카테고리별 개수를 칩으로 보여준다", () => {
     renderPane()
 

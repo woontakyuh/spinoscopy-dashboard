@@ -103,6 +103,7 @@ export function toAiFrontierEpisode(page: NotionAiFrontierPage): AiFrontierEpiso
     youtube: readUrl(props.YouTube),
     transcriptSource: readText(props["Transcript Source"]),
     duration: readText(props.Duration),
+    summary: readText(props.한줄요약),
     keyTerms: readMultiSelect(props["Key Terms"]),
   }
 }

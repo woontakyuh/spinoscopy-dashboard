@@ -48,8 +48,8 @@ function CategoryChips({
         className={cn(
           chipBase,
           current === null
-            ? "border-purple-400/40 bg-purple-500/15 text-purple-200"
-            : "border-zinc-700 bg-zinc-900/70 text-zinc-300 hover:border-zinc-500 hover:text-zinc-100"
+            ? "border-purple-400/40 bg-purple-500/15 text-purple-700 dark:text-purple-200"
+            : "border-border bg-muted text-foreground/80 hover:border-muted-foreground/50 hover:text-foreground"
         )}
       >
         전체
@@ -66,12 +66,12 @@ function CategoryChips({
             className={cn(
               chipBase,
               active
-                ? "border-purple-400/40 bg-purple-500/15 text-purple-200"
-                : "border-zinc-700 bg-zinc-900/70 text-zinc-300 hover:border-zinc-500 hover:text-zinc-100"
+                ? "border-purple-400/40 bg-purple-500/15 text-purple-700 dark:text-purple-200"
+                : "border-border bg-muted text-foreground/80 hover:border-muted-foreground/50 hover:text-foreground"
             )}
           >
             {category}{" "}
-            <span className={cn("num", active ? "text-purple-100/80" : "text-zinc-400")}>{count}</span>
+            <span className={cn("num", active ? "text-purple-700/80 dark:text-purple-100/80" : "text-muted-foreground")}>{count}</span>
           </button>
         )
       })}
@@ -92,7 +92,7 @@ function EpisodeChip({
       <button
         type="button"
         disabled
-        className={cn(chipBase, "cursor-not-allowed border-zinc-800 bg-zinc-900/50 text-zinc-500")}
+        className={cn(chipBase, "cursor-not-allowed border-border bg-muted/60 text-muted-foreground")}
       >
         {episodeRef.ref} · 현재 DB에 없음
       </button>
@@ -105,7 +105,7 @@ function EpisodeChip({
       onClick={() => onNavigate(episodeRef)}
       className={cn(
         chipBase,
-        "border-purple-400/40 bg-purple-500/10 text-purple-200 hover:bg-purple-500/20"
+        "border-purple-400/40 bg-purple-500/10 text-purple-700 hover:bg-purple-500/20 dark:text-purple-200"
       )}
     >
       {episodeRef.ref}
@@ -116,8 +116,8 @@ function EpisodeChip({
 function DetailBlock({ label, value }: { readonly label: string; readonly value: string }) {
   return (
     <div className="space-y-0.5">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">{label}</p>
-      <p className="text-xs leading-relaxed text-zinc-200">{value}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-xs leading-relaxed text-foreground/90">{value}</p>
     </div>
   )
 }
@@ -162,12 +162,12 @@ function ConceptCard({
           <span id={termId} className="text-sm font-semibold text-foreground">
             {concept.term}
           </span>
-          {korean !== null && <span className="text-xs text-zinc-300">{korean}</span>}
+          {korean !== null && <span className="text-xs text-foreground/75">{korean}</span>}
         </span>
 
         <span className="mt-1 flex flex-wrap items-center gap-1.5">
           {category !== null && (
-            <span className="rounded border border-purple-400/30 bg-purple-500/10 px-1.5 py-0.5 text-[11px] text-purple-200">
+            <span className="rounded border border-purple-400/30 bg-purple-500/10 px-1.5 py-0.5 text-[11px] text-purple-700 dark:text-purple-200">
               {category}
             </span>
           )}
@@ -175,7 +175,7 @@ function ConceptCard({
             // Verified는 사실 검증이 아니라 출처 라벨이므로 초록 계열을 쓰지 않는다.
             <span
               data-testid={`concept-verified-${concept.id}`}
-              className="rounded-md border border-zinc-700 bg-zinc-900/70 px-2 py-1 text-[11px] text-zinc-300"
+              className="rounded-md border border-border bg-card px-2 py-1 text-[11px] text-foreground/75"
             >
               {verified}
             </span>
@@ -187,7 +187,6 @@ function ConceptCard({
             data-testid={`concept-oneline-${concept.id}`}
             className={cn(
               "mt-1 block text-xs leading-relaxed text-muted-foreground",
-              "text-zinc-300",
               !expanded && "line-clamp-2"
             )}
           >

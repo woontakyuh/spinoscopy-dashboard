@@ -23,6 +23,7 @@ function makeEpisode(overrides: Partial<AiFrontierEpisode> = {}): AiFrontierEpis
     youtube: "https://youtu.be/abc123",
     transcriptSource: "https://example.com/ep12.txt",
     duration: "1:42:00",
+    summary: "스케일링 법칙과 RL이 실제 모델 경쟁에서 만나는 지점을 정리합니다.",
     keyTerms: ["Transformer"],
     ...overrides,
   }
@@ -72,6 +73,17 @@ function renderPane(overrides: Partial<ComponentProps<typeof EpisodesPane>> = {}
 const row = (label: RegExp) => screen.getByRole("button", { name: label })
 
 describe("EpisodesPane dashboard readability", () => {
+  it("Notion 한줄요약을 제목 아래 읽기 쉬운 설명으로 보여준다", () => {
+    renderPane()
+
+    const summary = screen.getByTestId("frontier-episode-summary-ep-12")
+    expect(summary).toHaveTextContent(
+      "스케일링 법칙과 RL이 실제 모델 경쟁에서 만나는 지점을 정리합니다."
+    )
+    expect(summary).toHaveClass("line-clamp-2")
+    expect(summary).toHaveClass("text-foreground/80")
+  })
+
   it("주제를 빈 타원형 칩 없이 이름 붙은 한 줄로 정리한다", () => {
     renderPane({
       episodes: [makeEpisode({ topics: ["", "  ", "Scaling", "Agents"] })],
@@ -109,6 +121,22 @@ describe("EpisodesPane dashboard readability", () => {
     fireEvent.click(row(/EP12/))
 
     expect(screen.getByRole("button", { name: /Transformer.*트랜스포머/ })).toBeInTheDocument()
+  })
+
+  it("light와 dark에서 같은 semantic text token을 사용한다", () => {
+    renderPane()
+    fireEvent.click(row(/EP12/))
+
+    expect(
+      within(screen.getByTestId("frontier-episode-topics-ep-12")).getByText("Scaling · RL")
+    ).toHaveClass("text-foreground/80")
+    expect(screen.getByText("원문과 전체 정리")).toHaveClass("text-foreground")
+    expect(screen.getByText(/긴 본문은 Notion에서 읽고/)).toHaveClass("text-muted-foreground")
+
+    const concept = screen.getByRole("button", { name: /Transformer.*트랜스포머/ })
+    expect(concept).toHaveClass("text-purple-800")
+    expect(concept).toHaveClass("dark:text-purple-100")
+    expect(concept).not.toHaveClass("text-purple-100")
   })
 })
 

@@ -55,8 +55,8 @@ function ExternalLink({
       className={cn(
         linkClass,
         primary
-          ? "border-purple-400/50 bg-purple-500/20 text-purple-100 hover:bg-purple-500/30"
-          : "border-border bg-card text-zinc-200 hover:border-zinc-500 hover:bg-zinc-800"
+          ? "border-purple-400/50 bg-purple-500/15 text-purple-800 hover:bg-purple-500/25 dark:bg-purple-500/20 dark:text-purple-100 dark:hover:bg-purple-500/30"
+          : "border-border bg-card text-foreground hover:border-muted-foreground/50 hover:bg-muted"
       )}
     >
       {label}
@@ -75,8 +75,8 @@ function EpisodeDetail({ episode }: { readonly episode: AiFrontierEpisode }) {
       data-testid={`frontier-episode-source-summary-${episode.id}`}
       className="rounded-lg border border-purple-400/25 bg-purple-500/[0.07] p-3"
     >
-      <p className="text-sm font-semibold text-zinc-100">원문과 전체 정리</p>
-      <p className="mt-1 text-xs leading-relaxed text-zinc-300">
+      <p className="text-sm font-semibold text-foreground">원문과 전체 정리</p>
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
         긴 본문은 Notion에서 읽고, 대시보드에서는 핵심 주제와 연결된 개념을 빠르게 확인하세요.
       </p>
 
@@ -87,7 +87,7 @@ function EpisodeDetail({ episode }: { readonly episode: AiFrontierEpisode }) {
         {transcriptHref === null && transcript !== "" && (
           <span
             data-testid={`frontier-episode-transcript-${episode.id}`}
-            className="text-xs text-zinc-400"
+            className="text-xs text-muted-foreground"
           >
             전사 출처: {transcript}
           </span>
@@ -110,8 +110,8 @@ function ConceptChips({
 
   return (
     <div data-testid={`frontier-episode-concepts-${episodeId}`} className="space-y-2">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
-        관련 개념 <span className="num text-zinc-300">{concepts.length}</span>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        관련 개념 <span className="num text-foreground/80">{concepts.length}</span>
       </p>
       <div className="flex flex-wrap gap-2">
         {concepts.map((concept) => {
@@ -121,10 +121,10 @@ function ConceptChips({
               key={concept.id}
               type="button"
               onClick={() => onNavigate(concept)}
-              className="rounded-md border border-purple-400/35 bg-purple-500/10 px-2.5 py-1.5 text-left text-xs font-medium text-purple-100 transition-colors hover:border-purple-300/60 hover:bg-purple-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
+              className="rounded-md border border-purple-400/35 bg-purple-500/10 px-2.5 py-1.5 text-left text-xs font-medium text-purple-800 transition-colors hover:border-purple-500/60 hover:bg-purple-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60 dark:text-purple-100 dark:hover:border-purple-300/60"
             >
               {concept.term}
-              {korean !== "" && <span className="ml-1.5 font-normal text-zinc-300">{korean}</span>}
+              {korean !== "" && <span className="ml-1.5 font-normal text-foreground/75">{korean}</span>}
             </button>
           )
         })}
@@ -149,6 +149,7 @@ function EpisodeRow({
   const regionId = `episode-detail-${episode.id}`
   const titleId = `episode-title-${episode.id}`
   const date = episode.published ?? episode.recorded
+  const summary = episode.summary?.trim() ?? ""
   const topics = episode.topics.map((topic) => topic.trim()).filter((topic) => topic !== "")
   const hiddenTopics = topics.length - MAX_TOPICS
 
@@ -169,7 +170,7 @@ function EpisodeRow({
       >
         <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           {episode.episodeNumber !== null && (
-            <span className="num rounded border border-purple-400/30 bg-purple-500/10 px-1.5 py-0.5 text-[11px] text-purple-200">
+            <span className="num rounded border border-purple-400/30 bg-purple-500/10 px-1.5 py-0.5 text-[11px] text-purple-700 dark:text-purple-200">
               EP{episode.episodeNumber}
             </span>
           )}
@@ -177,10 +178,19 @@ function EpisodeRow({
             {episode.name}
           </span>
           <span className="num text-xs text-muted-foreground">{date ?? "날짜 미상"}</span>
-          <span className={cn("text-[11px]", episode.reviewed ? "text-emerald-300" : "text-muted-foreground")}>
+          <span className={cn("text-[11px]", episode.reviewed ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground")}>
             {episode.reviewed ? "검토 완료" : "미검토"}
           </span>
         </span>
+
+        {summary !== "" && (
+          <span
+            data-testid={`frontier-episode-summary-${episode.id}`}
+            className="mt-1.5 block text-xs leading-relaxed text-foreground/80 line-clamp-2"
+          >
+            {summary}
+          </span>
+        )}
 
         <span className="mt-1 flex flex-wrap items-center gap-1.5">
           {topics.length > 0 && (
@@ -188,20 +198,20 @@ function EpisodeRow({
               data-testid={`frontier-episode-topics-${episode.id}`}
               className="flex min-w-0 items-baseline gap-1.5"
             >
-              <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+              <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 주제
               </span>
-              <span className="truncate text-xs text-zinc-300">
+              <span className="truncate text-xs text-foreground/80">
                 {topics.slice(0, MAX_TOPICS).join(" · ")}
               </span>
-              {hiddenTopics > 0 && <span className="num text-[11px] text-zinc-400">+{hiddenTopics}</span>}
+              {hiddenTopics > 0 && <span className="num text-[11px] text-muted-foreground">+{hiddenTopics}</span>}
             </span>
           )}
           <span
             data-testid={`frontier-episode-concept-count-${episode.id}`}
-            className="text-[11px] text-zinc-400"
+            className="text-[11px] text-muted-foreground"
           >
-            관련 개념 <span className="num text-zinc-300">{linked.length}</span>
+            관련 개념 <span className="num text-foreground/80">{linked.length}</span>
           </span>
         </span>
       </button>

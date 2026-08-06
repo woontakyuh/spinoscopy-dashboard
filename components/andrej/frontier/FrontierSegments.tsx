@@ -48,7 +48,7 @@ export function FrontierSegments({ current, counts, onChange }: FrontierSegments
                 frontierFocusRing,
                 // 색만으로 구분하지 않도록 활성 쪽에 밑줄을 함께 준다.
                 active
-                  ? "text-purple-200 underline decoration-purple-400/60 underline-offset-4"
+                  ? "text-purple-700 underline decoration-purple-500/60 underline-offset-4 dark:text-purple-200 dark:decoration-purple-400/60"
                   : "text-muted-foreground"
               )}
             >

@@ -72,7 +72,7 @@ export function FrontierSourceError({
     <section data-testid={`frontier-error-${section}`} className={cardClass}>
       <h2 className="mb-2 text-sm font-semibold text-foreground">{SECTION_LABEL[section]}</h2>
       {/* 비어 있음과 못 읽음을 섞지 않는다. 이 자리는 언제나 "못 읽음"이다. */}
-      <p className="text-xs leading-relaxed text-red-300">{SECTION_LABEL[section]} 데이터를 불러오지 못했습니다.</p>
+      <p className="text-xs leading-relaxed text-red-700 dark:text-red-300">{SECTION_LABEL[section]} 데이터를 불러오지 못했습니다.</p>
       <RetryButton onRetry={onRetry} />
     </section>
   )
@@ -83,7 +83,7 @@ export function FrontierIndexError({ onRetry }: { readonly onRetry: () => void }
   return (
     <section className={cardClass}>
       <h2 className="mb-2 text-sm font-semibold text-foreground">AI Frontier</h2>
-      <p className="text-xs leading-relaxed text-red-300">Frontier 데이터를 불러오지 못했습니다.</p>
+      <p className="text-xs leading-relaxed text-red-700 dark:text-red-300">Frontier 데이터를 불러오지 못했습니다.</p>
       <RetryButton onRetry={onRetry} />
     </section>
   )
