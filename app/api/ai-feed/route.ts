@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import type { FeedItem, FeedResponse } from "@/lib/types/radar"
 import { RADAR_SOURCES, getSourceConfig } from "@/lib/radar/sources"
 import { buildRuleBasedNote, inferCategories, scoreImportance } from "@/lib/radar/classify"
+import { cachedFeedItems, fetchTextNoStore } from "@/lib/radar/feedCache"
 
 interface RssItem {
   title?: string
@@ -136,25 +137,26 @@ async function fetchRssItems(sourceId: FeedItem["source"], endpoint: string, lim
   const config = getSourceConfig(sourceId)
   const revalidate = (config?.intervalHours ?? 24) * 3600
 
-  const res = await fetch(endpoint, { next: { revalidate } })
-  if (!res.ok) return []
+  return cachedFeedItems(`rss:${sourceId}:${endpoint}:${limit}`, revalidate, async () => {
+    const xml = await fetchTextNoStore(endpoint)
+    if (!xml) return []
 
-  const xml = await res.text()
-  const rssItems = parseRssItems(xml)
+    const rssItems = parseRssItems(xml)
 
-  return rssItems
-    .filter((item) => Boolean(item.title && item.link))
-    .slice(0, limit)
-    .map((item, idx) =>
-      toFeedItem({
-        sourceId,
-        id: `${sourceId}-${item.guid ?? idx}`,
-        title: item.title ?? "Untitled",
-        url: item.link ?? endpoint,
-        date: normalizeDate(item.pubDate),
-        author: item.creator ?? null,
-      })
-    )
+    return rssItems
+      .filter((item) => Boolean(item.title && item.link))
+      .slice(0, limit)
+      .map((item, idx) =>
+        toFeedItem({
+          sourceId,
+          id: `${sourceId}-${item.guid ?? idx}`,
+          title: item.title ?? "Untitled",
+          url: item.link ?? endpoint,
+          date: normalizeDate(item.pubDate),
+          author: item.creator ?? null,
+        })
+      )
+  })
 }
 
 async function fetchTheBatchItems(): Promise<FeedItem[]> {
@@ -339,55 +341,57 @@ async function fetchAtomItems(sourceId: FeedItem["source"], endpoint: string, li
   const config = getSourceConfig(sourceId)
   const revalidate = (config?.intervalHours ?? 168) * 3600
 
-  const res = await fetch(endpoint, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; SpinoscopyRadar/1.0)" },
-    next: { revalidate },
+  return cachedFeedItems(`atom:${sourceId}:${endpoint}:${limit}`, revalidate, async () => {
+    const xml = await fetchTextNoStore(endpoint, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; SpinoscopyRadar/1.0)" },
+    })
+
+    if (!xml) return []
+
+    const entries = parseAtomEntries(xml)
+
+    return entries
+      .filter((e) => Boolean(e.title && e.link))
+      .slice(0, limit)
+      .map((entry, idx) =>
+        toFeedItem({
+          sourceId,
+          id: `${sourceId}-${idx}`,
+          title: entry.title ?? "Untitled",
+          url: entry.link ?? endpoint,
+          date: normalizeDate(entry.published),
+          author: entry.author ?? null,
+          summary: entry.description?.slice(0, 300) ?? null,
+        })
+      )
   })
-  if (!res.ok) return []
-
-  const xml = await res.text()
-  const entries = parseAtomEntries(xml)
-
-  return entries
-    .filter((e) => Boolean(e.title && e.link))
-    .slice(0, limit)
-    .map((entry, idx) =>
-      toFeedItem({
-        sourceId,
-        id: `${sourceId}-${idx}`,
-        title: entry.title ?? "Untitled",
-        url: entry.link ?? endpoint,
-        date: normalizeDate(entry.published),
-        author: entry.author ?? null,
-        summary: entry.description?.slice(0, 300) ?? null,
-      })
-    )
 }
 
 async function fetchYoutubeItems(sourceId: FeedItem["source"], endpoint: string, limit = 10): Promise<FeedItem[]> {
   const config = getSourceConfig(sourceId)
   const revalidate = (config?.intervalHours ?? 168) * 3600
 
-  const res = await fetch(endpoint, { next: { revalidate } })
-  if (!res.ok) return []
+  return cachedFeedItems(`youtube:${sourceId}:${endpoint}:${limit}`, revalidate, async () => {
+    const xml = await fetchTextNoStore(endpoint)
+    if (!xml) return []
 
-  const xml = await res.text()
-  const entries = parseAtomEntries(xml)
+    const entries = parseAtomEntries(xml)
 
-  return entries
-    .filter((e) => Boolean(e.title && e.link))
-    .slice(0, limit)
-    .map((entry, idx) =>
-      toFeedItem({
-        sourceId,
-        id: `${sourceId}-${idx}`,
-        title: entry.title ?? "Untitled",
-        url: entry.link ?? endpoint,
-        date: normalizeDate(entry.published),
-        author: entry.author ?? null,
-        summary: entry.description?.slice(0, 300) ?? null,
-      })
-    )
+    return entries
+      .filter((e) => Boolean(e.title && e.link))
+      .slice(0, limit)
+      .map((entry, idx) =>
+        toFeedItem({
+          sourceId,
+          id: `${sourceId}-${idx}`,
+          title: entry.title ?? "Untitled",
+          url: entry.link ?? endpoint,
+          date: normalizeDate(entry.published),
+          author: entry.author ?? null,
+          summary: entry.description?.slice(0, 300) ?? null,
+        })
+      )
+  })
 }
 
 async function fetchAnthropicItems(sourceId: "anthropic-engineering" | "anthropic-research"): Promise<FeedItem[]> {
@@ -481,32 +485,33 @@ const LEX_AI_KEYWORDS = [
 
 async function fetchLexFridmanAiItems(): Promise<FeedItem[]> {
   const config = getSourceConfig("lex-fridman-ai")
-  const res = await fetch("https://lexfridman.com/feed/podcast/", {
-    next: { revalidate: (config?.intervalHours ?? 168) * 3600 },
-  })
-  if (!res.ok) return []
+  const revalidate = (config?.intervalHours ?? 168) * 3600
 
-  const xml = await res.text()
-  const rssItems = parseRssItems(xml)
+  return cachedFeedItems("rss-filter:lex-fridman-ai", revalidate, async () => {
+    const xml = await fetchTextNoStore("https://lexfridman.com/feed/podcast/")
+    if (!xml) return []
 
-  return rssItems
-    .filter((item) => {
-      if (!item.title || !item.link) return false
-      const text = `${item.title} ${item.guid ?? ""}`.toLowerCase()
-      return LEX_AI_GUESTS.some((g) => text.includes(g))
-        || LEX_AI_KEYWORDS.some((k) => text.includes(k))
-    })
-    .slice(0, 10)
-    .map((item, idx) =>
-      toFeedItem({
-        sourceId: "lex-fridman-ai",
-        id: `lex-ai-${item.guid ?? idx}`,
-        title: item.title ?? "Untitled",
-        url: item.link ?? "https://lexfridman.com/podcast/",
-        date: normalizeDate(item.pubDate),
-        author: "Lex Fridman",
+    const rssItems = parseRssItems(xml)
+
+    return rssItems
+      .filter((item) => {
+        if (!item.title || !item.link) return false
+        const text = `${item.title} ${item.guid ?? ""}`.toLowerCase()
+        return LEX_AI_GUESTS.some((g) => text.includes(g))
+          || LEX_AI_KEYWORDS.some((k) => text.includes(k))
       })
-    )
+      .slice(0, 10)
+      .map((item, idx) =>
+        toFeedItem({
+          sourceId: "lex-fridman-ai",
+          id: `lex-ai-${item.guid ?? idx}`,
+          title: item.title ?? "Untitled",
+          url: item.link ?? "https://lexfridman.com/podcast/",
+          date: normalizeDate(item.pubDate),
+          author: "Lex Fridman",
+        })
+      )
+  })
 }
 
 async function fetchModuletterItems(): Promise<FeedItem[]> {

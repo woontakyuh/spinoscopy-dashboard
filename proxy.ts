@@ -1,11 +1,25 @@
 import { NextRequest, NextResponse } from "next/server"
 import { isDemoHost, isAllowedAgentPath } from "@/lib/demo"
 
+// 대시보드 인증이 필요한 /api 경로. 나머지 legacy /api는 그대로 통과한다.
+const AUTHED_API_PREFIXES = ["/api/lo", "/api/andrej"]
+
+/** `/api/andrej`와 `/api/andrej/...`만 매칭하고 `/api/andrejaeger`는 제외한다. */
+function isUnderPrefix(pathname: string, prefix: string): boolean {
+  return pathname === prefix || pathname.startsWith(`${prefix}/`)
+}
+
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
   const demo = isDemoHost(req.headers.get("host"))
 
-  if (pathname.startsWith("/login") || pathname.startsWith("/api")) {
+  if (pathname.startsWith("/login")) {
+    return NextResponse.next()
+  }
+
+  // Legacy /api routes bypass auth (Telegram, cron). Only the listed prefixes require auth.
+  const needsApiAuth = AUTHED_API_PREFIXES.some((prefix) => isUnderPrefix(pathname, prefix))
+  if (pathname.startsWith("/api") && !needsApiAuth) {
     return NextResponse.next()
   }
 
@@ -25,8 +39,8 @@ export function proxy(req: NextRequest) {
   }
 
   if (demo) {
-    // Block hidden agent pages — send back to home.
-    if (!isAllowedAgentPath(pathname)) {
+    // Block hidden agent pages — API endpoints only require authentication.
+    if (!pathname.startsWith("/api") && !isAllowedAgentPath(pathname)) {
       return NextResponse.redirect(new URL("/", req.url))
     }
     // Forward a demo flag header for the server layout to read.
