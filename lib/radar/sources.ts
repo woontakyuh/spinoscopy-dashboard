@@ -58,8 +58,8 @@ export const RADAR_SOURCES: RadarSourceConfig[] = [
     tier: "ai-company",
     cadence: "weekly",
     intervalHours: 168,
-    mode: "html",
-    endpoint: "https://www.deeplearning.ai/the-batch/",
+    mode: "rss",
+    endpoint: "https://charonhub.deeplearning.ai/rss/",
     active: true,
   },
   {
