@@ -147,6 +147,7 @@ export function FrontierDashboard() {
               concepts={concepts}
               selectedEpisodeId={selectedEpisodeId}
               onConceptNavigate={handleConceptNavigate}
+              onEpisodeImported={() => refetch()}
             />
           )}
         </FrontierPanel>

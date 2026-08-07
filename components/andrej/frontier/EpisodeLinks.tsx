@@ -1,5 +1,7 @@
+import { BookOpenText, FileText, Youtube } from "lucide-react"
+import type { ReactNode } from "react"
+
 import type { AiFrontierEpisode } from "@/lib/types/ai-frontier"
-import { cn } from "@/lib/utils"
 
 function safeHttpUrl(value: string | null): string | null {
   const candidate = (value ?? "").trim()
@@ -17,54 +19,52 @@ function notionUrl(pageId: string): string {
 }
 
 const linkClass =
-  "inline-flex min-h-9 items-center rounded-md border px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
+  "inline-flex size-9 items-center justify-center rounded-md border border-border bg-card text-foreground transition-colors hover:border-purple-400/50 hover:bg-purple-500/10 hover:text-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60 dark:hover:text-purple-200"
 
 function ExternalLink({
   href,
   label,
-  primary = false,
+  children,
 }: {
   readonly href: string
   readonly label: string
-  readonly primary?: boolean
+  readonly children: ReactNode
 }) {
   return (
     <a
       href={href}
+      aria-label={label}
+      title={label}
       target="_blank"
       rel="noreferrer noopener"
-      className={cn(
-        linkClass,
-        primary
-          ? "border-purple-400/50 bg-purple-500/15 text-purple-800 hover:bg-purple-500/25 dark:bg-purple-500/20 dark:text-purple-100 dark:hover:bg-purple-500/30"
-          : "border-border bg-card text-foreground hover:border-muted-foreground/50 hover:bg-muted"
-      )}
+      className={linkClass}
     >
-      {label}
+      {children}
     </a>
   )
 }
 
 export function EpisodeLinks({ episode }: { readonly episode: AiFrontierEpisode }) {
   const youtube = safeHttpUrl(episode.youtube)
-  const transcript = (episode.transcriptSource ?? "").trim()
-  const transcriptHref = safeHttpUrl(episode.transcriptSource)
+  const frontier = safeHttpUrl(episode.transcriptSource)
 
   return (
     <div
       data-testid={`frontier-episode-source-links-${episode.id}`}
       className="flex flex-wrap items-center gap-2"
     >
-      <ExternalLink href={notionUrl(episode.id)} label="Notion에서 본문 읽기" primary />
-      {youtube !== null && <ExternalLink href={youtube} label="YouTube 보기" />}
-      {transcriptHref !== null && <ExternalLink href={transcriptHref} label="전사 원문 보기" />}
-      {transcriptHref === null && transcript !== "" && (
-        <span
-          data-testid={`frontier-episode-transcript-${episode.id}`}
-          className="text-xs text-muted-foreground"
-        >
-          전사 출처: {transcript}
-        </span>
+      <ExternalLink href={notionUrl(episode.id)} label="Notion에서 본문 읽기">
+        <FileText aria-hidden="true" className="size-4" strokeWidth={1.8} />
+      </ExternalLink>
+      {youtube !== null && (
+        <ExternalLink href={youtube} label="YouTube에서 영상 보기">
+          <Youtube aria-hidden="true" className="size-4" strokeWidth={1.8} />
+        </ExternalLink>
+      )}
+      {frontier !== null && (
+        <ExternalLink href={frontier} label="AI Frontier에서 전사 읽기">
+          <BookOpenText aria-hidden="true" className="size-4" strokeWidth={1.8} />
+        </ExternalLink>
       )}
     </div>
   )

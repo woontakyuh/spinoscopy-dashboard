@@ -10,8 +10,10 @@ export type { NotionAiFrontierPage, NotionAiFrontierProperty }
 
 export type AiFrontierNotionRequest = (path: string, options?: RequestInit) => Promise<unknown>
 
-const EPISODES_DB_ID = "3b2908af-25b9-81fb-88e7-c85a93ac62f4"
-const CONCEPTS_DB_ID = "3b2908af-25b9-8140-b0e8-d5ab9ed07844"
+export const AI_FRONTIER_EPISODES_DB_ID = "3b2908af-25b9-81fb-88e7-c85a93ac62f4"
+export const AI_FRONTIER_CONCEPTS_DB_ID = "3b2908af-25b9-8140-b0e8-d5ab9ed07844"
+const EPISODES_DB_ID = AI_FRONTIER_EPISODES_DB_ID
+const CONCEPTS_DB_ID = AI_FRONTIER_CONCEPTS_DB_ID
 const MAX_BLOCKS = 200
 const MAX_CHARACTERS = 12_000
 const TEXT_BLOCK_TYPES: NotionAiFrontierTextBlockType[] = [
@@ -101,7 +103,7 @@ export function toAiFrontierEpisode(page: NotionAiFrontierPage): AiFrontierEpiso
     models: readMultiSelect(props.Models),
     people: readMultiSelect(props.People),
     youtube: readUrl(props.YouTube),
-    transcriptSource: readText(props["Transcript Source"]),
+    transcriptSource: readUrl(props["Transcript Source"]),
     duration: readText(props.Duration),
     summary: readText(props.한줄요약),
     keyTerms: readMultiSelect(props["Key Terms"]),

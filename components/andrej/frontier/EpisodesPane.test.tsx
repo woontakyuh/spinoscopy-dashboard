@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest"
-import { fireEvent, render, screen, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import type { ComponentProps } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
@@ -104,24 +104,49 @@ describe("EpisodesPane dashboard readability", () => {
     expect(summary.querySelectorAll('[data-empty-chip="true"]')).toHaveLength(0)
   })
 
-  it("본문을 가져오지 않고 Notion 원문으로 명확하게 연결한다", () => {
+  it("출연진은 펼친 상세에서만 이름 붙여 보여준다", () => {
+    renderPane()
+
+    expect(screen.queryByTestId("frontier-episode-people-ep-12")).not.toBeInTheDocument()
+
+    fireEvent.click(row(/EP12/))
+
+    expect(screen.getByTestId("frontier-episode-people-ep-12")).toHaveTextContent(
+      "출연진Karpathy"
+    )
+  })
+
+  it("출연진이 없으면 빈 메타데이터를 만들지 않는다", () => {
+    renderPane({ episodes: [makeEpisode({ people: [] })] })
+
+    fireEvent.click(row(/EP12/))
+
+    expect(screen.queryByTestId("frontier-episode-people-ep-12")).not.toBeInTheDocument()
+  })
+
+  it("본문을 가져오지 않고 Notion·YouTube·AI Frontier 아이콘만 보여준다", () => {
     renderPane()
 
     fireEvent.click(row(/EP12/))
 
     expect(screen.queryByText("원문과 전체 정리")).not.toBeInTheDocument()
     expect(screen.queryByText(/긴 본문은 Notion에서 읽고/)).not.toBeInTheDocument()
-    expect(screen.getByTestId("frontier-episode-source-links-ep-12")).toBeInTheDocument()
-    const notion = screen.getByRole("link", { name: "Notion에서 본문 읽기" })
+    const links = screen.getByTestId("frontier-episode-source-links-ep-12")
+    const notion = within(links).getByRole("link", { name: "Notion에서 본문 읽기" })
     expect(notion).toHaveAttribute("href", "https://www.notion.so/ep12")
-    expect(screen.getByRole("link", { name: "YouTube 보기" })).toHaveAttribute(
+    expect(notion.textContent).toBe("")
+    const youtube = within(links).getByRole("link", { name: "YouTube에서 영상 보기" })
+    expect(youtube).toHaveAttribute(
       "href",
       "https://youtu.be/abc123"
     )
-    expect(screen.getByRole("link", { name: "전사 원문 보기" })).toHaveAttribute(
-      "href",
-      "https://example.com/ep12.txt"
-    )
+    expect(youtube.textContent).toBe("")
+    const frontier = within(links).getByRole("link", {
+      name: "AI Frontier에서 전사 읽기",
+    })
+    expect(frontier).toHaveAttribute("href", "https://example.com/ep12.txt")
+    expect(frontier.textContent).toBe("")
+    expect(within(links).getAllByRole("link")).toHaveLength(3)
     expect(fetchMock).not.toHaveBeenCalled()
     expect(screen.queryByText("본문을 불러오는 중…")).not.toBeInTheDocument()
   })
@@ -255,25 +280,59 @@ describe("EpisodesPane 출처 결측", () => {
     expect(screen.queryByTestId("frontier-episode-topics-ep-12")).not.toBeInTheDocument()
   })
 
-  it("http(s)가 아닌 전사 출처는 링크 대신 글자로 남긴다", () => {
+  it("전사 출처는 주소 형식과 관계없이 표시하지 않는다", () => {
     renderPane({ episodes: [makeEpisode({ transcriptSource: "javascript:alert(1)" })] })
 
     fireEvent.click(row(/EP12/))
 
     expect(screen.queryByRole("link", { name: /전사/ })).not.toBeInTheDocument()
-    expect(screen.getByTestId("frontier-episode-transcript-ep-12")).toHaveTextContent("javascript:alert(1)")
+    expect(screen.queryByText("javascript:alert(1)")).not.toBeInTheDocument()
   })
 
   it("외부 링크는 새 탭에서 안전하게 연다", () => {
     renderPane()
 
     fireEvent.click(row(/EP12/))
-    const youtube = screen.getByRole("link", { name: "YouTube 보기" })
+    const youtube = screen.getByRole("link", { name: "YouTube에서 영상 보기" })
 
     expect(youtube).toHaveAttribute("href", "https://youtu.be/abc123")
     expect(youtube).toHaveAttribute("target", "_blank")
     expect(youtube).toHaveAttribute("rel", expect.stringContaining("noopener"))
     expect(youtube).toHaveAttribute("rel", expect.stringContaining("noreferrer"))
+  })
+
+  it("목록 Episode는 자료 가져오기 버튼으로 전체 수집을 시작한다", async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({
+      pageId: "ep-12",
+      episodeNumber: 12,
+      status: "완료",
+      conceptsCreated: 3,
+      conceptsUpdated: 1,
+    }), { status: 200 }))
+    let signalImported: (() => void) | undefined
+    const imported = new Promise<void>((resolve) => {
+      signalImported = resolve
+    })
+    const onEpisodeImported = vi.fn(async () => {
+      signalImported?.()
+    })
+    renderPane({
+      episodes: [makeEpisode({ status: "목록", summary: null })],
+      onEpisodeImported,
+    })
+    fireEvent.click(row(/EP12/))
+
+    const importButton = screen.getByRole("button", { name: "자료 가져오기" })
+    await act(async () => {
+      fireEvent.click(importButton)
+      await imported
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/andrej/frontier/episodes/ep-12/import",
+      { method: "POST" }
+    )
+    expect(onEpisodeImported).toHaveBeenCalledOnce()
   })
 })
 

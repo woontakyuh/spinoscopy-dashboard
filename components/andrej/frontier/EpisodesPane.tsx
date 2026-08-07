@@ -9,6 +9,7 @@ import type { AiFrontierConcept, AiFrontierEpisode } from "@/lib/types/ai-fronti
 import { cn } from "@/lib/utils"
 
 import { EpisodeLinks } from "./EpisodeLinks"
+import { EpisodeImportButton } from "./EpisodeImportButton"
 import { conceptsForEpisode, sortEpisodes } from "./frontier-view"
 
 export interface EpisodesPaneProps {
@@ -16,6 +17,7 @@ export interface EpisodesPaneProps {
   readonly concepts: AiFrontierConcept[]
   readonly selectedEpisodeId: string | null
   readonly onConceptNavigate: (concept: AiFrontierConcept) => void
+  readonly onEpisodeImported?: () => Promise<unknown> | unknown
 }
 
 const MAX_TOPICS = 2
@@ -62,18 +64,21 @@ function EpisodeRow({
   expanded,
   onToggle,
   onConceptNavigate,
+  onEpisodeImported,
 }: {
   readonly episode: AiFrontierEpisode
   readonly linked: AiFrontierConcept[]
   readonly expanded: boolean
   readonly onToggle: () => void
   readonly onConceptNavigate: (concept: AiFrontierConcept) => void
+  readonly onEpisodeImported: () => Promise<unknown> | unknown
 }) {
   const regionId = `episode-detail-${episode.id}`
   const titleId = `episode-title-${episode.id}`
   const date = episode.published ?? episode.recorded
   const summary = episode.summary?.trim() ?? ""
   const topics = episode.topics.map((topic) => topic.trim()).filter((topic) => topic !== "")
+  const people = episode.people.map((person) => person.trim()).filter((person) => person !== "")
   const hiddenTopics = topics.length - MAX_TOPICS
 
   return (
@@ -127,6 +132,18 @@ function EpisodeRow({
               </p>
             )}
 
+            {people.length > 0 && (
+              <div
+                data-testid={`frontier-episode-people-${episode.id}`}
+                className="flex flex-wrap items-baseline gap-1.5"
+              >
+                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  출연진
+                </span>
+                <span className="text-xs text-foreground/80">{people.join(" · ")}</span>
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center gap-1.5">
               {topics.length > 0 && (
                 <span
@@ -150,7 +167,10 @@ function EpisodeRow({
               </span>
             </div>
           </div>
-          <EpisodeLinks episode={episode} />
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <EpisodeLinks episode={episode} />
+            <EpisodeImportButton episode={episode} onImported={onEpisodeImported} />
+          </div>
           <ConceptChips episodeId={episode.id} concepts={linked} onNavigate={onConceptNavigate} />
         </div>
       )}
@@ -158,7 +178,13 @@ function EpisodeRow({
   )
 }
 
-export function EpisodesPane({ episodes, concepts, selectedEpisodeId, onConceptNavigate }: EpisodesPaneProps) {
+export function EpisodesPane({
+  episodes,
+  concepts,
+  selectedEpisodeId,
+  onConceptNavigate,
+  onEpisodeImported = () => undefined,
+}: EpisodesPaneProps) {
   const [expandedId, setExpandedId] = useState<string | null>(selectedEpisodeId)
   const [syncedSelection, setSyncedSelection] = useState<string | null>(selectedEpisodeId)
 
@@ -188,6 +214,7 @@ export function EpisodesPane({ episodes, concepts, selectedEpisodeId, onConceptN
               expanded={episode.id === expandedId}
               onToggle={() => setExpandedId((current) => (current === episode.id ? null : episode.id))}
               onConceptNavigate={onConceptNavigate}
+              onEpisodeImported={onEpisodeImported}
             />
           ))}
         </ul>
