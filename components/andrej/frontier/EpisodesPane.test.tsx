@@ -73,14 +73,20 @@ function renderPane(overrides: Partial<ComponentProps<typeof EpisodesPane>> = {}
 const row = (label: RegExp) => screen.getByRole("button", { name: label })
 
 describe("EpisodesPane dashboard readability", () => {
-  it("Notion 한줄요약을 제목 아래 읽기 쉬운 설명으로 보여준다", () => {
+  it("처음에는 제목만 보이고 클릭하면 Notion 한줄요약을 보여준다", () => {
     renderPane()
+
+    expect(screen.queryByTestId("frontier-episode-summary-ep-12")).not.toBeInTheDocument()
+    expect(row(/EP12/)).not.toHaveTextContent("2026-05-02")
+    expect(screen.queryByTestId("frontier-episode-topics-ep-12")).not.toBeInTheDocument()
+
+    fireEvent.click(row(/EP12/))
 
     const summary = screen.getByTestId("frontier-episode-summary-ep-12")
     expect(summary).toHaveTextContent(
       "스케일링 법칙과 RL이 실제 모델 경쟁에서 만나는 지점을 정리합니다."
     )
-    expect(summary).toHaveClass("line-clamp-2")
+    expect(summary).not.toHaveClass("line-clamp-2")
     expect(summary).toHaveClass("text-foreground/80")
   })
 
@@ -89,6 +95,8 @@ describe("EpisodesPane dashboard readability", () => {
       episodes: [makeEpisode({ topics: ["", "  ", "Scaling", "Agents"] })],
       concepts: [],
     })
+
+    fireEvent.click(row(/EP12/))
 
     const summary = screen.getByTestId("frontier-episode-topics-ep-12")
     expect(summary).toHaveTextContent("주제")
@@ -101,6 +109,9 @@ describe("EpisodesPane dashboard readability", () => {
 
     fireEvent.click(row(/EP12/))
 
+    expect(screen.queryByText("원문과 전체 정리")).not.toBeInTheDocument()
+    expect(screen.queryByText(/긴 본문은 Notion에서 읽고/)).not.toBeInTheDocument()
+    expect(screen.getByTestId("frontier-episode-source-links-ep-12")).toBeInTheDocument()
     const notion = screen.getByRole("link", { name: "Notion에서 본문 읽기" })
     expect(notion).toHaveAttribute("href", "https://www.notion.so/ep12")
     expect(screen.getByRole("link", { name: "YouTube 보기" })).toHaveAttribute(
@@ -130,8 +141,8 @@ describe("EpisodesPane dashboard readability", () => {
     expect(
       within(screen.getByTestId("frontier-episode-topics-ep-12")).getByText("Scaling · RL")
     ).toHaveClass("text-foreground/80")
-    expect(screen.getByText("원문과 전체 정리")).toHaveClass("text-foreground")
-    expect(screen.getByText(/긴 본문은 Notion에서 읽고/)).toHaveClass("text-muted-foreground")
+    expect(screen.getByTestId("frontier-episode-summary-ep-12")).toHaveClass("text-foreground/80")
+    expect(screen.queryByText("원문과 전체 정리")).not.toBeInTheDocument()
 
     const concept = screen.getByRole("button", { name: /Transformer.*트랜스포머/ })
     expect(concept).toHaveClass("text-purple-800")
@@ -157,18 +168,26 @@ describe("EpisodesPane 목록", () => {
     const button = row(/EP12/)
     expect(button).toHaveTextContent("EP12")
     expect(button).toHaveTextContent("스케일링 법칙의 끝")
-    expect(button).toHaveTextContent("2026-05-02")
-    expect(button).toHaveTextContent("검토 완료")
+    expect(button).not.toHaveTextContent("2026-05-02")
+    expect(button).not.toHaveTextContent("검토 완료")
+
+    fireEvent.click(button)
+    const detail = screen.getByRole("region", { name: "스케일링 법칙의 끝" })
+    expect(detail).toHaveTextContent("2026-05-02")
+    expect(detail).toHaveTextContent("검토 완료")
   })
 
   it("검토되지 않은 에피소드는 미검토로 구분한다", () => {
     renderPane({ episodes: [makeEpisode({ reviewed: false })] })
 
-    expect(row(/EP12/)).toHaveTextContent("미검토")
+    fireEvent.click(row(/EP12/))
+    expect(screen.getByRole("region", { name: "스케일링 법칙의 끝" })).toHaveTextContent("미검토")
   })
 
   it("토픽은 2개까지만 노출하고 나머지는 +N으로 접는다", () => {
     renderPane()
+
+    fireEvent.click(row(/EP12/))
 
     const topics = within(screen.getByTestId("frontier-episode-topics-ep-12"))
     expect(topics.getByText("Scaling · RL")).toBeInTheDocument()
@@ -179,7 +198,10 @@ describe("EpisodesPane 목록", () => {
   it("연결된 Concept 개수를 줄 위에서 바로 보여준다", () => {
     renderPane()
 
+    fireEvent.click(row(/EP12/))
     expect(screen.getByTestId("frontier-episode-concept-count-ep-12")).toHaveTextContent("1")
+
+    fireEvent.click(row(/EP11/))
     expect(screen.getByTestId("frontier-episode-concept-count-ep-11")).toHaveTextContent("0")
   })
 
@@ -195,7 +217,8 @@ describe("EpisodesPane 펼치기와 원문 이동", () => {
     renderPane()
 
     expect(row(/EP12/)).toHaveAttribute("aria-expanded", "false")
-    expect(screen.queryByTestId("frontier-episode-source-summary-ep-12")).not.toBeInTheDocument()
+    expect(screen.queryByTestId("frontier-episode-summary-ep-12")).not.toBeInTheDocument()
+    expect(screen.queryByTestId("frontier-episode-source-links-ep-12")).not.toBeInTheDocument()
   })
 
   it("선택된 에피소드는 처음부터 펼쳐 원문 이동을 보여준다", () => {

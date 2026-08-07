@@ -5,14 +5,17 @@
 
 import { useState } from "react"
 
-import type { AiFrontierConcept, AiFrontierEpisodeRef } from "@/lib/types/ai-frontier"
+import type { AiFrontierConcept, AiFrontierEpisode, AiFrontierEpisodeRef } from "@/lib/types/ai-frontier"
 import { cn } from "@/lib/utils"
 
+import { ConceptCategoryFilters } from "./ConceptCategoryFilters"
+import { ConceptVideos } from "./ConceptVideos"
 import type { FrontierCategoryCount } from "./frontier-view"
 
 export interface ConceptsPaneProps {
   /** 이미 검색/카테고리 필터가 적용된 목록 */
   readonly concepts: AiFrontierConcept[]
+  readonly episodes: AiFrontierEpisode[]
   readonly categoryCounts: FrontierCategoryCount[]
   readonly currentCategory: string | null
   readonly selectedConceptId: string | null
@@ -29,55 +32,6 @@ function trimmed(value: string | null): string | null {
 
 const chipBase =
   "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
-
-function CategoryChips({
-  counts,
-  current,
-  onChange,
-}: {
-  readonly counts: FrontierCategoryCount[]
-  readonly current: string | null
-  readonly onChange: (category: string | null) => void
-}) {
-  return (
-    <div data-testid="frontier-category-chips" className="flex flex-wrap gap-1.5">
-      <button
-        type="button"
-        aria-pressed={current === null}
-        onClick={() => onChange(null)}
-        className={cn(
-          chipBase,
-          current === null
-            ? "border-purple-400/40 bg-purple-500/15 text-purple-700 dark:text-purple-200"
-            : "border-border bg-muted text-foreground/80 hover:border-muted-foreground/50 hover:text-foreground"
-        )}
-      >
-        전체
-      </button>
-
-      {counts.map(({ category, count }) => {
-        const active = category === current
-        return (
-          <button
-            key={category}
-            type="button"
-            aria-pressed={active}
-            onClick={() => onChange(category)}
-            className={cn(
-              chipBase,
-              active
-                ? "border-purple-400/40 bg-purple-500/15 text-purple-700 dark:text-purple-200"
-                : "border-border bg-muted text-foreground/80 hover:border-muted-foreground/50 hover:text-foreground"
-            )}
-          >
-            {category}{" "}
-            <span className={cn("num", active ? "text-purple-700/80 dark:text-purple-100/80" : "text-muted-foreground")}>{count}</span>
-          </button>
-        )
-      })}
-    </div>
-  )
-}
 
 function EpisodeChip({
   episodeRef,
@@ -124,11 +78,13 @@ function DetailBlock({ label, value }: { readonly label: string; readonly value:
 
 function ConceptCard({
   concept,
+  episodes,
   expanded,
   onToggle,
   onEpisodeNavigate,
 }: {
   readonly concept: AiFrontierConcept
+  readonly episodes: AiFrontierEpisode[]
   readonly expanded: boolean
   readonly onToggle: () => void
   readonly onEpisodeNavigate: (ref: AiFrontierEpisodeRef) => void
@@ -182,13 +138,10 @@ function ConceptCard({
           )}
         </span>
 
-        {oneLine !== null && (
+        {oneLine !== null && !expanded && (
           <span
             data-testid={`concept-oneline-${concept.id}`}
-            className={cn(
-              "mt-1 block text-xs leading-relaxed text-muted-foreground",
-              !expanded && "line-clamp-2"
-            )}
+            className="mt-1 block text-xs leading-relaxed text-muted-foreground line-clamp-2"
           >
             {oneLine}
           </span>
@@ -214,9 +167,11 @@ function ConceptCard({
           aria-labelledby={termId}
           className="space-y-2 border-t border-border px-3 py-2"
         >
-          {intuition !== null && <DetailBlock label="Intuition" value={intuition} />}
-          {whyItMatters !== null && <DetailBlock label="Why It Matters" value={whyItMatters} />}
-          {source !== null && <DetailBlock label="Source" value={source} />}
+          {oneLine !== null && <DetailBlock label="한줄 설명" value={oneLine} />}
+          {intuition !== null && <DetailBlock label="직관" value={intuition} />}
+          {whyItMatters !== null && <DetailBlock label="왜 중요한가" value={whyItMatters} />}
+          {source !== null && <DetailBlock label="출처" value={source} />}
+          <ConceptVideos concept={concept} episodes={episodes} />
         </div>
       )}
     </li>
@@ -225,6 +180,7 @@ function ConceptCard({
 
 export function ConceptsPane({
   concepts,
+  episodes,
   categoryCounts,
   currentCategory,
   selectedConceptId,
@@ -244,7 +200,11 @@ export function ConceptsPane({
     <section className="rounded-xl border border-border bg-card p-4">
       <div className="mb-3 space-y-2">
         <h2 className="text-sm font-semibold text-foreground">Concepts</h2>
-        <CategoryChips counts={categoryCounts} current={currentCategory} onChange={onCategoryChange} />
+        <ConceptCategoryFilters
+          counts={categoryCounts}
+          current={currentCategory}
+          onChange={onCategoryChange}
+        />
       </div>
 
       {concepts.length === 0 ? (
@@ -257,6 +217,7 @@ export function ConceptsPane({
             <ConceptCard
               key={concept.id}
               concept={concept}
+              episodes={episodes}
               expanded={concept.id === expandedId}
               onToggle={() => setExpandedId((current) => (current === concept.id ? null : concept.id))}
               onEpisodeNavigate={onEpisodeNavigate}

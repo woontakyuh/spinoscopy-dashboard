@@ -157,6 +157,7 @@ export function FrontierDashboard() {
           ) : (
             <ConceptsPane
               concepts={visibleConcepts}
+              episodes={data.episodes}
               categoryCounts={categoryCounts}
               currentCategory={view.category}
               selectedConceptId={selectedConceptId}

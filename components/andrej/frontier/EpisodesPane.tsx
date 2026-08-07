@@ -8,6 +8,7 @@ import { useState } from "react"
 import type { AiFrontierConcept, AiFrontierEpisode } from "@/lib/types/ai-frontier"
 import { cn } from "@/lib/utils"
 
+import { EpisodeLinks } from "./EpisodeLinks"
 import { conceptsForEpisode, sortEpisodes } from "./frontier-view"
 
 export interface EpisodesPaneProps {
@@ -18,84 +19,6 @@ export interface EpisodesPaneProps {
 }
 
 const MAX_TOPICS = 2
-
-/** http(s)만 링크로 만든다. javascript: 같은 스킴은 링크가 아니라 글자로 남긴다. */
-function safeHttpUrl(value: string | null): string | null {
-  const candidate = (value ?? "").trim()
-  if (candidate === "") return null
-  try {
-    const url = new URL(candidate)
-    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null
-  } catch {
-    return null
-  }
-}
-
-function notionUrl(pageId: string): string {
-  return `https://www.notion.so/${pageId.replace(/-/g, "")}`
-}
-
-const linkClass =
-  "inline-flex min-h-9 items-center rounded-md border px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
-
-function ExternalLink({
-  href,
-  label,
-  primary = false,
-}: {
-  readonly href: string
-  readonly label: string
-  readonly primary?: boolean
-}) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer noopener"
-      className={cn(
-        linkClass,
-        primary
-          ? "border-purple-400/50 bg-purple-500/15 text-purple-800 hover:bg-purple-500/25 dark:bg-purple-500/20 dark:text-purple-100 dark:hover:bg-purple-500/30"
-          : "border-border bg-card text-foreground hover:border-muted-foreground/50 hover:bg-muted"
-      )}
-    >
-      {label}
-    </a>
-  )
-}
-
-/** 대시보드는 출처와 연결만 정리하고, 긴 본문은 canonical source인 Notion에서 읽는다. */
-function EpisodeDetail({ episode }: { readonly episode: AiFrontierEpisode }) {
-  const youtube = safeHttpUrl(episode.youtube)
-  const transcript = (episode.transcriptSource ?? "").trim()
-  const transcriptHref = safeHttpUrl(episode.transcriptSource)
-
-  return (
-    <div
-      data-testid={`frontier-episode-source-summary-${episode.id}`}
-      className="rounded-lg border border-purple-400/25 bg-purple-500/[0.07] p-3"
-    >
-      <p className="text-sm font-semibold text-foreground">원문과 전체 정리</p>
-      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-        긴 본문은 Notion에서 읽고, 대시보드에서는 핵심 주제와 연결된 개념을 빠르게 확인하세요.
-      </p>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <ExternalLink href={notionUrl(episode.id)} label="Notion에서 본문 읽기" primary />
-        {youtube !== null && <ExternalLink href={youtube} label="YouTube 보기" />}
-        {transcriptHref !== null && <ExternalLink href={transcriptHref} label="전사 원문 보기" />}
-        {transcriptHref === null && transcript !== "" && (
-          <span
-            data-testid={`frontier-episode-transcript-${episode.id}`}
-            className="text-xs text-muted-foreground"
-          >
-            전사 출처: {transcript}
-          </span>
-        )}
-      </div>
-    </div>
-  )
-}
 
 function ConceptChips({
   episodeId,
@@ -177,42 +100,6 @@ function EpisodeRow({
           <span id={titleId} className="text-sm font-semibold text-foreground">
             {episode.name}
           </span>
-          <span className="num text-xs text-muted-foreground">{date ?? "날짜 미상"}</span>
-          <span className={cn("text-[11px]", episode.reviewed ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground")}>
-            {episode.reviewed ? "검토 완료" : "미검토"}
-          </span>
-        </span>
-
-        {summary !== "" && (
-          <span
-            data-testid={`frontier-episode-summary-${episode.id}`}
-            className="mt-1.5 block text-xs leading-relaxed text-foreground/80 line-clamp-2"
-          >
-            {summary}
-          </span>
-        )}
-
-        <span className="mt-1 flex flex-wrap items-center gap-1.5">
-          {topics.length > 0 && (
-            <span
-              data-testid={`frontier-episode-topics-${episode.id}`}
-              className="flex min-w-0 items-baseline gap-1.5"
-            >
-              <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                주제
-              </span>
-              <span className="truncate text-xs text-foreground/80">
-                {topics.slice(0, MAX_TOPICS).join(" · ")}
-              </span>
-              {hiddenTopics > 0 && <span className="num text-[11px] text-muted-foreground">+{hiddenTopics}</span>}
-            </span>
-          )}
-          <span
-            data-testid={`frontier-episode-concept-count-${episode.id}`}
-            className="text-[11px] text-muted-foreground"
-          >
-            관련 개념 <span className="num text-foreground/80">{linked.length}</span>
-          </span>
         </span>
       </button>
 
@@ -221,9 +108,49 @@ function EpisodeRow({
           id={regionId}
           role="region"
           aria-labelledby={titleId}
-          className="space-y-2 border-t border-border px-3 py-2"
+          className="space-y-3 border-t border-border px-3 py-3"
         >
-          <EpisodeDetail episode={episode} />
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="num text-xs text-muted-foreground">{date ?? "날짜 미상"}</span>
+              <span className={cn("text-[11px]", episode.reviewed ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground")}>
+                {episode.reviewed ? "검토 완료" : "미검토"}
+              </span>
+            </div>
+
+            {summary !== "" && (
+              <p
+                data-testid={`frontier-episode-summary-${episode.id}`}
+                className="text-xs leading-relaxed text-foreground/80"
+              >
+                {summary}
+              </p>
+            )}
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              {topics.length > 0 && (
+                <span
+                  data-testid={`frontier-episode-topics-${episode.id}`}
+                  className="flex min-w-0 items-baseline gap-1.5"
+                >
+                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    주제
+                  </span>
+                  <span className="truncate text-xs text-foreground/80">
+                    {topics.slice(0, MAX_TOPICS).join(" · ")}
+                  </span>
+                  {hiddenTopics > 0 && <span className="num text-[11px] text-muted-foreground">+{hiddenTopics}</span>}
+                </span>
+              )}
+              <span
+                data-testid={`frontier-episode-concept-count-${episode.id}`}
+                className="text-[11px] text-muted-foreground"
+              >
+                관련 개념 <span className="num text-foreground/80">{linked.length}</span>
+              </span>
+            </div>
+          </div>
+          <EpisodeLinks episode={episode} />
           <ConceptChips episodeId={episode.id} concepts={linked} onNavigate={onConceptNavigate} />
         </div>
       )}

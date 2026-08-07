@@ -4,7 +4,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react"
 import type { ComponentProps } from "react"
 import { describe, expect, it, vi } from "vitest"
 
-import type { AiFrontierConcept } from "@/lib/types/ai-frontier"
+import type { AiFrontierConcept, AiFrontierEpisode } from "@/lib/types/ai-frontier"
 
 import { ConceptsPane } from "./ConceptsPane"
 import type { FrontierCategoryCount } from "./frontier-view"
@@ -25,6 +25,27 @@ function makeConcept(overrides: Partial<AiFrontierConcept> = {}): AiFrontierConc
   }
 }
 
+function makeEpisode(overrides: Partial<AiFrontierEpisode> = {}): AiFrontierEpisode {
+  return {
+    id: "ep-12",
+    name: "스케일링 법칙의 끝",
+    episodeNumber: 12,
+    status: "Published",
+    published: "2026-05-02",
+    recorded: null,
+    reviewed: true,
+    topics: ["Scaling"],
+    models: ["GPT-5"],
+    people: ["Karpathy"],
+    youtube: "https://youtu.be/ep12",
+    transcriptSource: null,
+    duration: null,
+    summary: "스케일링과 Transformer를 함께 설명합니다.",
+    keyTerms: ["Transformer"],
+    ...overrides,
+  }
+}
+
 const categoryCounts: FrontierCategoryCount[] = [
   { category: "Architecture", count: 3 },
   { category: "Training", count: 2 },
@@ -36,6 +57,7 @@ function renderPane(overrides: Partial<ComponentProps<typeof ConceptsPane>> = {}
   render(
     <ConceptsPane
       concepts={[makeConcept()]}
+      episodes={[makeEpisode()]}
       categoryCounts={categoryCounts}
       currentCategory={null}
       selectedConceptId={null}
@@ -125,6 +147,36 @@ describe("ConceptsPane 카드", () => {
 })
 
 describe("ConceptsPane 펼치기", () => {
+  it("펼치면 한줄 설명·직관·중요성을 구조적으로 보여준다", () => {
+    renderPane()
+
+    fireEvent.click(toggle())
+
+    expect(screen.getByText("한줄 설명")).toBeInTheDocument()
+    expect(screen.getByText("직관")).toBeInTheDocument()
+    expect(screen.getByText("왜 중요한가")).toBeInTheDocument()
+    expect(screen.getByText("어텐션으로 시퀀스를 병렬 처리하는 신경망 구조.")).toBeInTheDocument()
+  })
+
+  it("관련 Episode의 영상을 새 탭 링크로 제공한다", () => {
+    renderPane()
+
+    fireEvent.click(toggle())
+
+    const video = screen.getByRole("link", { name: /EP12.*영상 보기/ })
+    expect(video).toHaveAttribute("href", "https://youtu.be/ep12")
+    expect(video).toHaveAttribute("target", "_blank")
+    expect(video).toHaveAttribute("rel", expect.stringContaining("noopener"))
+  })
+
+  it("http(s)가 아닌 영상 주소는 링크로 만들지 않는다", () => {
+    renderPane({ episodes: [makeEpisode({ youtube: "javascript:alert(1)" })] })
+
+    fireEvent.click(toggle())
+
+    expect(screen.queryByRole("link", { name: /영상 보기/ })).not.toBeInTheDocument()
+  })
+
   it("실제 button과 aria-expanded로 접힘 상태를 노출한다", () => {
     renderPane()
 
