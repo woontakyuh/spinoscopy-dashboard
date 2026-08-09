@@ -102,7 +102,35 @@ const COUNTRY_ALIASES: Record<string, string> = {
   "uruguay": "Uruguay",
   "cuba": "Cuba",
   "jamaica": "Jamaica",
+  "uk": "UK",
+  "u.k": "UK",
+  "ukraine": "Ukraine",
 }
+
+// 미국 저널은 자국 논문 affiliation 에 USA 를 아예 안 붙이는 경우가 많다
+// ("Rothman Orthopedic Institute, Philadelphia, PA."). 주 약어만으로 USA 로 본다.
+// 국가명 매칭이 먼저 돌고 실패했을 때만 쓰는 폴백이라, "Milano, MI, Italy" 처럼
+// 국가가 적힌 비미국 주소를 잘못 집어삼키지는 않는다.
+const US_STATE_CODES = new Set([
+  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN",
+  "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV",
+  "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN",
+  "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "DC", "PR",
+])
+
+// JNS 계열은 주를 풀네임으로 쓰고 국가를 생략한다 ("Pittsburgh, Pennsylvania.").
+// Georgia 는 동명의 국가가 있지만, 국가명 매칭이 항상 먼저 돌기 때문에
+// 실제 조지아(국가) 주소는 "Tbilisi, Georgia" 로 여기까지 오지 않는다.
+const US_STATE_NAMES = new Set([
+  "alabama", "alaska", "arizona", "arkansas", "california", "colorado", "connecticut",
+  "delaware", "florida", "georgia", "hawaii", "idaho", "illinois", "indiana", "iowa",
+  "kansas", "kentucky", "louisiana", "maine", "maryland", "massachusetts", "michigan",
+  "minnesota", "mississippi", "missouri", "montana", "nebraska", "nevada",
+  "new hampshire", "new jersey", "new mexico", "new york", "north carolina",
+  "north dakota", "ohio", "oklahoma", "oregon", "pennsylvania", "rhode island",
+  "south carolina", "south dakota", "tennessee", "texas", "utah", "vermont",
+  "virginia", "washington", "west virginia", "wisconsin", "wyoming", "puerto rico",
+])
 
 // 국가 플래그 이모지
 const COUNTRY_FLAGS: Record<string, string> = {
@@ -119,21 +147,30 @@ const COUNTRY_FLAGS: Record<string, string> = {
   "South Africa": "🇿🇦", "Czech Republic": "🇨🇿",
 }
 
-/**
- * Affiliation 텍스트에서 국가명 추출
- * 보통 affiliation 마지막 부분이 국가 (쉼표 or 마침표로 구분)
- */
-export function extractCountry(affiliations: string): string | null {
-  if (!affiliations || affiliations.trim().length === 0) return null
+// PubMed 는 비ASCII 를 수치 엔티티로 흘려보낸다 ("T&#xfc;rkiye"). 디코딩하지 않으면
+// 별칭 표의 "türkiye" 같은 항목이 영원히 매칭되지 않는다.
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)))
+}
 
-  // 여러 affiliation이 ; 로 구분된 경우 마지막 것 사용 (corresponding author가 보통 마지막)
-  const parts = affiliations.split(/;\s*/)
-  const lastAffiliation = parts[parts.length - 1].trim()
+// affiliation 끝에 붙는 연락처는 마침표로 토큰이 잘게 쪼개져서 정작 국가를
+// 창 밖으로 밀어낸다 ("...Rochester, NY, USA. Ram_Haddas@URMC.rochester.edu").
+function stripContacts(segment: string): string {
+  return segment
+    .replace(/electronic address:.*$/i, "")
+    .replace(/[\w.+-]+@[\w.-]+/g, "")
+    .trim()
+}
 
-  // 마지막 요소에서 국가명 매칭 (끝에서부터 쉼표로 분리된 토큰을 확인)
-  const tokens = lastAffiliation.split(/[,.]/).map(t => t.trim()).filter(Boolean)
+function tokenize(segment: string): string[] {
+  // "Washington D.C." 는 마침표 분해에 부서지므로 먼저 붙여 놓는다.
+  return segment.replace(/\bD\.\s*C\./g, "DC").split(/[,.]/).map(t => t.trim()).filter(Boolean)
+}
 
-  // 끝에서부터 국가명 찾기
+function matchCountryName(segment: string): string | null {
+  const tokens = tokenize(segment)
   for (let i = tokens.length - 1; i >= Math.max(0, tokens.length - 3); i--) {
     const token = tokens[i].toLowerCase().replace(/\.$/, "")
     const country = COUNTRY_ALIASES[token]
@@ -141,11 +178,53 @@ export function extractCountry(affiliations: string): string | null {
   }
 
   // 전체 텍스트에서 국가명 검색 (폴백)
-  const lowerText = lastAffiliation.toLowerCase()
+  const lowerText = segment.toLowerCase()
   for (const [alias, country] of Object.entries(COUNTRY_ALIASES)) {
     if (alias.length >= 4 && lowerText.includes(alias)) {
       return country
     }
+  }
+  return null
+}
+
+function matchUsState(segment: string): string | null {
+  const tokens = tokenize(segment)
+  for (let i = tokens.length - 1; i >= Math.max(0, tokens.length - 3); i--) {
+    // 우편번호가 붙는 경우가 있다 ("MA 02115").
+    const code = tokens[i].replace(/\s+\d{5}(-\d{4})?$/, "").trim()
+    if (code.length === 2 && US_STATE_CODES.has(code.toUpperCase()) && code === code.toUpperCase()) {
+      return "USA"
+    }
+    // 토큰 전체가 주 이름이거나("Pennsylvania"), 기관명 끝에 주가 붙은 경우
+    // ("Investigation performed at the University of Utah").
+    const lower = code.toLowerCase()
+    for (const state of US_STATE_NAMES) {
+      if (lower === state || lower.endsWith(` ${state}`)) return "USA"
+    }
+  }
+  return null
+}
+
+/**
+ * Affiliation 텍스트에서 국가명 추출
+ * 보통 affiliation 마지막 부분이 국가 (쉼표 or 마침표로 구분)
+ */
+export function extractCountry(affiliations: string): string | null {
+  if (!affiliations || affiliations.trim().length === 0) return null
+
+  const segments = decodeEntities(affiliations)
+    .split(/;\s*/)
+    .map((s) => stripContacts(s))
+    .filter((s) => s.length > 0)
+  if (segments.length === 0) return null
+
+  // 마지막 affiliation 이 corresponding author 인 경우가 많아 그것을 먼저 본다.
+  // 거기서 아무 단서도 안 나오면 앞쪽 소속으로 후퇴한다 — 마지막 줄에 국가를
+  // 빼먹은 논문까지 "국가 불명" 으로 버리지 않기 위해서다.
+  const ordered = [segments[segments.length - 1], ...segments.slice(0, -1).reverse()]
+  for (const segment of ordered) {
+    const country = matchCountryName(segment) ?? matchUsState(segment)
+    if (country) return country
   }
 
   return null
