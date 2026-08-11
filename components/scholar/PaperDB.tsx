@@ -8,6 +8,15 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
 import { extractCountry, getCountryFlag, TOPIC_GROUPS, TOPIC_PRIORITY, normalizeArticleType } from "@/lib/scholar/country"
 import type { JournalArticle, JournalQueryResult, InterestLevel, DashboardData } from "@/lib/types/journal"
+import type { FulltextFilterValue } from "@/lib/fulltext/status"
+
+// 원문 필터 선택지. 라벨은 목록 위 드롭다운과 필터 태그가 함께 쓴다.
+const FULLTEXT_OPTIONS: { value: FulltextFilterValue; label: string }[] = [
+  { value: "all", label: "전체" },
+  { value: "acquired", label: "✅ 확보" },
+  { value: "failed", label: "⚠️ 실패" },
+  { value: "pending", label: "⏳ 대기" },
+]
 
 // ── Constants ──────────────────────────────────────────────
 
@@ -189,6 +198,7 @@ interface Filters {
   countries: string[]
   dateFrom: string | null
   dateTo: string | null
+  fulltext: FulltextFilterValue
 }
 
 const INITIAL_FILTERS: Filters = {
@@ -202,6 +212,7 @@ const INITIAL_FILTERS: Filters = {
   countries: [],
   dateFrom: null,
   dateTo: null,
+  fulltext: "all",
 }
 
 function buildQueryString(f: Filters): string {
@@ -212,6 +223,9 @@ function buildQueryString(f: Filters): string {
   else if (f.readStatus === "read") params.set("read", "true")
   if (f.search) params.set("search", f.search)
   if (f.categories.length === 1) params.set("category", f.categories[0])
+  // 원문은 서버사이드 — 확보분이 전체 DB 에 소수로 흩어져 있어 클라이언트로 거르면
+  // 불러온 페이지 안에서만 몇 편 보이다 만다.
+  if (f.fulltext !== "all") params.set("fulltext", f.fulltext)
   params.set("sort", "date_desc")
   return params.toString()
 }
@@ -227,7 +241,8 @@ function hasActiveFilters(f: Filters): boolean {
     f.types.length > 0 ||
     f.countries.length > 0 ||
     f.dateFrom !== null ||
-    f.dateTo !== null
+    f.dateTo !== null ||
+    f.fulltext !== "all"
   )
 }
 
@@ -241,6 +256,7 @@ const FILTER_LABELS: Record<string, string> = {
   search: "검색",
   dateFrom: "시작일",
   dateTo: "종료일",
+  fulltext: "원문",
 }
 
 // ── DOI/링크로 원문 요청 추가 ──────────────────────────────
@@ -355,8 +371,9 @@ export function PaperDB() {
     type: new Set(filters.types),
   }), [filters.topics, filters.countries, filters.journals, filters.types])
 
-  // Compact filter predicate (applied to all chart bases)
-  const compactFilter = useCallback((a: DashboardData["articles"][number]) => {
+  // Compact filter predicate MINUS 원문 — 원문 건수를 셀 때의 기준선.
+  // (차트가 자기 차원을 빼고 세는 것과 같은 규칙)
+  const compactFilterNoFulltext = useCallback((a: DashboardData["articles"][number]) => {
     if (filters.dateFrom && (!a.pub_date || a.pub_date < filters.dateFrom)) return false
     if (filters.dateTo && (!a.pub_date || a.pub_date > filters.dateTo)) return false
     if (filters.interest && a.interest !== filters.interest) return false
@@ -368,6 +385,13 @@ export function PaperDB() {
     }
     return true
   }, [filters.dateFrom, filters.dateTo, filters.interest, filters.readStatus, filters.search])
+
+  // Compact filter predicate (applied to all chart bases)
+  const compactFilter = useCallback((a: DashboardData["articles"][number]) => {
+    if (!compactFilterNoFulltext(a)) return false
+    if (filters.fulltext !== "all" && a.fulltext !== filters.fulltext) return false
+    return true
+  }, [compactFilterNoFulltext, filters.fulltext])
 
   // Cross-filter: each chart excludes its OWN dimension, applies all others
   const topicBase = useMemo(() => {
@@ -409,6 +433,23 @@ export function PaperDB() {
       return compactFilter(a)
     })
   }, [dashData, chartActiveKeys.topic, chartActiveKeys.country, chartActiveKeys.type, compactFilter])
+
+  // 원문 드롭다운에 붙는 건수 — 다른 모든 필터는 걸되 원문 차원만 뺀다.
+  // "필독만 켠 상태에서 확보된 게 몇 편인지" 가 바로 보여야 쓸모가 있다.
+  const fulltextCounts = useMemo(() => {
+    const counts = { all: 0, acquired: 0, failed: 0, pending: 0 }
+    if (!dashData) return counts
+    for (const a of dashData.articles) {
+      if (chartActiveKeys.topic.size > 0 && !a.topics.some(t => chartActiveKeys.topic.has(t))) continue
+      if (chartActiveKeys.country.size > 0 && !chartActiveKeys.country.has(a.country ?? "")) continue
+      if (chartActiveKeys.type.size > 0 && !chartActiveKeys.type.has(a.pub_type ?? "")) continue
+      if (chartActiveKeys.journal.size > 0 && !chartActiveKeys.journal.has(a.journal ?? "")) continue
+      if (!compactFilterNoFulltext(a)) continue
+      counts.all++
+      if (a.fulltext !== "none") counts[a.fulltext]++
+    }
+    return counts
+  }, [dashData, chartActiveKeys, compactFilterNoFulltext])
 
   // Full cross-filter result (all dimensions applied) — for stat cards & article list
   const dashFiltered = useMemo(() => {
@@ -580,6 +621,8 @@ export function PaperDB() {
           return { ...prev, dateFrom: null }
         case "dateTo":
           return { ...prev, dateTo: null }
+        case "fulltext":
+          return { ...prev, fulltext: "all" }
         default:
           return prev
       }
@@ -598,6 +641,10 @@ export function PaperDB() {
     if (filters.search) tags.push({ key: "search", label: `"${filters.search}"` })
     if (filters.dateFrom) tags.push({ key: "dateFrom", label: `${filters.dateFrom}~` })
     if (filters.dateTo) tags.push({ key: "dateTo", label: `~${filters.dateTo}` })
+    if (filters.fulltext !== "all") {
+      const opt = FULLTEXT_OPTIONS.find(o => o.value === filters.fulltext)
+      if (opt) tags.push({ key: "fulltext", label: opt.label })
+    }
     return tags
   }, [filters])
 
@@ -680,7 +727,9 @@ export function PaperDB() {
   }, [displayArticles, subTab])
 
   // Reset sub-tab when filters change
-  useEffect(() => { setSubTab(null); setDisplayLimit(PAGE_SIZE) }, [filters.journals.length, filters.topics.length, filters.countries.length, filters.types.length])
+  // 원문 필터도 포함 — 안 넣으면 "더보기" 로 늘려둔 displayLimit 이 남아, 확보 28 편으로
+  // 좁힌 뒤에도 부족분을 채우려고 다음 페이지를 계속 긁는다.
+  useEffect(() => { setSubTab(null); setDisplayLimit(PAGE_SIZE) }, [filters.journals.length, filters.topics.length, filters.countries.length, filters.types.length, filters.fulltext])
 
   // 필터 변경 / "더보기" 클릭 후 finalArticles 가 displayLimit 미달이면 Notion 페이지 추가 fetch.
   // (예: PROM 토픽 클릭 시 첫 100 편 중 5 편만 매칭되면 자동으로 다음 100 편 가져와 20 편 채울 때까지)
@@ -771,6 +820,26 @@ export function PaperDB() {
             </button>
           ))}
         </div>
+
+        <div className="w-px h-5 bg-muted" />
+
+        {/* 원문 확보 상태 — 우리 파이프라인이 채취한 원문만 골라 보기 */}
+        <span className="text-muted-foreground/70 text-[10px] font-medium shrink-0">원문</span>
+        <select
+          value={filters.fulltext}
+          onChange={(e) => setFilters(prev => ({ ...prev, fulltext: e.target.value as FulltextFilterValue }))}
+          className={`h-7 px-2 rounded text-[11px] border focus:outline-none focus:border-zinc-500 [color-scheme:dark] ${
+            filters.fulltext === "all"
+              ? "bg-muted border-border text-foreground/90"
+              : "bg-zinc-600 border-zinc-500 text-foreground font-medium"
+          }`}
+        >
+          {FULLTEXT_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label} ({opt.value === "all" ? fulltextCounts.all : fulltextCounts[opt.value]})
+            </option>
+          ))}
+        </select>
 
         {/* Reset */}
         {hasActiveFilters(filters) && (

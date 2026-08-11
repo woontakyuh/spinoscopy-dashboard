@@ -1,3 +1,5 @@
+import type { FulltextState, FulltextFilterValue } from "@/lib/fulltext/status"
+
 export type InterestLevel = "🔴 필독" | "🟡 관심" | "⚪ 참고"
 
 export interface JournalArticle {
@@ -32,6 +34,7 @@ export interface JournalFilter {
   read?: boolean | "all"
   search?: string              // 단일 키워드 — Title + Abstract OR 매칭
   queries?: string[]           // 다중 키워드 (유의어·약자) — 각각 Title + Abstract OR 매칭
+  fulltext?: FulltextFilterValue  // 원문 확보 상태 — 서버사이드(페이지네이션 때문에)
   sort?: "date_desc" | "date_asc"
   cursor?: string
 }
@@ -65,6 +68,8 @@ export interface ArticleMeta {
   topics: string[]
   categories: string[]
   doi_url: string | null
+  // 원문 확보 상태. toArticle 이 이미 읽어오는 값이라 추가 API 비용이 없다.
+  fulltext: FulltextState
 }
 
 export interface DashboardData {

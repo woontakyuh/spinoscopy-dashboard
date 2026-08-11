@@ -10,6 +10,7 @@ import type {
 } from "../types/journal"
 import { extractCountry, classifyTopics, normalizeArticleType } from "../scholar/country"
 import { readFulltext } from "./fulltext"
+import { fulltextState, fulltextNotionFilter } from "../fulltext/status"
 
 interface NotionPage {
   id: string
@@ -135,6 +136,13 @@ function buildFilter(filter: JournalFilter) {
       { property: "Abstract", rich_text: { contains: q } },
     ])
     conditions.push({ or: orConditions })
+  }
+
+  // 원문 확보 상태는 반드시 서버사이드 — 확보분은 전체 DB 에 소수로 흩어져 있어서
+  // 클라이언트에서 거르면 불러온 페이지 안에서만 몇 편 보이다 만다.
+  if (filter.fulltext && filter.fulltext !== "all") {
+    const cond = fulltextNotionFilter(filter.fulltext)
+    if (cond) conditions.push(cond)
   }
 
   if (conditions.length === 0) return undefined
@@ -290,6 +298,7 @@ export async function getDashboardData(): Promise<DashboardData> {
         topics: classifyTopics(a.title, a.abstract, a.keywords),
         categories: a.categories,
         doi_url: a.doi_url,
+        fulltext: fulltextState(a.fulltext_status, a.fulltext_requested),
       })
     }
 
