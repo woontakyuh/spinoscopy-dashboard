@@ -44,6 +44,7 @@ export async function GET(req: NextRequest) {
       category: searchParams.get("category") ?? "all",
       read: searchParams.get("read") === "true" ? true : searchParams.get("read") === "false" ? false : "all",
       search: searchParams.get("search") ?? undefined,
+      fulltext: (searchParams.get("fulltext") as JournalFilter["fulltext"]) ?? "all",
       sort: (searchParams.get("sort") as JournalFilter["sort"]) ?? "date_desc",
       cursor: searchParams.get("cursor") ?? undefined,
     }
