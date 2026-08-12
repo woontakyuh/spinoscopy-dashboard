@@ -8,9 +8,9 @@ vi.mock("./client", () => ({
   notionRequest: notionRequestMock,
 }))
 
-import { getSharedCoreMemoryDigest } from "./dakotaMemoryV2"
+import { getMemoryProvenanceLabel, getSharedCoreMemoryDigest } from "./dakotaMemoryV2"
 
-function page(category: string, name: string, content: string, importance = "4") {
+function page(category: string, name: string, content: string, importance = "4", source = "chat") {
   return {
     id: `${category}-${name}`,
     url: "https://notion.so/test",
@@ -21,7 +21,7 @@ function page(category: string, name: string, content: string, importance = "4")
       Category: { type: "select", select: { name: category } },
       Content: { type: "rich_text", rich_text: [{ plain_text: content }] },
       Importance: { type: "select", select: { name: importance } },
-      Source: { type: "select", select: { name: "chat" } },
+      Source: { type: "select", select: { name: source } },
       Status: { type: "select", select: { name: "active" } },
     },
   }
@@ -60,5 +60,27 @@ describe("getSharedCoreMemoryDigest", () => {
       return categoryFilter?.select?.equals
     }).sort()
     expect(queriedCategories).toEqual(["person", "preference", "profile", "project", "rule"])
+  })
+
+  it("공통 digest에 source provenance를 포함한다", async () => {
+    const digest = await getSharedCoreMemoryDigest()
+
+    expect(digest).toContain("[provenance: legacy record · original platform unrecorded]")
+  })
+})
+
+describe("getMemoryProvenanceLabel", () => {
+  it("runtime/surface source를 사람이 읽을 수 있는 provenance로 바꾼다", () => {
+    expect(getMemoryProvenanceLabel("orchestrator:event:dakota:telegram"))
+      .toBe("telegram · dakota agent event")
+    expect(getMemoryProvenanceLabel("shared-core:dakota"))
+      .toBe("shared core · curated by dakota")
+  })
+
+  it("legacy memory의 원본 플랫폼을 추정하지 않는다", () => {
+    expect(getMemoryProvenanceLabel("chat"))
+      .toBe("legacy record · original platform unrecorded")
+    expect(getMemoryProvenanceLabel("agent:lo:session"))
+      .toBe("lo agent · legacy session (original platform unrecorded)")
   })
 })

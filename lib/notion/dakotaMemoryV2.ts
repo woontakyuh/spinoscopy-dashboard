@@ -166,6 +166,30 @@ export async function listMemories(opts: MemoryQueryOptions = {}): Promise<Memor
   return rows
 }
 
+/**
+ * Notion Source는 memory가 어느 runtime/surface에서 만들어졌는지의 provenance다.
+ * Legacy `chat`/`session` rows에는 원본 플랫폼이 저장되지 않았으므로 추정하지 않는다.
+ */
+export function getMemoryProvenanceLabel(source: string | undefined): string {
+  const value = source?.trim().toLowerCase() ?? ""
+  const event = value.match(/^orchestrator:event:([a-z]+):(dashboard|telegram)$/)
+  if (event) return `${event[2]} · ${event[1]} agent event`
+
+  const transcript = value.match(/^agent:([a-z]+):(transcript|session)$/)
+  if (transcript) return `${transcript[1]} agent · legacy session (original platform unrecorded)`
+
+  const shared = value.match(/^shared-core:([a-z]+)$/)
+  if (shared) return `shared core · curated by ${shared[1]}`
+
+  const local = value.match(/^agent:([a-z]+):memory$/)
+  if (local) return `${local[1]} agent local memory`
+
+  if (!value || ["chat", "session", "migration", "dakota"].includes(value)) {
+    return "legacy record · original platform unrecorded"
+  }
+  return source!.trim()
+}
+
 function rowsToDigest(rows: MemoryRow[], maxRows = 30): string {
   const sorted = rows.slice().sort((a, b) => b.importance - a.importance).slice(0, maxRows)
   if (sorted.length === 0) return ""
@@ -185,7 +209,8 @@ function rowsToDigest(rows: MemoryRow[], maxRows = 30): string {
     lines.push(`\n[${cat}]`)
     for (const it of items) {
       const stars = "★".repeat(it.importance)
-      lines.push(`- ${it.name} ${stars}: ${it.content}`)
+      const provenance = getMemoryProvenanceLabel(it.source)
+      lines.push(`- ${it.name} ${stars} [provenance: ${provenance}]: ${it.content}`)
     }
   }
   // 누락된 카테고리 (혹시 새 게 추가되면)
@@ -194,7 +219,8 @@ function rowsToDigest(rows: MemoryRow[], maxRows = 30): string {
     lines.push(`\n[${cat}]`)
     for (const it of byCategory[cat]) {
       const stars = "★".repeat(it.importance)
-      lines.push(`- ${it.name} ${stars}: ${it.content}`)
+      const provenance = getMemoryProvenanceLabel(it.source)
+      lines.push(`- ${it.name} ${stars} [provenance: ${provenance}]: ${it.content}`)
     }
   }
   return lines.join("\n").trim()

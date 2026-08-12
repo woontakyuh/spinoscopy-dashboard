@@ -10,7 +10,7 @@ import { getUpcomingSchedules, getSchedulesRichInRange, createSchedule, updateSc
 import { getPresentations } from "@/lib/notion/podium"
 import type { PresentationFilter, AttendanceFilter } from "@/lib/types/presentation"
 import {
-  getMemoryDigest,
+  getMemoryProvenanceLabel,
   getSharedCoreMemoryDigest,
   getAgentMemoryDigest,
   createMemory,
@@ -291,7 +291,7 @@ async function buildDakotaPrompt(userContext?: UserContext): Promise<{ stable: s
       : ""
 
     if (scopedMemoryBlock) {
-      memoryBlock = `${scopedMemoryBlock}\n\n[Dakota 메모리 활용 규칙 — shared core는 전체 맥락으로, dakota local은 Dakota의 운영/관계 맥락으로만 쓰세요. 새 사실 저장 시 가급적 shared core와 local을 구분하세요.]`
+      memoryBlock = `${scopedMemoryBlock}\n\n[Dakota 메모리 활용 규칙 — shared core는 전체 맥락으로, dakota local은 Dakota의 운영/관계 맥락으로만 쓰세요. 새 사실 저장 시 가급적 shared core와 local을 구분하세요. 각 memory의 provenance는 생성 runtime/surface의 근거입니다. provenance가 'original platform unrecorded'이면 Telegram·dashboard·다른 agent 중 어느 쪽인지 추정하지 말고 '원본 플랫폼 미기록'이라고 말하세요.]`
     }
 
     const todoLines = todos.slice(0, 30).map((t) => {
@@ -762,6 +762,8 @@ function buildDakotaTools(req: Request) {
             category: r.category,
             content: r.content,
             importance: r.importance,
+            source: r.source,
+            provenance: getMemoryProvenanceLabel(r.source),
             created_time: r.created_time,
           })),
         }
@@ -790,6 +792,8 @@ function buildDakotaTools(req: Request) {
             category: r.category,
             content: r.content,
             importance: r.importance,
+            source: r.source,
+            provenance: getMemoryProvenanceLabel(r.source),
           })),
         }
       },
