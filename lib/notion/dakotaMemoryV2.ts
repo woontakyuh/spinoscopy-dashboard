@@ -206,10 +206,23 @@ export async function getMemoryDigest(maxRows = 30): Promise<string> {
   return rowsToDigest(rows, maxRows)
 }
 
+/**
+ * 모든 표면이 공유하는 durable context.
+ *
+ * 중요: 전체 Memory DB의 최신 100개를 먼저 읽은 뒤 category를 거르면 대화 transcript/event
+ * row가 많은 경우 shared-core가 통째로 prompt에서 사라진다. 각 shared category를 Notion에서
+ * 직접 필터해 읽어야 로그량과 무관하게 같은 core를 받을 수 있다.
+ */
 export async function getSharedCoreMemoryDigest(maxRows = 20): Promise<string> {
-  const rows = await listMemories({ status: "active", limit: 100 })
-  const shared = rows.filter((row) => isSharedCoreCategory(row.category))
-  return rowsToDigest(shared, maxRows)
+  const categories = Array.from(SHARED_CORE_CATEGORIES)
+  const groups = await Promise.all(
+    categories.map((category) => listMemories({
+      category,
+      status: "active",
+      limit: 100,
+    }))
+  )
+  return rowsToDigest(groups.flat(), maxRows)
 }
 
 export async function getAgentMemoryDigest(agentId: AgentId, maxRows = 20): Promise<string> {
