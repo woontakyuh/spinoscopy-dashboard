@@ -429,7 +429,7 @@ function DakotaGreetingChat({
   }, [isStreaming, isSpeaking])
   const dakotaBusy = isSpeaking || isStreaming || expectingResponse
   const voiceImmersive = (focused && voiceMode) ? (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-center p-6">
+    <div className="fixed inset-0 z-[1100] bg-background flex flex-col items-center justify-center p-6">
       <button
         type="button"
         onClick={toggleVoiceMode}
@@ -520,7 +520,7 @@ function DakotaGreetingChat({
 
   // ─── Focused overlay (portal to body to escape transformed ancestors) ──
   const focusedOverlay = (focused && !voiceMode) ? (
-    <div className="fixed inset-0 z-50 bg-background backdrop-blur-sm overflow-hidden flex items-stretch md:items-center justify-center md:p-6">
+    <div className="fixed inset-0 z-[1100] bg-background backdrop-blur-sm overflow-hidden flex items-stretch md:items-center justify-center md:p-6">
         <div className="w-full h-full md:max-w-5xl md:h-[80vh] flex flex-col md:flex-row md:gap-6 overflow-hidden">
           {/* Dakota 캐릭터 — 탭하면 음성모드 진입 (비공개 entry point) */}
           <div className="shrink-0 flex justify-center md:items-center pt-3 md:pt-0">
