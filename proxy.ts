@@ -3,6 +3,7 @@ import { isDemoHost, isAllowedAgentPath } from "@/lib/demo"
 
 // 대시보드 인증이 필요한 /api 경로. 나머지 legacy /api는 그대로 통과한다.
 const AUTHED_API_PREFIXES = ["/api/lo", "/api/andrej"]
+const PUBLIC_FILE_PATTERN = /\.[^/]+$/
 
 /** `/api/andrej`와 `/api/andrej/...`만 매칭하고 `/api/andrejaeger`는 제외한다. */
 function isUnderPrefix(pathname: string, prefix: string): boolean {
@@ -14,6 +15,12 @@ export function proxy(req: NextRequest) {
   const demo = isDemoHost(req.headers.get("host"))
 
   if (pathname.startsWith("/login")) {
+    return NextResponse.next()
+  }
+
+  // public/ 정적 자산은 인증 리다이렉트 대상이 아니다. 이미지 요청이 로그인
+  // HTML로 바뀌면 <img>가 정상 파일을 가리켜도 브라우저에는 깨진 이미지로 보인다.
+  if (PUBLIC_FILE_PATTERN.test(pathname)) {
     return NextResponse.next()
   }
 

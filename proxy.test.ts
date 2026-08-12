@@ -35,6 +35,16 @@ describe("proxy middleware — authentication gate", () => {
     delete process.env.DEMO_PASSWORD
   })
 
+  describe("public static assets — no authentication required", () => {
+    it("allows a Dakota image without an authentication cookie", () => {
+      const req = createRequest("/dakota/by-outfit/office/whitejacket5.png")
+      const response = proxy(req)
+
+      expect(response.status).not.toBe(307)
+      expect(response.headers.get("location")).toBeNull()
+    })
+  })
+
   describe("/api/lo/* — require authentication", () => {
     it("redirects anonymous /api/lo/dashboard to login", () => {
       const req = createRequest("/api/lo/dashboard")
