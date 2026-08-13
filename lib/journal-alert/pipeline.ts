@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer"
 import { notionRequest, notionEnv } from "@/lib/notion/client"
-import { alertSubject, alertWrap, notionPageUrl, notionIconLink } from "./mailTemplate"
+import { alertSubject, alertWrap, notionPageUrl, notionIconLink, fulltextButton } from "./mailTemplate"
+import { buildFulltextLink } from "./fulltextLink"
 import {
   JOURNAL_SOURCES,
   LOW_PRIORITY_TYPES,
@@ -1288,8 +1289,13 @@ function buildEmailHtml(
 
   const subject = alertSubject(`📚 새 논문 ${totalInserted}편 — ${today}`)
 
+  // 메일에서 바로 원문 수집을 걸 수 있는 링크. 키/baseUrl 이 없으면 null 이고
+  // fulltextButton 이 빈 문자열을 돌려주므로 지금과 똑같은 메일이 나간다.
+  const baseUrl = process.env.JOURNAL_ALERT_BASE_URL ?? ""
+  const linkSecret = process.env.JOURNAL_ALERT_LINK_SECRET ?? ""
+
   const row = ({ article: a, pageId }: EmailItem, idx: number) =>
-    `<tr><td style="padding:6px 8px;color:#9ca3af;">${idx}</td><td style="padding:6px 8px;"><a href="${a.doiUrl}" style="color:#2563eb;text-decoration:none;">${a.title}</a>${notionIconLink(notionPageUrl(pageId))}<div style="font-size:11px;color:#6b7280;">${a.authors} · ${a.journalName}</div></td></tr>`
+    `<tr><td style="padding:6px 8px;color:#9ca3af;">${idx}</td><td style="padding:6px 8px;"><a href="${a.doiUrl}" style="color:#2563eb;text-decoration:none;">${a.title}</a>${notionIconLink(notionPageUrl(pageId))}${fulltextButton(buildFulltextLink(baseUrl, pageId, linkSecret))}<div style="font-size:11px;color:#6b7280;">${a.authors} · ${a.journalName}</div></td></tr>`
 
   const section = (title: string, items: EmailItem[]) => {
     if (items.length === 0) return ""

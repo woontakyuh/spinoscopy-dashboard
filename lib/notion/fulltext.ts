@@ -125,6 +125,26 @@ export async function markFailed(pageId: string, reason: string): Promise<void> 
   })
 }
 
+/**
+ * 마지막 실패 사유. markFailed 가 본문 콜아웃으로만 남기므로 블록을 읽어야 한다.
+ * 실패 화면에서만 부르는 경로라 평상시 비용이 없다. 못 읽으면 null — 화면은 사유
+ * 없이도 떠야 한다.
+ */
+export async function readLastFailureReason(pageId: string): Promise<string | null> {
+  try {
+    const res = await notionRequest<{
+      results: Array<{ type: string; callout?: { rich_text: Array<{ plain_text?: string }> } }>
+    }>(`/blocks/${pageId}/children?page_size=100`)
+    const callouts = res.results.filter((b) => b.type === "callout")
+    const last = callouts[callouts.length - 1]
+    if (!last?.callout) return null
+    const text = last.callout.rich_text.map((t) => t.plain_text ?? "").join("").trim()
+    return text.replace(/^원문 확보 실패:\s*/, "") || null
+  } catch {
+    return null
+  }
+}
+
 export interface QueueItem {
   pageId: string
   doiUrl: string | null
