@@ -23,6 +23,26 @@ Dr. Woon Tak Yuh(척추 신경외과)의 개인 AI 대시보드. 7개 multi-agen
 
 Dakota 탭은 별도 ERP 앱이 아니라 이 `spinoscopy-dashboard` 안에서 확장되는 command-center layer다. Dakota가 front door로 받고 specialist agents가 병렬 참모 lane으로 움직이며, telemetry/approval/Knowledge Inbox는 `/agents/dakota`의 Command Center 탭에서 확인한다.
 
+## ⚠️ 메인 체크아웃은 작업 공간이 아니다 (모든 세션 공통, 최우선)
+
+`/Users/TakMD/workspace/spinoscopy-dashboard` 에서 **직접 파일을 고치지 않는다.**
+브랜치 전환·stash 도 하지 않는다. 편집은 **반드시 worktree 에서** 한다.
+
+```
+편집할 게 있으면 → 먼저 worktree 생성 → 거기서 작업 → PR
+```
+
+**왜 —** 여러 세션이 이 한 폴더를 동시에 본다. 한 세션이 브랜치를 갈아끼우면 다른
+세션의 미커밋 작업이 사라진다. 그리고 맥미니 launchd 잡들이 이 레포의 코드를
+실행하므로, 체크아웃 상태가 곧 그날 새벽 수집·메일의 내용이 된다.
+(2026-07~08 저널 수집 2주 정지가 이 계열의 사고였다.)
+
+운영 잡은 이제 **전용 클론 `/Users/TakMD/workspace/spino-jobs`** 에서 돈다
+(항상 `main`, 실행 직전 자동 pull). 그래도 메인 체크아웃을 작업 공간으로 쓰면
+세션끼리 서로를 덮는 문제는 그대로 남는다.
+
+worktree 는 한 곳에 모은다: `.claude/worktrees/` (`/private/tmp` 는 재부팅 시 소실).
+
 ## Agent-Specific Development (마스터 세션 워크플로우)
 
 하나의 Claude Code 세션(마스터)에서 서브에이전트를 위임하여 병렬 개발한다.
@@ -50,6 +70,17 @@ Dakota 탭은 별도 ERP 앱이 아니라 이 `spinoscopy-dashboard` 안에서 �
 - 브랜치: `feat/{agent}-{description}`
 - Worktree: `isolation: "worktree"`로 자동 생성
 - 머지: PR 기반 리뷰 후 main 머지
+
+## 맥미니 운영 잡 (launchd)
+
+수집·메일 잡 7개는 **`/Users/TakMD/workspace/spino-jobs`** (운영 전용 클론)에서 돈다.
+개발 체크아웃과 완전히 분리돼 있어, 어느 브랜치에서 작업하든 운영에 영향이 없다.
+
+- 각 `scripts/*/run*.sh` 는 REPO 를 **자기 위치에서 유도**한다 (경로 하드코딩 금지)
+- `scripts/job-bootstrap.sh` 가 **main + 워킹트리 깨끗** 일 때만 `git pull` 한다
+  → main 에 머지하면 다음 실행 때 자동 반영. 개발 체크아웃에서 돌려도 pull 되지 않는다.
+- 배포 = main 머지. 맥미니에서 따로 할 일 없음.
+- 맥스튜디오의 원문 워커(`fulltext-worker`)도 같은 방식으로 자기 클론을 최신화한다.
 
 ## Shared Code (수정 주의)
 
