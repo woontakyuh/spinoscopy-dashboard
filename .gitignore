@@ -41,6 +41,7 @@ yarn-error.log*
 next-env.d.ts
 .env.local
 scripts/*
+!scripts/job-bootstrap.sh
 !scripts/generate-dakota-manifest.ts
 !scripts/telegram-bot.ts
 !scripts/social-collector
