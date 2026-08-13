@@ -32,6 +32,16 @@ export function notionIconLink(url: string): string {
 }
 
 /**
+ * 논문 제목 옆 "원문" 버튼 — 누르면 원문 수집이 걸리고 확보되면 그 자리에서 PDF 가 열린다.
+ * url 이 null 이면(서명 키·baseUrl 미설정) 빈 문자열 — 깨진 링크를 내보내느니 안 그린다.
+ * 이미지 없이 인라인 스타일만 쓴다: Gmail 이미지 차단 상태에서도 보여야 한다.
+ */
+export function fulltextButton(url: string | null): string {
+  if (!url) return ""
+  return `<a href="${escHtml(url)}" style="display:inline-block;margin-left:6px;padding:1px 7px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:10px;text-decoration:none;font-size:11px;font-weight:600;vertical-align:1px;" title="원문 수집 요청">원문</a>`
+}
+
+/**
  * 논문 1건 리스트 아이템 (라이트). title/href 는 여기서 escape,
  * badgesHtml/subHtml/noteHtml 은 호출부가 완성한 HTML 을 그대로 받는다.
  */
