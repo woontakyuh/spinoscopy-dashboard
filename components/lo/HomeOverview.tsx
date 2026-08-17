@@ -3,6 +3,7 @@
 import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Badge } from "@/components/ui/badge"
+import { TrainingHeatmap } from "@/components/lo/TrainingHeatmap"
 import type { BjjStats, SenseiEntry } from "@/lib/types/sensei"
 
 // Home = Lo 종합 dashboard.
@@ -233,6 +234,8 @@ export function HomeOverview({ goTo }: { goTo?: (tab: string) => void }) {
           </div>
         </div>
       </div>
+
+      <TrainingHeatmap entries={entries ?? []} onOpenTraining={() => goTo?.("training")} />
 
       {/* ─── 3 카드 row: Week / Focus / Target ─── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

@@ -1,368 +1,299 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import {
+  getTrainingRuleSet,
+  isRuleSetTag,
+  type TrainingFilter,
+  type TrainingRuleSet,
+} from "@/lib/sensei/trainingEntry"
 import type { SenseiEntry } from "@/lib/types/sensei"
 
-function getMonthData(year: number, month: number) {
-  const firstDay = new Date(year, month, 1).getDay()
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-  return { firstDay, daysInMonth }
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const
+
+type SenseiCalendarProps = {
+  readonly entries: readonly SenseiEntry[]
+  readonly selectedDate: string | null
+  readonly onDateSelect: (date: string | null) => void
+  readonly activeFilter: TrainingFilter | null
+  readonly onFilterChange: (filter: TrainingFilter | null) => void
 }
 
-function toDateKey(y: number, m: number, d: number): string {
-  return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`
+type DaySummary = {
+  readonly classKeywords: readonly string[]
+  readonly sparringKeywords: readonly string[]
+  readonly studyKeywords: readonly string[]
+  readonly entries: readonly SenseiEntry[]
+  readonly hasPromotion: boolean
+  readonly ruleSets: readonly TrainingRuleSet[]
 }
 
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"]
-
-interface ContextMenuState {
-  x: number
-  y: number
-  date: string
+function dateKey(year: number, month: number, day: number): string {
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
 }
 
-interface SenseiCalendarProps {
-  onDateSelect?: (date: string) => void
+function unique(values: readonly string[]): readonly string[] {
+  return [...new Set(values.filter((value) => Boolean(value) && !isRuleSetTag(value)))]
 }
 
-export function SenseiCalendar({ onDateSelect }: SenseiCalendarProps) {
+function isRuleSet(value: TrainingRuleSet | null): value is TrainingRuleSet {
+  return value !== null
+}
+
+function summarizeDay(entries: readonly SenseiEntry[]): DaySummary {
+  return {
+    classKeywords: unique(entries.flatMap((entry) => entry.classTags)),
+    sparringKeywords: unique(entries.flatMap((entry) => entry.sparringTags)),
+    studyKeywords: unique(entries.flatMap((entry) => entry.studyTags)),
+    entries,
+    hasPromotion: entries.some((entry) => entry.sessionType === "promotion"),
+    ruleSets: [...new Set(entries.map(getTrainingRuleSet).filter(isRuleSet))],
+  }
+}
+
+const FILTERS = [
+  {
+    key: "class",
+    label: "수업",
+    dot: "bg-purple-400",
+    active: "border-purple-400/50 bg-purple-500/15 text-purple-200",
+  },
+  {
+    key: "sparring",
+    label: "스파링",
+    dot: "bg-blue-400",
+    active: "border-blue-400/50 bg-blue-500/15 text-blue-200",
+  },
+  {
+    key: "study",
+    label: "공부",
+    dot: "bg-green-400",
+    active: "border-green-400/50 bg-green-500/15 text-green-200",
+  },
+] as const satisfies readonly {
+  readonly key: TrainingFilter
+  readonly label: string
+  readonly dot: string
+  readonly active: string
+}[]
+
+function KeywordRow({
+  color,
+  label,
+  keywords,
+}: {
+  readonly color: string
+  readonly label: string
+  readonly keywords: readonly string[]
+}) {
+  if (keywords.length === 0) return null
+
+  return (
+    <div className="flex min-w-0 items-center gap-0.5 sm:gap-1">
+      <span className={`size-1 shrink-0 rounded-full sm:size-1.5 ${color}`} aria-hidden="true" />
+      <span className="truncate text-[9px] leading-3 text-foreground/80 sm:text-[10px] sm:leading-4">
+        <span className="sr-only">{label}: </span>
+        {keywords.slice(0, 2).join(" · ")}
+      </span>
+    </div>
+  )
+}
+
+export function SenseiCalendar({
+  entries,
+  selectedDate,
+  onDateSelect,
+  activeFilter,
+  onFilterChange,
+}: SenseiCalendarProps) {
+  const [viewDate, setViewDate] = useState(() => new Date())
+  const viewYear = viewDate.getFullYear()
+  const viewMonth = viewDate.getMonth()
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay()
   const today = new Date()
-  const queryClient = useQueryClient()
-  const [viewYear, setViewYear] = useState(today.getFullYear())
-  const [viewMonth, setViewMonth] = useState(today.getMonth())
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
-  const [promotionNote, setPromotionNote] = useState("")
-  const [promotionBelt, setPromotionBelt] = useState("blue")
-  const [promotionStripes, setPromotionStripes] = useState(3)
-  const [showPromotionForm, setShowPromotionForm] = useState<string | null>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
+  const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate())
+  const monthKey = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`
 
-  // 컨텍스트 메뉴 외부 클릭 닫기
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setContextMenu(null)
-      }
+  const monthEntries = useMemo(
+    () => entries.filter((entry) => entry.date?.startsWith(monthKey)),
+    [entries, monthKey],
+  )
+  const summaries = useMemo(() => {
+    const entriesByDate = new Map<string, SenseiEntry[]>()
+    for (const entry of monthEntries) {
+      if (!entry.date) continue
+      const current = entriesByDate.get(entry.date) ?? []
+      current.push(entry)
+      entriesByDate.set(entry.date, current)
     }
-    if (contextMenu) {
-      document.addEventListener("mousedown", handleClick)
-      return () => document.removeEventListener("mousedown", handleClick)
-    }
-  }, [contextMenu])
+    return new Map(
+      [...entriesByDate.entries()].map(([date, dayEntries]) => [date, summarizeDay(dayEntries)]),
+    )
+  }, [monthEntries])
 
-  const entriesQuery = useQuery({
-    queryKey: ["sensei-entries"],
-    queryFn: async () => {
-      const res = await fetch("/api/notion/sensei")
-      if (!res.ok) throw new Error("수련 기록 조회 실패")
-      return res.json() as Promise<SenseiEntry[]>
-    },
-  })
-
-  const promotionMutation = useMutation({
-    mutationFn: async ({ date, note }: { date: string; note?: string }) => {
-      const res = await fetch("/api/notion/sensei", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "promotion", date, note: note || undefined }),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: "저장 실패" }))
-        throw new Error(body.error ?? "저장 실패")
-      }
-      return res.json()
-    },
-    onSuccess: () => {
-      setShowPromotionForm(null)
-      setPromotionNote("")
-      queryClient.invalidateQueries({ queryKey: ["sensei-entries"] })
-    },
-  })
-
-  const entries = entriesQuery.data ?? []
-
-  const dateMap = new Map<string, SenseiEntry[]>()
-  for (const entry of entries) {
-    if (!entry.date) continue
-    const key = entry.date.slice(0, 10)
-    const list = dateMap.get(key) ?? []
-    list.push(entry)
-    dateMap.set(key, list)
-  }
-
-  const { firstDay, daysInMonth } = getMonthData(viewYear, viewMonth)
-  const selectedEntries = selectedDate ? (dateMap.get(selectedDate) ?? []) : []
-
-  const totalThisMonth = Array.from(dateMap.entries())
-    .filter(([key]) => key.startsWith(`${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`))
-    .reduce((sum, [, list]) => sum + list.length, 0)
-
-  function prevMonth() {
-    if (viewMonth === 0) {
-      setViewYear(viewYear - 1)
-      setViewMonth(11)
-    } else {
-      setViewMonth(viewMonth - 1)
-    }
-    setSelectedDate(null)
-  }
-
-  function nextMonth() {
-    if (viewMonth === 11) {
-      setViewYear(viewYear + 1)
-      setViewMonth(0)
-    } else {
-      setViewMonth(viewMonth + 1)
-    }
-    setSelectedDate(null)
-  }
-
-  function sessionBadge(type: string) {
-    if (type === "promotion") return { label: "승급식", border: "border-yellow-500/40", text: "text-yellow-300" }
-    if (type === "openmat") return { label: "Open Mat", border: "border-green-500/40", text: "text-green-300" }
-    return { label: "Class", border: "border-purple-500/40", text: "text-purple-300" }
+  function moveMonth(offset: number) {
+    setViewDate(new Date(viewYear, viewMonth + offset, 1))
+    onDateSelect(null)
   }
 
   return (
-    <div className="border border-border rounded-xl p-4 bg-card space-y-4 relative">
-      <div className="flex items-center justify-between">
+    <div className="rounded-2xl border border-border bg-card p-3 sm:p-5">
+      <div className="mb-4 flex items-center justify-between">
         <Button
           variant="outline"
           size="sm"
-          className="text-xs h-7 border-border text-foreground/90"
-          onClick={prevMonth}
+          aria-label="이전 달"
+          className="size-11 rounded-full border-border bg-background/40 p-0 text-sm text-foreground/90 hover:bg-muted"
+          onClick={() => moveMonth(-1)}
         >
-          ◀
+          ←
         </Button>
         <div className="text-center">
-          <p className="text-foreground text-sm font-medium">
+          <p className="text-lg font-semibold tracking-tight text-foreground num">
             {viewYear}년 {viewMonth + 1}월
           </p>
-          <p className="text-muted-foreground text-xs">
-            이번 달 {totalThisMonth}회 수련
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            <span className="font-semibold text-orange-400 num">{monthEntries.length}회</span> 훈련 기록
           </p>
         </div>
         <Button
           variant="outline"
           size="sm"
-          className="text-xs h-7 border-border text-foreground/90"
-          onClick={nextMonth}
+          aria-label="다음 달"
+          className="size-11 rounded-full border-border bg-background/40 p-0 text-sm text-foreground/90 hover:bg-muted"
+          onClick={() => moveMonth(1)}
         >
-          ▶
+          →
         </Button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
+      <div className="mb-4 flex flex-wrap items-center justify-center gap-2 border-b border-border pb-3 text-[11px] text-muted-foreground">
+        {FILTERS.map((filter) => {
+          const isActive = activeFilter === filter.key
+          return (
+            <button
+              key={filter.key}
+              type="button"
+              aria-label={`${filter.label} 필터`}
+              aria-pressed={isActive}
+              onClick={() => onFilterChange(isActive ? null : filter.key)}
+              className={`inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70 ${
+                isActive
+                  ? filter.active
+                  : "border-border bg-background/35 text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              <span className={`size-2 rounded-full ${filter.dot}`} aria-hidden="true" />
+              {filter.label}
+            </button>
+          )
+        })}
+        <span className="ml-auto hidden sm:inline">날짜를 누르면 우측에 상세가 열려</span>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
         {WEEKDAYS.map((day) => (
           <div
             key={day}
-            className={`text-center text-xs py-1 ${day === "일" ? "text-red-400" : day === "토" ? "text-blue-400" : "text-muted-foreground"}`}
+            className={`py-1 text-center text-[10px] font-semibold ${
+              day === "일"
+                ? "text-red-400"
+                : day === "토"
+                  ? "text-blue-400"
+                  : "text-muted-foreground"
+            }`}
           >
             {day}
           </div>
         ))}
 
-        {Array.from({ length: firstDay }).map((_, i) => (
-          <div key={`empty-${String(i)}`} className="min-h-[2.75rem]" />
+        {Array.from({ length: firstDay }, (_, index) => (
+          <div key={`empty-${index}`} className="min-h-20 sm:min-h-24 lg:min-h-28" />
         ))}
 
-        {Array.from({ length: daysInMonth }).map((_, i) => {
-          const day = i + 1
-          const dateKey = toDateKey(viewYear, viewMonth, day)
-          const dayEntries = dateMap.get(dateKey)
-          const hasEntry = !!dayEntries
-          const isToday = dateKey === toDateKey(today.getFullYear(), today.getMonth(), today.getDate())
-          const isSelected = dateKey === selectedDate
-          const hasClass = dayEntries?.some((e) => e.sessionType === "class")
-          const hasOpenMat = dayEntries?.some((e) => e.sessionType === "openmat")
-          const hasPromotion = dayEntries?.some((e) => e.sessionType === "promotion")
-          const dayTags = dayEntries
-            ? [...new Set([...dayEntries.flatMap((e) => e.classTags), ...dayEntries.flatMap((e) => e.sparringTags)])]
+        {Array.from({ length: daysInMonth }, (_, index) => {
+          const day = index + 1
+          const currentDate = dateKey(viewYear, viewMonth, day)
+          const summary = summaries.get(currentDate)
+          const isSelected = selectedDate === currentDate
+          const isToday = todayKey === currentDate
+          const keywords = summary
+            ? [
+                ...(activeFilter === null || activeFilter === "class" ? summary.classKeywords : []),
+                ...(activeFilter === null || activeFilter === "sparring" ? summary.sparringKeywords : []),
+                ...(activeFilter === null || activeFilter === "study" ? summary.studyKeywords : []),
+              ]
             : []
+          const ruleSetLabel = summary?.ruleSets
+            .map((ruleSet) => ruleSet === "gi" ? "Gi" : "No-Gi")
+            .join("/") ?? ""
 
           return (
             <button
-              key={dateKey}
+              key={currentDate}
               type="button"
-              onClick={() => {
-                const newDate = isSelected ? null : dateKey
-                setSelectedDate(newDate)
-                if (newDate) onDateSelect?.(newDate)
-              }}
-              onContextMenu={(e) => {
-                e.preventDefault()
-                setContextMenu({ x: e.clientX, y: e.clientY, date: dateKey })
-              }}
-              className={`
-                relative rounded-md text-xs flex flex-col items-center justify-start pt-1 min-h-[2.75rem] transition-colors overflow-hidden
-                ${isSelected ? "ring-2 ring-orange-500 bg-muted" : ""}
-                ${isToday && !isSelected ? "ring-1 ring-zinc-500" : ""}
-                ${hasPromotion ? "bg-yellow-900/40 hover:bg-yellow-800/50 cursor-pointer font-bold ring-1 ring-yellow-500/50" : ""}
-                ${hasEntry && !hasPromotion ? "bg-muted hover:bg-muted cursor-pointer font-medium" : ""}
-                ${!hasEntry ? "text-muted-foreground/70 hover:bg-muted/50" : ""}
-                ${hasEntry ? "text-foreground" : ""}
-              `}
+              aria-label={[
+                `${viewMonth + 1}월 ${day}일`,
+                ...keywords,
+                ...(ruleSetLabel ? [ruleSetLabel] : []),
+              ].join(", ")}
+              onClick={() => onDateSelect(currentDate)}
+              className={`relative flex min-h-20 min-w-0 flex-col overflow-hidden rounded-lg border p-1 text-left transition-colors sm:min-h-24 sm:p-2 lg:min-h-28 ${
+                isSelected
+                  ? "border-orange-400 bg-orange-500/12 ring-2 ring-orange-500/30"
+                  : summary
+                    ? "border-border bg-muted/55 hover:bg-muted"
+                    : "border-transparent text-muted-foreground/60 hover:bg-muted/35"
+              } ${isToday && !isSelected ? "border-zinc-500" : ""}`}
             >
-              {hasPromotion && (
-                <span className="absolute top-0 right-0.5 text-[8px] leading-none">🏅</span>
+              <div className="flex w-full items-center">
+                <span className="text-xs font-medium num">{day}</span>
+              </div>
+              {summary && summary.ruleSets.length > 0 && (
+                <span className={`mt-0.5 w-full text-right text-[10px] font-semibold leading-3 ${
+                    summary.ruleSets.includes("nogi") ? "text-blue-300" : "text-zinc-300"
+                  }`}>
+                  {ruleSetLabel}
+                </span>
               )}
-              <span className="leading-none">{day}</span>
-              {dayTags.length > 0 && (
-                <div className="flex flex-wrap justify-center gap-x-0.5 gap-y-0 mt-0.5 max-w-full px-px">
-                  {dayTags.slice(0, 2).map((tag) => (
-                    <span key={tag} className="text-[7px] leading-tight text-orange-300/80">{tag}</span>
-                  ))}
-                  {dayTags.length > 2 && (
-                    <span className="text-[7px] leading-tight text-muted-foreground">+{dayTags.length - 2}</span>
+
+              {summary && (
+                <>
+                  <div className="mt-0.5 w-full min-w-0 space-y-0.5 sm:mt-1 sm:space-y-1">
+                    {(activeFilter === null || activeFilter === "class") && (
+                      <KeywordRow
+                        color="bg-purple-400"
+                        label="수업"
+                        keywords={summary.classKeywords}
+                      />
+                    )}
+                    {(activeFilter === null || activeFilter === "sparring") && (
+                      <KeywordRow
+                        color="bg-blue-400"
+                        label="스파링"
+                        keywords={summary.sparringKeywords}
+                      />
+                    )}
+                    {(activeFilter === null || activeFilter === "study") && (
+                      <KeywordRow
+                        color="bg-green-400"
+                        label="공부"
+                        keywords={summary.studyKeywords}
+                      />
+                    )}
+                  </div>
+                  {summary.hasPromotion && (
+                    <span className="absolute bottom-1 right-1 size-1.5 rounded-full bg-yellow-400" aria-label="승급" />
                   )}
-                </div>
-              )}
-              {hasEntry && (
-                <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex gap-0.5">
-                  {hasClass && <div className="w-1 h-1 rounded-full bg-purple-400" />}
-                  {hasOpenMat && <div className="w-1 h-1 rounded-full bg-green-400" />}
-                  {hasPromotion && <div className="w-1.5 h-1.5 rounded-full bg-yellow-400" />}
-                </div>
+                </>
               )}
             </button>
           )
         })}
       </div>
 
-      {/* 우클릭 컨텍스트 메뉴 */}
-      {contextMenu && (
-        <div
-          ref={menuRef}
-          className="fixed z-50 bg-muted border border-border rounded-lg shadow-xl py-1 min-w-[160px]"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-        >
-          <p className="px-3 py-1 text-muted-foreground text-[10px] border-b border-border">
-            {contextMenu.date}
-          </p>
-          <button
-            type="button"
-            className="w-full text-left px-3 py-2 text-sm text-yellow-300 hover:bg-muted flex items-center gap-2"
-            onClick={() => {
-              setShowPromotionForm(contextMenu.date)
-              setPromotionNote("")
-              setContextMenu(null)
-            }}
-          >
-            🏅 승급식 입력
-          </button>
-        </div>
-      )}
-
-      {/* 승급식 입력 폼 */}
-      {showPromotionForm && (
-        <div className="border border-yellow-500/40 rounded-lg p-4 bg-muted/80 space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-yellow-300 text-sm font-medium">🏅 승급식 입력 — {showPromotionForm}</p>
-            <button
-              type="button"
-              onClick={() => setShowPromotionForm(null)}
-              className="text-muted-foreground hover:text-foreground text-xs"
-            >
-              ✕
-            </button>
-          </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <label className="text-foreground/90 text-xs font-medium">벨트</label>
-            <select
-              value={promotionBelt}
-              onChange={(e) => setPromotionBelt(e.target.value)}
-              className="rounded-lg border border-border bg-muted text-foreground px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-yellow-500 [color-scheme:dark]"
-            >
-              <option value="white">White</option>
-              <option value="blue">Blue</option>
-              <option value="purple">Purple</option>
-              <option value="brown">Brown</option>
-              <option value="black">Black</option>
-            </select>
-            <label className="text-foreground/90 text-xs font-medium">그랄</label>
-            <select
-              value={promotionStripes}
-              onChange={(e) => setPromotionStripes(Number(e.target.value))}
-              className="rounded-lg border border-border bg-muted text-foreground px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-yellow-500 [color-scheme:dark]"
-            >
-              {[0, 1, 2, 3, 4].map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-          <textarea
-            value={promotionNote}
-            onChange={(e) => setPromotionNote(e.target.value)}
-            placeholder="승급 내용 메모 (선택사항)"
-            className="w-full min-h-16 rounded-lg border border-border bg-muted text-foreground placeholder:text-muted-foreground p-3 text-sm outline-none focus:ring-2 focus:ring-yellow-500"
-          />
-          {promotionMutation.isError && (
-            <p className="text-red-400 text-xs">오류: {promotionMutation.error.message}</p>
-          )}
-          <Button
-            type="button"
-            className="w-full bg-yellow-600 hover:bg-yellow-500 text-foreground"
-            disabled={promotionMutation.isPending}
-            onClick={() => {
-              const beltTag = `[BELT:${promotionBelt}:${promotionStripes}]`
-              const fullNote = promotionNote.trim() ? `${beltTag} ${promotionNote.trim()}` : beltTag
-              promotionMutation.mutate({ date: showPromotionForm, note: fullNote })
-            }}
-          >
-            {promotionMutation.isPending ? "저장 중..." : "승급식 저장"}
-          </Button>
-        </div>
-      )}
-
-      {selectedDate && (
-        <div className="space-y-2 pt-2 border-t border-border">
-          <p className="text-muted-foreground text-xs">{selectedDate} 수련 기록</p>
-          {selectedEntries.length === 0 ? (
-            <p className="text-muted-foreground text-xs">기록이 없습니다.</p>
-          ) : (
-            selectedEntries.map((entry) => {
-              const badge = sessionBadge(entry.sessionType)
-              return (
-                <div key={entry.id} className={`border rounded-lg p-3 bg-muted/50 space-y-2 ${entry.sessionType === "promotion" ? "border-yellow-500/40" : "border-border"}`}>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-foreground text-sm font-medium">{entry.title}</p>
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] ${badge.border} ${badge.text}`}
-                    >
-                      {badge.label}
-                    </Badge>
-                    {entry.instructor && (
-                      <Badge variant="outline" className="text-[10px] border-border text-foreground/90">
-                        {entry.instructor}
-                      </Badge>
-                    )}
-                  </div>
-                  {(entry.classTags.length > 0 || entry.sparringTags.length > 0) && (
-                    <div className="flex flex-wrap gap-1">
-                      {entry.classTags.map((tag) => (
-                        <Badge key={`cal-c-${entry.id}-${tag}`} variant="outline" className="text-[10px] border-orange-500/40 text-orange-300">
-                          Class: {tag}
-                        </Badge>
-                      ))}
-                      {entry.sparringTags.map((tag) => (
-                        <Badge key={`cal-s-${entry.id}-${tag}`} variant="outline" className="text-[10px] border-blue-500/40 text-blue-300">
-                          Sparring: {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                  {entry.note && <p className="text-foreground/90 text-xs whitespace-pre-wrap">{entry.note}</p>}
-                </div>
-              )
-            })
-          )}
-        </div>
-      )}
     </div>
   )
 }

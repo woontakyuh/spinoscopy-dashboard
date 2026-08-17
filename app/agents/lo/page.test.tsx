@@ -106,7 +106,8 @@ describe("Lo legacy feature regression", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /training/i }))
     expect(screen.getByText("Training calendar")).toBeVisible()
-    expect(screen.getByText("Training capture")).toBeVisible()
+    expect(screen.queryByText("Training capture")).not.toBeInTheDocument()
+    expect(screen.getByText("날짜를 선택해")).toBeVisible()
   })
 
   it("restores competitions and concept memory", () => {
