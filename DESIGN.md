@@ -23,6 +23,9 @@ identity remain legible without turning the dashboard into a decorative control 
   while document content scrolls.
 - Mobile (below `md`): the sidebar is replaced by a fixed bottom navigation. The main
   region reserves 4rem plus the device safe-area inset so content remains reachable.
+- Data dashboards use the full available main width without a fixed `max-width`; only
+  reading-focused prose surfaces may use a content limiter.
+- Page gutters are 12px on mobile and 24px from `md` upward.
 - Full-height shell regions use dynamic viewport units so browser chrome changes do not
   move persistent navigation.
 
@@ -56,6 +59,7 @@ identity remain legible without turning the dashboard into a decorative control 
 - Long labels truncate or wrap intentionally without widening the 64px sidebar.
 - The desktop sidebar may scroll internally if its navigation exceeds viewport height.
 - At 375px, primary content remains single-column with no horizontal overflow.
+- Tabs may own intentional horizontal scrolling; the page content region must not.
 
 ## 7. Accepted Debt
 

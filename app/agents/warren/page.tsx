@@ -125,7 +125,7 @@ export default function VaultPage() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-w-0 p-3 md:p-6 max-w-[1680px] w-full">
+      <div className="flex-1 min-w-0 w-full p-3 md:p-6">
         <AgentChat
           agentId="warren"
           image="/warren.png"
