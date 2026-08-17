@@ -27,7 +27,7 @@ export function ClientLayout({
       ) : (
         <div className="flex min-h-screen">
           <Sidebar />
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto pb-[calc(4rem+env(safe-area-inset-bottom))] md:ml-16 md:pb-0">
             {children}
           </main>
         </div>

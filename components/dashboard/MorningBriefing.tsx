@@ -614,7 +614,7 @@ function DakotaGreetingChat({
         // 데모: 말풍선 없이 날씨/날짜만 평문으로
         <div className="flex-1 min-w-0 mt-2">
           <div className="mt-1"><WeatherInline /></div>
-          <p className="text-muted-foreground text-xs md:text-sm mt-1">
+          <p className="break-keep text-muted-foreground text-xs md:text-sm mt-1">
             {dateStr}{weatherLocation && <span className="ml-2 text-muted-foreground/70">· {weatherLocation}</span>}
           </p>
         </div>
@@ -627,11 +627,11 @@ function DakotaGreetingChat({
             title="클릭해서 Dakota와 대화"
           >
             <span aria-hidden className="absolute -left-2 top-3 w-3 h-3 rotate-45 bg-card border-l border-t border-border" />
-            <h2 className="text-base md:text-lg font-semibold text-foreground tracking-tight">
+            <h2 className="break-keep text-base md:text-lg font-semibold text-foreground tracking-tight">
               {greeting}
             </h2>
             <div className="mt-1"><WeatherInline /></div>
-            <p className="text-muted-foreground text-xs md:text-sm mt-1">
+            <p className="break-keep text-muted-foreground text-xs md:text-sm mt-1">
               {dateStr}{weatherLocation && <span className="ml-2 text-muted-foreground/70">· {weatherLocation}</span>}
             </p>
           </div>
