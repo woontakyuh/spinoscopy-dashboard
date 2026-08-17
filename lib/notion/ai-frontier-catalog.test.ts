@@ -4,7 +4,10 @@ import type { AiFrontierEpisode } from "@/lib/types/ai-frontier"
 import type { AiFrontierCatalogEpisode } from "@/lib/types/ai-frontier-import"
 
 import type { AiFrontierNotionRequest } from "./ai-frontier"
-import { syncAiFrontierCatalog } from "./ai-frontier-catalog"
+import {
+  runAiFrontierCatalogSync,
+  syncAiFrontierCatalog,
+} from "./ai-frontier-catalog"
 
 const catalog: AiFrontierCatalogEpisode[] = [
   {
@@ -49,6 +52,45 @@ function existingEpisode(overrides: Partial<AiFrontierEpisode> = {}): AiFrontier
 }
 
 describe("AI Frontier 카탈로그 Notion 동기화", () => {
+  it("공식 카탈로그와 Notion 인덱스를 읽어 동기화 결과를 반환한다", async () => {
+    const loadCatalog = vi.fn(async () => catalog)
+    const loadIndex = vi.fn(async () => ({
+      status: "ok" as const,
+      sources: { episodes: "ok" as const, concepts: "ok" as const },
+      episodes: [existingEpisode()],
+      concepts: [],
+      episodeIndex: { EP107: "page-107" },
+    }))
+    const sync = vi.fn(async () => ({ created: 1, updated: 0, unchanged: 1 }))
+
+    const result = await runAiFrontierCatalogSync({ loadCatalog, loadIndex, sync })
+
+    expect(result).toEqual({
+      catalog: 2,
+      created: 1,
+      updated: 0,
+      unchanged: 1,
+    })
+    expect(sync).toHaveBeenCalledWith(catalog, [existingEpisode()])
+  })
+
+  it("Notion Episodes DB를 읽지 못하면 쓰기를 시작하지 않는다", async () => {
+    const sync = vi.fn(async () => ({ created: 0, updated: 0, unchanged: 0 }))
+
+    await expect(runAiFrontierCatalogSync({
+      loadCatalog: async () => catalog,
+      loadIndex: async () => ({
+        status: "partial",
+        sources: { episodes: "unavailable", concepts: "ok" },
+        episodes: [],
+        concepts: [],
+        episodeIndex: {},
+      }),
+      sync,
+    })).rejects.toThrow("AI Frontier Episodes DB를 읽지 못했습니다.")
+    expect(sync).not.toHaveBeenCalled()
+  })
+
   it("기존 완료 Episode는 정리를 보존하고 공식 링크만 보완한다", async () => {
     const request = vi.fn<AiFrontierNotionRequest>(async () => ({}))
 

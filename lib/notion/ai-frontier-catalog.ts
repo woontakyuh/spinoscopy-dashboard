@@ -1,9 +1,11 @@
+import { fetchAiFrontierCatalog } from "@/lib/andrej/frontier-catalog"
 import type { AiFrontierEpisode } from "@/lib/types/ai-frontier"
 import type { AiFrontierCatalogEpisode } from "@/lib/types/ai-frontier-import"
 
 import { notionRequest } from "./client"
 import {
   AI_FRONTIER_EPISODES_DB_ID,
+  getAiFrontierIndex,
   type AiFrontierNotionRequest,
 } from "./ai-frontier"
 
@@ -18,9 +20,25 @@ interface CatalogSyncDependencies {
   pause(): Promise<void>
 }
 
+interface CatalogRunDependencies {
+  loadCatalog(): Promise<AiFrontierCatalogEpisode[]>
+  loadIndex(): Promise<Awaited<ReturnType<typeof getAiFrontierIndex>>>
+  sync(
+    catalog: AiFrontierCatalogEpisode[],
+    existingEpisodes: AiFrontierEpisode[]
+  ): Promise<CatalogSyncResult>
+}
+
 const defaultDependencies: CatalogSyncDependencies = {
   request: (path, options) => notionRequest<unknown>(path, options),
   pause: () => new Promise((resolve) => setTimeout(resolve, 350)),
+}
+
+const defaultRunDependencies: CatalogRunDependencies = {
+  loadCatalog: () => fetchAiFrontierCatalog(),
+  loadIndex: () => getAiFrontierIndex(),
+  sync: (catalog, existingEpisodes) =>
+    syncAiFrontierCatalog(catalog, existingEpisodes),
 }
 
 function title(content: string) {
@@ -114,4 +132,16 @@ export async function syncAiFrontierCatalog(
   }
 
   return result
+}
+
+export async function runAiFrontierCatalogSync(
+  dependencies: CatalogRunDependencies = defaultRunDependencies
+): Promise<CatalogSyncResult & { catalog: number }> {
+  const catalog = await dependencies.loadCatalog()
+  const index = await dependencies.loadIndex()
+  if (index.sources.episodes !== "ok") {
+    throw new Error("AI Frontier Episodes DB를 읽지 못했습니다.")
+  }
+  const result = await dependencies.sync(catalog, index.episodes)
+  return { catalog: catalog.length, ...result }
 }
