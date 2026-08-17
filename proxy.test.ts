@@ -238,8 +238,8 @@ describe("proxy middleware — authentication gate", () => {
       expect(response.status).not.toBe(307)
     })
 
-    it("allows anonymous /api/toss/account without auth", () => {
-      const req = createRequest("/api/toss/account")
+    it("allows anonymous /api/vault/prices without auth", () => {
+      const req = createRequest("/api/vault/prices")
       const response = proxy(req)
 
       expect(response.status).not.toBe(307)
