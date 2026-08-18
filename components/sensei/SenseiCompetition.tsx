@@ -9,15 +9,13 @@ import {
   saveMyCompetitions,
   FOLLOWED_EVENTS,
 } from "@/lib/sensei/competitions"
+import { competitionDday, getSeoulDateKey } from "@/lib/sensei/date"
 import type { MyCompetition, FollowedEvent } from "@/lib/types/sensei"
 
 // ─── date utils (MonthCalendar 스타일) ─────────────────────────
 
-function getTodaySeoul(): string {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
-}
 function getCurrentMonthSeoul(): string {
-  return getTodaySeoul().slice(0, 7)
+  return getSeoulDateKey().slice(0, 7)
 }
 function getMonthLabel(month: string): string {
   const [y, m] = month.split("-").map(Number)
@@ -49,13 +47,6 @@ function formatSelectedDate(dateStr: string): string {
     weekday: "long",
   })
 }
-function dDay(dateStr: string): string {
-  const diff = Math.ceil((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-  if (diff > 0) return `D-${diff}`
-  if (diff === 0) return "D-Day"
-  return `D+${Math.abs(diff)}`
-}
-
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"]
 
 // ─── 통합 이벤트 모델 ────────────────────────────────────────
@@ -71,6 +62,8 @@ interface CalendarEvent {
   division?: string
   status?: MyCompetition["status"]
   coachEntries?: FollowedEvent["coachEntries"]
+  notes?: string
+  url?: string
 }
 
 function myCompToEvent(c: MyCompetition): CalendarEvent {
@@ -97,6 +90,8 @@ function followedToEvent(e: FollowedEvent): CalendarEvent {
     location: e.location,
     organization: e.organization,
     coachEntries: e.coachEntries,
+    notes: e.notes,
+    url: e.url,
   }
 }
 
@@ -156,7 +151,7 @@ const INITIAL_FORM: Omit<MyCompetition, "id"> = {
 export function SenseiCompetition() {
   const [comps, setComps] = useState<MyCompetition[]>([])
   const [mounted, setMounted] = useState(false)
-  const today = getTodaySeoul()
+  const today = getSeoulDateKey()
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonthSeoul)
   const [selectedDate, setSelectedDate] = useState(today)
   const [showForm, setShowForm] = useState(false)
@@ -226,7 +221,7 @@ export function SenseiCompetition() {
   const firstDay = getFirstDayOfWeek(currentMonth)
 
   const goToToday = () => {
-    const t = getTodaySeoul()
+    const t = getSeoulDateKey()
     setCurrentMonth(t.slice(0, 7))
     setSelectedDate(t)
   }
@@ -264,7 +259,7 @@ export function SenseiCompetition() {
       {/* === Calendar === */}
       <div className="rounded-xl border border-border bg-card/50 p-4">
         {/* Header */}
-        <div className="flex items-center justify-between mb-3">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setCurrentMonth(prevMonth(currentMonth))}
@@ -335,7 +330,7 @@ export function SenseiCompetition() {
               <button
                 key={dateStr}
                 onClick={() => setSelectedDate(dateStr)}
-                className={`p-1 flex flex-col items-start rounded-lg text-sm transition-colors relative min-h-[60px] md:min-h-[72px] overflow-hidden
+                className={`p-1 flex flex-col items-start rounded-lg text-sm transition-colors relative min-h-[68px] md:min-h-[76px] overflow-hidden
                   ${isSelected ? "bg-muted ring-1 ring-amber-500" : "hover:bg-muted/60"}
                   ${isToday && !isSelected ? "ring-1 ring-zinc-600" : ""}
                 `}
@@ -352,7 +347,8 @@ export function SenseiCompetition() {
                 {dayEvents.slice(0, 3).map((ev, ei) => (
                   <div
                     key={ei}
-                    className={`w-full truncate text-[8px] md:text-[9px] leading-tight px-0.5 rounded-sm mt-px ${eventChipClass(ev)}`}
+                    title={ev.title}
+                    className={`mt-px w-full truncate rounded-sm px-0.5 text-[9px] leading-tight md:text-[10px] ${eventChipClass(ev)}`}
                   >
                     {ev.title}
                   </div>
@@ -375,12 +371,12 @@ export function SenseiCompetition() {
             </h4>
             <span
               className={`text-xs font-mono ${
-                new Date(selectedDate) < new Date(today)
+                selectedDate < today
                   ? "text-muted-foreground/70"
                   : "text-amber-400"
               }`}
             >
-              {dDay(selectedDate)}
+              {competitionDday(selectedDate, today)}
             </span>
           </div>
 
@@ -471,8 +467,8 @@ export function SenseiCompetition() {
           <LegendDot color="bg-green-500" label="등록완료" />
           <LegendDot color="bg-blue-500" label="참가예정" />
           <LegendDot color="bg-purple-500" label="완료" />
-          <LegendDot color="bg-amber-500" label="조준용 coach" />
-          <LegendDot color="bg-zinc-500" label="팔로잉 (major)" />
+          <LegendDot color="bg-amber-500" label="코치 출전·관심" />
+          <LegendDot color="bg-zinc-500" label="검증된 대회 일정" />
         </div>
       </div>
     </div>
@@ -530,6 +526,21 @@ function EventCard({
                   </Badge>
                 ))}
               </div>
+            )}
+            {event.notes && (
+              <p className="mt-1.5 text-[11px] text-muted-foreground/80">
+                {event.notes}
+              </p>
+            )}
+            {event.url && (
+              <a
+                href={event.url}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1.5 inline-flex text-[11px] font-medium text-orange-400 hover:text-orange-300"
+              >
+                공식·등록 페이지 ↗
+              </a>
             )}
           </div>
         </div>
