@@ -56,7 +56,7 @@ export const POSITIONS: Position[] = [
   { id: "ns_top", name: "North-South", nameKr: "노스사우스", layer: "control", perspective: "top", ruleSet: "common" },
   { id: "turtle_top", name: "Turtle (attacking)", nameKr: "터틀 공격", layer: "control", perspective: "top", lessonNumbers: [54], ruleSet: "common" },
 
-  // Control — Bottom (불리)
+  // Defense — Bottom (탈출 시작점)
   { id: "side_bottom", name: "Side (bottom)", nameKr: "사이드 당함", layer: "control", perspective: "bottom", lessonNumbers: [1, 3], ruleSet: "common" },
   { id: "kob_bottom", name: "KoB (bottom)", nameKr: "니온벨리 당함", layer: "control", perspective: "bottom", lessonNumbers: [19], ruleSet: "common" },
   { id: "mount_bottom", name: "Mount (bottom)", nameKr: "마운트 당함", layer: "control", perspective: "bottom", lessonNumbers: [40, 41, 42], ruleSet: "common" },

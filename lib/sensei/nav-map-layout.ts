@@ -1,6 +1,8 @@
 import type { Position, PositionLayer } from "@/lib/types/sensei"
 import type { NavMapPoint } from "@/lib/sensei/nav-map-focus"
 
+export type NavMapLayer = PositionLayer | "defense"
+
 export const NAV_MAP_WIDTH = 1200
 export const GUARD_START_Y = 100
 export const GUARD_HEIGHT = 380
@@ -15,16 +17,23 @@ export const GUARD_FAMILY_Y: Readonly<Record<string, number>> = {
   butterfly: 310,
 }
 
-export const LAYER_Y_MAP: Readonly<Record<PositionLayer, number>> = {
+export const LAYER_Y_MAP: Readonly<Record<NavMapLayer, number>> = {
   standing: 40,
   guard: GUARD_START_Y,
   passing: GUARD_START_Y,
   submission: GUARD_START_Y + GUARD_HEIGHT + 40,
   control: GUARD_START_Y + GUARD_HEIGHT + 160,
-  leglock: GUARD_START_Y + GUARD_HEIGHT + 280,
+  defense: GUARD_START_Y + GUARD_HEIGHT + 280,
+  leglock: GUARD_START_Y + GUARD_HEIGHT + 400,
 }
 
 export const NAV_MAP_HEIGHT = LAYER_Y_MAP.leglock + 80
+
+export function getNavMapLayer(position: Position): NavMapLayer {
+  return position.layer === "control" && position.perspective === "bottom"
+    ? "defense"
+    : position.layer
+}
 
 const PASSING_ROW_Y = [
   GUARD_START_Y + GUARD_FAMILY_Y.closed,
@@ -54,10 +63,10 @@ function placeRow(
 export function buildNavMapLayout(positions: readonly Position[]): Record<string, NavMapPoint> {
   const map: Record<string, NavMapPoint> = {}
 
-  for (const layer of ["standing", "control", "leglock", "submission"] as const) {
+  for (const layer of ["standing", "control", "defense", "leglock", "submission"] as const) {
     placeRow(
       map,
-      positions.filter((position) => position.layer === layer),
+      positions.filter((position) => getNavMapLayer(position) === layer),
       { x: 80, y: LAYER_Y_MAP[layer], width: NAV_MAP_WIDTH - 120 },
     )
   }

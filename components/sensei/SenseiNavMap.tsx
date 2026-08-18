@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useSenseiData } from "@/lib/sensei/useSenseiData"
 import { loadMyStrategies } from "@/lib/sensei/strategies"
-import type { FinishEvidenceKind, Position, PositionLayer, TransitionType, SenseiEntry, BjjStats, Strategy } from "@/lib/types/sensei"
+import type { FinishEvidenceKind, Position, TransitionType, SenseiEntry, BjjStats, Strategy } from "@/lib/types/sensei"
 import {
   buildFocusGraph,
   getTransitionKey,
@@ -18,22 +18,26 @@ import {
   GUARD_HEIGHT,
   GUARD_START_Y,
   LAYER_Y_MAP,
+  getNavMapLayer,
   NAV_MAP_HEIGHT,
   NAV_MAP_WIDTH,
   PASSING_REGION_X,
+  type NavMapLayer,
 } from "@/lib/sensei/nav-map-layout"
 import {
   buildEvidenceFinishTransitions,
   mergeEvidenceFinishTransitions,
   type ConceptEvidenceNote,
 } from "@/lib/sensei/evidenceFinishConnections"
+import { buildEvidencePositionTransitions } from "@/lib/sensei/evidencePositionConnections"
 
 // ─── Colors ─────────────────────────────────────────────────
-const LAYER_COLORS: Record<PositionLayer, string> = {
+const LAYER_COLORS: Record<NavMapLayer, string> = {
   standing: "#71717a",
   guard: "#3b82f6",
   passing: "#22c55e",
   control: "#f59e0b",
+  defense: "#eab308",
   submission: "#ef4444",
   leglock: "#dc2626",
 }
@@ -258,12 +262,19 @@ export function SenseiNavMap() {
     ),
     [conceptNotes, positions, trainingEntries],
   )
+  const evidencePositionTransitions = useMemo(
+    () => buildEvidencePositionTransitions(
+      trainingEntries ?? [],
+      positions,
+    ),
+    [positions, trainingEntries],
+  )
   const transitions = useMemo(
     () => mergeEvidenceFinishTransitions(
       storedTransitions,
-      evidenceFinishTransitions,
+      [...evidenceFinishTransitions, ...evidencePositionTransitions],
     ),
-    [evidenceFinishTransitions, storedTransitions],
+    [evidenceFinishTransitions, evidencePositionTransitions, storedTransitions],
   )
 
   // Tag frequencies (for skill levels)
@@ -348,8 +359,11 @@ export function SenseiNavMap() {
   const compactFocus = viewMode === "focus" && isCompact
   const compactMap = viewMode === "map" && isCompact
   const nodeVisualScale = (positionId: string) => {
-    if (!compactFocus) return 1
-    return positionId === selectedNodeId ? 2.5 : 1.75
+    if (viewMode !== "focus") return 1
+    if (compactFocus) {
+      return positionId === selectedNodeId ? 2.5 : 1.75
+    }
+    return positionId === selectedNodeId ? 1.8 : 1.45
   }
   const focusLabelScale = compactFocus ? 1.75 : 1
 
@@ -419,7 +433,6 @@ export function SenseiNavMap() {
   ) => {
     if (event.button !== 0) return
     event.stopPropagation()
-    if (viewMode !== "map") return
     event.currentTarget.setPointerCapture(event.pointerId)
     draggedNode.current = {
       id: positionId,
@@ -428,7 +441,7 @@ export function SenseiNavMap() {
       startPoint: point,
       moved: false,
     }
-  }, [viewMode])
+  }, [])
 
   const resetZoom = useCallback(() => setViewBox(FULL_VIEW_BOX), [])
 
@@ -481,7 +494,7 @@ export function SenseiNavMap() {
     [filteredPositions, focusGraph, viewMode],
   )
   const displayedLayers = useMemo(
-    () => new Set(displayedPositions.map((position) => position.layer)),
+    () => new Set(displayedPositions.map(getNavMapLayer)),
     [displayedPositions],
   )
 
@@ -504,6 +517,9 @@ export function SenseiNavMap() {
 
   // Selected node details
   const selectedNode = filteredPositions.find((p) => p.id === selectedNodeId)
+  const selectedNodeMapLayer = selectedNode
+    ? getNavMapLayer(selectedNode)
+    : null
   const selectedTransition = visibleTransitions.find(
     (transition) => getTransitionKey(transition) === selectedTransitionKey,
   )
@@ -742,16 +758,14 @@ export function SenseiNavMap() {
                 className="min-h-7 rounded px-1.5 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
                 aria-label="Reset zoom"
               >맞춤</button>
-              {viewMode === "map" && (
-                <button
-                  type="button"
-                  onClick={resetLayout}
-                  className="min-h-7 rounded border-l border-border px-2 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
-                  aria-label="Reset node layout"
-                >
-                  배치 초기화
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={resetLayout}
+                className="min-h-7 rounded border-l border-border px-2 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Reset node layout"
+              >
+                배치 초기화
+              </button>
             </div>
           </div>
         </div>
@@ -816,7 +830,7 @@ export function SenseiNavMap() {
 
             <g opacity={viewMode === "focus" ? 0.35 : 1}>
                 {/* Layer labels */}
-                {(["standing", "submission", "control", "leglock"] as PositionLayer[])
+                {(["standing", "submission", "control", "defense", "leglock"] as NavMapLayer[])
                   .filter((layer) => viewMode === "map" || displayedLayers.has(layer))
                   .map((layer) => (
                     <text key={layer} x={15} y={LAYER_Y_MAP[layer] + 4} fill={LAYER_COLORS[layer]} fontSize={10} fontWeight={600} opacity={0.4}>
@@ -1028,7 +1042,7 @@ export function SenseiNavMap() {
               const { level: skillLevel } = getSkillLevel(skillCount)
 
               // Color based on mode
-              const layerColor = LAYER_COLORS[pos.layer]
+              const layerColor = LAYER_COLORS[getNavMapLayer(pos)]
               const color = colorMode === "skill" ? SKILL_LEVEL_COLORS[skillLevel] : layerColor
 
               // In skill mode, scale opacity/size by skill level
@@ -1042,7 +1056,7 @@ export function SenseiNavMap() {
               const baseR = colorMode === "skill" ? 12 + skillLevel * 1.6 : 16
               const r = isActive ? baseR + 4 : baseR
               const hasSkillGlow = colorMode === "skill" && skillLevel >= 4
-              const isPinned = viewMode === "map" && Boolean(pinnedPositions[pos.id])
+              const isPinned = Boolean(pinnedPositions[pos.id])
               const visualScale = nodeVisualScale(pos.id)
 
               return (
@@ -1068,7 +1082,7 @@ export function SenseiNavMap() {
                   onPointerLeave={() => setHoveredNodeId(null)}
                   onFocus={() => setHoveredNodeId(pos.id)}
                   onBlur={() => setHoveredNodeId(null)}
-                  className={`${viewMode === "map" ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} outline-none focus-visible:[filter:drop-shadow(0_0_6px_var(--ring))]`}
+                  className="cursor-grab outline-none active:cursor-grabbing focus-visible:[filter:drop-shadow(0_0_6px_var(--ring))]"
                   opacity={nodeOpacity}
                 >
                   {/* Skill glow for Lv4+ */}
@@ -1253,9 +1267,12 @@ export function SenseiNavMap() {
               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                 <span
                   className="inline-block px-2 py-0.5 rounded text-[10px] font-medium"
-                  style={{ backgroundColor: LAYER_COLORS[selectedNode.layer] + "30", color: LAYER_COLORS[selectedNode.layer] }}
+                  style={{
+                    backgroundColor: `${LAYER_COLORS[selectedNodeMapLayer ?? selectedNode.layer]}30`,
+                    color: LAYER_COLORS[selectedNodeMapLayer ?? selectedNode.layer],
+                  }}
                 >
-                  {selectedNode.layer}
+                  {selectedNodeMapLayer ?? selectedNode.layer}
                 </span>
                 {selectedNode.family && (
                   <span className="text-[10px] text-muted-foreground">· {selectedNode.family}</span>

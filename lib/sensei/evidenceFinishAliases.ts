@@ -11,6 +11,10 @@ export const POSITION_EVIDENCE_ALIASES: Readonly<Record<string, readonly string[
   side_top: ["side control", "사이드 컨트롤", "사이드"],
   turtle_top: ["turtle", "터틀"],
   ns_top: ["north south", "north-south", "노스사우스"],
+  hq: ["headquarters", "본부", "본부 자세"],
+  kcp: ["knee cut", "knee slice", "니컷", "니 슬라이드"],
+  smash: ["smash pass", "스매시 패스"],
+  halfpass: ["half guard pass", "half pass", "하프 패스", "하프가드 패스"],
 }
 
 export const FINISH_EVIDENCE_ALIASES: Readonly<Record<string, readonly string[]>> = {
