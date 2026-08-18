@@ -45,6 +45,14 @@ vi.mock("@/lib/sensei/useSenseiData", () => ({
         perspective: "bottom",
         ruleSet: "common",
       },
+      {
+        id: "kimura",
+        name: "Kimura",
+        nameKr: "기무라",
+        layer: "submission",
+        perspective: "neutral",
+        ruleSet: "common",
+      },
     ],
     transitions: [
       {
@@ -131,7 +139,21 @@ describe("SenseiNavMap", () => {
         const url = String(input)
         const body = url.includes("/stats")
           ? { stats: {}, tagFrequencies: { HG: 4 } }
-          : []
+          : url.endsWith("/api/notion/sensei")
+            ? [{
+                id: "half-kimura-class",
+                title: "하프가드 기무라",
+                sessionType: "class",
+                date: "2026-07-27",
+                instructor: "",
+                gym: "",
+                classTags: ["HG", "Kimura"],
+                sparringTags: [],
+                studyTags: [],
+                note: "",
+                url: "",
+              }]
+            : []
         return new Response(JSON.stringify(body), {
           status: 200,
           headers: { "Content-Type": "application/json" },
@@ -240,6 +262,16 @@ describe("SenseiNavMap", () => {
       "transform",
       mapTransform,
     )
+  })
+
+  it("shows record evidence on a derived position finish", async () => {
+    renderNavMap()
+
+    fireEvent.click(await screen.findByRole("button", { name: "하프 가드 스킬 보기" }))
+
+    const detail = await screen.findByTestId("navmap-detail")
+    expect(within(detail).getByText("하프 가드 기무라")).toBeInTheDocument()
+    expect(within(detail).getByText("기록 1")).toBeInTheDocument()
   })
 
   it("pins dragged Map nodes and resets their saved layout", async () => {

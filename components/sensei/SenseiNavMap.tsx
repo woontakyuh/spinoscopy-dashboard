@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useSenseiData } from "@/lib/sensei/useSenseiData"
 import { loadMyStrategies } from "@/lib/sensei/strategies"
-import type { Position, PositionLayer, TransitionType, SenseiEntry, BjjStats, Strategy } from "@/lib/types/sensei"
+import type { FinishEvidenceKind, Position, PositionLayer, TransitionType, SenseiEntry, BjjStats, Strategy } from "@/lib/types/sensei"
 import {
   buildFocusGraph,
   getTransitionKey,
@@ -22,6 +22,11 @@ import {
   NAV_MAP_WIDTH,
   PASSING_REGION_X,
 } from "@/lib/sensei/nav-map-layout"
+import {
+  buildEvidenceFinishTransitions,
+  mergeEvidenceFinishTransitions,
+  type ConceptEvidenceNote,
+} from "@/lib/sensei/evidenceFinishConnections"
 
 // ─── Colors ─────────────────────────────────────────────────
 const LAYER_COLORS: Record<PositionLayer, string> = {
@@ -42,6 +47,15 @@ const EDGE_COLORS: Record<TransitionType | string, string> = {
   takedown: "#a855f7",
   guard_pull: "#8b5cf6",
   recovery: "#06b6d4",
+}
+
+const EVIDENCE_KIND_LABELS: Readonly<Record<FinishEvidenceKind, string>> = {
+  class: "수업",
+  study: "공부",
+  sparring: "스파링",
+  research: "연구",
+  discussion: "논의",
+  concept: "개념",
 }
 
 // ─── Skill Level ────────────────────────────────────────────
@@ -202,7 +216,7 @@ function buildPositionTrainingMap(
 type ColorMode = "layer" | "skill"
 
 export function SenseiNavMap() {
-  const { positions, transitions } = useSenseiData()
+  const { positions, transitions: storedTransitions } = useSenseiData()
   const [selectedPlan, setSelectedPlan] = useState("all")
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [selectedTransitionKey, setSelectedTransitionKey] = useState<string | null>(null)
@@ -225,6 +239,32 @@ export function SenseiNavMap() {
     },
     staleTime: 5 * 60 * 1000,
   })
+
+  const { data: conceptNotes } = useQuery<ConceptEvidenceNote[]>({
+    queryKey: ["sensei-concept-evidence"],
+    queryFn: async () => {
+      const res = await fetch("/api/notion/concept-notes")
+      if (!res.ok) throw new Error("concept evidence fetch failed")
+      return res.json()
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const evidenceFinishTransitions = useMemo(
+    () => buildEvidenceFinishTransitions(
+      trainingEntries ?? [],
+      conceptNotes ?? [],
+      positions,
+    ),
+    [conceptNotes, positions, trainingEntries],
+  )
+  const transitions = useMemo(
+    () => mergeEvidenceFinishTransitions(
+      storedTransitions,
+      evidenceFinishTransitions,
+    ),
+    [evidenceFinishTransitions, storedTransitions],
+  )
 
   // Tag frequencies (for skill levels)
   const { data: statsData } = useQuery<{ stats: BjjStats; tagFrequencies: Record<string, number> }>({
@@ -480,6 +520,15 @@ export function SenseiNavMap() {
   const incoming = useMemo(
     () => (selectedNodeId ? visibleTransitions.filter((t) => t.to === selectedNodeId) : []),
     [selectedNodeId, visibleTransitions]
+  )
+  const selectedEvidenceCount = useMemo(
+    () => Math.max(
+      0,
+      ...[...outgoing, ...incoming].map(
+        (transition) => transition.evidence?.count ?? 0,
+      ),
+    ),
+    [incoming, outgoing],
   )
 
   const clearSelection = useCallback(() => {
@@ -1113,6 +1162,37 @@ export function SenseiNavMap() {
                 </div>
               )}
 
+              {selectedTransition.evidence && (
+                <div className="space-y-2 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[10px] font-semibold text-cyan-300">
+                      내 기록 근거
+                    </p>
+                    <span className="text-[10px] text-cyan-200/80">
+                      {selectedTransition.evidence.count}회
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {selectedTransition.evidence.kinds.map((kind) => (
+                      <span
+                        key={kind}
+                        className="rounded-full border border-cyan-400/20 px-1.5 py-0.5 text-[9px] text-cyan-100/80"
+                      >
+                        {EVIDENCE_KIND_LABELS[kind]}
+                      </span>
+                    ))}
+                  </div>
+                  {selectedTransition.evidence.snippets.slice(0, 2).map((snippet) => (
+                    <p
+                      key={snippet}
+                      className="text-[10px] leading-4 text-foreground/70"
+                    >
+                      {snippet}
+                    </p>
+                  ))}
+                </div>
+              )}
+
               <div className="flex flex-wrap gap-1.5 text-[10px]">
                 <span className="rounded-full border border-border bg-muted px-2 py-1 text-muted-foreground">
                   {selectedTransition.type}
@@ -1186,14 +1266,15 @@ export function SenseiNavMap() {
                 {/* Skill Level Badge */}
                 {(() => {
                   const sc = positionSkillMap[selectedNode.id] ?? 0
-                  const { level, label } = getSkillLevel(sc)
+                  const displayCount = Math.max(sc, selectedEvidenceCount)
+                  const { level, label } = getSkillLevel(displayCount)
                   const skillColor = SKILL_LEVEL_COLORS[level]
                   return (
                     <span
                       className="inline-block px-2 py-0.5 rounded text-[10px] font-bold"
                       style={{ backgroundColor: skillColor + "25", color: skillColor, border: `1px solid ${skillColor}40` }}
                     >
-                      {label} ({sc}회)
+                      {label} ({displayCount}회)
                     </span>
                   )
                 })()}
@@ -1204,7 +1285,11 @@ export function SenseiNavMap() {
             {(() => {
               const info = trainingMap[selectedNode.id]
               if (!info) return (
-                <p className="text-muted-foreground/60 text-[11px]">수업 기록 없음</p>
+                <p className="text-muted-foreground/60 text-[11px]">
+                  {selectedEvidenceCount > 0
+                    ? `연결 근거 ${selectedEvidenceCount}회 · 노트/논의 기반`
+                    : "수업 기록 없음"}
+                </p>
               )
               return (
                 <div className="space-y-2">
@@ -1267,6 +1352,11 @@ export function SenseiNavMap() {
                       >
                         <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: EDGE_COLORS[t.type] }} />
                         <span className="text-foreground/90 truncate">{t.action}</span>
+                        {t.evidence && (
+                          <span className="shrink-0 rounded-full bg-cyan-500/10 px-1.5 py-0.5 text-[9px] text-cyan-300">
+                            기록 {t.evidence.count}
+                          </span>
+                        )}
                         <span className="text-muted-foreground ml-auto shrink-0 text-[10px]">→ {toPos?.nameKr || t.to}</span>
                       </button>
                     )
@@ -1290,6 +1380,11 @@ export function SenseiNavMap() {
                       >
                         <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: EDGE_COLORS[t.type] }} />
                         <span className="text-muted-foreground shrink-0 text-[10px]">{fromPos?.nameKr || t.from} →</span>
+                        {t.evidence && (
+                          <span className="shrink-0 rounded-full bg-cyan-500/10 px-1.5 py-0.5 text-[9px] text-cyan-300">
+                            기록 {t.evidence.count}
+                          </span>
+                        )}
                         <span className="text-foreground/90 truncate ml-auto">{t.action}</span>
                       </button>
                     )
