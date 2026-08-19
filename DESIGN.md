@@ -106,14 +106,30 @@ The base unit is 4px. Existing Tailwind spacing steps are the implementation tok
 
 ### NavMap inspector
 
-- **Structure**: orientation header, game-plan rail, display controls, graph canvas, selected-node inspector.
-- **States**: loading, empty data, node hover, node selected, filtered, panning.
+- **Structure**: orientation header, game-plan rail, score legend, layout preset controls,
+  athlete selector, graph canvas, optional comparison canvas, selected-node inspector.
+- **States**: loading, empty data, node hover, node selected, filtered, panning, layout dirty,
+  named layout active, athlete map active, comparison active.
 - **Accessibility**: graph nodes are keyboard-focusable buttons; Enter/Space selects; the inspector
   is available on both mobile and desktop.
-- **Layout**: graph and inspector form a responsive sidebar primitive; inspector stacks below the
-  graph on mobile and sits beside it on large screens.
-- **Spatial model**: guard families and passing options share one exchange band; submissions form
-  the finish rail directly beneath it, followed by control and leg-lock layers.
+- **Layout**: the graph uses one unpartitioned field. Position families remain legible through node
+  color and proximity rather than boxed background regions. Comparison uses equal left/right
+  canvases on large screens and a single selected profile canvas on narrow screens.
+- **Spatial model**: nodes represent positions or situations; directed edges represent the technique
+  that changes one situation into the next. Reciprocal techniques use separated curves.
+- **Visual channels**:
+  - Node color identifies the position family.
+  - Edge color identifies the transition outcome: pass, sweep, positional advance/control,
+    submission, takedown, or recovery.
+  - Node radius and edge width encode the active profile's existing `BjjAttributes` score.
+  - Every edge remains faintly visible at rest; hover, focus, and selection strengthen only the
+    relevant path while preserving graph context.
+  - Orange remains reserved for interaction selection and never participates in the score ramp.
+- **Layout persistence**: `default` is immutable. Dragging changes the working layout and marks it
+  dirty without adding a marker to the node. A user explicitly saves the working coordinates and
+  camera under a named preset.
+- **Athlete comparison**: self and legendary athletes use the same geometry calculation. Athlete
+  maps use `Archetype.stats` plus mapped game-plan transitions; unmapped steps remain disclosed.
 
 ### Instant tooltip
 
@@ -161,6 +177,6 @@ Use mixed tonal shift and quiet borders:
 
 | Item | Location | Why accepted | Exit |
 |---|---|---|---|
-| NavMap component is oversized | `components/sensei/SenseiNavMap.tsx` | Existing graph, data, and interaction logic are tightly coupled; this UI pass stays surgical | Split graph geometry, toolbar, and inspector during the next NavMap architecture pass |
+| NavMap inspector remains coupled | `components/sensei/SenseiNavMap.tsx` | Graph scoring, preset persistence, and reusable canvas rendering are split in this pass; the record inspector still shares selected-state wiring | Extract the inspector when another feature changes its content model |
 | React visual diagnostics helpers are not wired | Project tooling | Adding shared runtime/dev instrumentation is outside this Lo-only UI change | Add in a dedicated tooling change after cross-agent review |
 | Historical specialist colors remain raw | Specialist modules | Normalizing unrelated agent surfaces is outside this change | Migrate module-by-module when those surfaces are redesigned |

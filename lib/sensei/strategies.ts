@@ -2,29 +2,7 @@ import type { Strategy, StrategyStep, Archetype } from "@/lib/types/sensei"
 import { ARCHETYPES } from "./archetypes"
 import { getVideoForLesson } from "./lessonVideos"
 import { getPositionById } from "./skillConnections"
-
-// ─── Tag → Position ID 매핑 ──────────────────────────────────
-const TAG_TO_POS: Record<string, string> = {
-  Closed: "closed", HG: "hg", DHG: "dhg", KShield: "kshield",
-  "Sit-up": "situp", Open: "open", DLR: "dlr", RDLR: "rdlr",
-  Spider: "spider", Lasso: "lasso", Lapel: "lapel", Worm: "worm",
-  Squid: "squid", Rubber: "rubber", KGuard: "kguard", Bolo: "bolo",
-  Butterfly: "butterfly", SLX: "slx", XG: "xg",
-  HQ: "hq", KCP: "kcp", Torreando: "torreando", Smash: "smash",
-  Stack: "smash", LongStep: "longstep", HalfPass: "halfpass",
-  Mount: "mount_top", "S-Mount": "mount_top",
-  SideCtrl: "side_top", BackTake: "back_top", BackMount: "back_top",
-  KoB: "kob_top", NS: "ns_top", Turtle: "turtle_top",
-  RNC: "rnc", Triangle: "triangle", ArmB: "armb", Kimura: "kimura",
-  Guillotine: "guillotine", Darce: "darce", CrossChoke: "crosschoke",
-  BowArrow: "bowarrow", Ezekiel: "ezekiel", Americana: "americana",
-  Ashi: "ashi", Saddle: "saddle", IHH: "ihh", OHH: "ohh",
-  Takedown: "standing", SingleLeg: "standing", DoubleLeg: "standing",
-}
-
-function tagToPositionId(tag: string): string {
-  return TAG_TO_POS[tag] || tag.toLowerCase().replace(/\s+/g, "_")
-}
+import { tagToPositionId } from "./nav-map-position-tags"
 
 // ─── 내 기본 전략 시드 ──────────────────────────────────────
 
