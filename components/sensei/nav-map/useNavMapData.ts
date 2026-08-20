@@ -18,6 +18,10 @@ import {
 } from "@/lib/sensei/evidenceFinishConnections"
 import { buildEvidencePositionTransitions } from "@/lib/sensei/evidencePositionConnections"
 import { EMPTY_ATTRIBUTES } from "@/lib/sensei/nav-map-scoring"
+import {
+  canonicalizeNavMapGraph,
+  canonicalizeNavMapPositionId,
+} from "@/lib/sensei/nav-map-canonicalization"
 import { BUILTIN_GAME_PLANS, type NavMapGamePlan } from "@/components/sensei/nav-map/nav-map-game-plans"
 import { buildPositionSkillMap } from "@/components/sensei/nav-map/nav-map-skill-tags"
 import {
@@ -37,6 +41,10 @@ export interface NavMapData {
 
 export function useNavMapData(): NavMapData {
   const { archetypes, positions, transitions: storedTransitions } = useSenseiData()
+  const canonicalGraph = useMemo(
+    () => canonicalizeNavMapGraph(positions, storedTransitions),
+    [positions, storedTransitions],
+  )
   const { data: trainingEntries } = useQuery<SenseiEntry[]>({
     queryKey: ["sensei-entries-navmap"],
     queryFn: async () => {
@@ -77,22 +85,22 @@ export function useNavMapData(): NavMapData {
     const finishTransitions = buildEvidenceFinishTransitions(
       trainingEntries ?? [],
       conceptNotes ?? [],
-      positions,
+      canonicalGraph.positions,
     )
     const positionTransitions = buildEvidencePositionTransitions(
       trainingEntries ?? [],
-      positions,
+      canonicalGraph.positions,
     )
     return mergeEvidenceFinishTransitions(
-      storedTransitions,
+      canonicalGraph.transitions,
       [...finishTransitions, ...positionTransitions],
     )
-  }, [conceptNotes, positions, storedTransitions, trainingEntries])
+  }, [canonicalGraph, conceptNotes, trainingEntries])
   const gamePlans = useMemo<readonly NavMapGamePlan[]>(() => {
     const customPlans = myStrategies.map((strategy) => ({
       id: `strat-${strategy.id}`,
       label: strategy.name,
-      positionIds: strategy.flow.map((step) => step.positionId),
+      positionIds: strategy.flow.map((step) => canonicalizeNavMapPositionId(step.positionId)),
       isStrategy: true as const,
     }))
     return [
@@ -105,13 +113,13 @@ export function useNavMapData(): NavMapData {
     [statsData?.tagFrequencies],
   )
   const trainingMap = useMemo(
-    () => buildPositionTrainingMap(trainingEntries ?? [], positions),
-    [positions, trainingEntries],
+    () => buildPositionTrainingMap(trainingEntries ?? [], canonicalGraph.positions),
+    [canonicalGraph.positions, trainingEntries],
   )
 
   return {
     archetypes,
-    positions,
+    positions: canonicalGraph.positions,
     transitions,
     gamePlans,
     positionSkillMap,

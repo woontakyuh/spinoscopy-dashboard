@@ -45,4 +45,24 @@ export function registerTrainingAndScoringTests() {
     fireEvent.pointerEnter(pass)
     expect(pass).toHaveAttribute("data-emphasis", "active")
   })
+
+  it("renders one node for each physical control situation", async () => {
+    renderNavMap()
+
+    for (const name of ["사이드 컨트롤", "니온벨리", "마운트", "백 컨트롤", "터틀"]) {
+      expect(await screen.findByRole("button", { name: `${name} 스킬 보기` })).toBeInTheDocument()
+    }
+    for (const name of ["사이드 당함", "니온벨리 당함", "마운트 당함", "백 당함", "터틀 방어"]) {
+      expect(screen.queryByRole("button", { name: `${name} 스킬 보기` })).not.toBeInTheDocument()
+    }
+  })
+
+  it("keeps defensive escapes on the merged situation node", async () => {
+    renderNavMap()
+
+    fireEvent.click(await screen.findByRole("button", { name: "마운트 스킬 보기" }))
+
+    const detail = await screen.findByTestId("navmap-detail")
+    expect(within(detail).getByText("브릿지 이스케이프")).toBeInTheDocument()
+  })
 }

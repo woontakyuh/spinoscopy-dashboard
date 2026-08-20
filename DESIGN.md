@@ -117,6 +117,10 @@ The base unit is 4px. Existing Tailwind spacing steps are the implementation tok
   canvases on large screens and a single selected profile canvas on narrow screens.
 - **Spatial model**: nodes represent positions or situations; directed edges represent the technique
   that changes one situation into the next. Reciprocal techniques use separated curves.
+  One physical position has one canonical node: side control, knee on belly, mount, back control,
+  and turtle never split into separate attacking/top and defending/bottom nodes. Perspective and
+  attack/defense meaning belong to the directed transition, while escape lessons remain attached
+  to that same canonical situation node.
 - **Visual channels**:
   - Node color identifies the position family.
   - Edge color identifies the transition outcome: pass, sweep, positional advance/control,
