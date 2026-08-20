@@ -21,15 +21,40 @@ function makeEpisode(overrides: Partial<AiFrontierEpisode> = {}): AiFrontierEpis
     models: ["GPT-5"],
     people: ["Karpathy"],
     youtube: "https://youtu.be/abc123",
-    transcriptSource: "https://example.com/ep12.txt",
+    transcriptSource: "https://aifrontier.kr/ko/episodes/ep12",
     duration: "1:42:00",
     summary: "스케일링 법칙과 RL이 실제 모델 경쟁에서 만나는 지점을 정리합니다.",
     keyTerms: ["Transformer"],
+    source: "ai-frontier",
+    sourceKey: "EP12",
+    sourceIdentityPersisted: false,
     ...overrides,
   }
 }
 
 const older = makeEpisode({ id: "ep-11", name: "에이전트 루프", episodeNumber: 11, published: "2026-04-01" })
+
+/** 원본 제목 그대로다. 출처는 제목 접두어가 아니라 저장된 source 로만 드러나야 한다. */
+function dwarkeshEpisode(overrides: Partial<AiFrontierEpisode> = {}): AiFrontierEpisode {
+  return makeEpisode({
+    id: "dwarkesh-ryan",
+    name: "Ryan Greenblatt — AI R&D 자동화",
+    episodeNumber: null,
+    transcriptSource: "https://www.dwarkesh.com/p/ryan-greenblatt",
+    source: "dwarkesh",
+    sourceKey: "DWARKESH:RYAN-GREENBLATT",
+    sourceIdentityPersisted: true,
+    ...overrides,
+  })
+}
+
+/**
+ * index 는 JSON 경계를 넘어온다. union 밖 source 가 도착하는 상황을 테스트에서만 재현한다.
+ */
+function withRawSource(episode: AiFrontierEpisode, source: string): AiFrontierEpisode {
+  const raw: unknown = { ...episode, source }
+  return raw as AiFrontierEpisode
+}
 
 function makeConcept(overrides: Partial<AiFrontierConcept> = {}): AiFrontierConcept {
   return {
@@ -90,6 +115,14 @@ describe("EpisodesPane dashboard readability", () => {
     expect(summary).toHaveClass("text-foreground/80")
   })
 
+  it("긴 한국어 요약은 어절을 지키고 긴 라틴 토큰만 접는다", () => {
+    renderPane()
+
+    fireEvent.click(row(/EP12/))
+
+    expect(screen.getByTestId("frontier-episode-summary-ep-12")).toHaveClass("break-keep", "break-words")
+  })
+
   it("주제를 빈 타원형 칩 없이 이름 붙은 한 줄로 정리한다", () => {
     renderPane({
       episodes: [makeEpisode({ topics: ["", "  ", "Scaling", "Agents"] })],
@@ -144,7 +177,10 @@ describe("EpisodesPane dashboard readability", () => {
     const frontier = within(links).getByRole("link", {
       name: "AI Frontier에서 전사 읽기",
     })
-    expect(frontier).toHaveAttribute("href", "https://example.com/ep12.txt")
+    expect(frontier).toHaveAttribute(
+      "href",
+      "https://aifrontier.kr/ko/episodes/ep12"
+    )
     expect(frontier.textContent).toBe("")
     expect(within(links).getAllByRole("link")).toHaveLength(3)
     expect(fetchMock).not.toHaveBeenCalled()
@@ -301,6 +337,34 @@ describe("EpisodesPane 출처 결측", () => {
     expect(youtube).toHaveAttribute("rel", expect.stringContaining("noreferrer"))
   })
 
+  it("Dwarkesh 전사는 실제 출처 이름으로 안내한다", () => {
+    renderPane({ episodes: [dwarkeshEpisode()] })
+
+    fireEvent.click(row(/Ryan Greenblatt/))
+
+    expect(
+      screen.getByRole("link", { name: "Dwarkesh에서 전사 읽기" })
+    ).toHaveAttribute(
+      "href",
+      "https://www.dwarkesh.com/p/ryan-greenblatt"
+    )
+    expect(
+      screen.queryByRole("link", { name: "AI Frontier에서 전사 읽기" })
+    ).not.toBeInTheDocument()
+  })
+
+  it("metadata-only Episode는 목록 상태를 보이고 가짜 요약을 만들지 않는다", () => {
+    renderPane({
+      episodes: [dwarkeshEpisode({ status: "목록", summary: null })],
+      concepts: [],
+    })
+
+    expect(screen.getByTestId("frontier-episode-status-dwarkesh-ryan")).toHaveTextContent("목록")
+    fireEvent.click(row(/Ryan Greenblatt/))
+    expect(screen.queryByTestId("frontier-episode-summary-dwarkesh-ryan")).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "자료 가져오기" })).toBeInTheDocument()
+  })
+
   it("목록 Episode는 자료 가져오기 버튼으로 전체 수집을 시작한다", async () => {
     fetchMock.mockResolvedValue(new Response(JSON.stringify({
       pageId: "ep-12",
@@ -333,6 +397,81 @@ describe("EpisodesPane 출처 결측", () => {
       { method: "POST" }
     )
     expect(onEpisodeImported).toHaveBeenCalledOnce()
+  })
+})
+
+describe("EpisodesPane 출처 라벨", () => {
+  const sourceLabel = (id: string) => screen.getByTestId(`frontier-episode-source-${id}`)
+
+  it("Dwarkesh 제목은 그대로 두고 출처만 따로 붙인다", () => {
+    renderPane({ episodes: [dwarkeshEpisode()], concepts: [] })
+
+    const button = row(/Ryan Greenblatt/)
+    expect(button).toHaveTextContent("Ryan Greenblatt — AI R&D 자동화")
+    // 제목에 출처 접두어를 심지 않는다.
+    expect(button.textContent).not.toContain("Dwarkesh ·")
+    expect(sourceLabel("dwarkesh-ryan")).toHaveTextContent("Dwarkesh")
+  })
+
+  it("AI Frontier 행도 EP 번호와 함께 출처를 밝힌다", () => {
+    renderPane()
+
+    expect(sourceLabel("ep-12")).toHaveTextContent("AI Frontier")
+    expect(row(/EP12/)).toHaveTextContent("EP12")
+  })
+
+  it("제목과 URL 이 Dwarkesh 를 가리켜도 저장된 source 를 따른다", () => {
+    renderPane({
+      episodes: [makeEpisode({
+        name: "Dwarkesh · 제목만 Dwarkesh",
+        transcriptSource: "https://www.dwarkesh.com/p/not-really",
+        source: "ai-frontier",
+      })],
+      concepts: [],
+    })
+
+    expect(sourceLabel("ep-12")).toHaveTextContent("AI Frontier")
+
+    fireEvent.click(row(/제목만 Dwarkesh/))
+
+    expect(screen.getByRole("link", { name: "AI Frontier에서 전사 읽기" })).toHaveAttribute(
+      "href",
+      "https://www.dwarkesh.com/p/not-really"
+    )
+    expect(screen.queryByRole("link", { name: "Dwarkesh에서 전사 읽기" })).not.toBeInTheDocument()
+  })
+
+  it("알 수 없는 source 도 무너지지 않고 일반 이름으로 읽힌다", () => {
+    renderPane({
+      episodes: [withRawSource(makeEpisode({ name: "출처가 사라진 옛 행" }), "legacy-unknown")],
+      concepts: [],
+    })
+
+    expect(sourceLabel("ep-12")).toHaveTextContent("기타 출처")
+
+    fireEvent.click(row(/출처가 사라진 옛 행/))
+
+    expect(screen.getByRole("link", { name: "공식 출처에서 전사 읽기" })).toHaveAttribute(
+      "href",
+      "https://aifrontier.kr/ko/episodes/ep12"
+    )
+  })
+
+  it("출처 라벨은 기존 semantic token 만 쓴다", () => {
+    renderPane({ episodes: [dwarkeshEpisode()], concepts: [] })
+
+    const label = sourceLabel("dwarkesh-ryan")
+    expect(label).toHaveClass("text-muted-foreground")
+    expect(label).toHaveClass("border-border")
+    expect(label.className).not.toMatch(/#[0-9a-f]{3,6}/i)
+  })
+
+  it("제목에 섞인 마크업은 글자로만 그린다", () => {
+    const hostile = '<img src=x onerror="alert(1)">'
+    renderPane({ episodes: [makeEpisode({ name: hostile })], concepts: [] })
+
+    expect(row(/img src/)).toHaveTextContent(hostile)
+    expect(document.querySelector("img")).toBeNull()
   })
 })
 

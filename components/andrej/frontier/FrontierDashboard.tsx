@@ -8,12 +8,19 @@ import { useQuery } from "@tanstack/react-query"
 import { useEffect, useMemo, useRef, useState } from "react"
 
 import type { AiFrontierConcept, AiFrontierEpisodeRef, AiFrontierIndex } from "@/lib/types/ai-frontier"
+import type { AiFrontierSource } from "@/lib/types/ai-frontier-import"
 
 import { ConceptsPane } from "./ConceptsPane"
 import { EpisodesPane } from "./EpisodesPane"
 import { FrontierPanel, FrontierSegments } from "./FrontierSegments"
+import { FrontierSourceFilters } from "./FrontierSourceFilters"
 import { FrontierIndexError, FrontierSkeletonColumns, FrontierSourceError } from "./FrontierSourceState"
 import { FrontierStatusBar } from "./FrontierStatusBar"
+import {
+  episodeMatchesSourceFilter,
+  filterFrontierIndexBySource,
+  type FrontierSourceFilter,
+} from "./frontier-source"
 import {
   clearSelection,
   countConceptCategories,
@@ -39,7 +46,11 @@ async function fetchFrontierIndex(): Promise<AiFrontierIndex> {
   return (await response.json()) as AiFrontierIndex
 }
 
-export function FrontierDashboard() {
+export function FrontierDashboard({
+  source = "ai-frontier",
+}: {
+  readonly source?: AiFrontierSource
+}) {
   const { data, dataUpdatedAt, isPending, isError, refetch } = useQuery({
     queryKey: ["andrej-frontier"],
     queryFn: fetchFrontierIndex,
@@ -48,6 +59,8 @@ export function FrontierDashboard() {
   })
 
   const [view, setView] = useState<FrontierViewState>(initialFrontierViewState)
+  // 탭이 열어 준 소스에서 시작하고, 그 자리에서 `전체`로 넓힐 수 있다.
+  const [sourceFilter, setSourceFilter] = useState<FrontierSourceFilter>(source)
   const [orphanRef, setOrphanRef] = useState<string | null>(null)
   const columnsRef = useRef<HTMLDivElement>(null)
 
@@ -76,8 +89,22 @@ export function FrontierDashboard() {
     columnsRef.current?.querySelector<HTMLElement>(`[aria-controls="${controls}"]`)?.focus()
   }, [selectedEpisodeId, selectedConceptId])
 
-  const episodes = useMemo(() => data?.episodes ?? [], [data])
-  const concepts = useMemo(() => data?.concepts ?? [], [data])
+  const sourceData = useMemo(
+    () => data === undefined ? undefined : filterFrontierIndexBySource(data, sourceFilter),
+    [data, sourceFilter]
+  )
+
+  // 개수는 검색·필터 이전의 index 기준이라, 한쪽을 골라도 다른 칩이 0으로 사라지지 않는다.
+  const sourceCounts = useMemo<Record<FrontierSourceFilter, number>>(() => {
+    const all = data?.episodes ?? []
+    return {
+      all: all.length,
+      "ai-frontier": all.filter((episode) => episodeMatchesSourceFilter(episode, "ai-frontier")).length,
+      dwarkesh: all.filter((episode) => episodeMatchesSourceFilter(episode, "dwarkesh")).length,
+    }
+  }, [data])
+  const episodes = useMemo(() => sourceData?.episodes ?? [], [sourceData])
+  const concepts = useMemo(() => sourceData?.concepts ?? [], [sourceData])
 
   const visibleEpisodes = useMemo(() => filterEpisodes(episodes, view.search), [episodes, view.search])
   const visibleConcepts = useMemo(
@@ -101,7 +128,7 @@ export function FrontierDashboard() {
   const retry = () => void refetch()
 
   if (isPending) return <FrontierSkeletonColumns />
-  if (isError || data === undefined) return <FrontierIndexError onRetry={retry} />
+  if (isError || data === undefined) return <FrontierIndexError source={source} onRetry={retry} />
 
   const counts: Record<FrontierMobileSection, number> = {
     episodes: visibleEpisodes.length,
@@ -119,6 +146,17 @@ export function FrontierDashboard() {
         partial={data.status !== "ok"}
         search={view.search}
         onSearchChange={(search) => setView(setSearch(view, search))}
+      />
+
+      <FrontierSourceFilters
+        current={sourceFilter}
+        counts={sourceCounts}
+        onChange={(filter) => {
+          // 필터 밖으로 밀려난 줄에 선택 표시만 남는 걸 막는다.
+          setSourceFilter(filter)
+          setView(clearSelection)
+          setOrphanRef(null)
+        }}
       />
 
       {orphanRef !== null && (

@@ -35,7 +35,11 @@ function makeEpisode(partial: Partial<AiFrontierEpisode> & { id: string }): AiFr
     youtube: null,
     transcriptSource: null,
     duration: null,
+    summary: null,
     keyTerms: [],
+    source: "ai-frontier",
+    sourceKey: null,
+    sourceIdentityPersisted: false,
     ...partial,
   }
 }
@@ -162,6 +166,25 @@ describe("filterEpisodes", () => {
   it("Concepts 전용 필드(one-line)로는 매칭되지 않는다", () => {
     expect(filterEpisodes(episodes, "가중치")).toEqual([])
   })
+
+  it("제목 접두어 없이도 출처 이름으로 검색된다", () => {
+    // 원본 제목에 "Dwarkesh" 가 한 글자도 없는 행.
+    const dwarkesh = makeEpisode({
+      id: "dwarkesh-ryan",
+      name: "Ryan Greenblatt — AI R&D 자동화",
+      published: "2026-02-01",
+      source: "dwarkesh",
+      sourceKey: "DWARKESH:RYAN-GREENBLATT",
+    })
+
+    expect(filterEpisodes([...episodes, dwarkesh], "dwarkesh").map((e) => e.id)).toEqual(["dwarkesh-ryan"])
+    expect(filterEpisodes([...episodes, dwarkesh], "AI Frontier").map((e) => e.id)).toEqual([
+      "ep-12",
+      "ep-11",
+      "ep-10",
+      "ep-99",
+    ])
+  })
 })
 
 describe("filterConcepts", () => {
@@ -241,6 +264,61 @@ describe("cross-link navigation", () => {
   it("에피소드에 연결된 Concept 목록은 검색과 무관하게 전체를 준다", () => {
     expect(conceptsForEpisode(concepts, ep12).map((c) => c.id)).toEqual(["c-attention"])
     expect(conceptsForEpisode(concepts, epUndated)).toEqual([])
+  })
+})
+
+describe("소스 네임스페이스 밖 숫자 되돌리기", () => {
+  // 슬러그 끝의 숫자를 EP 번호로 읽으면 남의 소스 에피소드에 붙는다.
+  const sholto2 = makeRef({ ref: "DWARKESH:SHOLTO-2" })
+  const patel10 = makeRef({ ref: "DWARKESH:PATEL-10" })
+  const ep2 = makeEpisode({ id: "ep-2", name: "합성 EP2", episodeNumber: 2, published: "2026-02-01" })
+  const dwarkeshEpisode = makeEpisode({
+    id: "dwarkesh-ryan",
+    name: "Ryan Greenblatt — AI R&D 자동화",
+    episodeNumber: null,
+    published: "2026-02-10",
+    source: "dwarkesh",
+    sourceKey: "DWARKESH:RYAN-GREENBLATT",
+    sourceIdentityPersisted: true,
+  })
+  const mixed = [...episodes, ep2, dwarkeshEpisode]
+
+  it("DWARKESH 참조의 숫자는 AI Frontier EP 번호로 읽지 않는다", () => {
+    expect(followConceptRef(initialFrontierViewState, sholto2, mixed).kind).toBe("unavailable")
+    expect(followConceptRef(initialFrontierViewState, patel10, mixed).kind).toBe("unavailable")
+  })
+
+  it("해석되지 않은 Dwarkesh 참조는 AI Frontier 에피소드의 개념 목록에 섞이지 않는다", () => {
+    const dwarkeshConcept = makeConcept({
+      id: "c-dwarkesh",
+      term: "Continual Learning",
+      episodes: [sholto2, patel10],
+    })
+
+    expect(conceptsForEpisode([dwarkeshConcept], ep2)).toEqual([])
+    expect(conceptsForEpisode([dwarkeshConcept], ep10)).toEqual([])
+  })
+
+  it("pageId 로 이어진 Dwarkesh 참조는 그대로 해석된다", () => {
+    const linked = makeRef({ ref: "DWARKESH:RYAN-GREENBLATT", available: true, pageId: "dwarkesh-ryan" })
+    const result = followConceptRef(initialFrontierViewState, linked, mixed)
+
+    expect(result.kind).toBe("episode")
+    if (result.kind !== "episode") return
+    expect(result.episode.id).toBe("dwarkesh-ryan")
+  })
+
+  it("AI Frontier EP 참조의 숫자 되돌리기는 그대로 살아 있다", () => {
+    const legacyTwo = followConceptRef(initialFrontierViewState, makeRef({ ref: "EP2" }), mixed)
+    const legacyTen = followConceptRef(initialFrontierViewState, makeRef({ ref: "EP10" }), mixed)
+
+    expect(legacyTwo.kind).toBe("episode")
+    if (legacyTwo.kind !== "episode") return
+    expect(legacyTwo.episode.id).toBe("ep-2")
+    expect(legacyTen.kind).toBe("episode")
+    if (legacyTen.kind !== "episode") return
+    expect(legacyTen.episode.id).toBe("ep-10")
+    expect(conceptsForEpisode([makeConcept({ id: "c-ep2", episodes: [makeRef({ ref: "EP2" })] })], ep2)).toHaveLength(1)
   })
 })
 
