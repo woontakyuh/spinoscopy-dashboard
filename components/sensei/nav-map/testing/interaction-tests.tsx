@@ -36,6 +36,35 @@ export function registerInteractionTests() {
     expect(detail).toHaveTextContent("상대가 일어설 때")
   })
 
+  it("uses the right detail panel for edge and node selections", async () => {
+    renderNavMap()
+
+    fireEvent.click(await screen.findByRole("button", { name: "데라히바 전환 전이 보기" }))
+
+    const sidebar = screen.getByTestId("navmap-sidebar")
+    expect(sidebar).toHaveAttribute("data-detail-kind", "transition")
+    expect(within(sidebar).getByText("상대가 일어설 때")).toBeInTheDocument()
+    expect(within(sidebar).getByText("내 전술맵 연결")).toBeInTheDocument()
+    expect(within(sidebar).queryByText("기본 교본 연결")).not.toBeInTheDocument()
+
+    const halfGuard = screen.getByRole("button", { name: "하프 가드 스킬 보기" })
+    fireEvent.click(halfGuard)
+
+    expect(sidebar).toHaveAttribute("data-detail-kind", "node")
+    expect(within(sidebar).getByRole("heading", { name: "하프 가드" })).toBeInTheDocument()
+    expect(screen.queryByTestId("navmap-transition-detail")).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "데라히바 전환 전이 보기" }))
+    expect(sidebar).toHaveAttribute("data-detail-kind", "transition")
+
+    fireEvent.click(halfGuard)
+    expect(sidebar).toHaveAttribute("data-detail-kind", "node")
+    expect(screen.getByRole("button", { name: "Focus 모드" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    )
+  })
+
   it("keeps map coordinates in Focus and toggles the selected node back to Map", async () => {
     renderNavMap()
 

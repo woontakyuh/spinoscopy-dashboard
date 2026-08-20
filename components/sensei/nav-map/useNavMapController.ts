@@ -127,13 +127,17 @@ export function useNavMapController({
   const selectNode = useCallback((positionId: string) => {
     if (layout.consumeSuppressedNodeClick()) return
     if (positionId === selectedNodeId) {
+      if (selectedTransitionKey) {
+        setSelectedTransitionKey(null)
+        return
+      }
       clearSelection()
       return
     }
     setSelectedNodeId(positionId)
     setSelectedTransitionKey(null)
     setViewMode("focus")
-  }, [clearSelection, layout, selectedNodeId])
+  }, [clearSelection, layout, selectedNodeId, selectedTransitionKey])
   const selectGamePlan = useCallback((planId: string) => {
     setSelectedPlan(planId)
     setSelectedNodeId(null)

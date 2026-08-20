@@ -128,8 +128,9 @@ export function scoreToNodeRadius(score: number): number {
   return 13 + clampScore(score) * 0.08
 }
 
-export function scoreToEdgeWidth(score: number): number {
-  return 1.1 + clampScore(score) * 0.029
+export function scoreToEdgeWidth(score: number, evidenceCount = 0): number {
+  const evidenceBoost = Math.min(1.8, Math.log2(Math.max(0, evidenceCount) + 1) * 0.45)
+  return 1.1 + clampScore(score) * 0.029 + evidenceBoost
 }
 
 export function buildAthleteTacticalMap(

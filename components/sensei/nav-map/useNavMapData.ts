@@ -18,6 +18,7 @@ import {
 } from "@/lib/sensei/evidenceFinishConnections"
 import { buildEvidencePositionTransitions } from "@/lib/sensei/evidencePositionConnections"
 import { EMPTY_ATTRIBUTES } from "@/lib/sensei/nav-map-scoring"
+import { mergeNavMapBaseline } from "@/lib/sensei/nav-map-baseline"
 import {
   canonicalizeNavMapGraph,
   canonicalizeNavMapPositionId,
@@ -42,7 +43,10 @@ export interface NavMapData {
 export function useNavMapData(): NavMapData {
   const { archetypes, positions, transitions: storedTransitions } = useSenseiData()
   const canonicalGraph = useMemo(
-    () => canonicalizeNavMapGraph(positions, storedTransitions),
+    () => {
+      const baseline = mergeNavMapBaseline(positions, storedTransitions)
+      return canonicalizeNavMapGraph(baseline.positions, baseline.transitions)
+    },
     [positions, storedTransitions],
   )
   const { data: trainingEntries } = useQuery<SenseiEntry[]>({

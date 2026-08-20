@@ -201,6 +201,7 @@ export function buildEvidenceFinishTransitions(
       type: "submission" as const,
       ruleSet: accumulator.to.ruleSet,
       evidence: evidenceSummary(accumulator),
+      source: "evidence" as const,
     }))
     .sort((left, right) => transitionKey(left).localeCompare(transitionKey(right)))
 }

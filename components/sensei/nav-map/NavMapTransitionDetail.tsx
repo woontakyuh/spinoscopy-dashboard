@@ -17,7 +17,7 @@ export function NavMapTransitionDetail({
   return (
     <aside
       data-testid="navmap-transition-detail"
-      className="absolute inset-x-3 bottom-3 z-20 space-y-3 rounded-xl border border-border bg-card/95 p-4 shadow-2xl backdrop-blur-sm sm:left-auto sm:w-80"
+      className="w-full space-y-3 rounded-xl border border-border bg-card p-4"
     >
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -46,7 +46,7 @@ export function NavMapTransitionDetail({
       {transition.condition && (
         <div className="rounded-lg border border-orange-500/20 bg-orange-500/10 px-3 py-2">
           <p className="text-[10px] font-semibold text-orange-300">상황</p>
-          <p className="mt-1 text-xs leading-5 text-foreground/85">
+          <p className="mt-1 break-keep text-xs leading-5 text-foreground/85">
             {transition.condition}
           </p>
         </div>
@@ -73,10 +73,28 @@ export function NavMapTransitionDetail({
             ))}
           </div>
           {transition.evidence.snippets.slice(0, 2).map((snippet) => (
-            <p key={snippet} className="text-[10px] leading-4 text-foreground/70">
+            <p key={snippet} className="break-keep text-[10px] leading-4 text-foreground/70">
               {snippet}
             </p>
           ))}
+        </div>
+      )}
+
+      {!transition.evidence && transition.source === "baseline" && (
+        <div className="rounded-lg border border-border bg-muted/40 px-3 py-2">
+          <p className="text-[10px] font-semibold text-foreground/80">기본 교본 연결</p>
+          <p className="mt-1 break-keep text-[10px] leading-4 text-muted-foreground">
+            수업 기록이 없어도 유지되는 기본 실선입니다. 관련 기록이 쌓이면 선 굵기와 근거가 강화됩니다.
+          </p>
+        </div>
+      )}
+
+      {!transition.evidence && transition.source === "stored" && (
+        <div className="rounded-lg border border-border bg-muted/40 px-3 py-2">
+          <p className="text-[10px] font-semibold text-foreground/80">내 전술맵 연결</p>
+          <p className="mt-1 break-keep text-[10px] leading-4 text-muted-foreground">
+            Notion에 저장된 연결입니다. 관련 수업 기록이 쌓이면 선 굵기와 근거가 강화됩니다.
+          </p>
         </div>
       )}
 

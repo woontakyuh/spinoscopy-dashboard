@@ -68,7 +68,8 @@ export function NavMapEdgeLayer({
     const category = getTransitionCategory(transition, positionsById)
     const color = EDGE_COLORS[category]
     const score = getTransitionScore(transition, activeAttributes, positionsById)
-    const width = scoreToEdgeWidth(score)
+    const evidenceCount = transition.evidence?.count ?? 0
+    const width = scoreToEdgeWidth(score, evidenceCount)
     const reverseExists = transitions.some(
       (candidate) => candidate.from === transition.to && candidate.to === transition.from,
     )
@@ -115,6 +116,7 @@ export function NavMapEdgeLayer({
         opacity={opacity}
         data-transition-category={category}
         data-score={score}
+        data-evidence-count={evidenceCount}
         data-edge-width={width}
         data-emphasis={emphasis}
       >

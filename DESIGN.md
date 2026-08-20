@@ -121,6 +121,9 @@ The base unit is 4px. Existing Tailwind spacing steps are the implementation tok
   and turtle never split into separate attacking/top and defending/bottom nodes. Perspective and
   attack/defense meaning belong to the directed transition, while escape lessons remain attached
   to that same canonical situation node.
+  A conservative curriculum baseline always supplies fundamental solid transitions; Notion and
+  training evidence augment that graph instead of replacing it. Evidence count strengthens edge
+  weight and detail context, while unsupported baseline edges remain visible at their base weight.
 - **Visual channels**:
   - Node color identifies the position family.
   - Edge color identifies the transition outcome: pass, sweep, positional advance/control,

@@ -46,6 +46,40 @@ export function registerTrainingAndScoringTests() {
     expect(pass).toHaveAttribute("data-emphasis", "active")
   })
 
+  it("keeps fundamental baseline transitions when Notion data is sparse", async () => {
+    renderNavMap()
+
+    const hipBump = await screen.findByRole("button", { name: "힙범프 스윕 전이 보기" })
+    expect(hipBump).toBeInTheDocument()
+    const mountEscape = screen.getByRole("button", { name: "엘보 이스케이프 전이 보기" })
+    expect(mountEscape).toBeInTheDocument()
+
+    fireEvent.click(hipBump)
+    expect(
+      within(screen.getByTestId("navmap-sidebar")).getByText("기본 교본 연결"),
+    ).toBeInTheDocument()
+
+    fireEvent.click(mountEscape)
+    expect(screen.getByTestId("navmap-transition-detail")).toHaveTextContent(
+      /마운트\s*→\s*클로즈 가드/,
+    )
+  })
+
+  it("makes record-backed edges stronger than unsupported baseline edges", async () => {
+    renderNavMap()
+
+    const supported = await screen.findByRole("button", {
+      name: "본부 자세 니슬라이드 전이 보기",
+    })
+    const baseline = screen.getByRole("button", { name: "토레안도 전이 보기" })
+
+    await waitFor(() => {
+      expect(Number(supported.getAttribute("data-edge-width"))).toBeGreaterThan(
+        Number(baseline.getAttribute("data-edge-width")),
+      )
+    })
+  })
+
   it("renders one node for each physical control situation", async () => {
     renderNavMap()
 

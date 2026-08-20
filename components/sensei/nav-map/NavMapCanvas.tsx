@@ -131,19 +131,30 @@ export function NavMapCanvas({
             <NavMapNodeLayer {...nodes} />
           </svg>
 
-          {transitionOverlay.transition && (
+        </div>
+
+        <div
+          data-testid="navmap-sidebar"
+          data-detail-kind={
+            transitionOverlay.transition ? "transition" : nodeInspector ? "node" : "empty"
+          }
+          className={
+            transitionOverlay.transition || nodeInspector
+              ? "w-full shrink-0 lg:sticky lg:top-20 lg:w-72"
+              : "hidden w-72 shrink-0 lg:block"
+          }
+        >
+          {transitionOverlay.transition ? (
             <NavMapTransitionDetail
               transition={transitionOverlay.transition}
               fromPosition={transitionOverlay.fromPosition ?? null}
               toPosition={transitionOverlay.toPosition ?? null}
               onClose={transitionOverlay.onClose}
             />
-          )}
+          ) : nodeInspector ? (
+            <NavMapNodeInspector {...nodeInspector} />
+          ) : null}
         </div>
-
-        {nodeInspector ? <NavMapNodeInspector {...nodeInspector} /> : (
-          <div aria-hidden="true" className="hidden w-72 shrink-0 lg:block" />
-        )}
       </div>
     </>
   )

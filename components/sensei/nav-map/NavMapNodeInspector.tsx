@@ -33,19 +33,23 @@ export function NavMapNodeInspector({
   )
   const nodeLayer = getNavMapLayer(node)
   const skillCount = positionSkillMap[node.id] ?? 0
-  const displayCount = Math.max(skillCount, evidenceCount)
-  const { level, label } = getSkillLevel(displayCount)
-  const skillColor = SKILL_LEVEL_COLORS[level]
   const trainingInfo = trainingMap[node.id]
+  const displayCount = Math.max(skillCount, evidenceCount, trainingInfo?.count ?? 0)
+  const { level, label } = getSkillLevel(displayCount)
+  const displayLabel = displayCount === 0 ? "미기록" : label
+  const skillColor = SKILL_LEVEL_COLORS[level]
 
   return (
     <aside
       data-testid="navmap-detail"
       data-selected-node={node.id}
-      className="w-full shrink-0 space-y-3 rounded-xl border border-border bg-card p-4 lg:sticky lg:top-20 lg:w-72"
+      className="w-full space-y-3 rounded-xl border border-border bg-card p-4"
     >
       <div className="flex items-start justify-between gap-3">
         <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Position
+          </p>
           <h3 className="text-sm font-semibold text-foreground">{node.nameKr}</h3>
           <p className="text-xs text-muted-foreground">{node.name}</p>
         </div>
@@ -79,7 +83,7 @@ export function NavMapNodeInspector({
             className="inline-block px-2 py-0.5 rounded text-[10px] font-bold"
             style={{ backgroundColor: skillColor + "25", color: skillColor, border: `1px solid ${skillColor}40` }}
           >
-            {label} ({displayCount}회)
+            {displayLabel} ({displayCount}회)
           </span>
         </div>
       </div>
@@ -117,7 +121,7 @@ export function NavMapNodeInspector({
             <div>
               <h4 className="text-[10px] text-muted-foreground mb-0.5">최근 노트</h4>
               {trainingInfo.recentNotes.map((note, noteIndex) => (
-                <div key={noteIndex} className="text-[10px] text-foreground/70 leading-tight mb-1">
+                <div key={noteIndex} className="mb-1 break-keep text-[10px] leading-tight text-foreground/70">
                   <span className="text-muted-foreground">{note.date.slice(5)}</span>{" "}
                   {note.note}
                 </div>
@@ -126,7 +130,7 @@ export function NavMapNodeInspector({
           )}
         </div>
       ) : (
-        <p className="text-muted-foreground/60 text-[11px]">
+        <p className="break-keep text-[11px] text-muted-foreground/60">
           {evidenceCount > 0
             ? `연결 근거 ${evidenceCount}회 · 노트/논의 기반`
             : "수업 기록 없음"}
@@ -138,7 +142,7 @@ export function NavMapNodeInspector({
       {outgoing.length > 0 && (
         <div>
           <h4 className="text-xs font-medium text-foreground/80 mb-1">→ 전환 ({outgoing.length})</h4>
-          <div className="space-y-0.5 max-h-[200px] overflow-y-auto">
+          <div className="max-h-[216px] space-y-0.5 overflow-y-auto">
             {outgoing.map((transition, index) => {
               const toPosition = positions.find((position) => position.id === transition.to)
               return (
@@ -169,7 +173,7 @@ export function NavMapNodeInspector({
       {incoming.length > 0 && (
         <div>
           <h4 className="text-xs font-medium text-foreground/80 mb-1">← 진입 ({incoming.length})</h4>
-          <div className="space-y-0.5 max-h-[200px] overflow-y-auto">
+          <div className="max-h-[216px] space-y-0.5 overflow-y-auto">
             {incoming.map((transition, index) => {
               const fromPosition = positions.find((position) => position.id === transition.from)
               return (
