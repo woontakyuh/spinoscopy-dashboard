@@ -3,6 +3,8 @@ import type { ReactNode } from "react"
 
 import type { AiFrontierEpisode } from "@/lib/types/ai-frontier"
 
+import { frontierTranscriptLinkLabel } from "./frontier-source"
+
 function safeHttpUrl(value: string | null): string | null {
   const candidate = (value ?? "").trim()
   if (candidate === "") return null
@@ -61,8 +63,9 @@ export function EpisodeLinks({ episode }: { readonly episode: AiFrontierEpisode 
           <Youtube aria-hidden="true" className="size-4" strokeWidth={1.8} />
         </ExternalLink>
       )}
+      {/* 링크 문구는 URL 호스트가 아니라 저장된 출처를 따른다. */}
       {frontier !== null && (
-        <ExternalLink href={frontier} label="AI Frontier에서 전사 읽기">
+        <ExternalLink href={frontier} label={frontierTranscriptLinkLabel(episode.source)}>
           <BookOpenText aria-hidden="true" className="size-4" strokeWidth={1.8} />
         </ExternalLink>
       )}

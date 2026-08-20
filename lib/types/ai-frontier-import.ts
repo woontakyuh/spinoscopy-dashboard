@@ -1,5 +1,9 @@
+export type AiFrontierSource = "ai-frontier" | "dwarkesh"
+
 export interface AiFrontierCatalogEpisode {
-  episodeNumber: number
+  source: AiFrontierSource
+  reference: string
+  episodeNumber: number | null
   name: string
   officialUrl: string
   published: string | null
@@ -36,7 +40,8 @@ export interface AiFrontierEpisodeAnalysis {
 
 export interface AiFrontierImportResult {
   pageId: string
-  episodeNumber: number
+  reference: string
+  episodeNumber: number | null
   status: "완료"
   conceptsCreated: number
   conceptsUpdated: number

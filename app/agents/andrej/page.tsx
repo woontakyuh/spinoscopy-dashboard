@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { Radar as RadarIcon, Telescope } from "lucide-react"
+import { Podcast, Radar as RadarIcon, Telescope } from "lucide-react"
 import { useState } from "react"
 import { TopBar } from "@/components/layout/TopBar"
 import { AgentChat } from "@/components/layout/AgentChat"
@@ -9,11 +9,14 @@ import { FrontierDashboard } from "@/components/andrej/frontier/FrontierDashboar
 import { RadarFeed } from "@/components/radar/RadarFeed"
 import { getTimeContext } from "@/lib/greeterContext"
 import type { AiFrontierIndex } from "@/lib/types/ai-frontier"
+import type { AiFrontierSource } from "@/lib/types/ai-frontier-import"
 import type { FeedResponse } from "@/lib/types/radar"
+import { filterFrontierIndexBySource } from "@/components/andrej/frontier/frontier-source"
 
 const TABS = [
   { id: "radar", label: "Radar", Icon: RadarIcon },
-  { id: "frontier", label: "Frontier", Icon: Telescope },
+  { id: "frontier", label: "AI Frontier", Icon: Telescope },
+  { id: "dwarkesh", label: "Dwarkesh", Icon: Podcast },
 ] as const
 
 type AndrejTab = (typeof TABS)[number]["id"]
@@ -56,7 +59,7 @@ export default function RadarPage() {
     queryFn: fetchFrontierIndex,
     staleTime: FRONTIER_STALE_TIME,
     refetchOnWindowFocus: false,
-    enabled: activeTab === "frontier",
+    enabled: activeTab !== "radar",
   })
 
   const items = data?.items ?? []
@@ -90,7 +93,12 @@ export default function RadarPage() {
   }
 
   function frontierMessage(): string {
-    if (isFrontierPending) return "운탁씨, AI Frontier 지식 라이브러리를 불러오고 있어요."
+    const source: AiFrontierSource =
+      activeTab === "dwarkesh" ? "dwarkesh" : "ai-frontier"
+    const sourceLabel = source === "dwarkesh" ? "Dwarkesh" : "AI Frontier"
+    if (isFrontierPending) {
+      return `운탁씨, ${sourceLabel} 지식 라이브러리를 불러오고 있어요.`
+    }
 
     // 양쪽 소스가 다 끊긴 건 요청 실패와 같은 상태다 — 화면에 세울 게 없다.
     const bothDown =
@@ -98,17 +106,18 @@ export default function RadarPage() {
       frontier.sources.episodes === "unavailable" &&
       frontier.sources.concepts === "unavailable"
     if (isFrontierError || frontier === undefined || bothDown) {
-      return "운탁씨, AI Frontier는 지금 Notion 연결을 확인해야 해요. Radar는 정상적으로 볼 수 있습니다."
+      return `운탁씨, ${sourceLabel}는 지금 Notion 연결을 확인해야 해요. Radar는 정상적으로 볼 수 있습니다.`
     }
 
-    const episodes = frontier.episodes.length
-    const concepts = frontier.concepts.length
-    const unreviewed = frontier.episodes.filter((episode) => !episode.reviewed).length
-    return `운탁씨, AI Frontier에 에피소드 ${episodes}개와 개념 ${concepts}개가 정리돼 있어요. 검토 대기는 ${unreviewed}개입니다.`
+    const sourceIndex = filterFrontierIndexBySource(frontier, source)
+    const episodes = sourceIndex.episodes.length
+    const concepts = sourceIndex.concepts.length
+    const unreviewed = sourceIndex.episodes.filter((episode) => !episode.reviewed).length
+    return `운탁씨, ${sourceLabel}에 에피소드 ${episodes}개와 개념 ${concepts}개가 정리돼 있어요. 검토 대기는 ${unreviewed}개입니다.`
   }
 
   const greeting =
-    activeTab === "frontier" ? frontierMessage() : isLoading ? "..." : message
+    activeTab !== "radar" ? frontierMessage() : isLoading ? "..." : message
 
   const panelId = `andrej-panel-${activeTab}`
   const activeTabId = `andrej-tab-${activeTab}`
@@ -164,7 +173,14 @@ export default function RadarPage() {
         />
 
         <div id={panelId} role="tabpanel" aria-labelledby={activeTabId}>
-          {activeTab === "radar" ? <RadarFeed /> : <FrontierDashboard />}
+          {activeTab === "radar" ? (
+            <RadarFeed />
+          ) : (
+            <FrontierDashboard
+              key={activeTab}
+              source={activeTab === "dwarkesh" ? "dwarkesh" : "ai-frontier"}
+            />
+          )}
         </div>
       </div>
     </div>

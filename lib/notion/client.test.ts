@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { notionEnv, notionRequest } from "./client"
+import { NotionRequestError, notionEnv, notionRequest } from "./client"
 
 const KEY = "NOTION_TEST_DB_ID"
 
@@ -40,6 +40,30 @@ describe("notionRequest", () => {
     vi.unstubAllGlobals()
     if (prevToken === undefined) delete process.env.NOTION_TOKEN
     else process.env.NOTION_TOKEN = prevToken
+  })
+
+  it("HTTP 실패는 응답 body를 버리고 안전한 status만 담은 typed error로 만든다", async () => {
+    const payload = JSON.stringify({
+      object: "error",
+      api_key: "sk-client-secret",
+      token: "token_client_secret",
+      authorization: "Bearer quoted-client-secret",
+      page_id: "private-page-id",
+    })
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: async () => payload,
+    })
+
+    const request = notionRequest("/pages/private-page-id", { method: "PATCH" })
+
+    await expect(request).rejects.toEqual(new NotionRequestError(401))
+    await expect(request).rejects.not.toThrow(/sk-client-secret|private-page-id|response body/i)
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.notion.com/v1/pages/private-page-id",
+      expect.objectContaining({ method: "PATCH", cache: "no-store" })
+    )
   })
 
   // 개행이 섞인 토큰은 Authorization 헤더로 들어가는 순간 fetch가 던진다.

@@ -340,7 +340,8 @@ export function AgentChat({
           {!isCompact && (
             <span aria-hidden className="absolute -left-2 top-3 w-3 h-3 rotate-45 bg-card border-l border-t border-border" />
           )}
-          <p className="text-foreground/90 text-sm md:text-base leading-relaxed">{greeting}</p>
+          {/* 한국어 인사말은 어절을 지켜 끊고, 줄에 안 들어가는 긴 라틴 토큰만 접는다. */}
+          <p className="text-foreground/90 text-sm md:text-base leading-relaxed break-keep break-words">{greeting}</p>
         </div>
       </div>
     </div>

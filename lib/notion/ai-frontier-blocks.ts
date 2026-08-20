@@ -78,6 +78,12 @@ function titledBullets(title: string, values: string[]): NotionWriteBlock[] {
   return [heading(2, title), ...values.map(bullet)]
 }
 
+function sourceLabel(episode: AiFrontierOfficialEpisode): string {
+  return episode.source === "dwarkesh"
+    ? "Dwarkesh Podcast 공식 전사"
+    : "AI Frontier 공식 전사"
+}
+
 export function buildAiFrontierEpisodeBlocks(
   episode: AiFrontierOfficialEpisode,
   analysis: AiFrontierEpisodeAnalysis
@@ -109,7 +115,7 @@ export function buildAiFrontierEpisodeBlocks(
     ...titledBullets("사실·해석·추측 구분", analysis.factInterpretation),
     ...titledBullets("다시 생각해볼 질문", analysis.questions),
     heading(2, "출처"),
-    paragraph("AI Frontier 공식 전사", episode.officialUrl)
+    paragraph(sourceLabel(episode), episode.officialUrl)
   )
   if (episode.youtube) {
     blocks.push(paragraph("YouTube", episode.youtube))

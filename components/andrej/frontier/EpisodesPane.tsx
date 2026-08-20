@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils"
 
 import { EpisodeLinks } from "./EpisodeLinks"
 import { EpisodeImportButton } from "./EpisodeImportButton"
+import { frontierSourceLabel } from "./frontier-source"
+import { frontierProseClass } from "./FrontierSourceState"
 import { conceptsForEpisode, sortEpisodes } from "./frontier-view"
 
 export interface EpisodesPaneProps {
@@ -97,9 +99,31 @@ function EpisodeRow({
         className="w-full rounded-lg px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
       >
         <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          {/* 제목은 원본 그대로 두고, 출처는 옆에 따로 세운다. */}
+          <span
+            data-testid={`frontier-episode-source-${episode.id}`}
+            className="rounded border border-border px-1.5 py-0.5 text-[11px] text-muted-foreground"
+          >
+            {frontierSourceLabel(episode.source)}
+          </span>
           {episode.episodeNumber !== null && (
             <span className="num rounded border border-purple-400/30 bg-purple-500/10 px-1.5 py-0.5 text-[11px] text-purple-700 dark:text-purple-200">
               EP{episode.episodeNumber}
+            </span>
+          )}
+          {episode.status !== null && (
+            <span
+              data-testid={`frontier-episode-status-${episode.id}`}
+              className={cn(
+                "rounded border border-border px-1.5 py-0.5 text-[11px]",
+                episode.status === "완료"
+                  ? "text-emerald-700 dark:text-emerald-300"
+                  : episode.status === "수집 실패"
+                    ? "text-red-700 dark:text-red-300"
+                    : "text-muted-foreground"
+              )}
+            >
+              {episode.status}
             </span>
           )}
           <span id={titleId} className="text-sm font-semibold text-foreground">
@@ -126,7 +150,7 @@ function EpisodeRow({
             {summary !== "" && (
               <p
                 data-testid={`frontier-episode-summary-${episode.id}`}
-                className="text-xs leading-relaxed text-foreground/80"
+                className={`text-xs leading-relaxed text-foreground/80 ${frontierProseClass}`}
               >
                 {summary}
               </p>

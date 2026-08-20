@@ -177,6 +177,20 @@ describe("AgentChat", () => {
       expect(greetingBox).toHaveClass("px-4", "py-3", "md:px-5", "md:py-4")
     })
 
+    it("keeps Korean greetings on word boundaries and wraps long Latin tokens", () => {
+      const greeting = "운탁씨, Dwarkesh에 에피소드 20개와 개념 48개가 정리돼 있어요. 검토 대기는 3개입니다."
+      render(
+        <AgentChat
+          agentId="andrej"
+          image="/andrej.png"
+          name="Andrej"
+          greeting={greeting}
+        />
+      )
+
+      expect(screen.getByText(greeting)).toHaveClass("break-keep", "break-words")
+    })
+
     it("renders standard gaps (12-16px)", () => {
       const { container } = render(
         <AgentChat

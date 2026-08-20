@@ -23,7 +23,11 @@ function makeIndex(overrides: Partial<AiFrontierIndex> = {}): AiFrontierIndex {
         youtube: "https://youtube.com/watch?v=x",
         transcriptSource: "전사 기반",
         duration: "1:02:00",
+        summary: null,
         keyTerms: ["scaling law"],
+        source: "ai-frontier",
+        sourceKey: "EP107",
+        sourceIdentityPersisted: false,
       },
     ],
     concepts: [

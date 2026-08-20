@@ -60,7 +60,11 @@ const EPISODE: AiFrontierEpisode = {
   youtube: null,
   transcriptSource: null,
   duration: "1:02:00",
+  summary: null,
   keyTerms: ["scaling law"],
+  source: "ai-frontier",
+  sourceKey: "EP12",
+  sourceIdentityPersisted: false,
 }
 
 const CONCEPT: AiFrontierConcept = {
@@ -74,6 +78,30 @@ const CONCEPT: AiFrontierConcept = {
   whyItMatters: null,
   source: null,
   episodes: [{ ref: "EP12", available: true, pageId: "ep-1" }],
+}
+
+const DWARKESH_EPISODE: AiFrontierEpisode = {
+  ...EPISODE,
+  id: "dwarkesh-ryan",
+  name: "Dwarkesh · Ryan Greenblatt",
+  episodeNumber: null,
+  published: "2026-08-11",
+  transcriptSource: "https://www.dwarkesh.com/p/ryan-greenblatt",
+  summary: "AI 연구 자동화에 관한 대화",
+  source: "dwarkesh",
+  sourceKey: "DWARKESH:RYAN-GREENBLATT",
+}
+
+const DWARKESH_CONCEPT: AiFrontierConcept = {
+  ...CONCEPT,
+  id: "concept-dwarkesh",
+  term: "Recursive Self-Improvement",
+  korean: "재귀적 자기 개선",
+  episodes: [{
+    ref: "DWARKESH:RYAN-GREENBLATT",
+    available: true,
+    pageId: "dwarkesh-ryan",
+  }],
 }
 
 function makeIndex(overrides: Partial<AiFrontierIndex> = {}): AiFrontierIndex {
@@ -132,8 +160,12 @@ function renderPage(): void {
   )
 }
 
-function tab(name: "Radar" | "Frontier"): HTMLElement {
-  return screen.getByRole("tab", { name })
+function tab(
+  name: "Radar" | "Frontier" | "AI Frontier" | "Dwarkesh"
+): HTMLElement {
+  return screen.getByRole("tab", {
+    name: name === "Frontier" ? "AI Frontier" : name,
+  })
 }
 
 beforeEach(() => {
@@ -178,6 +210,37 @@ describe("Andrej 페이지 탭", () => {
     expect(await screen.findByTestId("frontier-columns")).toBeTruthy()
     expect(screen.queryByTestId("radar-feed")).toBeNull()
     expect(tab("Frontier")).toHaveAttribute("aria-selected", "true")
+  })
+
+  it("AI Frontier 옆 Dwarkesh 탭에서 소스별 데이터만 보여준다", async () => {
+    frontierReply = {
+      ok: true,
+      body: makeIndex({
+        episodes: [EPISODE, DWARKESH_EPISODE],
+        concepts: [CONCEPT, DWARKESH_CONCEPT],
+        episodeIndex: {
+          EP12: "ep-1",
+          "DWARKESH:RYAN-GREENBLATT": "dwarkesh-ryan",
+        },
+      }),
+    }
+    renderPage()
+
+    expect(tab("AI Frontier")).toHaveAttribute("aria-selected", "false")
+    expect(tab("Dwarkesh")).toHaveAttribute("aria-selected", "false")
+
+    fireEvent.click(tab("AI Frontier"))
+    expect(await screen.findByText("스케일링의 끝")).toBeInTheDocument()
+    expect(screen.queryByText("Dwarkesh · Ryan Greenblatt")).not.toBeInTheDocument()
+
+    fireEvent.click(tab("Dwarkesh"))
+    expect(await screen.findByText("Dwarkesh · Ryan Greenblatt")).toBeInTheDocument()
+    expect(screen.queryByText("스케일링의 끝")).not.toBeInTheDocument()
+    expect(tab("Dwarkesh")).toHaveAttribute("aria-selected", "true")
+    expect(screen.getByTestId("chat-greeting")).toHaveTextContent(
+      "운탁씨, Dwarkesh에 에피소드 1개와 개념 1개가 정리돼 있어요."
+    )
+    expect(countFrontierCalls()).toBe(1)
   })
 
   it("Radar → Frontier → Radar 왕복 후에도 Radar 가 정상 복귀한다", async () => {
@@ -409,7 +472,7 @@ describe("탭 접근성", () => {
     const list = screen.getByRole("tablist")
 
     // Then
-    expect(within(list).getAllByRole("tab")).toHaveLength(2)
+    expect(within(list).getAllByRole("tab")).toHaveLength(3)
     expect(list.getAttribute("aria-label")).toBeTruthy()
   })
 
@@ -418,7 +481,7 @@ describe("탭 접근성", () => {
     renderPage()
 
     // Then
-    for (const name of ["Radar", "Frontier"] as const) {
+    for (const name of ["Radar", "AI Frontier", "Dwarkesh"] as const) {
       expect(tab(name).tagName).toBe("BUTTON")
       expect(tab(name)).toHaveAttribute("type", "button")
     }
@@ -430,7 +493,7 @@ describe("탭 접근성", () => {
     const list = screen.getByRole("tablist")
 
     // Then
-    expect(list.textContent).toBe("RadarFrontier")
+    expect(list.textContent).toBe("RadarAI FrontierDwarkesh")
     expect(/\p{Extended_Pictographic}/u.test(list.textContent ?? "")).toBe(false)
   })
 
