@@ -11,6 +11,14 @@ export function notionEnv(name: string): string {
   return (process.env[name] ?? "").trim()
 }
 
+export class NotionRequestError extends Error {
+  readonly name = "NotionRequestError"
+
+  constructor(readonly status: number) {
+    super("Notion API request failed.")
+  }
+}
+
 export async function notionRequest<T>(
   path: string,
   options: RequestInit = {}
@@ -26,8 +34,8 @@ export async function notionRequest<T>(
     },
   })
   if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`Notion API error ${res.status}: ${body}`)
+    await res.text()
+    throw new NotionRequestError(res.status)
   }
   return res.json() as Promise<T>
 }
