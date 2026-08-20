@@ -51,6 +51,18 @@ vi.mock("@/lib/voice", () => ({
 }))
 
 describe("MorningBriefing", () => {
+  it("한국어 인사와 날짜를 단어 단위로 줄바꿈한다", () => {
+    const queryClient = new QueryClient()
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MorningBriefing />
+      </QueryClientProvider>,
+    )
+
+    expect(screen.getByRole("heading", { level: 2 })).toHaveClass("break-keep")
+    expect(screen.getByText(/년.*월.*일.*요일/)).toHaveClass("break-keep")
+  })
+
   it("대화·음성 오버레이를 모바일 하단 내비게이션보다 위에 둔다", () => {
     const queryClient = new QueryClient()
     render(

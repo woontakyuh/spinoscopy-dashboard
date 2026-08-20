@@ -39,7 +39,7 @@ export function Sidebar() {
 
   return (
     <>
-      <aside className="hidden w-16 min-h-screen bg-card border-r border-border md:flex flex-col shrink-0">
+      <aside className="fixed inset-y-0 left-0 hidden h-dvh w-16 flex-col overflow-y-auto border-r border-border bg-card md:flex">
         {/* Profile */}
         <div className="p-2 py-3 border-b border-border">
           <Link href="/" className="flex flex-col items-center gap-1 hover:opacity-80 transition-opacity">
@@ -89,7 +89,7 @@ export function Sidebar() {
         </div>
       </aside>
 
-      <nav className="fixed inset-x-0 bottom-0 z-[1000] border-t border-border bg-card/95 px-2 py-1.5 backdrop-blur md:hidden pointer-events-auto">
+      <nav className="fixed inset-x-0 bottom-0 z-[1000] border-t border-border bg-card/95 px-2 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] backdrop-blur md:hidden pointer-events-auto">
         <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
           {[HOME_ITEM, ...navItems].map((item) => {
             const isCurrentPage = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)

@@ -5,13 +5,12 @@ import { useQuery } from "@tanstack/react-query"
 import { TopBar } from "@/components/layout/TopBar"
 import { AgentChat } from "@/components/layout/AgentChat"
 import { SenseiDashboard } from "@/components/sensei/SenseiDashboard"
-import { SenseiCalendar } from "@/components/sensei/SenseiCalendar"
-import { SenseiCapture } from "@/components/sensei/SenseiCapture"
 import { HomeOverview } from "@/components/lo/HomeOverview"
 import { ConceptsFeed } from "@/components/lo/ConceptsFeed"
 import { NavMapWrapper } from "@/components/lo/NavMapWrapper"
 import { CompetitionsView } from "@/components/lo/CompetitionsView"
 import { MemoryView } from "@/components/lo/MemoryView"
+import { TrainingView } from "@/components/lo/TrainingView"
 import { getTimeContext } from "@/lib/greeterContext"
 import { formatLoAnswerForDisplay } from "@/lib/lo/chat/persona"
 import type { BjjStats, BjjAttributes, SenseiEntry } from "@/lib/types/sensei"
@@ -36,7 +35,6 @@ function getHighLow(attrs: BjjAttributes): { highest: string; lowest: string } {
 
 export default function LoPage() {
   const [activeTab, setActiveTab] = useState<LoTab>("home")
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   const { data, isLoading: isStatsLoading } = useQuery<{ stats: BjjStats }>({
     queryKey: ["sensei-stats"],
@@ -95,9 +93,9 @@ export default function LoPage() {
 
     if (tab === "competitions") {
       if (stats) {
-        return `Tak, ${stats.belt} belt, 올해 ${stats.sessions2026}회. 대회 목표 잡아보자.`
+        return `Tak, 국내외 대회 일정 조사해뒀어. ${stats.belt} belt 기준으로 가까운 것부터 보자.`
       }
-      return "Tak, 대회 일정 여기서 관리해. 목표 하나 잡아두자."
+      return "Tak, 국내외 대회 일정 조사해뒀어. 가까운 것부터 보자."
     }
 
     if (tab === "concepts") {
@@ -160,7 +158,7 @@ export default function LoPage() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-w-0 p-3 md:p-6">
+      <div className="min-w-0 flex-1 p-3 pb-24 md:p-6">
         <AgentChat
           agentId="lo"
           image="/lo.png"
@@ -180,11 +178,7 @@ export default function LoPage() {
         {activeTab === "navmap" && <NavMapWrapper />}
 
         {activeTab === "training" && (
-          <div>
-            <SenseiCalendar onDateSelect={setSelectedDate} />
-            <div className="mt-4" />
-            <SenseiCapture selectedDate={selectedDate} />
-          </div>
+          <TrainingView entries={entries} isLoading={isEntriesLoading} />
         )}
 
         {activeTab === "competitions" && <CompetitionsView />}

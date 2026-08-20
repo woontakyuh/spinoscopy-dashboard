@@ -71,7 +71,7 @@ function toArticle(page: NotionPage): JournalArticle {
     title: getText(p.Title),
     authors: getText(p.Author),
     journal_name: normalizeJournalName(p["Journal Name"]?.select?.name ?? ""),
-    pub_date: p["Publication Date"]?.date?.start ?? null,
+    pub_date: p["Publication Date"]?.date?.start.slice(0, 10) ?? null,
     doi_url: p.DOI?.url ?? null,
     abstract: getText(p.Abstract),
     summary: getText(p.Summary),
