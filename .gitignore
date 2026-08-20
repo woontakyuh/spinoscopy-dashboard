@@ -43,6 +43,7 @@ next-env.d.ts
 scripts/*
 !scripts/job-bootstrap.sh
 !scripts/generate-dakota-manifest.ts
+!scripts/preview-ai-frontier-backfill.ts
 !scripts/telegram-bot.ts
 !scripts/social-collector
 !scripts/journal-collector
@@ -61,6 +62,7 @@ credentials.json
 .claude/worktrees/
 .codex/
 .hermes/runtime/
+.omo/
 !scripts/dakota-ledger-schema.ts
 !scripts/dakota-ledger-cron.sh
 !scripts/dakota-ledger-backfill-surface.ts
