@@ -1,11 +1,14 @@
 import { notionEnv, notionRequest } from "@/lib/notion/client"
 import type {
-  AiFrontierConcept, AiFrontierEpisode, AiFrontierEpisodeDetail, AiFrontierEpisodeRef,
+  AiFrontierConcept, AiFrontierEpisode, AiFrontierEpisodeDetail,
   AiFrontierIndex, AiFrontierStatus, NotionAiFrontierBlock, NotionAiFrontierBlocksResponse,
   NotionAiFrontierPage, NotionAiFrontierProperty, NotionAiFrontierQueryResponse,
   NotionAiFrontierTextBlockType,
 } from "@/lib/types/ai-frontier"
 
+import { toAiFrontierConcept, toAiFrontierEpisode } from "./ai-frontier-parser"
+
+export { toAiFrontierConcept, toAiFrontierEpisode } from "./ai-frontier-parser"
 export type { NotionAiFrontierPage, NotionAiFrontierProperty }
 
 export type AiFrontierNotionRequest = (path: string, options?: RequestInit) => Promise<unknown>
@@ -23,112 +26,6 @@ const TEXT_BLOCK_TYPES: NotionAiFrontierTextBlockType[] = [
 
 const defaultRequest: AiFrontierNotionRequest = (path, options) =>
   notionRequest<unknown>(path, options)
-
-function joinedText(parts: Array<{ plain_text?: string }> | undefined): string | null {
-  if (!Array.isArray(parts)) return null
-  const text = parts.map((part) => part.plain_text ?? "").join("").trim()
-  return text || null
-}
-
-function readTitle(prop?: NotionAiFrontierProperty): string | null {
-  return prop?.type === "title" ? joinedText(prop.title) : null
-}
-
-function readText(prop?: NotionAiFrontierProperty): string | null {
-  return prop?.type === "rich_text" ? joinedText(prop.rich_text) : null
-}
-
-function readSelect(prop?: NotionAiFrontierProperty): string | null {
-  if (prop?.type !== "select") return null
-  const name = prop.select?.name?.trim()
-  return name || null
-}
-
-function readMultiSelect(prop?: NotionAiFrontierProperty): string[] {
-  if (prop?.type !== "multi_select" || !Array.isArray(prop.multi_select)) return []
-  return prop.multi_select
-    .map((option) => option.name?.trim() ?? "")
-    .filter((name) => name.length > 0)
-}
-
-function readNumber(prop?: NotionAiFrontierProperty): number | null {
-  return prop?.type === "number" && typeof prop.number === "number" && Number.isFinite(prop.number)
-    ? prop.number
-    : null
-}
-
-function readCheckbox(prop?: NotionAiFrontierProperty): boolean {
-  return prop?.type === "checkbox" && prop.checkbox === true
-}
-
-function readDate(prop?: NotionAiFrontierProperty): string | null {
-  if (prop?.type !== "date") return null
-  const start = prop.date?.start?.trim()
-  return start || null
-}
-
-function readUrl(prop?: NotionAiFrontierProperty): string | null {
-  if (prop?.type !== "url") return null
-  const url = prop.url?.trim()
-  return url || null
-}
-
-function readEpisodeRefs(prop?: NotionAiFrontierProperty): AiFrontierEpisodeRef[] {
-  const refs: AiFrontierEpisodeRef[] = []
-  const seen = new Set<string>()
-  for (const name of readMultiSelect(prop)) {
-    const ref = name.replace(/\s+/g, "").toUpperCase()
-    if (!ref || seen.has(ref)) continue
-    seen.add(ref)
-    refs.push({ ref, available: false, pageId: null })
-  }
-  return refs
-}
-
-export function toAiFrontierEpisode(page: NotionAiFrontierPage): AiFrontierEpisode | null {
-  const id = page.id?.trim()
-  const props = page.properties ?? {}
-  const name = readTitle(props.Name)
-  if (!id || !name) return null
-
-  return {
-    id,
-    name,
-    episodeNumber: readNumber(props.Episode),
-    status: readSelect(props.Status),
-    published: readDate(props.Published),
-    recorded: readDate(props.Recorded),
-    reviewed: readCheckbox(props.Reviewed),
-    topics: readMultiSelect(props.Topics),
-    models: readMultiSelect(props.Models),
-    people: readMultiSelect(props.People),
-    youtube: readUrl(props.YouTube),
-    transcriptSource: readUrl(props["Transcript Source"]),
-    duration: readText(props.Duration),
-    summary: readText(props.한줄요약),
-    keyTerms: readMultiSelect(props["Key Terms"]),
-  }
-}
-
-export function toAiFrontierConcept(page: NotionAiFrontierPage): AiFrontierConcept | null {
-  const id = page.id?.trim()
-  const props = page.properties ?? {}
-  const term = readTitle(props.Term)
-  if (!id || !term) return null
-
-  return {
-    id,
-    term,
-    korean: readText(props.Korean),
-    category: readSelect(props.Category),
-    verified: readSelect(props.Verified),
-    oneLine: readText(props["One-line Explanation"]),
-    intuition: readText(props.Intuition),
-    whyItMatters: readText(props["Why It Matters"]),
-    source: readUrl(props.Source),
-    episodes: readEpisodeRefs(props.Episodes),
-  }
-}
 
 function databaseId(envName: string, fallback: string): string {
   return notionEnv(envName) || fallback
@@ -202,9 +99,10 @@ export async function getAiFrontierIndex(
   const episodeIndex: Record<string, string> = {}
 
   for (const episode of episodes) {
-    if (episode.episodeNumber === null) continue
-    const ref = `EP${episode.episodeNumber}`
-    if (!episodeIndex[ref]) episodeIndex[ref] = episode.id
+    const ref = episode.sourceKey ?? (
+      episode.episodeNumber === null ? null : `EP${episode.episodeNumber}`
+    )
+    if (ref !== null && !episodeIndex[ref]) episodeIndex[ref] = episode.id
   }
 
   return {

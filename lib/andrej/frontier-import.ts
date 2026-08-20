@@ -1,5 +1,5 @@
 import { analyzeAiFrontierEpisode } from "@/lib/andrej/frontier-analysis"
-import { fetchAiFrontierEpisode } from "@/lib/andrej/frontier-catalog"
+import { fetchFrontierEpisode } from "@/lib/andrej/frontier-sources"
 import {
   getAiFrontierIndex,
 } from "@/lib/notion/ai-frontier"
@@ -28,7 +28,7 @@ interface ImportDependencies {
 
 const defaultDependencies: ImportDependencies = {
   loadIndex: () => getAiFrontierIndex(),
-  loadEpisode: (url) => fetchAiFrontierEpisode(url),
+  loadEpisode: (url) => fetchFrontierEpisode(url),
   analyze: (episode) => analyzeAiFrontierEpisode(episode, {
     apiKey: process.env.OPENAI_API_KEY ?? "",
   }),
@@ -78,7 +78,7 @@ export async function importAiFrontierEpisode(
     await dependencies.setStatus(pageId, "수집 중")
     collecting = true
     const episode = await dependencies.loadEpisode(episodeRecord.transcriptSource)
-    if (episode.episodeNumber !== episodeRecord.episodeNumber) {
+    if (episode.officialUrl !== episodeRecord.transcriptSource) {
       throw new AiFrontierImportError()
     }
     const analysis = await dependencies.analyze(episode)

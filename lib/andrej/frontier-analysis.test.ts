@@ -8,6 +8,8 @@ import {
 } from "./frontier-analysis"
 
 const episode: AiFrontierOfficialEpisode = {
+  source: "ai-frontier",
+  reference: "EP87",
   episodeNumber: 87,
   name: "EP87. 딸깍의 시대",
   officialUrl: "https://aifrontier.kr/ko/episodes/ep87",
@@ -69,6 +71,16 @@ function response(output: unknown, status = 200) {
   )
 }
 
+async function capturedError(promise: Promise<unknown>): Promise<AiFrontierAnalysisError> {
+  try {
+    await promise
+    throw new Error("expected analysis failure")
+  } catch (error) {
+    expect(error).toBeInstanceOf(AiFrontierAnalysisError)
+    return error as AiFrontierAnalysisError
+  }
+}
+
 describe("AI Frontier Episode 분석", () => {
   it("전사를 구조화된 요약과 개념으로 분석한다", async () => {
     const fetchImpl = vi.fn<
@@ -85,6 +97,14 @@ describe("AI Frontier Episode 분석", () => {
     expect(body.model).toBe("gpt-5.6-luna")
     expect(body.text.format.type).toBe("json_schema")
     expect(body.text.format.strict).toBe(true)
+    expect(body.text.format.schema.properties.summary).toMatchObject({ minLength: 1, maxLength: 700, pattern: "\\S" })
+    expect(body.text.format.schema.properties.topics).toMatchObject({ minItems: 1, maxItems: 10 })
+    expect(body.text.format.schema.properties.topics.items).toMatchObject({ minLength: 1, maxLength: 60, pattern: "\\S" })
+    expect(body.text.format.schema.properties.concepts).toMatchObject({ minItems: 3, maxItems: 12 })
+    expect(body.text.format.schema.properties.keyPoints).toMatchObject({ minItems: 3, maxItems: 12 })
+    expect(body.text.format.schema.properties.keyPoints.items.properties.bullets).toMatchObject({ minItems: 1, maxItems: 6 })
+    expect(body.text.format.schema.properties.insights).toMatchObject({ minItems: 2, maxItems: 10 })
+    expect(body.text.format.schema.properties.questions).toMatchObject({ minItems: 2, maxItems: 8 })
     expect(JSON.parse(body.input[0].content[0].text).transcript).toBe(episode.transcript)
   })
 
@@ -94,13 +114,63 @@ describe("AI Frontier Episode 분석", () => {
     ).rejects.toBeInstanceOf(AiFrontierAnalysisError)
   })
 
-  it("모델이 계약과 다른 JSON을 반환하면 저장하지 않는다", async () => {
+  it("429 응답은 body를 보존하지 않는 retryable HTTP 진단이다", async () => {
+    const secret = "provider-body-secret-sentinel"
+    const error = await capturedError(analyzeAiFrontierEpisode(episode, {
+      apiKey: "test-key",
+      fetchImpl: async () => new Response(secret, { status: 429 }),
+    }))
+
+    expect(error).toMatchObject({ phase: "http", status: 429, retryable: true })
+    expect(JSON.stringify(error)).not.toContain(secret)
+  })
+
+  it("400 응답은 재시도하지 않는 HTTP 진단이다", async () => {
+    const error = await capturedError(analyzeAiFrontierEpisode(episode, {
+      apiKey: "test-key",
+      fetchImpl: async () => new Response("invalid request secret", { status: 400 }),
+    }))
+
+    expect(error).toMatchObject({ phase: "http", status: 400, retryable: false })
+  })
+
+  it("transport/timeout 실패를 status 없는 retryable 진단으로 분류한다", async () => {
+    const error = await capturedError(analyzeAiFrontierEpisode(episode, {
+      apiKey: "test-key",
+      fetchImpl: async () => { throw new DOMException("timed out secret", "TimeoutError") },
+    }))
+
+    expect(error).toMatchObject({ phase: "transport", status: null, retryable: true })
+  })
+
+  it("malformed response envelope를 response-shape로 분류한다", async () => {
+    const error = await capturedError(analyzeAiFrontierEpisode(episode, {
+      apiKey: "test-key",
+      fetchImpl: async () => new Response(JSON.stringify({ output: "wrong" }), { status: 200 }),
+    }))
+
+    expect(error).toMatchObject({ phase: "response-shape", status: 200, retryable: false })
+  })
+
+  it("output_text의 invalid JSON을 output-json으로 분류한다", async () => {
+    const error = await capturedError(analyzeAiFrontierEpisode(episode, {
+      apiKey: "test-key",
+      fetchImpl: async () => new Response(JSON.stringify({
+        output: [{ content: [{ type: "output_text", text: "{" }] }],
+      }), { status: 200 }),
+    }))
+
+    expect(error).toMatchObject({ phase: "output-json", status: 200, retryable: false })
+  })
+
+  it("모델이 계약과 다른 JSON을 반환하면 schema 진단으로 저장하지 않는다", async () => {
     const fetchImpl = vi.fn<
       (input: string | URL | Request, init?: RequestInit) => Promise<Response>
     >(async () => response({ summary: "불완전" }))
 
-    await expect(
+    const error = await capturedError(
       analyzeAiFrontierEpisode(episode, { apiKey: "test-key", fetchImpl })
-    ).rejects.toBeInstanceOf(AiFrontierAnalysisError)
+    )
+    expect(error).toMatchObject({ phase: "analysis-schema", status: 200, retryable: false })
   })
 })

@@ -59,6 +59,8 @@ describe("AI Frontier 공식 카탈로그", () => {
         "https://aifrontier.kr/ko/episodes/ep107"
       )
     ).toEqual({
+      source: "ai-frontier",
+      reference: "EP107",
       episodeNumber: 107,
       name: "EP107. 미래란 언제나 예측불허",
       officialUrl: "https://aifrontier.kr/ko/episodes/ep107",

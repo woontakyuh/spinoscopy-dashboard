@@ -8,6 +8,8 @@ import type {
 import { buildAiFrontierEpisodeBlocks } from "./ai-frontier-blocks"
 
 const episode: AiFrontierOfficialEpisode = {
+  source: "ai-frontier",
+  reference: "EP87",
   episodeNumber: 87,
   name: "EP87. 딸깍의 시대",
   officialUrl: "https://aifrontier.kr/ko/episodes/ep87",

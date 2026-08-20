@@ -1,5 +1,6 @@
 // AI Frontier 읽기 모델 (Notion 2개 DB: AI Frontier Episodes / AI Frontier Concepts).
 // 읽기 전용이며 Notion 쓰기 타입은 정의하지 않는다.
+import type { AiFrontierSource } from "./ai-frontier-import"
 
 /** Concept이 참조하는 에피소드. multi_select 문자열이라 관계가 끊길 수 있다. */
 export interface AiFrontierEpisodeRef {
@@ -23,6 +24,8 @@ export interface AiFrontierEpisode {
   published: string | null
   /** Notion `Recorded` (ISO date start) */
   recorded: string | null
+  /** Notion page `last_edited_time`; cron lease recovery에만 사용한다. */
+  lastEditedAt?: string | null
   /** Notion `Reviewed` (checkbox). 값이 없으면 false */
   reviewed: boolean
   /** Notion `Topics` */
@@ -41,6 +44,12 @@ export interface AiFrontierEpisode {
   summary: string | null
   /** Notion `Key Terms` */
   keyTerms: string[]
+  /** Notion `Source`. 저장 전 행은 `Episode`/`Transcript Source`에서 유도한다. */
+  source: AiFrontierSource
+  /** Notion `Source Key` 정규값(`EP110`, `DWARKESH:RYAN-GREENBLATT`). 유도도 불가하면 null */
+  sourceKey: string | null
+  /** `Source`/`Source Key`가 Notion에 실제로 저장돼 있으면 true (마이그레이션 여부) */
+  sourceIdentityPersisted: boolean
 }
 
 export interface AiFrontierConcept {
@@ -114,6 +123,7 @@ export interface NotionAiFrontierProperty {
 
 export interface NotionAiFrontierPage {
   id: string
+  last_edited_time?: string
   properties: Record<string, NotionAiFrontierProperty>
 }
 
