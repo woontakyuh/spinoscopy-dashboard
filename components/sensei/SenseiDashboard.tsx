@@ -60,7 +60,9 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
   const attrs = activeStats.attributes
   const beltCap = BELT_CAPS[stats.belt] ?? 40
   const beltHex = BELTS.find((b) => b.id === stats.belt)?.hex || "#3b82f6"
-  const portraitSrc = characterImageSrc(stats.belt)
+  const portraits = (["gi", "nogi"] as const)
+    .map((mode) => ({ mode, src: characterImageSrc(stats.belt, mode) }))
+    .filter((p): p is { mode: "gi" | "nogi"; src: string } => p.src !== null)
   const radarData: RadarDatum[] = CHARACTER_STAT_BARS.map((s) => ({
     subject: s.name,
     value: attrs[s.key],
@@ -79,17 +81,22 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
       <div className="max-w-5xl mx-auto space-y-4">
 
         {/* ══ 메인 카드: 이미지 | 스탯 ══ */}
-        <div className="bg-card border border-border rounded-2xl overflow-hidden grid grid-cols-1 md:grid-cols-[240px_1fr]">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden grid grid-cols-1 md:grid-cols-[280px_1fr]">
 
-          {/* 좌: 포트레이트 (모바일 숨김) — 벨트 상태에 따라 이미지가 바뀐다 */}
+          {/* 좌: 전신 캐릭터 (모바일 숨김) — 벨트 + Gi/NoGi 에 따라 바뀐다.
+              두 장을 겹쳐 두고 opacity 로 전환해서, 토글할 때 로딩 깜빡임이 없다 */}
           <div className="hidden md:flex relative bg-muted items-end justify-center overflow-hidden">
-            {portraitSrc && !imgError ? (
-              <img
-                src={portraitSrc}
-                alt={`${profile.name} 캐릭터 포트레이트`}
-                className="absolute inset-0 w-full h-full object-cover object-center"
-                onError={() => setImgError(true)}
-              />
+            {portraits.length > 0 && !imgError ? (
+              portraits.map(({ mode, src }) => (
+                <img
+                  key={mode}
+                  src={src}
+                  alt={mode === giMode ? `${profile.name} 캐릭터 (${mode === "gi" ? "도복" : "노기"})` : ""}
+                  aria-hidden={mode !== giMode}
+                  className={`absolute inset-0 w-full h-full object-contain object-bottom transition-opacity duration-300 ${mode === giMode ? "opacity-100" : "opacity-0"}`}
+                  onError={() => setImgError(true)}
+                />
+              ))
             ) : (
               <svg viewBox="0 0 120 160" className="w-28 mb-4"><circle cx="60" cy="30" r="20" fill="#52525b"/><path d="M32 58 Q32 48 42 46 L60 52 L78 46 Q88 48 88 58 L88 118 L32 118 Z" fill="#d4d4d8"/><rect x="32" y="86" width="56" height="7" rx="1" fill={beltHex}/><path d="M32 118 L36 152 L54 152 L60 122 L66 152 L84 152 L88 118 Z" fill="#3f3f46"/></svg>
             )}
