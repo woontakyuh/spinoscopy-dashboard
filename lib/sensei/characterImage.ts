@@ -10,6 +10,8 @@
  * (승급 직후에 캐릭터 창이 비는 것보다 낫다)
  */
 
+import type { ConditionId } from "./characterCondition"
+
 export type GiMode = "gi" | "nogi"
 
 /** 흰띠 → 검은띠 순서. BELTS(statConfig) 와 같은 순서를 유지할 것. */
@@ -21,10 +23,29 @@ const AVAILABLE_GI_BELTS = new Set<string>(["blue"])
 /** NoGi 아트가 준비돼 있는지. */
 const HAS_NOGI_ART = true
 
-export function characterImageSrc(belt: string, mode: GiMode): string | null {
-  if (mode === "nogi") return HAS_NOGI_ART ? "/characters/tak-nogi.webp" : null
+/**
+ * 컨디션별 전용 아트가 있는 조합. 없으면 기본 아트에 CSS 보정만 걸린다.
+ * 사진이 생기면 `${base}-${condition}` 을 여기 추가하고 파일을 넣으면 된다.
+ */
+const CONDITION_ART = new Set<string>([])
+
+export function characterImageSrc(
+  belt: string,
+  mode: GiMode,
+  condition?: ConditionId,
+): string | null {
+  const base = baseArtName(belt, mode)
+  if (!base) return null
+  if (condition && CONDITION_ART.has(`${base}-${condition}`)) {
+    return `/characters/${base}-${condition}.webp`
+  }
+  return `/characters/${base}.webp`
+}
+
+function baseArtName(belt: string, mode: GiMode): string | null {
+  if (mode === "nogi") return HAS_NOGI_ART ? "tak-nogi" : null
   const key = resolveBeltArt(belt)
-  return key ? `/characters/tak-gi-${key}.webp` : null
+  return key ? `tak-gi-${key}` : null
 }
 
 /** 요청한 벨트의 Gi 아트가 없으면, 아트가 존재하는 가장 높은 하위 벨트를 돌려준다. */

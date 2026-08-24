@@ -17,6 +17,7 @@ import { useAthleteComparison } from "@/components/sensei/character/useAthleteCo
 import { AttributePanel } from "@/components/sensei/character/AttributePanel"
 import { BeltTimeline } from "@/components/sensei/character/BeltTimeline"
 import { characterImageSrc } from "@/lib/sensei/characterImage"
+import { deriveCondition } from "@/lib/sensei/characterCondition"
 
 interface SenseiDashboardProps { onNavigate: (tab: string) => void }
 
@@ -60,8 +61,13 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
   const attrs = activeStats.attributes
   const beltCap = BELT_CAPS[stats.belt] ?? 40
   const beltHex = BELTS.find((b) => b.id === stats.belt)?.hex || "#3b82f6"
+  // 수련 기록이 캐릭터를 움직인다 — HANDOFF §6
+  const condition = deriveCondition({
+    daysSinceLastSession: stats.daysSinceLastSession,
+    currentStreak: stats.streaks.current,
+  })
   const portraits = (["gi", "nogi"] as const)
-    .map((mode) => ({ mode, src: characterImageSrc(stats.belt, mode) }))
+    .map((mode) => ({ mode, src: characterImageSrc(stats.belt, mode, condition.id) }))
     .filter((p): p is { mode: "gi" | "nogi"; src: string } => p.src !== null)
   const radarData: RadarDatum[] = CHARACTER_STAT_BARS.map((s) => ({
     subject: s.name,
@@ -93,13 +99,20 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
                   src={src}
                   alt={mode === giMode ? `${profile.name} 캐릭터 (${mode === "gi" ? "도복" : "노기"})` : ""}
                   aria-hidden={mode !== giMode}
-                  className={`absolute inset-0 w-full h-full object-contain object-bottom transition-opacity duration-300 ${mode === giMode ? "opacity-100" : "opacity-0"}`}
+                  style={{ filter: condition.imageFilter }}
+                  className={`absolute inset-0 w-full h-full object-contain object-bottom transition-[opacity,filter] duration-500 ${mode === giMode ? "opacity-100" : "opacity-0"}`}
                   onError={() => setImgError(true)}
                 />
               ))
             ) : (
               <svg viewBox="0 0 120 160" className="w-28 mb-4"><circle cx="60" cy="30" r="20" fill="#52525b"/><path d="M32 58 Q32 48 42 46 L60 52 L78 46 Q88 48 88 58 L88 118 L32 118 Z" fill="#d4d4d8"/><rect x="32" y="86" width="56" height="7" rx="1" fill={beltHex}/><path d="M32 118 L36 152 L54 152 L60 122 L66 152 L84 152 L88 118 Z" fill="#3f3f46"/></svg>
             )}
+
+            {/* 컨디션 배지 — 그림의 변화만으로는 왜 그런지 알 수 없다 */}
+            <div className={`absolute top-3 left-3 px-2 py-1 rounded-md border backdrop-blur-sm ${condition.accent}`}>
+              <p className="text-[10px] font-semibold leading-none">{condition.label}</p>
+              <p className="text-[9px] opacity-70 leading-none mt-1">{condition.tone}</p>
+            </div>
           </div>
 
           {/* 우: 스탯 패널 */}

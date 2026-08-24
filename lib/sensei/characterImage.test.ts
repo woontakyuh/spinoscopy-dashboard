@@ -25,3 +25,14 @@ describe("characterImage", () => {
     expect(characterImageSrc("coral", "gi")).toBe("/characters/tak-gi-blue.webp")
   })
 })
+
+describe("characterImage — 컨디션", () => {
+  it("컨디션 전용 아트가 없으면 기본 아트로 떨어진다", () => {
+    expect(characterImageSrc("blue", "gi", "rusty")).toBe("/characters/tak-gi-blue.webp")
+    expect(characterImageSrc("blue", "nogi", "dormant")).toBe("/characters/tak-nogi.webp")
+  })
+
+  it("컨디션을 안 줘도 동작한다", () => {
+    expect(characterImageSrc("blue", "gi")).toBe("/characters/tak-gi-blue.webp")
+  })
+})

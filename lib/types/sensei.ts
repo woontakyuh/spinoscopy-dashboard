@@ -75,6 +75,8 @@ export interface BjjStats {
   playstyle: string
   recentFocus: string[]
   streaks: { current: number; best: number }
+  /** 마지막 체육관 세션 이후 일수. 기록이 없으면 null */
+  daysSinceLastSession: number | null
   giRatio: number
   sessions2026: number
   sessions2026Gi: number

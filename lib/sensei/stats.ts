@@ -99,6 +99,24 @@ function isGymSession(e: SenseiEntry): boolean {
   return e.sessionType === "class" || e.sessionType === "openmat"
 }
 
+/**
+ * 마지막 체육관 세션 이후 며칠. 기록이 없으면 null.
+ * 캐릭터 컨디션 판정에 쓴다 — 주 단위 streak 은 "오늘 얼마나 비었나"를 못 잡는다.
+ */
+function daysSinceLastGymSession(entries: SenseiEntry[]): number | null {
+  let latest: string | null = null
+  for (const e of entries) {
+    if (!e.date || !isGymSession(e)) continue
+    if (latest === null || e.date > latest) latest = e.date
+  }
+  if (latest === null) return null
+  const last = new Date(`${latest}T00:00:00`)
+  if (Number.isNaN(last.getTime())) return null
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  return Math.round((today.getTime() - last.getTime()) / 86_400_000)
+}
+
 function calculateStreaks(entries: SenseiEntry[]): { current: number; best: number } {
   // 체육관 출석 기반 (class + openmat). study/reflection/body/promotion 제외.
   const dates = entries
@@ -280,6 +298,7 @@ export function calculateBjjStats(entries: SenseiEntry[]): BjjStats {
     playstyle: determinePlaystyle(combinedAttrs),
     recentFocus,
     streaks: calculateStreaks(entries),
+    daysSinceLastSession: daysSinceLastGymSession(entries),
     giRatio,
     sessions2026,
     sessions2026Gi,
