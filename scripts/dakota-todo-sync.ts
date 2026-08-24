@@ -33,10 +33,15 @@ export function parseArgs(argv: string[]): { since: string | null; dryRun: boole
   throw new Error(`--since 값을 해석할 수 없습니다: "${value}" (YYYY-MM-DD | today | yesterday)`)
 }
 
+export function completedFromDateFilter(since: string | null): string | undefined {
+  return since ? `${since}T00:00:00+09:00` : undefined
+}
+
 async function main() {
   const { since, dryRun } = parseArgs(process.argv.slice(2))
 
-  const all = await getAllTodos({ status: "Done", ...(since ? { completedFromDate: since } : {}) })
+  const completedFromDate = completedFromDateFilter(since)
+  const all = await getAllTodos({ status: "Done", ...(completedFromDate ? { completedFromDate } : {}) })
   const completed = all.filter((t) => Boolean(t.completed_at))
 
   const snapshot = await readSessionLogSnapshot()

@@ -51,21 +51,33 @@ acquire_lock || exit 0
 
 echo "=== $STAMP --since $SINCE ==="
 
-# 러너를 origin/main에 맞춘다. 실패해도 이전 코드로 계속 돈다(적재가 멈추는 것보다 낫다).
+# 러너를 origin/main에 맞춘다. 동기화 실패 시 stale code로 쓰지 않고 fail closed 한다.
 if git fetch -q origin main 2>/dev/null && git checkout -q --detach origin/main 2>/dev/null; then
   echo "  코드: $(git log --oneline -1)"
 else
-  echo "  경고: origin/main 동기화 실패, 현재 체크아웃으로 진행 — $(git log --oneline -1)"
+  echo "  오류: origin/main 동기화 실패 — ledger write를 중단합니다."
+  exit 1
 fi
 
-# 네 면을 모두 돌린다. 하나가 실패해도 나머지는 시도한다.
+# 네 면을 모두 돌린다. 하나가 실패해도 나머지는 시도하고, 마지막에 실패를 launchd에 돌려준다.
+FAILURES=0
 run() {
   local label="$1"; shift
   echo "--- $label ---"
-  if ! "$@"; then echo "  ! $label 실패 (계속 진행)"; fi
+  if "$@"; then
+    return 0
+  fi
+  echo "  ! $label 실패 (계속 진행)"
+  FAILURES=$((FAILURES + 1))
+  return 0
 }
 
 run "Hermes"       npx tsx --env-file=.env.local scripts/dakota-ledger-sync.ts --since "$SINCE"
-run "To-Do"        npx tsx --env-file=.env.local scripts/dakota-todo-sync.ts
+run "To-Do"        npx tsx --env-file=.env.local scripts/dakota-todo-sync.ts --since "$SINCE"
 run "Conversation" npx tsx --env-file=.env.local scripts/dakota-conversation-sync.ts
 run "Wiki"         npx tsx --env-file=.env.local scripts/dakota-wiki-sync.ts
+
+if [ "$FAILURES" -gt 0 ]; then
+  echo "=== $FAILURES개 lane 실패 ==="
+  exit 1
+fi

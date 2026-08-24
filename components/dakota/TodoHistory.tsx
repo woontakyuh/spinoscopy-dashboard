@@ -62,6 +62,24 @@ function calcDuration(createdAt: string, completedAt: string | null): string {
   return `${days}일`
 }
 
+export function formatCompletionTimestamp(value: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date)
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? ""
+  return `${part("year")}-${part("month")}-${part("day")} ${part("hour")}:${part("minute")}`
+}
+
 async function fetchActiveTodos(): Promise<TodoItem[]> {
   const res = await fetch("/api/dakota/todo?status=active")
   if (!res.ok) throw new Error("할 일 로딩 실패")
@@ -396,7 +414,7 @@ export function TodoHistory() {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-foreground/90 truncate">{todo.name}</p>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs text-muted-foreground">{todo.completed_at ?? todo.created_at}</span>
+                    <span className="text-xs text-muted-foreground">{formatCompletionTimestamp(todo.completed_at ?? todo.created_at)}</span>
                     <span className="text-xs text-muted-foreground/70">{calcDuration(todo.created_at, todo.completed_at)}</span>
                   </div>
                 </div>
