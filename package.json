@@ -15,7 +15,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "character:build": "node scripts/character/build.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.45",

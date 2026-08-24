@@ -47,6 +47,7 @@ scripts/*
 !scripts/telegram-bot.ts
 !scripts/social-collector
 !scripts/journal-collector
+!scripts/character
 !scripts/fulltext-worker
 !scripts/dakota-ledger-sync.ts
 !scripts/dakota-ledger-sync.test.ts
