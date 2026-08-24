@@ -75,3 +75,16 @@
 - Run existing `dakota-todo-sync.ts --since today --dry-run` to verify the Done item is visible to Session Log ingestion.
 - Run project tests relevant to Todo/Ledger and `git diff --check`.
 - Do not backfill historical conversations automatically.
+
+## Verified implementation record (2026-08-25 KST)
+
+- Schema migration: first run `schema_migrated`, second run `schema_noop`; all six property types read back from Notion.
+- Operational install: recorder and reconciler installed under `~/.hermes/scripts` with mode 755 and source/destination SHA-256 equality.
+- First real record: created as `Done`, read back successfully, and an identical second call returned `deduped` without changing its original completion time.
+- Session Log integration: KST-bounded dry-run found the new row; apply created one Session Log row; the next dry-run found zero fresh rows.
+- Historical reconciliation: dry-run only; 149 candidates were not applied.
+- Verification: Python 28/28, Todo/Ledger 187/187, production build passed, Codex quality/security re-review approved.
+
+### Spec amendment from live timezone verification
+
+Day aggregation must convert full timestamps to `Asia/Seoul`, not blindly use the stored string prefix. A value such as `2026-08-24T16:10:11Z` belongs to `2026-08-25` in the user's operating timezone. Date-only historical values remain unchanged. The Notion `Completed At` filter likewise uses an explicit KST-midnight boundary (`YYYY-MM-DDT00:00:00+09:00`), because a date-only filter was empirically verified to miss offset-bearing completion timestamps.
