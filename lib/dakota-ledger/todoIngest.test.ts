@@ -14,6 +14,7 @@ function todo(over: Partial<TodoItem> = {}): TodoItem {
     url: "https://notion.so/page-1",
     created_at: "2026-07-01",
     completed_at: "2026-07-10",
+    source_ref: null,
     ...over,
   }
 }

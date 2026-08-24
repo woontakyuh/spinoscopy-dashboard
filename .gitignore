@@ -67,8 +67,11 @@ credentials.json
 !scripts/dakota-ledger-cron.sh
 !scripts/dakota-ledger-backfill-surface.ts
 !scripts/dakota-todo-sync.ts
+!scripts/dakota-todo-sync.test.ts
 !scripts/dakota-conversation-sync.ts
 !scripts/dakota-wiki-sync.ts
+!scripts/hermes-dakota/
+!scripts/hermes-dakota/*.py
 
 # 로컬 에이전트 툴이 만드는 심볼릭 링크 — 저장소 밖(~/.omo)을 가리켜서
 # 배포에 딸려 올라가면 빌드가 stat 에서 죽는다 (2026-08-05 실제 실패).
