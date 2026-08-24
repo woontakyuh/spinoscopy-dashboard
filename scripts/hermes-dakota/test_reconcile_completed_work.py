@@ -49,10 +49,23 @@ def session_page(
     }
 
 
-def todo_page(page_id: str, record_key: str) -> dict:
+def todo_page(
+    page_id: str,
+    record_key: str,
+    *,
+    name: str = "",
+    completed_at: str | None = None,
+) -> dict:
     return {
         "id": page_id,
-        "properties": {"Record Key": text_property("rich_text", record_key)},
+        "properties": {
+            "Name": text_property("title", name),
+            "Record Key": text_property("rich_text", record_key),
+            "Completed At": {
+                "type": "date",
+                "date": {"start": completed_at, "end": None} if completed_at else None,
+            },
+        },
     }
 
 
@@ -159,6 +172,29 @@ class ReconcileCompletedWorkTests(unittest.TestCase):
 
         self.assertEqual(output["candidate_count"], 0)
 
+    def test_same_title_and_seoul_completion_date_is_conservatively_deduped(self) -> None:
+        session = session_page(
+            "source-session",
+            "Build recorder",
+            session_key="session:different-key",
+            date="2026-08-25T01:21:00+09:00",
+        )
+        existing = todo_page(
+            "existing-todo",
+            "another-record-key",
+            name="  BUILD   recorder ",
+            completed_at="2026-08-24T16:21:00Z",
+        )
+        service = reconcile.ReconciliationService(
+            FakeClient([session], [existing]),
+            "todo-db",
+            "session-db",
+        )
+
+        output = service.run()
+
+        self.assertEqual(output["candidate_count"], 0)
+
     def test_candidate_json_contains_provenance_and_deterministic_key(self) -> None:
         session = session_page("new", "Build recorder", session_key="session:new", origin="논의")
         service = reconcile.ReconciliationService(FakeClient([session], []), "todo-db", "session-db")
@@ -176,6 +212,35 @@ class ReconcileCompletedWorkTests(unittest.TestCase):
     def test_default_parser_mode_is_dry_run_and_apply_is_explicit(self) -> None:
         self.assertFalse(reconcile.build_parser().parse_args([]).apply)
         self.assertTrue(reconcile.build_parser().parse_args(["--apply"]).apply)
+
+    def test_parser_accepts_inclusive_calendar_bounds(self) -> None:
+        args = reconcile.build_parser().parse_args(
+            ["--since", "2026-08-23", "--until", "2026-08-25"]
+        )
+        self.assertEqual(args.since.isoformat(), "2026-08-23")
+        self.assertEqual(args.until.isoformat(), "2026-08-25")
+
+    def test_date_bounds_use_seoul_calendar_dates_and_fail_closed_without_date(self) -> None:
+        sessions = [
+            session_page("old", "Old work", date="2026-08-22T23:59:59+09:00"),
+            session_page("first", "First day work", date="2026-08-23"),
+            session_page("last", "Last day work", date="2026-08-25T22:00:00+09:00"),
+            session_page("utc-next", "Next KST day", date="2026-08-25T16:00:00Z"),
+            session_page("malformed", "Malformed date", date="not-a-date"),
+        ]
+        service = reconcile.ReconciliationService(FakeClient(sessions, []), "todo-db", "session-db")
+
+        output = service.run(
+            since=reconcile.CalendarDate.fromisoformat("2026-08-23"),
+            until=reconcile.CalendarDate.fromisoformat("2026-08-25"),
+        )
+
+        self.assertEqual(output["since"], "2026-08-23")
+        self.assertEqual(output["until"], "2026-08-25")
+        self.assertEqual(
+            [item["name"] for item in output["candidates"]],
+            ["First day work", "Last day work"],
+        )
 
     def test_apply_records_each_candidate_with_explicit_key_and_full_datetime(self) -> None:
         sessions = [

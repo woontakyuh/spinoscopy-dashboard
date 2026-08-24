@@ -11,8 +11,10 @@ import re
 import sys
 import unicodedata
 from dataclasses import asdict, dataclass
+from datetime import date as CalendarDate, datetime
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional, TextIO
+from zoneinfo import ZoneInfo
 
 
 def _load_recorder_module() -> Any:
@@ -43,6 +45,7 @@ SENSITIVE_TEXT_PATTERN = re.compile(
 )
 ELIGIBLE_ORIGINS = {"지시", "논의"}
 ELIGIBLE_OUTCOME = "완료"
+SEOUL = ZoneInfo("Asia/Seoul")
 
 
 @dataclass(frozen=True)
@@ -151,9 +154,55 @@ def is_sensitive_text(text: str) -> bool:
     return bool(SENSITIVE_TEXT_PATTERN.search(normalized))
 
 
-def build_candidates(rows: Iterable[SessionLogRow], recorded_keys: set[str]) -> list[Candidate]:
+def _parse_calendar_date(value: str) -> CalendarDate:
+    try:
+        return CalendarDate.fromisoformat(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"날짜를 해석할 수 없습니다: {value!r} (YYYY-MM-DD)") from exc
+
+
+def _session_seoul_date(value: Optional[str]) -> Optional[CalendarDate]:
+    if not value:
+        return None
+    candidate = value.strip()
+    try:
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", candidate):
+            return CalendarDate.fromisoformat(candidate)
+        parsed = datetime.fromisoformat(candidate.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=SEOUL)
+        return parsed.astimezone(SEOUL).date()
+    except ValueError:
+        return None
+
+
+def _completion_identity(name: str, completed_at: Optional[str]) -> Optional[tuple[str, str]]:
+    completion_date = _session_seoul_date(completed_at)
+    normalized_name = " ".join(unicodedata.normalize("NFKC", name).casefold().split())
+    if not normalized_name or completion_date is None:
+        return None
+    return normalized_name, completion_date.isoformat()
+
+
+def build_candidates(
+    rows: Iterable[SessionLogRow],
+    recorded_keys: set[str],
+    *,
+    recorded_completions: Optional[set[tuple[str, str]]] = None,
+    since: Optional[CalendarDate] = None,
+    until: Optional[CalendarDate] = None,
+) -> list[Candidate]:
+    existing_completions = recorded_completions or set()
     candidates: list[Candidate] = []
     for row in rows:
+        if since is not None or until is not None:
+            row_date = _session_seoul_date(row.date)
+            if row_date is None:
+                continue
+            if since is not None and row_date < since:
+                continue
+            if until is not None and row_date > until:
+                continue
         if row.outcome != ELIGIBLE_OUTCOME or row.origin not in ELIGIBLE_ORIGINS:
             continue
         if (
@@ -166,6 +215,9 @@ def build_candidates(rows: Iterable[SessionLogRow], recorded_keys: set[str]) -> 
             continue
         record_key = record_completed_work.compute_record_key(row.name, row.session_key)
         if record_key in recorded_keys:
+            continue
+        identity = _completion_identity(row.name, row.date)
+        if identity is not None and identity in existing_completions:
             continue
         candidates.append(
             Candidate(
@@ -229,23 +281,48 @@ class ReconciliationService:
     def read_session_logs(self) -> list[SessionLogRow]:
         return [parse_session_log_page(page) for page in self._query_all(self.session_log_database_id)]
 
-    def read_recorded_keys(self) -> set[str]:
+    def read_recorded_state(self) -> tuple[set[str], set[tuple[str, str]]]:
         pages = self._query_all(
             self.todo_database_id,
             {"property": "Record Key", "rich_text": {"is_not_empty": True}},
         )
-        return {
+        keys = {
             key
             for page in pages
             if (key := _text(page.get("properties", {}).get("Record Key")))
         }
+        completions = {
+            identity
+            for page in pages
+            if (
+                identity := _completion_identity(
+                    _text(page.get("properties", {}).get("Name")),
+                    (page.get("properties", {}).get("Completed At", {}).get("date") or {}).get("start"),
+                )
+            )
+        }
+        return keys, completions
 
-    def run(self, apply: bool = False) -> dict[str, object]:
+    def run(
+        self,
+        apply: bool = False,
+        *,
+        since: Optional[CalendarDate] = None,
+        until: Optional[CalendarDate] = None,
+    ) -> dict[str, object]:
         rows = self.read_session_logs()
-        recorded_keys = self.read_recorded_keys()
-        candidates = build_candidates(rows, recorded_keys)
+        recorded_keys, recorded_completions = self.read_recorded_state()
+        candidates = build_candidates(
+            rows,
+            recorded_keys,
+            recorded_completions=recorded_completions,
+            since=since,
+            until=until,
+        )
         output: dict[str, object] = {
             "mode": "apply" if apply else "dry-run",
+            "since": since.isoformat() if since else None,
+            "until": until.isoformat() if until else None,
             "candidate_count": len(candidates),
             "candidates": [candidate.to_dict() for candidate in candidates],
         }
@@ -282,6 +359,8 @@ class ReconciliationService:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--env-file", type=Path)
+    parser.add_argument("--since", type=_parse_calendar_date, help="inclusive KST date boundary (YYYY-MM-DD)")
+    parser.add_argument("--until", type=_parse_calendar_date, help="inclusive KST date boundary (YYYY-MM-DD)")
     parser.add_argument(
         "--apply",
         action="store_true",
@@ -300,6 +379,8 @@ def main(
 ) -> int:
     args = build_parser().parse_args(list(argv) if argv is not None else None)
     try:
+        if args.since and args.until and args.since > args.until:
+            raise RecorderError("--since must be on or before --until")
         config = load_reconcile_config(environ if environ is not None else os.environ, args.env_file)
         client = record_completed_work.NotionClient(config.token)
         service = ReconciliationService(
@@ -309,9 +390,9 @@ def main(
         )
         if args.apply:
             with record_completed_work.exclusive_lock(args.lock_file):
-                output = service.run(apply=True)
+                output = service.run(apply=True, since=args.since, until=args.until)
         else:
-            output = service.run(apply=False)
+            output = service.run(apply=False, since=args.since, until=args.until)
         json.dump(output, stdout, ensure_ascii=False, sort_keys=True)
         stdout.write("\n")
         return 0
