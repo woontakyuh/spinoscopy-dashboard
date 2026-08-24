@@ -1,27 +1,35 @@
 import { describe, expect, it } from "vitest"
-import { getNavMapLayer } from "@/lib/sensei/nav-map-layout"
-import { POSITIONS } from "@/lib/sensei/skillConnections"
+import { canonicalizeNavMapGraph } from "@/lib/sensei/nav-map-canonicalization"
+import { POSITIONS, TRANSITIONS } from "@/lib/sensei/skillConnections"
 
 describe("Sensei position semantics", () => {
-  it("keeps held controls separate from defensive escape starts", () => {
-    const controls = POSITIONS.filter(
-      (position) => getNavMapLayer(position) === "control",
-    )
-    const defensiveStarts = POSITIONS.filter((position) =>
-      ["side_bottom", "kob_bottom", "mount_bottom", "back_bottom", "turtle_bottom"]
-        .includes(position.id),
-    )
+  it("projects attack and defense perspectives onto one situation node", () => {
+    const graph = canonicalizeNavMapGraph(POSITIONS, TRANSITIONS)
+    const positionIds = graph.positions.map((position) => position.id)
 
-    expect(controls).not.toHaveLength(0)
+    expect(positionIds).toEqual(
+      expect.arrayContaining(["side_top", "kob_top", "mount_top", "back_top", "turtle_top"]),
+    )
+    expect(positionIds).not.toEqual(
+      expect.arrayContaining([
+        "side_bottom",
+        "kob_bottom",
+        "mount_bottom",
+        "back_bottom",
+        "turtle_bottom",
+      ]),
+    )
     expect(
-      controls.every((position) => position.perspective === "top"),
-    ).toBe(true)
-    expect(
-      defensiveStarts.every(
-        (position) =>
-          getNavMapLayer(position) === "defense" &&
-          position.perspective === "bottom",
-      ),
-    ).toBe(true)
+      graph.positions.find((position) => position.id === "mount_top")?.lessonNumbers,
+    ).toEqual([38, 39, 40, 41, 42])
+    expect(graph.transitions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          from: "mount_top",
+          to: "hg",
+          type: "escape",
+        }),
+      ]),
+    )
   })
 })

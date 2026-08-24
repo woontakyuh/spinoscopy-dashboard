@@ -188,6 +188,7 @@ export function buildEvidencePositionTransitions(
         dates: [...accumulator.dates].sort().reverse(),
         snippets: accumulator.snippets,
       },
+      source: "evidence" as const,
     }))
     .sort((left, right) =>
       `${left.from}:${left.to}`.localeCompare(`${right.from}:${right.to}`),

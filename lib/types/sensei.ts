@@ -253,6 +253,7 @@ export interface Transition {
   videoUrl?: string
   ruleSet: "common" | "gi" | "nogi"
   evidence?: TransitionEvidence
+  source?: "baseline" | "stored" | "evidence"
 }
 
 export interface LessonVideo {
