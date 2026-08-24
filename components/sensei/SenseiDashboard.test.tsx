@@ -50,6 +50,7 @@ const STATS: BjjStats = {
   playstyle: "Half Guard Specialist",
   recentFocus: ["Half Guard"],
   streaks: { current: 4, best: 9 },
+  daysSinceLastSession: 2,
   giRatio: 0.6,
   sessions2026: 92,
   sessions2026Gi: 55,
