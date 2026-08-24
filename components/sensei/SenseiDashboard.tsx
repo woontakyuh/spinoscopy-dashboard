@@ -81,7 +81,7 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
       <div className="max-w-5xl mx-auto space-y-4">
 
         {/* ══ 메인 카드: 이미지 | 스탯 ══ */}
-        <div className="bg-card border border-border rounded-2xl overflow-hidden grid grid-cols-1 md:grid-cols-[280px_1fr]">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden grid grid-cols-1 md:grid-cols-[240px_1fr]">
 
           {/* 좌: 전신 캐릭터 (모바일 숨김) — 벨트 + Gi/NoGi 에 따라 바뀐다.
               두 장을 겹쳐 두고 opacity 로 전환해서, 토글할 때 로딩 깜빡임이 없다 */}
