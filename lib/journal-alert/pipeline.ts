@@ -101,14 +101,130 @@ function deriveCategories(article: Pick<PubmedArticle, "title" | "abstract" | "k
   return matched.slice(0, 5)
 }
 
-interface NotionQueryResponse {
-  results: Array<{
-    id: string
-    properties: Record<string, unknown>
-  }>
-  has_more: boolean
-  next_cursor: string | null
+export const JOURNAL_DIGEST_START = "2026-08-30T15:00:00.000Z"
+
+type DigestInterest = "🔴 필독" | "🟡 관심" | "⚪ 참고"
+
+type DigestItem = {
+  readonly pageId: string
+  readonly title: string
+  readonly authors: string
+  readonly journalName: string
+  readonly doiUrl: string
+  readonly pubDate: string
+  readonly interest: DigestInterest
 }
+
+export function buildPendingDigestQuery(cursor?: string): Record<string, unknown> {
+  const query: Record<string, unknown> = {
+    page_size: 100,
+    filter: {
+      and: [
+        { property: "Alerted", checkbox: { equals: false } },
+        {
+          timestamp: "created_time",
+          created_time: { on_or_after: JOURNAL_DIGEST_START },
+        },
+      ],
+    },
+  }
+  return cursor ? { ...query, start_cursor: cursor } : query
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function notionText(properties: Record<string, unknown>, propertyName: string, fieldName: string): string {
+  const property = properties[propertyName]
+  if (!isRecord(property)) return ""
+  const field = property[fieldName]
+  if (!Array.isArray(field)) return ""
+  return field
+    .map((part) => isRecord(part) && typeof part.plain_text === "string" ? part.plain_text : "")
+    .join("")
+}
+
+function notionSelect(properties: Record<string, unknown>, propertyName: string): string {
+  const property = properties[propertyName]
+  if (!isRecord(property) || !isRecord(property.select)) return ""
+  return typeof property.select.name === "string" ? property.select.name : ""
+}
+
+function notionScalar(properties: Record<string, unknown>, propertyName: string, fieldName: string): string {
+  const property = properties[propertyName]
+  if (!isRecord(property)) return ""
+  const value = property[fieldName]
+  return typeof value === "string" ? value : ""
+}
+
+function notionDate(properties: Record<string, unknown>, propertyName: string): string {
+  const property = properties[propertyName]
+  if (!isRecord(property) || !isRecord(property.date)) return ""
+  return typeof property.date.start === "string" ? property.date.start : ""
+}
+
+export function parsePendingDigestPage(value: unknown): DigestItem | null { if (!isRecord(value) || typeof value.id !== "string" || !isRecord(value.properties)) return null
+const title = notionText(value.properties, "Title", "title")
+if (!title) return null
+const storedInterest = notionSelect(value.properties, "관심도")
+const interest: DigestInterest = storedInterest === "🔴 필독" || storedInterest === "🟡 관심"
+  ? storedInterest
+  : "⚪ 참고"
+return {
+  pageId: value.id,
+  title,
+  authors: notionText(value.properties, "Author", "rich_text"),
+  journalName: notionSelect(value.properties, "Journal Name"),
+  doiUrl: notionScalar(value.properties, "DOI", "url"),
+  pubDate: notionDate(value.properties, "Publication Date"),
+  interest,
+} }
+
+class InvalidNotionDigestResponseError extends Error {
+  constructor() {
+    super("Notion digest query returned an invalid response")
+    this.name = "InvalidNotionDigestResponseError"
+  }
+}
+
+type DigestNotionRequest = (path: string, options?: RequestInit) => Promise<unknown>
+
+const requestDigestNotion: DigestNotionRequest = (path, options) =>
+  notionRequest<unknown>(path, options)
+
+export async function loadPendingDigestItems(
+  databaseId: string,
+  request: DigestNotionRequest = requestDigestNotion,
+): Promise<DigestItem[]> {
+  const items: DigestItem[] = []
+  let cursor: string | undefined
+  do {
+    const response = await request(`/databases/${databaseId}/query`, {
+      method: "POST",
+      body: JSON.stringify(buildPendingDigestQuery(cursor)),
+    })
+    if (!isRecord(response) || !Array.isArray(response.results)) {
+      throw new InvalidNotionDigestResponseError()
+    }
+    for (const page of response.results) {
+      const item = parsePendingDigestPage(page)
+      if (item) items.push(item)
+    }
+    const hasMore = response.has_more === true
+    const nextCursor = typeof response.next_cursor === "string" ? response.next_cursor : undefined
+    if (hasMore && !nextCursor) throw new InvalidNotionDigestResponseError()
+    cursor = hasMore ? nextCursor : undefined
+  } while (cursor)
+  return items
+}
+
+interface NotionQueryResponse { results: Array<{
+  id: string
+  properties: Record<string, unknown>
+}>
+has_more: boolean
+next_cursor: string | null }
 
 interface NotionCreateResponse {
   id: string
@@ -506,27 +622,18 @@ function pubDateMillis(value: string): number {
   return Number.isNaN(millis) ? 0 : millis
 }
 
-function interestRank(article: PubmedArticle): number {
-  const level = classifyInterest(article)
+function interestRank(level: DigestInterest): number {
   if (level === "🔴 필독") return 3
   if (level === "🟡 관심") return 2
   return 1
 }
 
-function selectEmailArticles(
-  items: Array<{ article: PubmedArticle; pageId: string }>
-): Array<{ article: PubmedArticle; pageId: string }> {
-  // 신규 등록 논문 전부를 이메일에 포함. interest 순 → 날짜 순으로만 정렬.
-  // 비상 상한 (Gmail 렌더링 한계 등) 만 환경변수로 둠 — 지정 안 하면 무제한.
-  const maxItemsEnv = process.env.JOURNAL_ALERT_MAX_EMAIL_ITEMS
-  const cap = maxItemsEnv ? Number(maxItemsEnv) : Number.POSITIVE_INFINITY
-
-  const sorted = [...items].sort((a, b) => {
-    const rankDiff = interestRank(b.article) - interestRank(a.article)
+function selectEmailArticles(items: DigestItem[]): DigestItem[] {
+  return [...items].sort((a, b) => {
+    const rankDiff = interestRank(b.interest) - interestRank(a.interest)
     if (rankDiff !== 0) return rankDiff
-    return pubDateMillis(b.article.pubDate) - pubDateMillis(a.article.pubDate)
+    return pubDateMillis(b.pubDate) - pubDateMillis(a.pubDate)
   })
-  return Number.isFinite(cap) && cap > 0 ? sorted.slice(0, Math.floor(cap)) : sorted
 }
 
 async function loadExistingKeys(databaseId: string): Promise<Set<string>> {
@@ -1268,50 +1375,39 @@ export async function migrateMarkAllAlerted(databaseId: string): Promise<number>
   return marked
 }
 
-function buildEmailHtml(
-  totalInserted: number,
-  itemsForEmail: Array<{ article: PubmedArticle; pageId: string }>
-): { subject: string; html: string } {
+function buildEmailHtml(itemsForEmail: DigestItem[]): { subject: string; html: string } {
   const today = new Date().toISOString().slice(0, 10)
-  type EmailItem = { article: PubmedArticle; pageId: string }
   const grouped = {
-    must: [] as EmailItem[],
-    interest: [] as EmailItem[],
-    ref: [] as EmailItem[],
+    must: [] as DigestItem[],
+    interest: [] as DigestItem[],
+    ref: [] as DigestItem[],
   }
 
   for (const item of itemsForEmail) {
-    const interest = classifyInterest(item.article)
-    if (interest === "🔴 필독") grouped.must.push(item)
-    else if (interest === "🟡 관심") grouped.interest.push(item)
+    if (item.interest === "🔴 필독") grouped.must.push(item)
+    else if (item.interest === "🟡 관심") grouped.interest.push(item)
     else grouped.ref.push(item)
   }
 
-  const subject = alertSubject(`📚 새 논문 ${totalInserted}편 — ${today}`)
-
-  // 메일에서 바로 원문 수집을 걸 수 있는 링크. 키/baseUrl 이 없으면 null 이고
-  // fulltextButton 이 빈 문자열을 돌려주므로 지금과 똑같은 메일이 나간다.
+  const total = itemsForEmail.length
+  const subject = alertSubject(`📚 새 논문 ${total}편 — ${today}`)
   const baseUrl = process.env.JOURNAL_ALERT_BASE_URL ?? ""
   const linkSecret = process.env.JOURNAL_ALERT_LINK_SECRET ?? ""
 
-  const row = ({ article: a, pageId }: EmailItem, idx: number) =>
-    `<tr><td style="padding:6px 8px;color:#9ca3af;">${idx}</td><td style="padding:6px 8px;"><a href="${a.doiUrl}" style="color:#2563eb;text-decoration:none;">${a.title}</a>${notionIconLink(notionPageUrl(pageId))}${fulltextButton(buildFulltextLink(baseUrl, pageId, linkSecret))}<div style="font-size:11px;color:#6b7280;">${a.authors} · ${a.journalName}</div></td></tr>`
+  const row = (item: DigestItem, idx: number) =>
+    `<tr><td style="padding:6px 8px;color:#9ca3af;">${idx}</td><td style="padding:6px 8px;"><a href="${item.doiUrl || notionPageUrl(item.pageId)}" style="color:#2563eb;text-decoration:none;">${item.title}</a>${notionIconLink(notionPageUrl(item.pageId))}${fulltextButton(buildFulltextLink(baseUrl, item.pageId, linkSecret))}<div style="font-size:11px;color:#6b7280;">${item.authors} · ${item.journalName}</div></td></tr>`
 
-  const section = (title: string, items: EmailItem[]) => {
+  const section = (title: string, items: DigestItem[]) => {
     if (items.length === 0) return ""
     return `<h3 style="color:#111827;border-bottom:1px solid #e5e7eb;padding-bottom:6px;">${title} (${items.length})</h3><table style="width:100%;border-collapse:collapse;">${items
       .map((item, idx) => row(item, idx + 1))
       .join("")}</table>`
   }
 
-  const totalShown = grouped.must.length + grouped.interest.length + grouped.ref.length
-  const summaryLine = totalInserted === totalShown
-    ? `총 신규 ${totalInserted}편`
-    : `총 신규 ${totalInserted}편 중 ${totalShown}편 표시`
   const html = alertWrap(
-    `📚 새 논문 ${totalInserted}편`,
-    [today, summaryLine],
-    `${section("🔴 필독", grouped.must)}${section("🟡 관심", grouped.interest)}${section("⚪ 참고", grouped.ref)}`
+    `📚 새 논문 ${total}편`,
+    [today, `총 신규 ${total}편`],
+    `${section("🔴 필독", grouped.must)}${section("🟡 관심", grouped.interest)}${section("⚪ 참고", grouped.ref)}`,
   )
   return { subject, html }
 }
@@ -1371,26 +1467,34 @@ async function sendBackfillReport(
   }
 }
 
-async function sendEmailAlert(
-  insertedWithIds: Array<{ article: PubmedArticle; pageId: string }>
+type PendingDigestOptions = {
+  readonly dryRun?: boolean
+  readonly request?: DigestNotionRequest
+}
+
+export async function sendPendingJournalDigest(
+  databaseId: string,
+  options: PendingDigestOptions = {},
 ): Promise<EmailSendResult> {
+  const items = selectEmailArticles(await loadPendingDigestItems(databaseId, options.request))
+  if (items.length === 0) {
+    return { sent: false, reason: "no_pending_articles", shownCount: 0 }
+  }
+
+  const { subject, html } = buildEmailHtml(items)
+  if (options.dryRun) {
+    return { sent: false, reason: "dry_run", subject, shownCount: items.length }
+  }
+
   const user = process.env.JOURNAL_ALERT_SMTP_USER
   const pass = process.env.JOURNAL_ALERT_SMTP_PASS
   const host = process.env.JOURNAL_ALERT_SMTP_HOST ?? "smtp.gmail.com"
   const port = Number(process.env.JOURNAL_ALERT_SMTP_PORT ?? "587")
   const to = process.env.JOURNAL_ALERT_RECIPIENT ?? user
   const cc = process.env.JOURNAL_ALERT_CC?.trim() || undefined
-
-  const allPageIds = insertedWithIds.map(({ pageId }) => pageId)
-
   if (!user || !pass || !to) {
-    // 이메일 미설정 시에도 Alerted 마크 (재전송 방지)
-    await markArticlesAsAlerted(allPageIds)
     return { sent: false, reason: "email_not_configured", shownCount: 0 }
   }
-
-  const items = selectEmailArticles(insertedWithIds)
-  const { subject, html } = buildEmailHtml(insertedWithIds.length, items)
 
   const transporter = nodemailer.createTransport({
     host,
@@ -1398,23 +1502,16 @@ async function sendEmailAlert(
     secure: port === 465,
     auth: { user, pass },
   })
-
-  await transporter.sendMail({
-    from: user,
-    to,
-    cc,
-    subject,
-    html,
-  })
-
-  // 발송 성공 후 전체 삽입 논문 Alerted=true 마크 (재전송 방지)
-  await markArticlesAsAlerted(allPageIds)
+  await transporter.sendMail({ from: user, to, cc, subject, html })
+  await markArticlesAsAlerted(items.map((item) => item.pageId))
   return { sent: true, subject, shownCount: items.length }
 }
 
 export interface RunOptions {
   /** false 면 이메일을 보내지 않고 Notion 만 채움 — 백필 용도. */
-  sendEmail?: boolean
+  readonly sendEmail?: boolean
+  /** true 면 통합 메일 렌더링까지만 검증하고 발송·Alerted 변경을 하지 않는다. */
+  readonly digestDryRun?: boolean
 }
 
 export async function runJournalAlertPipeline(days: number, options: RunOptions = {}): Promise<JournalAlertRunResult> {
@@ -1472,9 +1569,9 @@ export async function runJournalAlertPipeline(days: number, options: RunOptions 
   }
 
   let emailResult: EmailSendResult = { sent: false, shownCount: 0 }
-  if (insertedWithIds.length > 0 && shouldSendEmail) {
-    emailResult = await sendEmailAlert(insertedWithIds)
-  } else if (insertedWithIds.length > 0 && !shouldSendEmail) {
+  if (shouldSendEmail) {
+    emailResult = await sendPendingJournalDigest(databaseId, { dryRun: options.digestDryRun })
+  } else if (insertedWithIds.length > 0) {
     // 백필 모드 — 메일 안 보내되, 이미 받은 셈 치도록 Alerted 마크해서 다음 정상 alert 가 중복 전송하지 않도록 함.
     await markArticlesAsAlerted(insertedWithIds.map(({ pageId }) => pageId))
     emailResult = { sent: false, reason: "backfill_no_email", shownCount: 0 }

@@ -9,7 +9,7 @@ vi.mock("./client", () => ({
   notionRequest: notionRequestMock,
 }))
 
-import { queryArticles } from "./journal"
+import { queryArticles, saveJournalAiText } from "./journal"
 
 describe("queryArticles", () => {
   beforeEach(() => {
@@ -47,5 +47,31 @@ describe("queryArticles", () => {
 
     // Then
     expect(result.articles[0]?.pub_date).toBe("2026-09-01")
+  })
+})
+
+
+describe("saveJournalAiText", () => {
+  beforeEach(() => {
+    notionRequestMock.mockReset()
+    notionRequestMock.mockResolvedValue({})
+  })
+
+  it.each([
+    ["translate", "한글 번역"],
+    ["summarize", "Summary"],
+  ] as const)("stores %s results in the %s rich-text property", async (mode, property) => {
+    await saveJournalAiText("page-1", mode, "저장할 결과")
+
+    expect(notionRequestMock).toHaveBeenCalledWith("/pages/page-1", {
+      method: "PATCH",
+      body: JSON.stringify({
+        properties: {
+          [property]: {
+            rich_text: [{ type: "text", text: { content: "저장할 결과" } }],
+          },
+        },
+      }),
+    })
   })
 })

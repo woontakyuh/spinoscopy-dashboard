@@ -12,6 +12,7 @@ export interface JournalArticle {
   doi_url: string | null
   abstract: string
   summary: string
+  translation?: string
   interest: InterestLevel
   read: boolean
   alerted: boolean

@@ -1273,8 +1273,8 @@ function InlineDetail({
   const queryClient = useQueryClient()
   const [currentInterest, setCurrentInterest] = useState<InterestLevel>(article.interest)
   const [currentRead, setCurrentRead] = useState(article.read)
-  const [translation, setTranslation] = useState<string | null>(null)
-  const [summary, setSummary] = useState<string | null>(null)
+  const [translation, setTranslation] = useState<string | null>(article.translation?.trim() || null)
+  const [summary, setSummary] = useState<string | null>(article.summary.trim() || null)
   const [translating, setTranslating] = useState(false)
   const [summarizing, setSummarizing] = useState(false)
 
@@ -1336,12 +1336,13 @@ function InlineDetail({
       const res = await fetch("/api/notion/journal/translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ abstract: article.abstract, mode: "translate" }),
+        body: JSON.stringify({ pageId: article.page_id, abstract: article.abstract, mode: "translate" }),
       })
       const data = (await res.json()) as { translation?: string; error?: string }
       if (!res.ok) throw new Error(data.error ?? "번역 실패")
       if (typeof data.translation === "string" && data.translation.trim()) {
         setTranslation(data.translation.trim())
+        void queryClient.invalidateQueries({ queryKey: ["journal"] })
       }
     } catch (err) {
       console.error(err)
@@ -1357,12 +1358,13 @@ function InlineDetail({
       const res = await fetch("/api/notion/journal/translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ abstract: article.abstract, mode: "summarize" }),
+        body: JSON.stringify({ pageId: article.page_id, abstract: article.abstract, mode: "summarize" }),
       })
       const data = (await res.json()) as { summary?: string; error?: string }
       if (!res.ok) throw new Error(data.error ?? "요약 실패")
       if (typeof data.summary === "string" && data.summary.trim()) {
         setSummary(data.summary.trim())
+        void queryClient.invalidateQueries({ queryKey: ["journal"] })
       }
     } catch (err) {
       console.error(err)

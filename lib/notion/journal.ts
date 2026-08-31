@@ -75,6 +75,7 @@ function toArticle(page: NotionPage): JournalArticle {
     doi_url: p.DOI?.url ?? null,
     abstract: getText(p.Abstract),
     summary: getText(p.Summary),
+    translation: getText(p["한글 번역"]),
     interest: (p["관심도"]?.select?.name as InterestLevel) ?? "⚪ 참고",
     read: p["읽음"]?.checkbox ?? false,
     alerted: p["Alerted"]?.checkbox ?? false,
@@ -204,6 +205,25 @@ export async function updateInterest(
     method: "PATCH",
     body: JSON.stringify({
       properties: { "관심도": { select: { name: interest } } },
+    }),
+  })
+}
+
+export async function saveJournalAiText(
+  pageId: string,
+  mode: "translate" | "summarize",
+  text: string
+): Promise<void> {
+  const property = mode === "translate" ? "한글 번역" : "Summary"
+  const chunks = text.match(/[\s\S]{1,2000}/g) ?? []
+  await notionRequest(`/pages/${pageId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      properties: {
+        [property]: {
+          rich_text: chunks.map((content) => ({ type: "text", text: { content } })),
+        },
+      },
     }),
   })
 }

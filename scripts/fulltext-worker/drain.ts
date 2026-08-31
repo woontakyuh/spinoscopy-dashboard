@@ -83,11 +83,14 @@ export async function drainQueue(): Promise<number> {
         processed++
         continue
       }
-      const { pdf, reason } = fetchPdfViaAside(item.doiUrl)
+      const { pdf, reason, retryable } = fetchPdfViaAside(item.doiUrl)
       if (pdf) {
         const { shareUrl } = await saveToDropbox(pdf, name)
         await markAcquired(item.pageId, "Aside", shareUrl)
         console.log(`  → 원내망 확보`)
+      } else if (retryable) {
+        console.warn(`  → 보류(자동 재시도): ${reason}`)
+        continue
       } else {
         await markFailed(item.pageId, reason ?? "원문 확보 실패")
         console.log(`  → 실패: ${reason}`)
