@@ -3,7 +3,7 @@
 // 좁은 관심 쿼리로 전(全) PubMed 검색(코어 6개 제외) → Notion/seen 중복 제거
 // → Groq LLM 이 관련성·품질 점수화 → 통과분을 Notion 에 적재하고 별도 다이제스트 메일.
 // 재발송 방지: seen-state 파일(PMID). DRY_RUN=1 이면 적재/발송/seen 갱신 안 함.
-// env: NOTION_TOKEN, NOTION_JOURNAL_DB_ID, GROQ_API_KEY, JOURNAL_ALERT_SMTP_*, RADAR_DAYS(기본7), RADAR_MIN_SCORE(기본7)
+// env: NOTION_TOKEN, NOTION_JOURNAL_DB_ID, GROQ_API_KEY, GROQ_MODEL(선택), JOURNAL_ALERT_SMTP_*, RADAR_DAYS(기본7), RADAR_MIN_SCORE(기본7)
 import nodemailer from "nodemailer"
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
@@ -11,6 +11,7 @@ import { join } from "node:path"
 import { searchPubmedByTerm, fetchPubmedArticles, titleKey, ingestExternalArticles } from "../../lib/journal-alert/pipeline"
 import { alertSubject, alertWrap, articleItem, articleList, escHtml } from "../../lib/journal-alert/mailTemplate"
 import { notionEnv } from "../../lib/notion/client"
+import { passesTopicRadarGate, resolveGroqModel } from "./topicRadarPolicy"
 
 const DRY = process.env.DRY_RUN === "1"
 const DAYS = Number(process.env.RADAR_DAYS ?? "7")
@@ -103,7 +104,7 @@ async function gateWithLLM(cands: { pmid: string; title: string; abstract: strin
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "llama-3.3-70b-versatile", temperature: 0.2,
+      model: resolveGroqModel(process.env.GROQ_MODEL), temperature: 0.2,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: 'JSON만 출력. 형식: {"items":[{"i":0,"score":8,"reason":"..."}]}' },
@@ -172,12 +173,12 @@ async function main() {
     })
     await new Promise((r) => setTimeout(r, 120))
   }
-  // 하이브리드 + impact 게이트: (핵심술기 OR LLM>=MIN_SCORE) AND 저널 impact>=MIN_IMPACT
+  // OpenAlex 색인이 늦은 핵심술기는 보존하고, impact가 확인된 논문은 기존 기준을 적용한다.
   const kept = scored
-    .filter((x) => (x.core || x.score >= MIN_SCORE) && x.impact >= MIN_IMPACT)
+    .filter((x) => passesTopicRadarGate(x, MIN_SCORE, MIN_IMPACT))
     .sort((a, b) => Number(b.core) - Number(a.core) || b.score - a.score || b.impact - a.impact)
     .slice(0, Number(process.env.RADAR_MAX ?? "12"))
-  console.log(`[radar] 게이트 통과(core OR ${MIN_SCORE}+, impact>=${MIN_IMPACT}, cap ${process.env.RADAR_MAX ?? "12"}): ${kept.length}`)
+  console.log(`[radar] 게이트 통과(core OR ${MIN_SCORE}+, impact>=${MIN_IMPACT} 또는 미색인 core, cap ${process.env.RADAR_MAX ?? "12"}): ${kept.length}`)
 
   if (DRY) {
     console.log(`=== DRY RUN (전 후보 — core/점수/impact, MIN_IMPACT=${MIN_IMPACT}) ===`)
