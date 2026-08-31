@@ -23,8 +23,8 @@ export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
   const queryClient = useQueryClient()
   const [currentInterest, setCurrentInterest] = useState<InterestLevel>(article.interest)
   const [currentRead, setCurrentRead] = useState(article.read)
-  const [koreanTranslation, setKoreanTranslation] = useState<string | null>(null)
-  const [oneLiner, setOneLiner] = useState<string | null>(null)
+  const [koreanTranslation, setKoreanTranslation] = useState<string | null>(article.translation?.trim() || null)
+  const [oneLiner, setOneLiner] = useState<string | null>(article.summary.trim() || null)
   const [translating, setTranslating] = useState(false)
   const [summarizing, setSummarizing] = useState(false)
   const [ftStatus, setFtStatus] = useState<string | null>(article.fulltext_status)
@@ -33,14 +33,14 @@ export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
 
   useEffect(() => {
     void article.page_id
-    setKoreanTranslation(null)
-    setOneLiner(null)
+    setKoreanTranslation(article.translation?.trim() || null)
+    setOneLiner(article.summary.trim() || null)
     setTranslating(false)
     setSummarizing(false)
     setFtStatus(article.fulltext_status)
     setFtPdf(article.fulltext_pdf)
     setFtBusy(false)
-  }, [article.page_id])
+  }, [article.page_id, article.fulltext_pdf, article.fulltext_status, article.summary, article.translation])
 
   const toggleReadMutation = useMutation({
     mutationFn: async (read: boolean) => {
@@ -86,7 +86,7 @@ export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
       const res = await fetch("/api/notion/journal/translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ abstract: article.abstract, mode: "translate" }),
+        body: JSON.stringify({ pageId: article.page_id, abstract: article.abstract, mode: "translate" }),
       })
 
       const data = (await res.json()) as { translation?: string; error?: string }
@@ -99,6 +99,7 @@ export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
       }
 
       setKoreanTranslation(data.translation.trim())
+      void queryClient.invalidateQueries({ queryKey: ["journal"] })
     } catch (error) {
       console.error(error)
     } finally {
@@ -113,7 +114,7 @@ export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
       const res = await fetch("/api/notion/journal/translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ abstract: article.abstract, mode: "summarize" }),
+        body: JSON.stringify({ pageId: article.page_id, abstract: article.abstract, mode: "summarize" }),
       })
 
       const data = (await res.json()) as { summary?: string; error?: string }
@@ -126,6 +127,7 @@ export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
       }
 
       setOneLiner(data.summary.trim())
+      void queryClient.invalidateQueries({ queryKey: ["journal"] })
     } catch (error) {
       console.error(error)
     } finally {
@@ -228,13 +230,6 @@ export function ArticleDetail({ article, onBack }: ArticleDetailProps) {
       </div>
 
       <Separator className="bg-muted" />
-
-      {article.summary && (
-        <div>
-          <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider mb-1.5">한글 요약</p>
-          <p className="text-foreground/90 text-sm leading-relaxed">{article.summary}</p>
-        </div>
-      )}
 
       {article.abstract && (
         <div className="space-y-3">

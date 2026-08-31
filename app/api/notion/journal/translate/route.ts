@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
+import { getArticle, saveJournalAiText } from "@/lib/notion/journal"
 
 type TranslateMode = "translate" | "summarize"
 
 interface TranslateRequestBody {
+  pageId: string
   abstract: string
   mode: TranslateMode
 }
@@ -34,8 +36,13 @@ function sanitizeKorean(text: string): string {
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as Partial<TranslateRequestBody>
+    const pageId = typeof body.pageId === "string" ? body.pageId.trim() : ""
     const abstract = typeof body.abstract === "string" ? body.abstract.trim() : ""
     const mode = body.mode
+
+    if (!pageId) {
+      return NextResponse.json({ error: "pageId 필수" }, { status: 400 })
+    }
 
     if (!abstract) {
       return NextResponse.json({ error: "abstract 필수" }, { status: 400 })
@@ -43,6 +50,14 @@ export async function POST(req: NextRequest) {
 
     if (mode !== "translate" && mode !== "summarize") {
       return NextResponse.json({ error: "mode는 translate 또는 summarize 여야 합니다" }, { status: 400 })
+    }
+
+    const article = await getArticle(pageId)
+    const cached = mode === "translate" ? article.translation : article.summary
+    if (cached?.trim()) {
+      return mode === "translate"
+        ? NextResponse.json({ translation: cached.trim(), cached: true })
+        : NextResponse.json({ summary: cached.trim(), cached: true })
     }
 
     const apiKey = process.env.GROQ_API_KEY
@@ -57,9 +72,9 @@ export async function POST(req: NextRequest) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-20b",
         temperature: 0.3,
-        max_tokens: mode === "translate" ? 2000 : 200,
+        max_tokens: mode === "translate" ? 2000 : 500,
         messages: [
           { role: "system", content: SYSTEM_PROMPTS[mode] },
           { role: "user", content: abstract },
@@ -80,11 +95,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "응답 생성 실패" }, { status: 502 })
     }
 
+    await saveJournalAiText(pageId, mode, result)
+
     if (mode === "translate") {
-      return NextResponse.json({ translation: result })
+      return NextResponse.json({ translation: result, cached: false })
     }
 
-    return NextResponse.json({ summary: result })
+    return NextResponse.json({ summary: result, cached: false })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error"
     return NextResponse.json({ error: message }, { status: 500 })
