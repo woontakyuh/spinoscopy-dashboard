@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest"
+import { isAsideProfileDisconnected } from "./aside"
 import {
   extractDoi, safeName, isPdfBuffer, buildFetchScript, parseAsideResult, describeAsideFailure,
   firstAuthorSurname, titleKeyword, doiTail, buildFilename, findDoiInText,
@@ -154,17 +155,27 @@ describe("parseAsideResult", () => {
   })
 })
 
-describe("describeAsideFailure", () => {
-  it("사유에 최종 URL과 페이지 제목을 붙인다 — 원격에서 원인을 보려면 이게 필요하다", () => {
-    const s = describeAsideFailure({ ok: false, reason: "no-pdf-url", url: "https://journals.sagepub.com/doi/10.1/x", title: "Some Article" })
-    expect(s).toContain("no-pdf-url")
-    expect(s).toContain("journals.sagepub.com")
-    expect(s).toContain("Some Article")
+describe("describeAsideFailure", () => { it("사유에 최종 URL과 페이지 제목을 붙인다 — 원격에서 원인을 보려면 이게 필요하다", () => {
+  const s = describeAsideFailure({ ok: false, reason: "no-pdf-url", url: "https://journals.sagepub.com/doi/10.1/x", title: "Some Article" })
+  expect(s).toContain("no-pdf-url")
+  expect(s).toContain("journals.sagepub.com")
+  expect(s).toContain("Some Article")
+})
+it("진단정보가 없으면 사유만 준다", () => {
+  expect(describeAsideFailure({ ok: false, reason: "타임아웃" })).toBe("타임아웃")
+})
+it("사유조차 없으면 기본 문구", () => {
+  expect(describeAsideFailure({ ok: false })).toBe("결과 없음")
+}) })
+
+describe("isAsideProfileDisconnected", () => {
+  it("classifies the observed disconnected Profile 0 error as retryable infrastructure failure", () => {
+    const message = 'Aside Browser profile for account u0 — user@example.com ("Profile 0") is not connected to the daemon.'
+
+    expect(isAsideProfileDisconnected(message)).toBe(true)
   })
-  it("진단정보가 없으면 사유만 준다", () => {
-    expect(describeAsideFailure({ ok: false, reason: "타임아웃" })).toBe("타임아웃")
-  })
-  it("사유조차 없으면 기본 문구", () => {
-    expect(describeAsideFailure({ ok: false })).toBe("결과 없음")
+
+  it("does not retry an ordinary publisher PDF lookup failure", () => {
+    expect(isAsideProfileDisconnected("no-pdf-url")).toBe(false)
   })
 })
