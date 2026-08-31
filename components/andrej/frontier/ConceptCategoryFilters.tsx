@@ -1,9 +1,12 @@
 import { cn } from "@/lib/utils"
 
+import {
+  frontierChipActiveClass,
+  frontierChipClass,
+  frontierChipCountClass,
+  frontierChipIdleClass,
+} from "./FrontierSourceState"
 import type { FrontierCategoryCount } from "./frontier-view"
-
-const filterClass =
-  "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60"
 
 export function ConceptCategoryFilters({
   counts,
@@ -21,10 +24,8 @@ export function ConceptCategoryFilters({
         aria-pressed={current === null}
         onClick={() => onChange(null)}
         className={cn(
-          filterClass,
-          current === null
-            ? "border-purple-400/40 bg-purple-500/15 text-purple-700 dark:text-purple-200"
-            : "border-border bg-muted text-foreground/80 hover:border-muted-foreground/50 hover:text-foreground"
+          frontierChipClass,
+          current === null ? frontierChipActiveClass : frontierChipIdleClass
         )}
       >
         전체
@@ -38,15 +39,9 @@ export function ConceptCategoryFilters({
             type="button"
             aria-pressed={active}
             onClick={() => onChange(category)}
-            className={cn(
-              filterClass,
-              active
-                ? "border-purple-400/40 bg-purple-500/15 text-purple-700 dark:text-purple-200"
-                : "border-border bg-muted text-foreground/80 hover:border-muted-foreground/50 hover:text-foreground"
-            )}
+            className={cn(frontierChipClass, active ? frontierChipActiveClass : frontierChipIdleClass)}
           >
-            {category}{" "}
-            <span className={cn("num", active ? "text-purple-700/80 dark:text-purple-100/80" : "text-muted-foreground")}>{count}</span>
+            {category} <span className={frontierChipCountClass(active)}>{count}</span>
           </button>
         )
       })}

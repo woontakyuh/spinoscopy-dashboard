@@ -9,6 +9,14 @@ interface TodoStatsProps {
   doneTodos: TodoItem[]
 }
 
+export function completionDateKey(completedAt: string | null): string | null {
+  if (!completedAt) return null
+  if (/^\d{4}-\d{2}-\d{2}$/.test(completedAt)) return completedAt
+  const date = new Date(completedAt)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
+}
+
 function getWeeklyData(doneTodos: TodoItem[]): { day: string; count: number }[] {
   const days: { day: string; count: number }[] = []
   const now = new Date()
@@ -18,7 +26,7 @@ function getWeeklyData(doneTodos: TodoItem[]): { day: string; count: number }[] 
     d.setDate(d.getDate() - i)
     const key = d.toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
     const label = d.toLocaleDateString("ko-KR", { weekday: "short", timeZone: "Asia/Seoul" })
-    const count = doneTodos.filter((t) => t.completed_at === key).length
+    const count = doneTodos.filter((t) => completionDateKey(t.completed_at ?? t.created_at) === key).length
     days.push({ day: label, count })
   }
 

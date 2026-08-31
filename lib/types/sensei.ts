@@ -75,6 +75,8 @@ export interface BjjStats {
   playstyle: string
   recentFocus: string[]
   streaks: { current: number; best: number }
+  /** 마지막 체육관 세션 이후 일수. 기록이 없으면 null */
+  daysSinceLastSession: number | null
   giRatio: number
   sessions2026: number
   sessions2026Gi: number
@@ -220,6 +222,14 @@ export interface StrategyBranch {
 export type PositionLayer = "standing" | "guard" | "passing" | "control" | "submission" | "leglock"
 export type PositionPerspective = "top" | "bottom" | "neutral"
 export type TransitionType = "sweep" | "pass" | "transition" | "submission" | "escape" | "takedown" | "guard_pull" | "recovery"
+export type FinishEvidenceKind = "class" | "study" | "sparring" | "research" | "discussion" | "concept"
+
+export interface TransitionEvidence {
+  count: number
+  kinds: FinishEvidenceKind[]
+  dates: string[]
+  snippets: string[]
+}
 
 export interface Position {
   id: string
@@ -244,6 +254,8 @@ export interface Transition {
   lessonNumber?: number
   videoUrl?: string
   ruleSet: "common" | "gi" | "nogi"
+  evidence?: TransitionEvidence
+  source?: "baseline" | "stored" | "evidence"
 }
 
 export interface LessonVideo {

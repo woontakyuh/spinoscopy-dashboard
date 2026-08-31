@@ -42,8 +42,26 @@ function makeEpisode(overrides: Partial<AiFrontierEpisode> = {}): AiFrontierEpis
     duration: null,
     summary: "스케일링과 Transformer를 함께 설명합니다.",
     keyTerms: ["Transformer"],
+    source: "ai-frontier",
+    sourceKey: "EP12",
+    sourceIdentityPersisted: false,
     ...overrides,
   }
+}
+
+/** 번호가 없는 Dwarkesh 행. 화면 라벨은 저장된 출처에서만 와야 한다. */
+function makeDwarkeshEpisode(overrides: Partial<AiFrontierEpisode> = {}): AiFrontierEpisode {
+  return makeEpisode({
+    id: "dwarkesh-ryan",
+    name: "Ryan Greenblatt — AI R&D 자동화",
+    episodeNumber: null,
+    youtube: "https://youtu.be/dwarkesh-ryan",
+    transcriptSource: "https://www.dwarkesh.com/p/ryan-greenblatt",
+    source: "dwarkesh",
+    sourceKey: "DWARKESH:RYAN-GREENBLATT",
+    sourceIdentityPersisted: true,
+    ...overrides,
+  })
 }
 
 const categoryCounts: FrontierCategoryCount[] = [
@@ -237,6 +255,64 @@ describe("ConceptsPane 펼치기", () => {
     expect(screen.queryByText("Why It Matters")).not.toBeInTheDocument()
     expect(screen.queryByText("Source")).not.toBeInTheDocument()
     expect(screen.queryByTestId("concept-verified-c1")).not.toBeInTheDocument()
+  })
+})
+
+describe("ConceptsPane 관련 영상 라벨", () => {
+  it("번호 없는 Dwarkesh 영상은 맨 EP 대신 저장된 출처 이름을 단다", () => {
+    renderPane({
+      concepts: [
+        makeConcept({
+          episodes: [{ ref: "DWARKESH:RYAN-GREENBLATT", available: true, pageId: "dwarkesh-ryan" }],
+        }),
+      ],
+      episodes: [makeDwarkeshEpisode()],
+    })
+
+    fireEvent.click(toggle())
+
+    const video = screen.getByRole("link", { name: "Dwarkesh Ryan Greenblatt — AI R&D 자동화 영상 보기" })
+    expect(video).toHaveAttribute("href", "https://youtu.be/dwarkesh-ryan")
+    expect(within(video).getByText("Dwarkesh")).toBeInTheDocument()
+    // 번호가 없다고 "EP" 만 남기면 아무 것도 가리키지 않는 배지가 된다.
+    expect(video.textContent).not.toMatch(/\bEP\b/)
+  })
+
+  it("번호가 있는 AI Frontier 영상은 EP 번호 라벨을 그대로 쓴다", () => {
+    renderPane()
+
+    fireEvent.click(toggle())
+
+    const video = screen.getByRole("link", { name: "EP12 스케일링 법칙의 끝 영상 보기" })
+    expect(within(video).getByText("EP12")).toBeInTheDocument()
+  })
+
+  it("해석되지 않은 Dwarkesh 참조는 번호가 같은 AI Frontier 영상을 빌려 오지 않는다", () => {
+    renderPane({
+      concepts: [
+        makeConcept({ episodes: [{ ref: "DWARKESH:SHOLTO-2", available: false, pageId: null }] }),
+      ],
+      episodes: [
+        makeEpisode({ id: "ep-2", name: "합성 EP2", episodeNumber: 2, youtube: "https://youtu.be/ep2" }),
+      ],
+    })
+
+    fireEvent.click(toggle())
+
+    expect(screen.queryByRole("link", { name: /영상 보기/ })).not.toBeInTheDocument()
+  })
+})
+
+describe("ConceptsPane 한국어 본문 줄바꿈", () => {
+  it("한 줄 설명과 상세 본문은 어절을 지키고 긴 라틴 토큰만 접는다", () => {
+    renderPane()
+
+    expect(screen.getByTestId("concept-oneline-c1")).toHaveClass("break-keep", "break-words")
+
+    fireEvent.click(toggle())
+
+    expect(screen.getByText("모든 토큰이 서로를 동시에 본다.")).toHaveClass("break-keep", "break-words")
+    expect(screen.getByText("현대 LLM 전부가 이 위에 서 있다.")).toHaveClass("break-keep", "break-words")
   })
 })
 

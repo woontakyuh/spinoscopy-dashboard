@@ -2,6 +2,7 @@
 import "@testing-library/jest-dom/vitest"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import type { ComponentProps } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type {
@@ -30,7 +31,11 @@ function makeEpisodes(): AiFrontierEpisode[] {
     youtube: null,
     transcriptSource: null,
     duration: null,
+    summary: null,
     keyTerms: [],
+    source: "ai-frontier",
+    sourceKey: "EP12",
+    sourceIdentityPersisted: false,
   }
   return [
     base,
@@ -44,6 +49,50 @@ function makeEpisodes(): AiFrontierEpisode[] {
       topics: ["Agents"],
     },
   ]
+}
+
+/** 제목에 출처 접두어가 없는 원래 Dwarkesh 제목. 저장된 source 로만 구분돼야 한다. */
+const DWARKESH_EPISODE: AiFrontierEpisode = {
+  ...makeEpisodes()[0],
+  id: "dwarkesh-ryan",
+  name: "Ryan Greenblatt — AI R&D 자동화",
+  episodeNumber: null,
+  published: "2026-04-20",
+  topics: ["AI R&D"],
+  people: ["Ryan Greenblatt"],
+  transcriptSource: "https://www.dwarkesh.com/p/ryan-greenblatt",
+  source: "dwarkesh",
+  sourceKey: "DWARKESH:RYAN-GREENBLATT",
+  sourceIdentityPersisted: true,
+}
+
+/** 제목과 URL 은 Dwarkesh 를 가리키지만 저장된 source 는 ai-frontier 인 행. */
+const CONTRADICTORY_EPISODE: AiFrontierEpisode = {
+  ...makeEpisodes()[0],
+  id: "ep-contradictory",
+  name: "Dwarkesh · 제목만 Dwarkesh",
+  episodeNumber: null,
+  published: "2026-04-10",
+  transcriptSource: "https://www.dwarkesh.com/p/not-really",
+  source: "ai-frontier",
+  sourceKey: "EP99",
+}
+
+/**
+ * index 는 JSON 경계를 넘어온다. union 밖 source 가 실제로 도착할 수 있어
+ * 그 경계를 테스트에서만 재현한다.
+ */
+function legacyEpisode(): AiFrontierEpisode {
+  const raw: unknown = {
+    ...makeEpisodes()[0],
+    id: "legacy-row",
+    name: "출처가 사라진 옛 행",
+    episodeNumber: null,
+    published: "2026-03-01",
+    sourceKey: null,
+    source: "legacy-unknown",
+  }
+  return raw as AiFrontierEpisode
 }
 
 function makeConcepts(): AiFrontierConcept[] {
@@ -114,11 +163,11 @@ afterEach(() => {
   fetchMock.mockReset()
 })
 
-function renderDashboard() {
+function renderDashboard(props: ComponentProps<typeof FrontierDashboard> = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
   const view = render(
     <QueryClientProvider client={queryClient}>
-      <FrontierDashboard />
+      <FrontierDashboard {...props} />
     </QueryClientProvider>
   )
   return { queryClient, ...view }
@@ -251,6 +300,123 @@ describe("FrontierDashboard 검색과 필터", () => {
     expect(within(panel("concepts")).getByText("Transformer")).toBeInTheDocument()
     expect(within(panel("concepts")).queryByText("Chain of Thought")).not.toBeInTheDocument()
     expect(within(panel("episodes")).getAllByTestId(/^frontier-episode-row-/)).toHaveLength(2)
+  })
+})
+
+describe("FrontierDashboard 소스 필터", () => {
+  const sourceChip = (name: "전체" | "AI Frontier" | "Dwarkesh") =>
+    within(screen.getByTestId("frontier-source-chips")).getByRole("button", { name: new RegExp(`^${name}`) })
+
+  const episodeIds = () =>
+    within(panel("episodes"))
+      .getAllByTestId(/^frontier-episode-row-/)
+      .map((element) => element.dataset.testid)
+
+  async function renderMixed() {
+    mockIndex(
+      makeIndex({
+        episodes: [...makeEpisodes(), DWARKESH_EPISODE, CONTRADICTORY_EPISODE, legacyEpisode()],
+      })
+    )
+    const result = renderDashboard()
+    await screen.findByTestId("frontier-status")
+    return result
+  }
+
+  it("전체·AI Frontier·Dwarkesh 를 누를 수 있는 버튼으로 세운다", async () => {
+    await renderMixed()
+
+    for (const name of ["전체", "AI Frontier", "Dwarkesh"] as const) {
+      const chip = sourceChip(name)
+      expect(chip.tagName).toBe("BUTTON")
+      expect(chip).toHaveAttribute("type", "button")
+      expect(chip).not.toBeDisabled()
+      chip.focus()
+      expect(chip).toHaveFocus()
+    }
+  })
+
+  it("Dwarkesh 필터는 저장된 source 가 dwarkesh 인 행만 보여준다", async () => {
+    await renderMixed()
+
+    fireEvent.click(sourceChip("Dwarkesh"))
+
+    expect(episodeIds()).toEqual(["frontier-episode-row-dwarkesh-ryan"])
+    expect(sourceChip("Dwarkesh")).toHaveAttribute("aria-pressed", "true")
+    expect(sourceChip("전체")).toHaveAttribute("aria-pressed", "false")
+    // 제목/URL 이 Dwarkesh 를 가리켜도 저장된 source 가 ai-frontier 면 빠진다.
+    expect(within(panel("episodes")).queryByText("Dwarkesh · 제목만 Dwarkesh")).not.toBeInTheDocument()
+  })
+
+  it("AI Frontier 필터는 저장된 source 가 ai-frontier 인 행만 보여준다", async () => {
+    await renderMixed()
+
+    fireEvent.click(sourceChip("AI Frontier"))
+
+    expect(episodeIds()).toEqual([
+      "frontier-episode-row-ep-12",
+      "frontier-episode-row-ep-contradictory",
+      "frontier-episode-row-ep-11",
+    ])
+    expect(within(panel("episodes")).queryByText("Ryan Greenblatt — AI R&D 자동화")).not.toBeInTheDocument()
+  })
+
+  it("전체는 두 소스를 published 내림차순 한 줄로 합친다", async () => {
+    await renderMixed()
+
+    fireEvent.click(sourceChip("전체"))
+
+    expect(episodeIds()).toEqual([
+      "frontier-episode-row-ep-12",
+      "frontier-episode-row-dwarkesh-ryan",
+      "frontier-episode-row-ep-contradictory",
+      "frontier-episode-row-ep-11",
+      "frontier-episode-row-legacy-row",
+    ])
+    expect(sourceChip("전체")).toHaveAttribute("aria-pressed", "true")
+  })
+
+  it("제목에 접두어가 없어도 Dwarkesh 검색으로 찾힌다", async () => {
+    await renderMixed()
+
+    fireEvent.click(sourceChip("전체"))
+    fireEvent.change(screen.getByLabelText(/검색/), { target: { value: "Dwarkesh" } })
+
+    // 제목에 "Dwarkesh" 가 한 글자도 없는 행이 출처 이름만으로 걸린다.
+    expect(within(panel("episodes")).getByText("Ryan Greenblatt — AI R&D 자동화")).toBeInTheDocument()
+    // 제목 검색도 그대로 살아 있어, 제목에 그 단어가 든 행은 소스와 무관하게 함께 걸린다.
+    expect(episodeIds()).toEqual([
+      "frontier-episode-row-dwarkesh-ryan",
+      "frontier-episode-row-ep-contradictory",
+    ])
+
+    // 소스 필터를 걸면 제목만 닮은 행은 남지 않는다.
+    fireEvent.click(sourceChip("Dwarkesh"))
+    expect(episodeIds()).toEqual(["frontier-episode-row-dwarkesh-ryan"])
+  })
+
+  it("알 수 없는 source 행도 전체에서는 사라지지 않는다", async () => {
+    await renderMixed()
+
+    fireEvent.click(sourceChip("전체"))
+    expect(within(panel("episodes")).getByText("출처가 사라진 옛 행")).toBeInTheDocument()
+    expect(
+      within(screen.getByTestId("frontier-episode-row-legacy-row")).getByText("기타 출처")
+    ).toBeInTheDocument()
+
+    fireEvent.click(sourceChip("AI Frontier"))
+    expect(screen.queryByTestId("frontier-episode-row-legacy-row")).not.toBeInTheDocument()
+
+    fireEvent.click(sourceChip("Dwarkesh"))
+    expect(screen.queryByTestId("frontier-episode-row-legacy-row")).not.toBeInTheDocument()
+  })
+
+  it("소스 필터는 개념 쪽 개수와 상태 줄에도 함께 걸린다", async () => {
+    await renderMixed()
+
+    fireEvent.click(sourceChip("Dwarkesh"))
+
+    expect(screen.getByTestId("frontier-status")).toHaveTextContent("에피소드 1")
   })
 })
 
@@ -416,6 +582,23 @@ describe("FrontierDashboard 실패와 재시도", () => {
 
     await waitFor(() => expect(screen.getByTestId("frontier-status")).toBeInTheDocument())
     expect(within(panel("episodes")).getByText("스케일링 법칙의 끝")).toBeInTheDocument()
+  })
+
+  it("요청 자체가 실패하면 지금 보고 있는 출처 이름으로 알린다", async () => {
+    mockIndex(null)
+    renderDashboard({ source: "dwarkesh" })
+
+    const card = await screen.findByTestId("frontier-error-index")
+    expect(within(card).getByRole("heading")).toHaveTextContent("Dwarkesh")
+    expect(within(card).getByRole("heading")).not.toHaveTextContent("AI Frontier")
+  })
+
+  it("AI Frontier 를 보고 있었다면 실패 카드 제목도 AI Frontier 다", async () => {
+    mockIndex(null)
+    renderDashboard()
+
+    const card = await screen.findByTestId("frontier-error-index")
+    expect(within(card).getByRole("heading")).toHaveTextContent("AI Frontier")
   })
 
   it("소스 실패 자리의 재시도는 index를 다시 부른다", async () => {

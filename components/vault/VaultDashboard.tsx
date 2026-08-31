@@ -134,7 +134,6 @@ export function VaultDashboard({ view }: VaultDashboardProps) {
                     title={`${asset.symbol} ${asset.label}`}
                     currency={getCurrency(asset)}
                     height={260}
-                    defaultPeriod="3M"
                   />
                 ))}
               </div>
@@ -151,7 +150,6 @@ export function VaultDashboard({ view }: VaultDashboardProps) {
                     title={`${asset.symbol} ${asset.label}`}
                     currency={getCurrency(asset)}
                     height={210}
-                    defaultPeriod="1M"
                   />
                 ))}
               </div>
@@ -168,7 +166,6 @@ export function VaultDashboard({ view }: VaultDashboardProps) {
                     title={`${asset.symbol} ${asset.label}`}
                     currency={getCurrency(asset)}
                     height={210}
-                    defaultPeriod="1M"
                   />
                 ))}
               </div>

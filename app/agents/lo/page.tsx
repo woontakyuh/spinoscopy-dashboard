@@ -93,9 +93,9 @@ export default function LoPage() {
 
     if (tab === "competitions") {
       if (stats) {
-        return `Tak, ${stats.belt} belt, 올해 ${stats.sessions2026}회. 대회 목표 잡아보자.`
+        return `Tak, 국내외 대회 일정 조사해뒀어. ${stats.belt} belt 기준으로 가까운 것부터 보자.`
       }
-      return "Tak, 대회 일정 여기서 관리해. 목표 하나 잡아두자."
+      return "Tak, 국내외 대회 일정 조사해뒀어. 가까운 것부터 보자."
     }
 
     if (tab === "concepts") {

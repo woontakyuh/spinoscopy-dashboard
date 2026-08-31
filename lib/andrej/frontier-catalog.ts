@@ -142,6 +142,8 @@ export function parseAiFrontierEpisodePage(
     throw new Error("AI Frontier Episode 번호가 일치하지 않습니다.")
   }
   return {
+    source: "ai-frontier",
+    reference: `EP${expectedNumber}`,
     episodeNumber: expectedNumber,
     name: standardizedName(metadata.name, expectedNumber),
     officialUrl,

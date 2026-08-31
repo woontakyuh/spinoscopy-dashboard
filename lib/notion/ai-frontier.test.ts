@@ -74,6 +74,7 @@ describe("toAiFrontierEpisode", () => {
       status: "정리 완료",
       published: "2026-07-01",
       recorded: "2026-06-28",
+      lastEditedAt: null,
       reviewed: true,
       topics: ["scaling", "RL"],
       models: ["GPT-5"],
@@ -83,7 +84,17 @@ describe("toAiFrontierEpisode", () => {
       duration: "2h 14m",
       summary: "스케일링 법칙과 RL의 연결을 한눈에 정리한다.",
       keyTerms: ["pretraining", "RLHF"],
+      source: "ai-frontier",
+      sourceKey: "EP12",
+      sourceIdentityPersisted: false,
     })
+  })
+
+  it("cron recovery를 위해 Notion last_edited_time을 보존한다", () => {
+    expect(toAiFrontierEpisode({
+      ...fullEpisode,
+      last_edited_time: "2026-08-20T11:40:00.000Z",
+    })?.lastEditedAt).toBe("2026-08-20T11:40:00.000Z")
   })
 
   it("Reviewed가 없으면 false로 둔다", () => {
@@ -124,6 +135,76 @@ describe("toAiFrontierEpisode", () => {
     expect(
       toAiFrontierEpisode(page("ep-5", { Name: { type: "title", title: [{ plain_text: "   " }] } }))
     ).toBeNull()
+  })
+})
+
+describe("toAiFrontierEpisode 소스 정체성", () => {
+  it("마이그레이션된 페이지는 저장된 Source/Source Key를 그대로 읽는다", () => {
+    const mapped = toAiFrontierEpisode(page("ep-dwarkesh", {
+      Name: { type: "title", title: [{ plain_text: "Ryan Greenblatt" }] },
+      Source: { type: "select", select: { name: "dwarkesh" } },
+      "Source Key": {
+        type: "rich_text",
+        rich_text: [{ plain_text: "DWARKESH:RYAN-GREENBLATT" }],
+      },
+      "Transcript Source": {
+        type: "url",
+        url: "https://www.dwarkesh.com/p/ryan-greenblatt",
+      },
+    }))
+
+    expect(mapped?.source).toBe("dwarkesh")
+    expect(mapped?.sourceKey).toBe("DWARKESH:RYAN-GREENBLATT")
+    expect(mapped?.sourceIdentityPersisted).toBe(true)
+    expect(mapped?.episodeNumber).toBeNull()
+  })
+
+  it("레거시 AI Frontier 행은 Episode 번호에서 EP 키를 유도한다", () => {
+    const mapped = toAiFrontierEpisode(page("ep-110", {
+      Name: { type: "title", title: [{ plain_text: "EP110. 레거시" }] },
+      Episode: { type: "number", number: 110 },
+    }))
+
+    expect(mapped?.source).toBe("ai-frontier")
+    expect(mapped?.sourceKey).toBe("EP110")
+    expect(mapped?.sourceIdentityPersisted).toBe(false)
+  })
+
+  it("레거시 Dwarkesh 행은 공식 URL에서 정규 키를 유도한다", () => {
+    const mapped = toAiFrontierEpisode(page("ep-dw-legacy", {
+      Name: { type: "title", title: [{ plain_text: "Dwarkesh · Ryan Greenblatt" }] },
+      "Transcript Source": {
+        type: "url",
+        url: "https://www.dwarkesh.com/p/ryan-greenblatt",
+      },
+    }))
+
+    expect(mapped?.source).toBe("dwarkesh")
+    expect(mapped?.sourceKey).toBe("DWARKESH:RYAN-GREENBLATT")
+    expect(mapped?.sourceIdentityPersisted).toBe(false)
+  })
+
+  it("깨진 Source Key는 레거시 값으로 안전하게 되돌아간다", () => {
+    const mapped = toAiFrontierEpisode(page("ep-broken", {
+      Name: { type: "title", title: [{ plain_text: "EP110. 깨진 키" }] },
+      Episode: { type: "number", number: 110 },
+      Source: { type: "select", select: { name: "unknown-source" } },
+      "Source Key": { type: "rich_text", rich_text: [{ plain_text: "???" }] },
+    }))
+
+    expect(mapped?.source).toBe("ai-frontier")
+    expect(mapped?.sourceKey).toBe("EP110")
+    expect(mapped?.sourceIdentityPersisted).toBe(false)
+  })
+
+  it("근거가 없으면 AI Frontier 기본값과 null 키로 둔다", () => {
+    const mapped = toAiFrontierEpisode(page("ep-empty", {
+      Name: { type: "title", title: [{ plain_text: "제목만 있는 행" }] },
+    }))
+
+    expect(mapped?.source).toBe("ai-frontier")
+    expect(mapped?.sourceKey).toBeNull()
+    expect(mapped?.sourceIdentityPersisted).toBe(false)
   })
 })
 
@@ -344,6 +425,27 @@ describe("getAiFrontierIndex", () => {
       concepts: [],
       episodeIndex: {},
     })
+  })
+
+  it("resolves a canonical Dwarkesh Source Key concept ref to its page", async () => {
+    const dwarkesh = page("dw-ryan", {
+      Name: { type: "title", title: [{ plain_text: "Ryan Greenblatt" }] },
+      Source: { type: "select", select: { name: "dwarkesh" } },
+      "Source Key": { type: "rich_text", rich_text: [{ plain_text: "DWARKESH:RYAN-GREENBLATT" }] },
+      "Transcript Source": { type: "url", url: "https://www.dwarkesh.com/p/ryan-greenblatt" },
+    })
+    const request = vi.fn<AiFrontierNotionRequest>(async (path) =>
+      path === EPISODES_QUERY
+        ? queryResponse([dwarkesh])
+        : queryResponse([conceptPage("alignment", ["DWARKESH:RYAN-GREENBLATT"])])
+    )
+
+    const index = await getAiFrontierIndex(request)
+
+    expect(index.episodeIndex).toEqual({ "DWARKESH:RYAN-GREENBLATT": "dw-ryan" })
+    expect(index.concepts[0].episodes).toEqual([
+      { ref: "DWARKESH:RYAN-GREENBLATT", available: true, pageId: "dw-ryan" },
+    ])
   })
 
   it("resolves matching refs and preserves orphan refs", async () => {

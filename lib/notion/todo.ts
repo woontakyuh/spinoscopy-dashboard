@@ -48,6 +48,7 @@ export interface TodoItem {
   url: string
   created_at: string
   completed_at: string | null
+  source_ref: string | null
 }
 
 export interface TodoCreateInput {
@@ -95,6 +96,7 @@ function toTodoItem(page: NotionPage): TodoItem {
     url: page.url,
     created_at: page.created_time.slice(0, 10),
     completed_at: properties["Completed At"]?.date?.start ?? null,
+    source_ref: getText(properties["Source Ref"]) || null,
   }
 }
 

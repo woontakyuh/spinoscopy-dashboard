@@ -81,6 +81,20 @@
   --sidebar-accent-foreground: oklch(0.24 0.010 70);
   --sidebar-border: oklch(0.91 0.006 85);
   --sidebar-ring: oklch(0.70 0.012 70);
+  --nav-pass: oklch(0.62 0.15 245);
+  --nav-sweep: oklch(0.64 0.16 150);
+  --nav-advance: oklch(0.68 0.12 195);
+  --nav-control: oklch(0.72 0.15 85);
+  --nav-submission: oklch(0.62 0.20 25);
+  --nav-takedown: oklch(0.62 0.18 305);
+  --nav-recovery: oklch(0.68 0.14 215);
+  --nav-node-standing: oklch(0.55 0.01 250);
+  --nav-node-guard: oklch(0.62 0.16 250);
+  --nav-node-passing: oklch(0.64 0.16 150);
+  --nav-node-control: oklch(0.72 0.15 85);
+  --nav-node-defense: oklch(0.72 0.14 95);
+  --nav-node-submission: oklch(0.62 0.20 25);
+  --nav-node-leglock: oklch(0.58 0.20 25);
 }
 
 .dark {
@@ -116,6 +130,20 @@
   --sidebar-accent-foreground: oklch(0.96 0.006 85);
   --sidebar-border: oklch(1 0 0 / 9%);
   --sidebar-ring: oklch(0.55 0.012 75);
+  --nav-pass: oklch(0.72 0.16 245);
+  --nav-sweep: oklch(0.74 0.16 150);
+  --nav-advance: oklch(0.76 0.12 195);
+  --nav-control: oklch(0.78 0.15 85);
+  --nav-submission: oklch(0.72 0.19 25);
+  --nav-takedown: oklch(0.72 0.17 305);
+  --nav-recovery: oklch(0.76 0.13 215);
+  --nav-node-standing: oklch(0.68 0.01 250);
+  --nav-node-guard: oklch(0.72 0.16 250);
+  --nav-node-passing: oklch(0.74 0.16 150);
+  --nav-node-control: oklch(0.78 0.15 85);
+  --nav-node-defense: oklch(0.78 0.14 95);
+  --nav-node-submission: oklch(0.72 0.19 25);
+  --nav-node-leglock: oklch(0.68 0.20 25);
 }
 
 :root {

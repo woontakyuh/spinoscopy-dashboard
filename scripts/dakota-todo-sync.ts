@@ -13,6 +13,7 @@ import { classifyDomains, createCodexDomainClassifier } from "../lib/dakota-ledg
 import { todoSessionKey, todoToSessionLogInput } from "../lib/dakota-ledger/todoIngest"
 import type { LedgerDomain } from "../lib/dakota-ledger/types"
 import { getAllTodos } from "../lib/notion/todo"
+import type { TodoItem } from "../lib/notion/todo"
 import { createSessionLog, readSessionLogSnapshot } from "../lib/notion/sessionLog"
 
 function ymdToString({ y, m, d }: SeoulYMD): string {
@@ -33,14 +34,25 @@ export function parseArgs(argv: string[]): { since: string | null; dryRun: boole
   throw new Error(`--since 값을 해석할 수 없습니다: "${value}" (YYYY-MM-DD | today | yesterday)`)
 }
 
+export function completedFromDateFilter(since: string | null): string | undefined {
+  return since ? `${since}T00:00:00+09:00` : undefined
+}
+
+export function isFreshTodo(todo: Pick<TodoItem, "page_id" | "source_ref">, sessionKeys: Set<string>): boolean {
+  if (sessionKeys.has(todoSessionKey(todo.page_id))) return false
+  if (todo.source_ref && sessionKeys.has(todo.source_ref)) return false
+  return true
+}
+
 async function main() {
   const { since, dryRun } = parseArgs(process.argv.slice(2))
 
-  const all = await getAllTodos({ status: "Done", ...(since ? { completedFromDate: since } : {}) })
+  const completedFromDate = completedFromDateFilter(since)
+  const all = await getAllTodos({ status: "Done", ...(completedFromDate ? { completedFromDate } : {}) })
   const completed = all.filter((t) => Boolean(t.completed_at))
 
   const snapshot = await readSessionLogSnapshot()
-  const fresh = completed.filter((t) => !snapshot.keys.has(todoSessionKey(t.page_id)))
+  const fresh = completed.filter((t) => isFreshTodo(t, snapshot.keys))
 
   console.log(`완료 to-do 대상 ${completed.length}건 · 기적재 제외 후 ${fresh.length}건${dryRun ? " · DRY RUN" : ""}`)
   if (fresh.length === 0) return

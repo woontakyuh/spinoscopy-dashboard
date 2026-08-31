@@ -52,7 +52,19 @@ const textOutputSchema = z.object({
   })),
 })
 
-const stringArray = { type: "array", items: { type: "string" } } as const
+function boundedString(maxLength: number) {
+  return { type: "string", minLength: 1, maxLength, pattern: "\\S" } as const
+}
+
+function boundedStringArray(minItems: number, maxItems: number, itemMaxLength: number) {
+  return {
+    type: "array",
+    minItems,
+    maxItems,
+    items: boundedString(itemMaxLength),
+  } as const
+}
+
 const ANALYSIS_JSON_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -61,68 +73,92 @@ const ANALYSIS_JSON_SCHEMA = {
     "insights", "mentalModels", "factInterpretation", "questions",
   ],
   properties: {
-    summary: { type: "string" },
-    topics: stringArray,
-    models: stringArray,
-    people: stringArray,
+    summary: boundedString(700),
+    topics: boundedStringArray(1, 10, 60),
+    models: boundedStringArray(0, 10, 60),
+    people: boundedStringArray(0, 12, 80),
     concepts: {
       type: "array",
+      minItems: 3,
+      maxItems: 12,
       items: {
         type: "object",
         additionalProperties: false,
         required: ["term", "korean", "category", "oneLine", "intuition", "whyItMatters"],
         properties: {
-          term: { type: "string" },
-          korean: { type: "string" },
-          category: { type: "string" },
-          oneLine: { type: "string" },
-          intuition: { type: "string" },
-          whyItMatters: { type: "string" },
+          term: boundedString(100),
+          korean: boundedString(100),
+          category: boundedString(60),
+          oneLine: boundedString(500),
+          intuition: boundedString(700),
+          whyItMatters: boundedString(700),
         },
       },
     },
     keyPoints: {
       type: "array",
+      minItems: 3,
+      maxItems: 12,
       items: {
         type: "object",
         additionalProperties: false,
         required: ["heading", "bullets"],
         properties: {
-          heading: { type: "string" },
-          bullets: stringArray,
+          heading: boundedString(160),
+          bullets: boundedStringArray(1, 6, 700),
         },
       },
     },
-    insights: stringArray,
-    mentalModels: stringArray,
-    factInterpretation: stringArray,
-    questions: stringArray,
+    insights: boundedStringArray(2, 10, 700),
+    mentalModels: boundedStringArray(1, 8, 700),
+    factInterpretation: boundedStringArray(1, 8, 700),
+    questions: boundedStringArray(2, 8, 500),
   },
 } as const
 
-const INSTRUCTIONS = `당신은 AI Frontier 팟캐스트의 한국어 리서치 에디터입니다.
+const INSTRUCTIONS = `당신은 AI 기술 인터뷰와 팟캐스트를 정리하는 한국어 리서치 에디터입니다.
 반드시 제공된 공식 전사본만 근거로 분석하세요. 사실을 만들지 마세요.
+영문 전사는 자연스러운 한국어로 요약하되 고유명사와 기술 용어는 정확히 보존하세요.
 출연진은 전사 화자 이름만 적고, 회사·모델명은 People에 넣지 마세요.
 Topics와 Models는 짧은 태그로, Concepts는 재사용 가능한 영문 표제어로 작성하세요.
 핵심 내용, 통찰, 직관, 사실과 해석의 경계를 서로 중복하지 않게 정리하세요.
 모든 설명은 차분하고 구체적인 한국어로 작성하세요.`
 
+export type AiFrontierAnalysisFailurePhase =
+  | "config"
+  | "transport"
+  | "http"
+  | "response-shape"
+  | "output-json"
+  | "analysis-schema"
+
 export class AiFrontierAnalysisError extends Error {
-  constructor() {
+  readonly name = "AiFrontierAnalysisError"
+
+  constructor(
+    readonly phase: AiFrontierAnalysisFailurePhase,
+    readonly status: number | null,
+    readonly retryable: boolean
+  ) {
     super("AI Frontier Episode 분석에 실패했습니다.")
-    this.name = "AiFrontierAnalysisError"
   }
 }
 
 function extractOutputText(payload: unknown): string {
   const parsed = textOutputSchema.safeParse(payload)
-  if (!parsed.success) throw new AiFrontierAnalysisError()
+  if (!parsed.success) {
+    throw new AiFrontierAnalysisError("response-shape", 200, false)
+  }
   for (const output of parsed.data.output) {
     for (const content of output.content ?? []) {
       if (content.type === "output_text" && content.text?.trim()) return content.text
     }
   }
-  throw new AiFrontierAnalysisError()
+  throw new AiFrontierAnalysisError("response-shape", 200, false)
+}
+
+function retryableHttpStatus(status: number): boolean {
+  return status === 408 || status === 409 || status === 425 || status === 429 || status >= 500
 }
 
 export async function analyzeAiFrontierEpisode(
@@ -130,7 +166,7 @@ export async function analyzeAiFrontierEpisode(
   dependencies: AnalysisDependencies
 ): Promise<AiFrontierEpisodeAnalysis> {
   const apiKey = dependencies.apiKey.trim()
-  if (!apiKey) throw new AiFrontierAnalysisError()
+  if (!apiKey) throw new AiFrontierAnalysisError("config", null, false)
   const fetchImpl = dependencies.fetchImpl ?? fetch
 
   let response: Response
@@ -150,6 +186,8 @@ export async function analyzeAiFrontierEpisode(
             type: "input_text",
             text: JSON.stringify({
               episode: {
+                source: episode.source,
+                reference: episode.reference,
                 episodeNumber: episode.episodeNumber,
                 title: episode.name,
                 officialUrl: episode.officialUrl,
@@ -174,17 +212,33 @@ export async function analyzeAiFrontierEpisode(
       signal: AbortSignal.timeout(180_000),
     })
   } catch {
-    throw new AiFrontierAnalysisError()
+    throw new AiFrontierAnalysisError("transport", null, true)
   }
-  if (!response.ok) throw new AiFrontierAnalysisError()
+  if (!response.ok) {
+    throw new AiFrontierAnalysisError(
+      "http",
+      response.status,
+      retryableHttpStatus(response.status)
+    )
+  }
 
+  let payload: unknown
   try {
-    const output = JSON.parse(extractOutputText(await response.json()))
-    const parsed = analysisSchema.safeParse(output)
-    if (!parsed.success) throw new AiFrontierAnalysisError()
-    return parsed.data
-  } catch (error) {
-    if (error instanceof AiFrontierAnalysisError) throw error
-    throw new AiFrontierAnalysisError()
+    payload = await response.json()
+  } catch {
+    throw new AiFrontierAnalysisError("response-shape", 200, false)
   }
+
+  const outputText = extractOutputText(payload)
+  let output: unknown
+  try {
+    output = JSON.parse(outputText)
+  } catch {
+    throw new AiFrontierAnalysisError("output-json", 200, false)
+  }
+  const parsed = analysisSchema.safeParse(output)
+  if (!parsed.success) {
+    throw new AiFrontierAnalysisError("analysis-schema", 200, false)
+  }
+  return parsed.data
 }

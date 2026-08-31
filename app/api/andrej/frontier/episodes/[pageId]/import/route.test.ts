@@ -15,6 +15,7 @@ describe("POST /api/andrej/frontier/episodes/[pageId]/import", () => {
   it("Episode 자료 수집 결과를 반환한다", async () => {
     const run = vi.fn(async () => ({
       pageId,
+      reference: "EP87",
       episodeNumber: 87,
       status: "완료" as const,
       conceptsCreated: 3,
@@ -29,6 +30,7 @@ describe("POST /api/andrej/frontier/episodes/[pageId]/import", () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({
       pageId,
+      reference: "EP87",
       episodeNumber: 87,
       status: "완료",
       conceptsCreated: 3,

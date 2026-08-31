@@ -35,11 +35,16 @@ const index: AiFrontierIndex = {
     duration: "PT1H",
     summary: null,
     keyTerms: [],
+    source: "ai-frontier",
+    sourceKey: "EP87",
+    sourceIdentityPersisted: false,
   }],
   concepts: [],
 }
 
 const officialEpisode = {
+  source: "ai-frontier",
+  reference: "EP87",
   episodeNumber: 87,
   name: "EP87. 딸깍의 시대",
   officialUrl: "https://aifrontier.kr/ko/episodes/ep87",
@@ -65,6 +70,7 @@ const analysis = {
 
 const result = {
   pageId,
+  reference: "EP87",
   episodeNumber: 87,
   status: "완료",
   conceptsCreated: 3,
@@ -74,7 +80,9 @@ const result = {
 function dependencies() {
   return {
     loadIndex: vi.fn(async () => index),
-    loadEpisode: vi.fn(async () => officialEpisode),
+    loadEpisode: vi.fn<() => Promise<AiFrontierOfficialEpisode>>(
+      async () => officialEpisode
+    ),
     analyze: vi.fn(async () => analysis),
     persist: vi.fn(async () => result),
     setStatus: vi.fn(async () => undefined),
@@ -119,6 +127,29 @@ describe("AI Frontier Episode import orchestration", () => {
     await expect(importAiFrontierEpisode(pageId, deps))
       .rejects.toBeInstanceOf(AiFrontierImportError)
     expect(deps.setStatus).toHaveBeenNthCalledWith(2, pageId, "수집 실패")
+    expect(deps.persist).not.toHaveBeenCalled()
+  })
+
+  it("Episode 번호가 없어도 공식 URL이 다르면 수집을 거부한다", async () => {
+    const deps = dependencies()
+    deps.loadIndex.mockResolvedValue({
+      ...index,
+      episodes: [{
+        ...index.episodes[0]!,
+        episodeNumber: null,
+        transcriptSource: "https://www.dwarkesh.com/p/ryan-greenblatt",
+      }],
+    })
+    deps.loadEpisode.mockResolvedValue({
+      ...officialEpisode,
+      source: "dwarkesh",
+      reference: "DWARKESH:OTHER",
+      episodeNumber: null,
+      officialUrl: "https://www.dwarkesh.com/p/other",
+    })
+
+    await expect(importAiFrontierEpisode(pageId, deps))
+      .rejects.toBeInstanceOf(AiFrontierImportError)
     expect(deps.persist).not.toHaveBeenCalled()
   })
 })

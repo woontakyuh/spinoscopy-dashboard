@@ -56,7 +56,7 @@ export const POSITIONS: Position[] = [
   { id: "ns_top", name: "North-South", nameKr: "노스사우스", layer: "control", perspective: "top", ruleSet: "common" },
   { id: "turtle_top", name: "Turtle (attacking)", nameKr: "터틀 공격", layer: "control", perspective: "top", lessonNumbers: [54], ruleSet: "common" },
 
-  // Control — Bottom (불리)
+  // Defense — Bottom (탈출 시작점)
   { id: "side_bottom", name: "Side (bottom)", nameKr: "사이드 당함", layer: "control", perspective: "bottom", lessonNumbers: [1, 3], ruleSet: "common" },
   { id: "kob_bottom", name: "KoB (bottom)", nameKr: "니온벨리 당함", layer: "control", perspective: "bottom", lessonNumbers: [19], ruleSet: "common" },
   { id: "mount_bottom", name: "Mount (bottom)", nameKr: "마운트 당함", layer: "control", perspective: "bottom", lessonNumbers: [40, 41, 42], ruleSet: "common" },
@@ -149,10 +149,13 @@ export const TRANSITIONS: Transition[] = [
   // Sweeps (Guard → Top)
   { from: "closed", to: "mount_top", action: "시저스 스윕", actionEn: "Scissor Sweep", type: "sweep", lessonNumber: 32, videoUrl: videoForLesson(32), ruleSet: "common" },
   { from: "closed", to: "mount_top", action: "플라워 스윕", actionEn: "Flower Sweep", type: "sweep", lessonNumber: 33, videoUrl: videoForLesson(33), ruleSet: "common" },
+  { from: "closed", to: "mount_top", action: "힙범프 스윕", actionEn: "Hip Bump Sweep", condition: "상대가 상체를 세우고 손을 짚지 못할 때", type: "sweep", ruleSet: "common" },
   { from: "closed", to: "back_top", action: "암드래그 백테이크", actionEn: "Arm Drag Back Take", type: "sweep", lessonNumber: 49, videoUrl: videoForLesson(49), ruleSet: "common" },
   { from: "hg", to: "side_top", action: "하프가드 스윕", actionEn: "Half Guard Sweep", type: "sweep", lessonNumber: 47, videoUrl: videoForLesson(47), ruleSet: "common" },
+  { from: "hg", to: "back_top", action: "도그파이트 백테이크", actionEn: "Dogfight Back Take", condition: "언더훅으로 상대 옆을 돌아 나왔을 때", type: "sweep", ruleSet: "common" },
   { from: "situp", to: "side_top", action: "코요테 스윕", actionEn: "Coyote Sweep", type: "sweep", ruleSet: "common" },
   { from: "butterfly", to: "side_top", action: "더블앵클 스윕", actionEn: "Double Ankle Sweep", type: "sweep", lessonNumber: 20, videoUrl: videoForLesson(20), ruleSet: "common" },
+  { from: "butterfly", to: "mount_top", action: "버터플라이 스윕", actionEn: "Butterfly Sweep to Mount", condition: "스윕 후 다리 위를 넘어 상체를 고정할 때", type: "sweep", ruleSet: "common" },
   { from: "slx", to: "side_top", action: "SLX 스윕", actionEn: "SLX Sweep", type: "sweep", lessonNumber: 24, videoUrl: videoForLesson(24), ruleSet: "common" },
   { from: "xg", to: "side_top", action: "X가드 스윕", actionEn: "X Guard Sweep", type: "sweep", ruleSet: "common" },
   { from: "bolo", to: "back_top", action: "베림볼로 백테이크", actionEn: "Berimbolo Back Take", type: "sweep", ruleSet: "common" },
@@ -174,16 +177,23 @@ export const TRANSITIONS: Transition[] = [
   { from: "kob_top", to: "mount_top", action: "마운트", actionEn: "Mount", type: "transition", ruleSet: "common" },
   { from: "kob_top", to: "side_top", action: "사이드 복귀", actionEn: "Back to side", type: "transition", ruleSet: "common" },
   { from: "mount_top", to: "back_top", action: "백테이크", actionEn: "Back Take", condition: "상대가 뒤집으려 하면", type: "transition", ruleSet: "common" },
+  { from: "back_top", to: "mount_top", action: "마운트 전환", actionEn: "Back Control to Mount", condition: "상대가 아래쪽 훅을 빼고 몸을 돌릴 때", type: "transition", ruleSet: "common" },
+  { from: "ns_top", to: "side_top", action: "사이드 컨트롤 전환", actionEn: "North-South to Side Control", type: "transition", ruleSet: "common" },
   { from: "turtle_top", to: "back_top", action: "터틀 백테이크", actionEn: "Turtle Back Take", type: "transition", lessonNumber: 54, videoUrl: videoForLesson(54), ruleSet: "common" },
+  { from: "turtle_top", to: "side_top", action: "터틀 브레이크다운", actionEn: "Turtle Breakdown to Side Control", condition: "어깨와 골반을 돌려 상대를 눕혔을 때", type: "transition", ruleSet: "common" },
 
   // Escapes (Bottom → Guard)
   { from: "side_bottom", to: "hg", action: "사이드 탈출 → 하프", actionEn: "Side Escape to HG", type: "escape", lessonNumber: 1, videoUrl: videoForLesson(1), ruleSet: "common" },
   { from: "side_bottom", to: "closed", action: "사이드 탈출 → 풀가드", actionEn: "Side Escape to Closed", type: "escape", lessonNumber: 3, videoUrl: videoForLesson(3), ruleSet: "common" },
+  { from: "side_bottom", to: "open", action: "가드 리커버리", actionEn: "Side Escape to Open Guard", condition: "프레임과 힙이스케이프로 무릎을 안쪽에 넣었을 때", type: "escape", ruleSet: "common" },
   { from: "mount_bottom", to: "hg", action: "하프가드 전환 탈출", actionEn: "Mount Escape to HG", type: "escape", lessonNumber: 42, videoUrl: videoForLesson(42), ruleSet: "common" },
   { from: "mount_bottom", to: "slx", action: "SLX 전환 탈출", actionEn: "Mount Escape to SLX", type: "escape", lessonNumber: 41, videoUrl: videoForLesson(41), ruleSet: "common" },
   { from: "mount_bottom", to: "open", action: "보조지 탈출", actionEn: "Bridge Escape", type: "escape", lessonNumber: 40, videoUrl: videoForLesson(40), ruleSet: "common" },
+  { from: "mount_bottom", to: "closed", action: "엘보 이스케이프", actionEn: "Elbow Escape to Closed Guard", condition: "팔꿈치 프레임으로 무릎을 넣고 양다리를 잠갔을 때", type: "escape", ruleSet: "common" },
   { from: "kob_bottom", to: "open", action: "니온벨리 탈출", actionEn: "KoB Escape", type: "escape", lessonNumber: 19, videoUrl: videoForLesson(19), ruleSet: "common" },
   { from: "back_bottom", to: "hg", action: "백 탈출", actionEn: "Back Escape", type: "escape", lessonNumber: 52, videoUrl: videoForLesson(52), ruleSet: "common" },
+  { from: "back_bottom", to: "closed", action: "백 탈출 후 가드 리커버리", actionEn: "Back Escape to Closed Guard", condition: "어깨를 매트에 대고 상대 앞쪽으로 돌아왔을 때", type: "escape", ruleSet: "common" },
+  { from: "turtle_bottom", to: "hg", action: "인사이드 턴 리커버리", actionEn: "Turtle to Half Guard Recovery", condition: "상대 다리 하나를 포착해 안쪽으로 돌아왔을 때", type: "recovery", ruleSet: "common" },
   { from: "turtle_bottom", to: "open", action: "터틀 빠른탈출", actionEn: "Turtle Quick Escape", type: "escape", lessonNumber: 56, ruleSet: "common" },
   { from: "turtle_bottom", to: "standing", action: "터틀 스탠딩 탈출", actionEn: "Turtle Stand", type: "escape", lessonNumber: 56, ruleSet: "common" },
 

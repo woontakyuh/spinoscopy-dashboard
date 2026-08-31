@@ -65,7 +65,7 @@ export function AssetDailyChart({
   title,
   currency = "USD",
   height = 320,
-  defaultPeriod = "3M",
+  defaultPeriod = "6M",
 }: AssetDailyChartProps) {
   const [period, setPeriod] = useState<BtcChartPeriod>(defaultPeriod)
   const [interval, setInterval] = useState<ChartInterval>("1d")

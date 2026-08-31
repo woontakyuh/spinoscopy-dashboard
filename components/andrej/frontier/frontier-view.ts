@@ -3,6 +3,8 @@
 
 import type { AiFrontierConcept, AiFrontierEpisode, AiFrontierEpisodeRef } from "@/lib/types/ai-frontier"
 
+import { frontierRefSource, frontierSourceLabel } from "./frontier-source"
+
 /** 모바일에서 한 번에 한쪽 목록만 보여줄 때 활성 섹션 */
 export type FrontierMobileSection = "episodes" | "concepts"
 
@@ -76,13 +78,23 @@ export function sortEpisodes(episodes: AiFrontierEpisode[]): AiFrontierEpisode[]
     .map((entry) => entry.episode)
 }
 
-/** Episodes 검색: 제목/토픽/모델/인물. 빈 검색어면 전체를 안정 정렬로 돌려준다. */
+/**
+ * Episodes 검색: 제목/토픽/모델/인물 + 출처 이름.
+ * 제목에 출처를 심지 않기로 했으니, "Dwarkesh" 로 찾을 길은 출처 이름뿐이다.
+ * 빈 검색어면 전체를 안정 정렬로 돌려준다.
+ */
 export function filterEpisodes(episodes: AiFrontierEpisode[], search: string): AiFrontierEpisode[] {
   const needle = normalizeSearchText(search)
   if (needle === "") return sortEpisodes(episodes)
 
   const matched = episodes.filter((episode) =>
-    matchesAny(needle, [episode.name, ...episode.topics, ...episode.models, ...episode.people])
+    matchesAny(needle, [
+      episode.name,
+      frontierSourceLabel(episode.source),
+      ...episode.topics,
+      ...episode.models,
+      ...episode.people,
+    ])
   )
   return sortEpisodes(matched)
 }
@@ -124,8 +136,12 @@ export function countConceptCategories(concepts: AiFrontierConcept[], search: st
     .sort((a, b) => a.category.localeCompare(b.category))
 }
 
-/** "EP12" → 12. 숫자를 못 뽑으면 null. */
+/**
+ * "EP12" → 12. AI Frontier 네임스페이스 밖이거나 숫자를 못 뽑으면 null.
+ * `DWARKESH:SHOLTO-2` 의 끝자리를 EP 번호로 읽으면 남의 소스 에피소드에 가서 붙는다.
+ */
 function refEpisodeNumber(ref: string): number | null {
+  if (frontierRefSource(ref) !== "ai-frontier") return null
   const match = /(\d+)/.exec(normalizeSearchText(ref))
   return match === null ? null : Number.parseInt(match[1], 10)
 }
@@ -133,8 +149,12 @@ function refEpisodeNumber(ref: string): number | null {
 /**
  * multi_select 문자열 참조를 실제 Episode로 해석한다.
  * pageId 우선, 끊겼으면 "EPnn" 번호로 재시도한다. 둘 다 실패하면 orphan.
+ * 번호는 AI Frontier 의 것이라, 다른 소스 행이 같은 번호를 들고 있어도 빌려주지 않는다.
  */
-function resolveEpisodeRef(ref: AiFrontierEpisodeRef, episodes: AiFrontierEpisode[]): AiFrontierEpisode | null {
+export function resolveEpisodeRef(
+  ref: AiFrontierEpisodeRef,
+  episodes: AiFrontierEpisode[]
+): AiFrontierEpisode | null {
   if (ref.pageId !== null) {
     const byId = episodes.find((episode) => episode.id === ref.pageId)
     if (byId !== undefined) return byId
@@ -142,7 +162,9 @@ function resolveEpisodeRef(ref: AiFrontierEpisodeRef, episodes: AiFrontierEpisod
 
   const number = refEpisodeNumber(ref.ref)
   if (number === null) return null
-  return episodes.find((episode) => episode.episodeNumber === number) ?? null
+  return (
+    episodes.find((episode) => episode.source === "ai-frontier" && episode.episodeNumber === number) ?? null
+  )
 }
 
 /**
@@ -182,8 +204,9 @@ export function conceptsForEpisode(
   return concepts.filter((concept) =>
     concept.episodes.some((ref) => {
       if (ref.pageId !== null && ref.pageId === episode.id) return true
-      const number = refEpisodeNumber(ref.ref)
-      return number !== null && episode.episodeNumber !== null && number === episode.episodeNumber
+      // 번호로 되찾는 길은 AI Frontier 안에서만 유효하다.
+      if (episode.source !== "ai-frontier" || episode.episodeNumber === null) return false
+      return refEpisodeNumber(ref.ref) === episode.episodeNumber
     })
   )
 }

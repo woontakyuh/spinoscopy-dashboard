@@ -1,4 +1,8 @@
 import type { MyCompetition, FollowedEvent } from "@/lib/types/sensei"
+export { KOREAN_FOLLOWED_EVENTS } from "@/lib/sensei/korean-competition-events"
+export { INTERNATIONAL_FOLLOWED_EVENTS } from "@/lib/sensei/international-competition-events"
+import { KOREAN_FOLLOWED_EVENTS } from "@/lib/sensei/korean-competition-events"
+import { INTERNATIONAL_FOLLOWED_EVENTS } from "@/lib/sensei/international-competition-events"
 
 // 내 대회 시드 데이터 (localStorage 기반)
 export const MY_COMPETITIONS_SEED: MyCompetition[] = [
@@ -17,60 +21,10 @@ export const MY_COMPETITIONS_SEED: MyCompetition[] = [
   },
 ]
 
-// Following 국제 메이저 대회
 export const FOLLOWED_EVENTS: FollowedEvent[] = [
-  {
-    id: "event-1",
-    name: "IBJJF World Championship",
-    date: "2026-06-04",
-    location: "Las Vegas, USA",
-    organization: "IBJJF",
-    ruleSet: "gi",
-    type: "major",
-    coachEntries: [
-      { name: "조준용", division: "Adult Black Feather -70kg" },
-    ],
-  },
-  {
-    id: "event-2",
-    name: "IBJJF European Championship",
-    date: "2026-01-20",
-    location: "Europe",
-    organization: "IBJJF",
-    ruleSet: "gi",
-    type: "major",
-    coachEntries: [
-      { name: "조준용", division: "Adult Black Feather -70kg", result: "3rd place" },
-    ],
-  },
-  {
-    id: "event-3",
-    name: "ADCC World Championship",
-    date: "2026-09-13",
-    location: "TBD",
-    organization: "ADCC",
-    ruleSet: "nogi",
-    type: "major",
-  },
-  {
-    id: "event-4",
-    name: "IBJJF Pan Championship",
-    date: "2026-03-18",
-    location: "Irvine, USA",
-    organization: "IBJJF",
-    ruleSet: "gi",
-    type: "major",
-  },
-  {
-    id: "event-5",
-    name: "AJP Abu Dhabi World Pro",
-    date: "2026-04-15",
-    location: "Abu Dhabi, UAE",
-    organization: "AJP",
-    ruleSet: "gi",
-    type: "major",
-  },
-]
+  ...KOREAN_FOLLOWED_EVENTS,
+  ...INTERNATIONAL_FOLLOWED_EVENTS,
+].sort((a, b) => a.date.localeCompare(b.date))
 
 const STORAGE_KEY = "sensei-my-competitions"
 

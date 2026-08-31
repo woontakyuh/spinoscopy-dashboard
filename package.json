@@ -7,6 +7,7 @@
     "build": "tsx scripts/generate-dakota-manifest.ts && next build",
     "dakota:manifest": "tsx scripts/generate-dakota-manifest.ts",
     "frontier:sync": "tsx --env-file=.env.local scripts/sync-ai-frontier-catalog.ts",
+    "frontier:backfill-preview": "tsx --env-file=.env.local scripts/preview-ai-frontier-backfill.ts",
     "telegram:bot": "tsx scripts/telegram-bot.ts",
     "telegram:bot:force": "DAKOTA_TELEGRAM_ALLOW_GATEWAY_CONFLICT=1 tsx scripts/telegram-bot.ts",
     "ledger:schema": "tsx --env-file=.env.local scripts/dakota-ledger-schema.ts",
@@ -14,7 +15,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "character:build": "node scripts/character/build.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.45",

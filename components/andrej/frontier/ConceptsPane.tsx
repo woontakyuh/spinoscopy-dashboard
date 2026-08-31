@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 
 import { ConceptCategoryFilters } from "./ConceptCategoryFilters"
 import { ConceptVideos } from "./ConceptVideos"
+import { frontierProseClass } from "./FrontierSourceState"
 import type { FrontierCategoryCount } from "./frontier-view"
 
 export interface ConceptsPaneProps {
@@ -71,7 +72,7 @@ function DetailBlock({ label, value }: { readonly label: string; readonly value:
   return (
     <div className="space-y-0.5">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="text-xs leading-relaxed text-foreground/90">{value}</p>
+      <p className={`text-xs leading-relaxed text-foreground/90 ${frontierProseClass}`}>{value}</p>
     </div>
   )
 }
@@ -141,7 +142,7 @@ function ConceptCard({
         {oneLine !== null && !expanded && (
           <span
             data-testid={`concept-oneline-${concept.id}`}
-            className="mt-1 block text-xs leading-relaxed text-muted-foreground line-clamp-2"
+            className={`mt-1 block text-xs leading-relaxed text-muted-foreground line-clamp-2 ${frontierProseClass}`}
           >
             {oneLine}
           </span>
