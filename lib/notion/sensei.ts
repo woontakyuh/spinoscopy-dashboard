@@ -10,6 +10,7 @@ interface NotionProperty {
   multi_select?: Array<{ name: string }>
   checkbox?: boolean
   url?: string | null
+  number?: number | null
 }
 
 interface NotionPage {
@@ -133,6 +134,8 @@ function toEntry(page: NotionPage): SenseiEntry {
     studyTags: getMulti(p["Study Tags"]),
     videoUrl: p["Video URL"]?.url || undefined,
     videoTitle: getText(p["Video Title"]) || undefined,
+    classVideoUrl: p["Class Video"]?.url || undefined,
+    classVideoCount: p["Class Video Count"]?.number ?? undefined,
     todayFocus: getText(p["Today Focus"]) || undefined,
     focusApplied: p["Focus Applied"]?.checkbox ?? false,
     note: getText(p.Note),

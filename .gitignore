@@ -48,6 +48,8 @@ scripts/*
 !scripts/social-collector
 !scripts/journal-collector
 !scripts/character
+!scripts/bjj-video-sync.ts
+!scripts/BJJ-VIDEO.md
 !scripts/fulltext-worker
 !scripts/dakota-ledger-sync.ts
 !scripts/dakota-ledger-sync.test.ts

@@ -21,6 +21,8 @@ const entries: SenseiEntry[] = [
     focusApplied: true,
     note: "",
     url: "",
+    classVideoUrl: "https://www.dropbox.com/scl/fo/abc/def?rlkey=x&dl=0",
+    classVideoCount: 5,
   },
   {
     id: "training-study",
@@ -82,6 +84,21 @@ describe("TrainingView", () => {
     expect(screen.getByText("하프가드 프레임 공부")).toBeVisible()
     expect(screen.getByText("프레임")).toBeVisible()
     expect(screen.getByText("유튜브 영상을 보고 프레임 순서를 정리함")).toBeVisible()
+  })
+
+  it("수업 영상 폴더 링크를 새 탭으로 연다", () => {
+    render(<TrainingView entries={entries} />)
+    const link = screen.getByRole("link", { name: /클립 5개/ })
+    expect(link).toHaveAttribute("href", "https://www.dropbox.com/scl/fo/abc/def?rlkey=x&dl=0")
+    expect(link).toHaveAttribute("target", "_blank")
+    // dl=1 이면 클릭 즉시 다운로드가 시작된다 — 링크아웃은 미리보기여야 한다
+    expect(link.getAttribute("href")).not.toContain("dl=1")
+  })
+
+  it("수업 영상이 없는 기록에는 영상 링크가 없다", () => {
+    const noVideo = entries.map((e) => ({ ...e, classVideoUrl: undefined, classVideoCount: undefined }))
+    render(<TrainingView entries={noVideo} />)
+    expect(screen.queryByText("수업 영상")).toBeNull()
   })
 
   it("shows Gi and No-Gi for physical training records", () => {

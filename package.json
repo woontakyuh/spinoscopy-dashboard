@@ -16,7 +16,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "character:build": "node scripts/character/build.mjs"
+    "character:build": "node scripts/character/build.mjs",
+    "bjj:video-sync": "tsx --env-file=.env.local scripts/bjj-video-sync.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.45",

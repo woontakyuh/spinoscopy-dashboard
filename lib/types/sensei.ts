@@ -12,6 +12,10 @@ export interface SenseiEntry {
   studyTags: string[]
   videoUrl?: string
   videoTitle?: string
+  /** 수업 녹화 드랍박스 폴더 링크 (공부 자료인 videoUrl 과 다르다) */
+  classVideoUrl?: string
+  /** 그 폴더 안 클립 개수 */
+  classVideoCount?: number
   todayFocus?: string
   focusApplied?: boolean
   note: string
