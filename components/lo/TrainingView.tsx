@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { BookOpen, ExternalLink, GraduationCap, Swords, Target } from "lucide-react"
+import { BookOpen, ExternalLink, GraduationCap, Play, Swords, Target } from "lucide-react"
 import { SenseiCalendar } from "@/components/sensei/SenseiCalendar"
 import {
   getTrainingRuleSet,
@@ -142,6 +142,22 @@ function EntryDetail({
             오늘의 초점
           </p>
           <p className="mt-1.5 text-sm leading-6 text-foreground/90">{entry.todayFocus}</p>
+        </div>
+      )}
+
+      {entry.classVideoUrl && (
+        <div>
+          <p className="text-[11px] font-semibold text-foreground/70">수업 영상</p>
+          <a
+            href={entry.classVideoUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-1.5 inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/60 px-2.5 py-1.5 text-sm text-foreground/90 transition-colors hover:border-foreground/30 hover:bg-muted"
+          >
+            <Play className="size-3.5 shrink-0" aria-hidden="true" />
+            {entry.classVideoCount ? `클립 ${entry.classVideoCount}개` : "드랍박스에서 보기"}
+            <ExternalLink className="size-3 shrink-0 opacity-50" aria-hidden="true" />
+          </a>
         </div>
       )}
 
