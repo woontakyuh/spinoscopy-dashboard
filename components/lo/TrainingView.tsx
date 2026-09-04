@@ -10,18 +10,13 @@ import {
   type TrainingFilter,
 } from "@/lib/sensei/trainingEntry"
 import type { SenseiEntry, SenseiSessionType } from "@/lib/types/sensei"
+import { SESSION_LABELS } from "@/lib/sensei/sessionLabels"
 
 type TrainingViewProps = {
   readonly entries: readonly SenseiEntry[]
   readonly isLoading?: boolean
 }
 
-const SESSION_LABELS: Record<SenseiSessionType, string> = {
-  class: "수업",
-  openmat: "오픈매트",
-  promotion: "승급",
-  study: "공부",
-}
 
 function currentMonthKey(): string {
   const today = new Date()

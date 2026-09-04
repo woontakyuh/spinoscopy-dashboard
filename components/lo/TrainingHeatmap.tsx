@@ -2,11 +2,14 @@
 
 import { useMemo, useState } from "react"
 import type { SenseiEntry } from "@/lib/types/sensei"
+import { SESSION_LABELS, isPhysicalSession, ruleSetOf, summarizeEntry } from "@/lib/sensei/sessionLabels"
 
 const WEEK_COUNT = 53
 const DAYS_PER_WEEK = 7
 
 interface HeatmapDay {
+  /** 그날의 모든 기록 — 툴팁에 카테고리+요약으로 보여준다 */
+  readonly sessions: readonly SenseiEntry[]
   readonly key: string
   readonly count: number
 }
@@ -27,10 +30,25 @@ function toDateKey(date: Date): string {
 function physicalSessionCount(entries: readonly SenseiEntry[]): Map<string, number> {
   const counts = new Map<string, number>()
   for (const entry of entries) {
-    if (!entry.date || (entry.sessionType !== "class" && entry.sessionType !== "openmat")) continue
+    if (!entry.date || !isPhysicalSession(entry)) continue
     counts.set(entry.date, (counts.get(entry.date) ?? 0) + 1)
   }
   return counts
+}
+
+/** 날짜별 기록. 몸으로 한 세션이 먼저, 공부·승급은 뒤에 */
+function entriesByDate(entries: readonly SenseiEntry[]): Map<string, SenseiEntry[]> {
+  const byDate = new Map<string, SenseiEntry[]>()
+  for (const entry of entries) {
+    if (!entry.date) continue
+    const list = byDate.get(entry.date) ?? []
+    list.push(entry)
+    byDate.set(entry.date, list)
+  }
+  for (const list of byDate.values()) {
+    list.sort((a, b) => Number(isPhysicalSession(b)) - Number(isPhysicalSession(a)))
+  }
+  return byDate
 }
 
 function levelClass(count: number): string {
@@ -40,9 +58,9 @@ function levelClass(count: number): string {
   return "border-border/60 bg-muted/55"
 }
 
-function formatTooltip(dateKey: string, count: number): string {
+function formatDate(dateKey: string): string {
   const [year, month, day] = dateKey.split("-").map(Number)
-  return `${year}년 ${month}월 ${day}일 · ${count}회`
+  return `${year}년 ${month}월 ${day}일`
 }
 
 function getMonthLabels(weeks: readonly (readonly HeatmapDay[])[]): MonthLabel[] {
@@ -85,11 +103,12 @@ export function TrainingHeatmap({
     start.setDate(today.getDate() - today.getDay() - ((WEEK_COUNT - 1) * DAYS_PER_WEEK))
 
     const counts = physicalSessionCount(entries)
+    const byDate = entriesByDate(entries)
 
     const days: HeatmapDay[] = []
     for (const date = new Date(start); date <= today; date.setDate(date.getDate() + 1)) {
       const key = toDateKey(date)
-      days.push({ key, count: counts.get(key) ?? 0 })
+      days.push({ key, count: counts.get(key) ?? 0, sessions: byDate.get(key) ?? [] })
     }
     const calendar = Array.from(
       { length: Math.ceil(days.length / DAYS_PER_WEEK) },
@@ -161,7 +180,7 @@ export function TrainingHeatmap({
           className="grid min-w-0 gap-[2px]"
           style={{ gridTemplateColumns: `repeat(${WEEK_COUNT}, minmax(0, 1fr))` }}
         >
-          {weeks.map((week) => (
+          {weeks.map((week, weekIndex) => (
             <div key={week[0]?.key} className="grid min-w-0 grid-rows-7 gap-[2px]">
               {week.map((day) => (
                 <span key={day.key} className="relative block min-w-0">
@@ -175,9 +194,34 @@ export function TrainingHeatmap({
                   {hoveredDayKey === day.key && (
                     <span
                       role="tooltip"
-                      className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-popover px-2 py-1 text-[11px] font-medium text-popover-foreground shadow-lg"
+                      // 가장자리 주에서는 툴팁이 카드 밖으로 나가니 앵커를 안쪽으로 튼다
+                      className={`pointer-events-none absolute bottom-full z-30 mb-1.5 w-64 rounded-md border border-border bg-popover px-2.5 py-2 text-left text-[11px] text-popover-foreground shadow-lg ${
+                        weekIndex < 6 ? "left-0" : weekIndex > WEEK_COUNT - 7 ? "right-0" : "left-1/2 -translate-x-1/2"
+                      }`}
                     >
-                      {formatTooltip(day.key, day.count)}
+                      <span className="block font-semibold text-foreground">
+                        {formatDate(day.key)}
+                        {day.count > 0 && <span className="ml-1 font-normal text-muted-foreground">· {day.count}회</span>}
+                      </span>
+                      {day.sessions.length === 0 ? (
+                        <span className="mt-1 block text-muted-foreground">기록 없음</span>
+                      ) : (
+                        <span className="mt-1.5 block space-y-1">
+                          {day.sessions.map((entry) => {
+                            const rule = ruleSetOf(entry)
+                            return (
+                              <span key={entry.id} className="block leading-snug">
+                                <span className="mr-1 inline-block rounded bg-orange-500/15 px-1 py-px text-[10px] font-semibold text-orange-500">
+                                  {SESSION_LABELS[entry.sessionType]}{rule ? ` · ${rule}` : ""}
+                                </span>
+                                <span className="text-foreground/90 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
+                                  {summarizeEntry(entry)}
+                                </span>
+                              </span>
+                            )
+                          })}
+                        </span>
+                      )}
                     </span>
                   )}
                 </span>
