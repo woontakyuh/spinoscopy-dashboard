@@ -64,6 +64,15 @@ export interface BjjStatsSet {
   closestArchetype: string | null
 }
 
+export interface ModeSummary {
+  /** 전 기간 체육관 세션 수 */
+  totalSessions: number
+  /** 올해 체육관 세션 수 */
+  sessionsThisYear: number
+  /** 이 모드만 놓고 본 연속 주차 */
+  streak: number
+}
+
 export interface BjjStats {
   level: number
   totalSessions: number
@@ -85,6 +94,8 @@ export interface BjjStats {
   sessions2026: number
   sessions2026Gi: number
   sessions2026Nogi: number
+  /** Gi/NoGi 토글에 따라 갈리는 수련 요약. 체육관 세션(class+openmat) 기준 */
+  byMode: Record<"gi" | "nogi", ModeSummary>
   attendanceRate: number
   lastCeremonyDate: string
   completedCycles: LearningCycle[]

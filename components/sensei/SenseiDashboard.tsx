@@ -50,6 +50,7 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
   const athleteComparison = useAthleteComparison(
     archetypes,
     closestArch?.arch ?? null,
+    giMode,
   )
   const activeCompare = athleteComparison.activeAthlete
 
@@ -61,6 +62,9 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
   const attrs = activeStats.attributes
   const beltCap = BELT_CAPS[stats.belt] ?? 40
   const beltHex = BELTS.find((b) => b.id === stats.belt)?.hex || "#3b82f6"
+  // 토글과 숫자가 같이 움직인다 — 노기 탭인데 기 세션 수가 보이면 안 된다
+  const modeSummary = stats.byMode[giMode]
+  const modeLabel = giMode === "gi" ? "Gi" : "NoGi"
   // 수련 기록이 캐릭터를 움직인다 — HANDOFF §6
   const condition = deriveCondition({
     daysSinceLastSession: stats.daysSinceLastSession,
@@ -138,9 +142,9 @@ export function SenseiDashboard({ onNavigate }: SenseiDashboardProps) {
             <div className="grid grid-cols-5 gap-2 text-center">
               {[
                 { v: "2019.11", l: "수련 시작" },
-                { v: String(stats.totalSessions), l: "총 세션" },
-                { v: String(stats.sessions2026), l: "올해" },
-                { v: `${stats.streaks.current}`, l: "주 연속" },
+                { v: String(modeSummary.totalSessions), l: `${modeLabel} 세션` },
+                { v: String(modeSummary.sessionsThisYear), l: "올해" },
+                { v: `${modeSummary.streak}`, l: "주 연속" },
                 { v: `${Math.round(stats.giRatio * 100)}%`, l: "Gi 비율" },
               ].map(({ v, l }) => (
                 <div key={l}>
