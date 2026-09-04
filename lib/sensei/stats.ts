@@ -264,6 +264,23 @@ export function calculateBjjStats(entries: SenseiEntry[]): BjjStats {
   const gymTotal = gymSessions.length
   const giRatio = gymTotal > 0 ? giCount / gymTotal : 1
 
+  // Gi/NoGi 토글에 따라 갈리는 요약. 토글 상태와 화면 숫자가 따로 놀면 안 된다.
+  const isNogi = (e: SenseiEntry) => [...e.classTags, ...e.sparringTags].includes("NoGi")
+  const giGym = gymSessions.filter((e) => !isNogi(e))
+  const nogiGym = gymSessions.filter(isNogi)
+  const byMode = {
+    gi: {
+      totalSessions: giGym.length,
+      sessionsThisYear: sessions2026Gi,
+      streak: calculateStreaks(giGym).current,
+    },
+    nogi: {
+      totalSessions: nogiGym.length,
+      sessionsThisYear: sessions2026Nogi,
+      streak: calculateStreaks(nogiGym).current,
+    },
+  }
+
   // Recent focus
   const recentSessions = sessions.slice(0, 10)
   const recentTagCounts: Record<string, number> = {}
@@ -303,6 +320,7 @@ export function calculateBjjStats(entries: SenseiEntry[]): BjjStats {
     sessions2026,
     sessions2026Gi,
     sessions2026Nogi,
+    byMode,
     attendanceRate,
     lastCeremonyDate: lastCeremony,
     ...calculateLearningCycles(entries),
