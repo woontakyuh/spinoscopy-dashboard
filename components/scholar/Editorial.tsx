@@ -10,7 +10,8 @@ import type {
 } from "@/lib/types/editorial"
 import { ChevronDown } from "lucide-react"
 import { laneFor } from "@/lib/editorial/status"
-import type { EditorialStatus } from "@/lib/types/editorial"
+import type { EditorialStatus, Journal } from "@/lib/types/editorial"
+import { JOURNAL_BADGE, JOURNAL_BADGE_FALLBACK } from "@/components/scholar/journalBadge"
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -100,15 +101,6 @@ const LANES: LaneConfig[] = [
   { id: "rejected",    label: "Rejected",        sublabel: "완료",           bg: "bg-zinc-950/40",   border: "border-zinc-700/40",   headerBg: "bg-zinc-800/60",   dot: "bg-red-400",    text: "text-zinc-300" },
 ]
 
-const JOURNAL_BADGE: Record<string, string> = {
-  "Neurospine": "bg-yellow-500/15 text-yellow-300 border-yellow-500/30",
-  "JMISST": "bg-purple-500/15 text-purple-300 border-purple-500/30",
-  "KJNT": "bg-green-500/15 text-green-300 border-green-500/30",
-  "Scientific Reports": "bg-orange-500/15 text-orange-300 border-orange-500/30",
-  "PLOS ONE": "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  "World Neurosurgery": "bg-red-500/15 text-red-300 border-red-500/30",
-  "Other": "bg-zinc-500/15 text-zinc-300 border-zinc-500/30",
-}
 
 // Compact labels for Methodology (19 options — 풀네임은 카드에 비좁음)
 const METHOD_SHORT: Record<string, string> = {
@@ -375,7 +367,7 @@ export function Editorial() {
                 key={j}
                 onClick={() => toggleJournal(j)}
                 className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
-                  active ? `${JOURNAL_BADGE[j] ?? ""} ring-1 ring-indigo-400/50` : "border-border/60 text-muted-foreground hover:text-foreground"
+                  active ? `${JOURNAL_BADGE[j as Journal] ?? JOURNAL_BADGE_FALLBACK} ring-1 ring-indigo-400/50` : "border-border/60 text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {j}
@@ -597,7 +589,7 @@ function LaneCard({
             <button
               type="button"
               onClick={e => { e.stopPropagation(); onJournalClick(item.journal) }}
-              className={`text-[9px] px-1.5 py-0 h-[16px] rounded-full border transition-colors ${JOURNAL_BADGE[item.journal] ?? ""}`}
+              className={`text-[9px] px-1.5 py-0 h-[16px] rounded-full border transition-colors ${JOURNAL_BADGE[item.journal as Journal] ?? JOURNAL_BADGE_FALLBACK}`}
               title="저널 필터"
             >
               {item.journal}
