@@ -58,14 +58,25 @@ export type Methodology =
   | "Cross-Sectional Study"
   | "Registry Study"
 
-export type Journal =
-  | "Neurospine"
-  | "JMISST"
-  | "KJNT"
-  | "Scientific Reports"
-  | "PLOS ONE"
-  | "World Neurosurgery"
-  | "Other"
+/**
+ * Notion "Editor-Reviewer" DB 의 Journal select 옵션과 정확히 같아야 한다.
+ * 값 배열에서 타입을 끌어내 어긋남을 테스트로 잡는다 (lib/editorial/journal.test.ts).
+ * 대소문자도 DB 그대로다 — "BMC surgery" 는 소문자 s.
+ */
+export const JOURNAL_OPTIONS = [
+  "Neurospine",
+  "JMISST",
+  "KJNT",
+  "Scientific Reports",
+  "PLOS ONE",
+  "World Neurosurgery",
+  "BMC surgery",
+  "BMC Cancer",
+  "JSOR",
+  "Book Review",
+] as const
+
+export type Journal = (typeof JOURNAL_OPTIONS)[number]
 
 export interface EditorialItem {
   page_id: string
