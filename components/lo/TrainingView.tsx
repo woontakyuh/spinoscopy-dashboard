@@ -1,13 +1,15 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { BookOpen, ExternalLink, GraduationCap, Play, Swords, Target } from "lucide-react"
+import { BookOpen, ExternalLink, GraduationCap, Play, Swords, Target, X } from "lucide-react"
 import { SenseiCalendar } from "@/components/sensei/SenseiCalendar"
 import {
   getTrainingRuleSet,
   isRuleSetTag,
   matchesTrainingFilter,
   type TrainingFilter,
+  entryHasTag,
+  type TrainingTarget,
 } from "@/lib/sensei/trainingEntry"
 import type { SenseiEntry, SenseiSessionType } from "@/lib/types/sensei"
 import { SESSION_LABELS } from "@/lib/sensei/sessionLabels"
@@ -15,6 +17,8 @@ import { SESSION_LABELS } from "@/lib/sensei/sessionLabels"
 type TrainingViewProps = {
   readonly entries: readonly SenseiEntry[]
   readonly isLoading?: boolean
+  /** 홈 히트맵에서 넘어올 때: 이 날짜를 열고, 태그가 있으면 그 태그로 거른다 */
+  readonly initialTarget?: TrainingTarget | null
 }
 
 
@@ -231,12 +235,15 @@ function DateDetail({
   )
 }
 
-export function TrainingView({ entries, isLoading = false }: TrainingViewProps) {
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+export function TrainingView({ entries, isLoading = false, initialTarget = null }: TrainingViewProps) {
+  const [selectedDate, setSelectedDate] = useState<string | null>(initialTarget?.date ?? null)
   const [activeFilter, setActiveFilter] = useState<TrainingFilter | null>(null)
+  // 해시태그 필터 — 캘린더에 그 태그가 있는 날만 남긴다
+  const [activeTag, setActiveTag] = useState<string | null>(initialTarget?.tag ?? null)
   const filteredEntries = useMemo(
-    () => entries.filter((entry) => matchesTrainingFilter(entry, activeFilter)),
-    [activeFilter, entries],
+    () => entries.filter((entry) =>
+      matchesTrainingFilter(entry, activeFilter) && (activeTag === null || entryHasTag(entry, activeTag))),
+    [activeFilter, activeTag, entries],
   )
   const latestDate = useMemo(
     () => filteredEntries.map((entry) => entry.date).filter(Boolean).sort().at(-1) ?? null,
@@ -262,6 +269,18 @@ export function TrainingView({ entries, isLoading = false }: TrainingViewProps) 
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+          {activeTag && (
+            <button
+              type="button"
+              onClick={() => { setActiveTag(null); setSelectedDate(null) }}
+              aria-label={`#${activeTag} 필터 해제`}
+              className="inline-flex items-center gap-1 rounded-full border border-orange-500/40 bg-orange-500/10 px-3 py-1.5 font-medium text-orange-500 hover:bg-orange-500/20"
+            >
+              #{activeTag}
+              <span className="text-orange-500/80 num">{filteredEntries.length}</span>
+              <X className="size-3" aria-hidden="true" />
+            </button>
+          )}
           <span className="rounded-full border border-border bg-card px-3 py-1.5">
             이번 달 {isLoading ? "—" : `${monthCount}회`}
           </span>

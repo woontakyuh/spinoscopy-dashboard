@@ -14,6 +14,7 @@ import { TrainingView } from "@/components/lo/TrainingView"
 import { getTimeContext } from "@/lib/greeterContext"
 import { formatLoAnswerForDisplay } from "@/lib/lo/chat/persona"
 import type { BjjStats, BjjAttributes, SenseiEntry } from "@/lib/types/sensei"
+import type { TrainingTarget } from "@/lib/sensei/trainingEntry"
 
 type LoTab = "home" | "character" | "navmap" | "training" | "competitions" | "concepts" | "memory"
 
@@ -35,6 +36,8 @@ function getHighLow(attrs: BjjAttributes): { highest: string; lowest: string } {
 
 export default function LoPage() {
   const [activeTab, setActiveTab] = useState<LoTab>("home")
+  // 홈 히트맵에서 해시태그/날짜를 눌러 넘어올 때 들고 오는 것. 탭을 직접 누르면 비운다
+  const [trainingTarget, setTrainingTarget] = useState<TrainingTarget | null>(null)
 
   const { data, isLoading: isStatsLoading } = useQuery<{ stats: BjjStats }>({
     queryKey: ["sensei-stats"],
@@ -139,7 +142,7 @@ export default function LoPage() {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => { setTrainingTarget(null); setActiveTab(tab.id) }}
               className={`
                 px-3 py-2.5 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap touch-manipulation select-none
                 ${activeTab === tab.id ? "text-foreground" : "text-muted-foreground hover:text-foreground/90"}
@@ -169,7 +172,7 @@ export default function LoPage() {
           formatMessage={formatLoAnswerForDisplay}
         />
 
-        {activeTab === "home" && <HomeOverview goTo={(t) => setActiveTab(t as LoTab)} />}
+        {activeTab === "home" && <HomeOverview goTo={(t, target) => { setTrainingTarget(target ?? null); setActiveTab(t as LoTab) }} />}
 
         {activeTab === "character" && (
           <SenseiDashboard onNavigate={navigateFromCharacter} />
@@ -178,7 +181,12 @@ export default function LoPage() {
         {activeTab === "navmap" && <NavMapWrapper />}
 
         {activeTab === "training" && (
-          <TrainingView entries={entries} isLoading={isEntriesLoading} />
+          <TrainingView
+            key={trainingTarget ? `${trainingTarget.date ?? ""}#${trainingTarget.tag ?? ""}` : "default"}
+            entries={entries}
+            isLoading={isEntriesLoading}
+            initialTarget={trainingTarget}
+          />
         )}
 
         {activeTab === "competitions" && <CompetitionsView />}

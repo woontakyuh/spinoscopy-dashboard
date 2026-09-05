@@ -107,7 +107,14 @@ export function SenseiCalendar({
   activeFilter,
   onFilterChange,
 }: SenseiCalendarProps) {
-  const [viewDate, setViewDate] = useState(() => new Date())
+  // 선택된 날짜가 있으면 그 달로 연다 — 히트맵에서 8/25 를 들고 왔는데 9월 빈 달력이 뜨면 안 된다
+  const [viewDate, setViewDate] = useState(() => {
+    if (selectedDate) {
+      const d = new Date(`${selectedDate}T00:00:00`)
+      if (!Number.isNaN(d.getTime())) return new Date(d.getFullYear(), d.getMonth(), 1)
+    }
+    return new Date()
+  })
   const viewYear = viewDate.getFullYear()
   const viewMonth = viewDate.getMonth()
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()

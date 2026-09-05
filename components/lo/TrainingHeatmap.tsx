@@ -1,8 +1,9 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import type { SenseiEntry } from "@/lib/types/sensei"
 import { SESSION_LABELS, isPhysicalSession, ruleSetOf, summarizeEntry } from "@/lib/sensei/sessionLabels"
+import { entryTags, type TrainingTarget } from "@/lib/sensei/trainingEntry"
 
 const WEEK_COUNT = 53
 const DAYS_PER_WEEK = 7
@@ -91,9 +92,24 @@ export function TrainingHeatmap({
   onOpenTraining,
 }: {
   readonly entries: readonly SenseiEntry[]
-  readonly onOpenTraining?: () => void
+  /** 인자 없이 부르면 Training 탭만, 날짜/태그를 주면 그걸로 열린다 */
+  readonly onOpenTraining?: (target?: TrainingTarget) => void
 }) {
   const [hoveredDayKey, setHoveredDayKey] = useState<string | null>(null)
+  // 셀을 클릭하면 팝오버가 고정된다 — 그래야 그 안의 해시태그를 누를 수 있다
+  const [pinnedDayKey, setPinnedDayKey] = useState<string | null>(null)
+  const rootRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    if (!pinnedDayKey) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setPinnedDayKey(null) }
+    const onDown = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setPinnedDayKey(null)
+    }
+    document.addEventListener("keydown", onKey)
+    document.addEventListener("mousedown", onDown)
+    return () => { document.removeEventListener("keydown", onKey); document.removeEventListener("mousedown", onDown) }
+  }, [pinnedDayKey])
 
   const { weeks, monthLabels, activeDays, sessionCount } = useMemo(() => {
     const today = new Date()
@@ -125,11 +141,9 @@ export function TrainingHeatmap({
   }, [entries])
 
   return (
-    <button
-      type="button"
-      aria-label={`훈련 활동 달력, 최근 1년 ${activeDays}일 ${sessionCount}회`}
-      onClick={onOpenTraining}
-      className="w-full rounded-xl border border-border bg-card/50 p-4 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70"
+    <section
+      ref={rootRef}
+      className="w-full rounded-xl border border-border bg-card/50 p-4 text-left"
     >
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
@@ -138,11 +152,18 @@ export function TrainingHeatmap({
           </p>
           <p className="mt-1 text-sm font-semibold text-foreground">최근 1년</p>
         </div>
-        <p className="text-[11px] text-muted-foreground">
+        {/* 셀이 각자 버튼이 됐으니 "Training 탭 열기" 는 여기 하나로 */}
+        <button
+          type="button"
+          aria-label={`훈련 활동 달력, 최근 1년 ${activeDays}일 ${sessionCount}회`}
+          onClick={() => onOpenTraining?.()}
+          className="rounded-md px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70"
+        >
           <span className="font-semibold text-foreground num">{activeDays}일</span>
           {" · "}
           <span className="num">{sessionCount}회</span>
-        </p>
+          <span aria-hidden="true"> →</span>
+        </button>
       </div>
 
       <div
@@ -184,31 +205,51 @@ export function TrainingHeatmap({
             <div key={week[0]?.key} className="grid min-w-0 grid-rows-7 gap-[2px]">
               {week.map((day) => (
                 <span key={day.key} className="relative block min-w-0">
-                  <span
+                  <button
+                    type="button"
                     data-heatmap-day
                     title={`${day.key} · ${day.count}회`}
+                    aria-pressed={pinnedDayKey === day.key}
                     onMouseEnter={() => setHoveredDayKey(day.key)}
                     onMouseLeave={() => setHoveredDayKey(null)}
-                    className={`block aspect-square w-full rounded-[2px] border transition-[filter,transform] duration-100 hover:z-10 hover:scale-125 hover:brightness-125 motion-reduce:transform-none ${levelClass(day.count)}`}
+                    onClick={() => setPinnedDayKey((k) => (k === day.key ? null : day.key))}
+                    className={`block aspect-square w-full rounded-[2px] border transition-[filter,transform] duration-100 hover:z-10 hover:scale-125 hover:brightness-125 motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-orange-400 ${levelClass(day.count)} ${pinnedDayKey === day.key ? "ring-1 ring-orange-400" : ""}`}
                   />
-                  {hoveredDayKey === day.key && (
+                  {(hoveredDayKey === day.key || pinnedDayKey === day.key) && (() => {
+                    const pinned = pinnedDayKey === day.key
+                    return (
                     <span
                       role="tooltip"
-                      // 가장자리 주에서는 툴팁이 카드 밖으로 나가니 앵커를 안쪽으로 튼다
-                      className={`pointer-events-none absolute bottom-full z-30 mb-1.5 w-64 rounded-md border border-border bg-popover px-2.5 py-2 text-left text-[11px] text-popover-foreground shadow-lg ${
-                        weekIndex < 6 ? "left-0" : weekIndex > WEEK_COUNT - 7 ? "right-0" : "left-1/2 -translate-x-1/2"
-                      }`}
+                      data-pinned={pinned || undefined}
+                      // 가장자리 주에서는 팝오버가 카드 밖으로 나가니 앵커를 안쪽으로 튼다.
+                      // 호버만일 땐 마우스를 가로막지 않게 pointer-events 를 끄고, 고정되면 켠다
+                      className={`absolute bottom-full z-30 mb-1.5 w-64 rounded-md border bg-popover px-2.5 py-2 text-left text-[11px] text-popover-foreground shadow-lg ${
+                        pinned ? "pointer-events-auto border-orange-400/60" : "pointer-events-none border-border"
+                      } ${weekIndex < 6 ? "left-0" : weekIndex > WEEK_COUNT - 7 ? "right-0" : "left-1/2 -translate-x-1/2"}`}
                     >
-                      <span className="block font-semibold text-foreground">
-                        {formatDate(day.key)}
-                        {day.count > 0 && <span className="ml-1 font-normal text-muted-foreground">· {day.count}회</span>}
+                      <span className="flex items-start justify-between gap-2">
+                        <span className="block font-semibold text-foreground">
+                          {formatDate(day.key)}
+                          {day.count > 0 && <span className="ml-1 font-normal text-muted-foreground">· {day.count}회</span>}
+                        </span>
+                        {pinned && (
+                          <button
+                            type="button"
+                            aria-label="닫기"
+                            onClick={(e) => { e.stopPropagation(); setPinnedDayKey(null) }}
+                            className="-mr-1 -mt-0.5 rounded px-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          >
+                            ×
+                          </button>
+                        )}
                       </span>
                       {day.sessions.length === 0 ? (
                         <span className="mt-1 block text-muted-foreground">기록 없음</span>
                       ) : (
-                        <span className="mt-1.5 block space-y-1">
+                        <span className="mt-1.5 block space-y-1.5">
                           {day.sessions.map((entry) => {
                             const rule = ruleSetOf(entry)
+                            const tags = entryTags(entry)
                             return (
                               <span key={entry.id} className="block leading-snug">
                                 <span className="mr-1 inline-block rounded bg-orange-500/15 px-1 py-px text-[10px] font-semibold text-orange-500">
@@ -217,13 +258,38 @@ export function TrainingHeatmap({
                                 <span className="text-foreground/90 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
                                   {summarizeEntry(entry)}
                                 </span>
+                                {tags.length > 0 && (
+                                  <span className="mt-0.5 flex flex-wrap gap-1">
+                                    {tags.slice(0, 8).map((tag) => (
+                                      <button
+                                        key={tag}
+                                        type="button"
+                                        tabIndex={pinned ? 0 : -1}
+                                        onClick={(e) => { e.stopPropagation(); onOpenTraining?.({ date: day.key, tag }) }}
+                                        className="rounded bg-muted px-1 py-px text-[10px] text-muted-foreground hover:bg-orange-500/15 hover:text-orange-500"
+                                      >
+                                        #{tag}
+                                      </button>
+                                    ))}
+                                  </span>
+                                )}
                               </span>
                             )
                           })}
                         </span>
                       )}
+                      {pinned && day.sessions.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); onOpenTraining?.({ date: day.key }) }}
+                          className="mt-2 block w-full rounded border border-border px-2 py-1 text-center text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                        >
+                          이 날 기록 열기 →
+                        </button>
+                      )}
                     </span>
-                  )}
+                    )
+                  })()}
                 </span>
               ))}
             </div>
@@ -242,6 +308,6 @@ export function TrainingHeatmap({
         ))}
         <span>많음</span>
       </div>
-    </button>
+    </section>
   )
 }
