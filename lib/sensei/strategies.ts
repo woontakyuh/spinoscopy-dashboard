@@ -1,7 +1,5 @@
-import type { Strategy, StrategyStep, Archetype } from "@/lib/types/sensei"
+import type { Strategy } from "@/lib/types/sensei"
 import { getVideoForLesson } from "./lessonVideos"
-import { getPositionById } from "./skillConnections"
-import { tagToPositionId } from "./nav-map-position-tags"
 
 // ─── 내 기본 전략 시드 ──────────────────────────────────────
 
@@ -144,49 +142,6 @@ export const MY_STRATEGIES: Strategy[] = [
   },
 ]
 
-// ─── 아키타입 → Strategy 변환 ────────────────────────────────
-
-export function archetypeToStrategy(arch: Archetype): Strategy {
-  // First pass: create flow with positionIds
-  const flow: StrategyStep[] = arch.gameplan.map((gp) => ({
-    positionId: tagToPositionId(gp.position),
-    action: gp.action,
-  }))
-
-  // Second pass: resolve gp.next → actual step indices by matching positionId
-  arch.gameplan.forEach((gp, i) => {
-    if (gp.next.length === 0) return
-    const branches = gp.next.map((nextTag) => {
-      const targetPosId = tagToPositionId(nextTag)
-      // Find the step in flow that matches this positionId (search after current)
-      let targetIdx = flow.findIndex((s, j) => j > i && s.positionId === targetPosId)
-      if (targetIdx === -1) targetIdx = flow.findIndex((s) => s.positionId === targetPosId)
-      return {
-        condition: getPositionById(targetPosId)?.nameKr || nextTag,
-        nextStepIndex: targetIdx,
-      }
-    }).filter((b) => b.nextStepIndex >= 0 && b.nextStepIndex !== i)
-
-    if (branches.length > 0) flow[i].branches = branches
-  })
-
-  return {
-    id: `pro-${arch.name.toLowerCase().replace(/\s+/g, "-")}`,
-    name: `${arch.name}의 게임플랜`,
-    description: arch.playstyle,
-    ruleSet: arch.ruleSet === "both" ? "gi" : arch.ruleSet,
-    type: "pro",
-    proName: arch.name,
-    createdAt: "",
-    updatedAt: "",
-    flow,
-  }
-}
-
-export function getAllProStrategies(archetypes: readonly Archetype[]): Strategy[] {
-  return archetypes.map(archetypeToStrategy)
-}
-
 // ─── localStorage CRUD ───────────────────────────────────────
 
 const STORAGE_KEY = "sensei-strategies"
@@ -200,7 +155,3 @@ export function loadMyStrategies(): Strategy[] {
   return MY_STRATEGIES
 }
 
-export function saveMyStrategies(strategies: Strategy[]): void {
-  if (typeof window === "undefined") return
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(strategies))
-}

@@ -9,7 +9,6 @@
 - `app/agents/sensei/page.tsx` — 메인 페이지 ("use client")
 
 ### 컴포넌트
-- `components/sensei/SenseiCapture.tsx` — 훈련 입력 폼
 - `components/sensei/SenseiCalendar.tsx` — 캘린더 뷰
 
 ### API

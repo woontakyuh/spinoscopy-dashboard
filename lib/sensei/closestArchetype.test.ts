@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest"
 import { calculateBjjStats } from "./stats"
-import { getAllProStrategies } from "./strategies"
 import type { Archetype, SenseiEntry } from "@/lib/types/sensei"
 
 const stats = (o: Partial<Archetype["stats"]>): Archetype["stats"] =>
@@ -27,12 +26,5 @@ describe("가장 닮은 선수 — 노션 선수 목록으로 고른다", () => 
     expect(["NogiOnly", "BothGuy"]).toContain(s.nogi.closestArchetype)
     expect(s.nogi.closestArchetype).not.toBe("GiOnly")
     expect(s.gi.closestArchetype).not.toBe("NogiOnly")
-  })
-})
-
-describe("getAllProStrategies", () => {
-  it("받은 선수 목록으로만 만든다", () => {
-    expect(getAllProStrategies([])).toEqual([])
-    expect(getAllProStrategies([arch("A", "gi", {})]).map((x) => x.proName)).toEqual(["A"])
   })
 })
