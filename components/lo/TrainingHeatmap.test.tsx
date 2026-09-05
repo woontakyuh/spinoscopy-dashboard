@@ -47,7 +47,8 @@ describe("TrainingHeatmap", () => {
     const heatmap = screen.getByRole("button", {
       name: "훈련 활동 달력, 최근 1년 1일 2회",
     })
-    expect(heatmap).toHaveTextContent("최근 1년")
+    // 카드 전체가 버튼이던 때의 단언. 이제 헤더 버튼만 Training 을 열고 제목은 카드에 있다
+    expect(screen.getByText("최근 1년")).toBeVisible()
     expect(screen.getByTitle(`${TODAY} · 2회`)).toBeVisible()
 
     fireEvent.click(heatmap)
@@ -105,5 +106,54 @@ describe("TrainingHeatmap 툴팁 내용", () => {
     render(<TrainingHeatmap entries={[trainingEntry("x")]} />)
     fireEvent.mouseEnter(screen.getByTitle("2026-08-10 · 0회"))
     expect(screen.getByRole("tooltip")).toHaveTextContent("기록 없음")
+  })
+})
+
+describe("TrainingHeatmap 고정 팝오버와 해시태그", () => {
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date("2026-08-17T09:00:00+09:00")) })
+  afterEach(() => { vi.useRealTimers() })
+
+  it("툴팁에 해시태그가 보인다", () => {
+    render(<TrainingHeatmap entries={[trainingEntry("a", "2026-08-10")]} />)
+    fireEvent.mouseEnter(screen.getByTitle("2026-08-10 · 1회"))
+    expect(screen.getByRole("tooltip")).toHaveTextContent("#하프가드")
+  })
+
+  it("셀을 클릭하면 팝오버가 고정되고, 마우스가 떠나도 남는다", () => {
+    render(<TrainingHeatmap entries={[trainingEntry("a", "2026-08-10")]} />)
+    const cell = screen.getByTitle("2026-08-10 · 1회")
+    fireEvent.mouseEnter(cell)
+    fireEvent.click(cell)
+    fireEvent.mouseLeave(cell)
+    expect(screen.getByRole("tooltip")).toHaveAttribute("data-pinned")
+    expect(cell).toHaveAttribute("aria-pressed", "true")
+  })
+
+  it("고정된 팝오버에서 해시태그를 누르면 그 날짜·태그로 Training 을 연다", () => {
+    const onOpenTraining = vi.fn()
+    render(<TrainingHeatmap entries={[trainingEntry("a", "2026-08-10")]} onOpenTraining={onOpenTraining} />)
+    fireEvent.click(screen.getByTitle("2026-08-10 · 1회"))
+    fireEvent.click(screen.getByRole("button", { name: "#하프가드" }))
+    expect(onOpenTraining).toHaveBeenCalledWith({ date: "2026-08-10", tag: "하프가드" })
+  })
+
+  it("× 와 Escape 로 고정이 풀린다", () => {
+    render(<TrainingHeatmap entries={[trainingEntry("a", "2026-08-10")]} />)
+    const cell = screen.getByTitle("2026-08-10 · 1회")
+    fireEvent.click(cell)
+    fireEvent.click(screen.getByRole("button", { name: "닫기" }))
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+    fireEvent.click(cell)
+    fireEvent.keyDown(document, { key: "Escape" })
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+  })
+
+  it("헤더 버튼은 인자 없이 Training 을 연다 (셀 클릭은 고정만 한다)", () => {
+    const onOpenTraining = vi.fn()
+    render(<TrainingHeatmap entries={[trainingEntry("a", "2026-08-10")]} onOpenTraining={onOpenTraining} />)
+    fireEvent.click(screen.getByTitle("2026-08-10 · 1회"))
+    expect(onOpenTraining).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", { name: /훈련 활동 달력/ }))
+    expect(onOpenTraining).toHaveBeenCalledWith()
   })
 })

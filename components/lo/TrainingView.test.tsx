@@ -101,6 +101,15 @@ describe("TrainingView", () => {
     expect(screen.queryByText("수업 영상")).toBeNull()
   })
 
+  it("히트맵에서 날짜·태그를 들고 오면 그 날이 열리고 태그로 걸러진다", () => {
+    render(<TrainingView entries={entries} initialTarget={{ date: "2026-08-12", tag: "하프가드" }} />)
+    expect(screen.getByRole("heading", { name: "8월 12일 상세" })).toBeVisible()
+    const chip = screen.getByRole("button", { name: "#하프가드 필터 해제" })
+    expect(chip).toBeVisible()
+    fireEvent.click(chip)
+    expect(screen.queryByRole("button", { name: "#하프가드 필터 해제" })).toBeNull()
+  })
+
   it("shows Gi and No-Gi for physical training records", () => {
     render(<TrainingView entries={entries} />)
 

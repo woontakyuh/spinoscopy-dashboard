@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { summarizeEntry, ruleSetOf, isPhysicalSession } from "./sessionLabels"
+import { entryTags, entryHasTag } from "./trainingEntry"
 import type { SenseiEntry } from "@/lib/types/sensei"
 
 const e = (o: Partial<SenseiEntry>): SenseiEntry => ({
@@ -29,5 +30,15 @@ describe("ruleSetOf / isPhysicalSession", () => {
     expect(ruleSetOf(e({ sessionType: "study" }))).toBeNull()
     expect(isPhysicalSession(e({ sessionType: "promotion" }))).toBe(false)
     expect(isPhysicalSession(e({ sessionType: "openmat" }))).toBe(true)
+  })
+})
+
+describe("entryTags / entryHasTag", () => {
+  it("수업·스파링·공부 태그를 합치고 룰셋 표기와 중복은 뺀다", () => {
+    expect(entryTags(e({ classTags: ["NoGi", "HG", "hg"], sparringTags: ["백"], studyTags: ["HG", "Gi"] }))).toEqual(["HG", "백"])
+  })
+  it("대소문자·공백 무시하고 태그를 찾는다", () => {
+    expect(entryHasTag(e({ classTags: ["HalfPass"] }), " halfpass ")).toBe(true)
+    expect(entryHasTag(e({ classTags: ["HalfPass"] }), "DLR")).toBe(false)
   })
 })
