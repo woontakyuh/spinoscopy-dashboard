@@ -17,7 +17,7 @@ describe("byMode — Gi/NoGi 토글에 따라 갈리는 수련 요약", () => {
     entry("2025-12-01"), entry("2025-11-03", ["NoGi"]),                      // 작년
     entry(`${y}-02-01`, [], "study"),                                       // 체육관 아님
   ]
-  const s = calculateBjjStats(entries)
+  const s = calculateBjjStats(entries, [])
 
   it("NoGi 태그로 모드를 가른다", () => {
     expect(s.byMode.gi.totalSessions).toBe(4)
@@ -34,7 +34,7 @@ describe("byMode — Gi/NoGi 토글에 따라 갈리는 수련 요약", () => {
   })
 
   it("기록이 없으면 0", () => {
-    const e = calculateBjjStats([])
+    const e = calculateBjjStats([], [])
     expect(e.byMode.gi).toEqual({ totalSessions: 0, sessionsThisYear: 0, streak: 0 })
     expect(e.byMode.nogi).toEqual({ totalSessions: 0, sessionsThisYear: 0, streak: 0 })
   })

@@ -4,7 +4,7 @@ import { renderHook, act } from "@testing-library/react"
 import { useAthleteComparison } from "./useAthleteComparison"
 import type { Archetype } from "@/lib/types/sensei"
 
-const base = { flag: "Brazil", nickname: "", team: "", stats: { guard: 1, passing: 1, control: 1, submission: 1, standing: 1, legLocks: 1 }, tags: [], playstyle: "", gameplan: [] }
+const base = { flag: "Brazil", nickname: "", team: "", stats: { guard: 1, passing: 1, control: 1, finishing: 1, takedowns: 1, legLocks: 1 }, tags: [], playstyle: "", gameplan: [] }
 const a = (name: string, ruleSet: Archetype["ruleSet"], category: Archetype["category"]): Archetype =>
   ({ ...base, name, ruleSet, category } as Archetype)
 

@@ -1,5 +1,4 @@
 import type { Strategy, StrategyStep, Archetype } from "@/lib/types/sensei"
-import { ARCHETYPES } from "./archetypes"
 import { getVideoForLesson } from "./lessonVideos"
 import { getPositionById } from "./skillConnections"
 import { tagToPositionId } from "./nav-map-position-tags"
@@ -184,8 +183,8 @@ export function archetypeToStrategy(arch: Archetype): Strategy {
   }
 }
 
-export function getAllProStrategies(): Strategy[] {
-  return ARCHETYPES.map(archetypeToStrategy)
+export function getAllProStrategies(archetypes: readonly Archetype[]): Strategy[] {
+  return archetypes.map(archetypeToStrategy)
 }
 
 // ─── localStorage CRUD ───────────────────────────────────────
