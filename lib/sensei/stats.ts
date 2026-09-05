@@ -1,8 +1,7 @@
-import type { SenseiEntry, BjjAttributes, BjjStats, BjjStatsSet } from "@/lib/types/sensei"
+import type { SenseiEntry, BjjAttributes, BjjStats, BjjStatsSet, Archetype } from "@/lib/types/sensei"
 import { TAG_TO_CATEGORY } from "@/lib/ai/bjjTags"
 import { isTagForRuleSet } from "@/lib/ai/bjjTags"
 import { calculateOvr } from "./ovr"
-import { ARCHETYPES } from "./archetypes"
 
 const CATEGORY_ATTR_MAP: Record<string, keyof BjjAttributes> = {
   Guard: "guard",
@@ -77,10 +76,14 @@ function determinePlaystyle(attrs: BjjAttributes): string {
   return labels[sorted[0][0]] || "All-Rounder"
 }
 
-function findClosestArchetype(attrs: BjjAttributes, ruleSet: "gi" | "nogi" | "both"): string | null {
+function findClosestArchetype(
+  attrs: BjjAttributes,
+  ruleSet: "gi" | "nogi" | "both",
+  archetypes: readonly Archetype[],
+): string | null {
   let bestMatch: string | null = null
   let bestDist = Infinity
-  for (const arch of ARCHETYPES) {
+  for (const arch of archetypes) {
     if (ruleSet !== "both" && arch.ruleSet !== "both" && arch.ruleSet !== ruleSet) continue
     const d = Math.sqrt(
       (attrs.guard - arch.stats.guard) ** 2 +
@@ -214,17 +217,25 @@ function calculateAttributesForRuleSet(
   return { attrs, tagFreq }
 }
 
-function buildStatsSet(attrs: BjjAttributes, ruleSet: "gi" | "nogi" | "both"): BjjStatsSet {
+function buildStatsSet(
+  attrs: BjjAttributes,
+  ruleSet: "gi" | "nogi" | "both",
+  archetypes: readonly Archetype[],
+): BjjStatsSet {
   const { ovr, role } = calculateOvr(attrs)
   return {
     attributes: attrs,
     ovr,
     ovrRole: role,
-    closestArchetype: findClosestArchetype(attrs, ruleSet),
+    closestArchetype: findClosestArchetype(attrs, ruleSet, archetypes),
   }
 }
 
-export function calculateBjjStats(entries: SenseiEntry[]): BjjStats {
+/**
+ * @param archetypes 노션 BJJ Archetypes. "가장 닮은 선수"를 이걸로 고른다.
+ *   예전엔 코드 안 사본을 썼는데 노션과 따로 놀아서(룰셋 바뀐 게 반영 안 됨) 없앴다.
+ */
+export function calculateBjjStats(entries: SenseiEntry[], archetypes: readonly Archetype[]): BjjStats {
   // RPG side (level/XP/attributes): 모든 non-promotion entries (study/reflection/body 포함)
   const sessions = entries.filter((e) => e.sessionType !== "promotion")
   const totalSessions = sessions.length
@@ -309,9 +320,9 @@ export function calculateBjjStats(entries: SenseiEntry[]): BjjStats {
     beltStripes: beltInfo.stripes,
     trainingStartDate: DEFAULT_PROFILE.trainingStartDate,
     trainingMonths: trainingMonthsSince(DEFAULT_PROFILE.trainingStartDate),
-    gi: buildStatsSet(giAttrs, "gi"),
-    nogi: buildStatsSet(nogiAttrs, "nogi"),
-    combined: buildStatsSet(combinedAttrs, "both"),
+    gi: buildStatsSet(giAttrs, "gi", archetypes),
+    nogi: buildStatsSet(nogiAttrs, "nogi", archetypes),
+    combined: buildStatsSet(combinedAttrs, "both", archetypes),
     playstyle: determinePlaystyle(combinedAttrs),
     recentFocus,
     streaks: calculateStreaks(entries),

@@ -2,9 +2,16 @@
 import { notionRequest } from "./client"
 import type { Archetype, Position, Transition, BjjAttributes, GameplanStep, PositionLayer, PositionPerspective, TransitionType } from "@/lib/types/sensei"
 
-const ARCHETYPES_DB = "44202e73974b467488c6456a9fa5a759"
-const POSITIONS_DB = "d8d39f8582f74cb79d59484b76a8407b"
-const TRANSITIONS_DB = "c5fd431ac58c42cdaf7ffcfa3cb196ea"
+// DB id 는 다른 노션 DB 들과 같이 env 로 받는다. 없으면 조용히 빈 데이터를
+// 돌려주지 말고 바로 죽는다 — 빈 명단이 "정상"처럼 보이는 게 제일 나쁘다.
+function requireEnv(name: string): string {
+  const v = process.env[name]
+  if (!v) throw new Error(`${name} 가 설정되지 않았다`)
+  return v
+}
+const ARCHETYPES_DB = () => requireEnv("NOTION_BJJ_ARCHETYPES_DB_ID")
+const POSITIONS_DB = () => requireEnv("NOTION_BJJ_POSITIONS_DB_ID")
+const TRANSITIONS_DB = () => requireEnv("NOTION_BJJ_TRANSITIONS_DB_ID")
 
 // ─── Notion property helpers ──────────────────────────────
 interface NP {
@@ -158,9 +165,9 @@ export interface SenseiDataResult {
 
 export async function fetchSenseiData(): Promise<SenseiDataResult> {
   const [arcRows, posRows, transRows] = await Promise.all([
-    queryAll(ARCHETYPES_DB),
-    queryAll(POSITIONS_DB),
-    queryAll(TRANSITIONS_DB).catch(() => [] as Array<Record<string, NP>>),
+    queryAll(ARCHETYPES_DB()),
+    queryAll(POSITIONS_DB()),
+    queryAll(TRANSITIONS_DB()).catch(() => [] as Array<Record<string, NP>>),
   ])
 
   return {

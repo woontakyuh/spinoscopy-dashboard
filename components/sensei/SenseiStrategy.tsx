@@ -817,7 +817,8 @@ export function SenseiStrategy() {
   const [newRuleSet, setNewRuleSet] = useState<"gi" | "nogi">("gi")
   const [editingTabId, setEditingTabId] = useState<string | null>(null)
 
-  const proStrategies = useMemo(() => getAllProStrategies(), [])
+  const { archetypes } = useSenseiData()
+  const proStrategies = useMemo(() => getAllProStrategies(archetypes), [archetypes])
 
   useEffect(() => {
     setMyStrategies(loadMyStrategies())
