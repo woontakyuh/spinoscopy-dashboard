@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createSenseiEntry, createPromotionEntry, fetchTagOptions, listSenseiEntries, findEntryByDate, appendToSenseiEntry } from "@/lib/notion/sensei"
+import { createSenseiEntry, createPromotionEntry, fetchTagOptions, listSenseiEntries, listAllSenseiEntries, findEntryByDate, appendToSenseiEntry } from "@/lib/notion/sensei"
 import { formatBjjNote } from "@/lib/ai/formatBjjNote"
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const entries = await listSenseiEntries()
+    // ?all=1 → 전 기간(페이지네이션 전량). 홈 히트맵처럼 최근 20건으로는
+    // 과거가 통째로 비어 보이는 화면이 쓴다.
+    const all = req.nextUrl.searchParams.get("all") === "1"
+    const entries = all ? await listAllSenseiEntries() : await listSenseiEntries()
     return NextResponse.json(entries)
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error"
