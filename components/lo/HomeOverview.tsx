@@ -113,9 +113,10 @@ export function HomeOverview({ goTo }: { goTo?: (tab: string, target?: TrainingT
   })
 
   const { data: entries } = useQuery<SenseiEntry[]>({
-    queryKey: ["sensei-entries"],
+    queryKey: ["sensei-entries", "all"],
     queryFn: async () => {
-      const r = await fetch("/api/notion/sensei")
+      // 전 기간을 받아야 TrainingHeatmap "최근 1년"이 과거까지 그려진다.
+      const r = await fetch("/api/notion/sensei?all=1")
       if (!r.ok) throw new Error("entries err")
       return r.json()
     },
