@@ -162,7 +162,9 @@ function EntryDetail({
 
       {(entry.videoTitle || entry.videoUrl) && (
         <div>
-          <p className="text-[11px] font-semibold text-foreground/70">공부 자료</p>
+          <p className="text-[11px] font-semibold text-foreground/70">
+            {entry.videoTitle?.startsWith("수업 정리 릴") ? "수업 정리 영상" : "공부 자료"}
+          </p>
           {entry.videoUrl ? (
             <a
               href={entry.videoUrl}

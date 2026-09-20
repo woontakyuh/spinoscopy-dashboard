@@ -49,9 +49,10 @@ export default function LoPage() {
   })
 
   const { data: entriesData, isLoading: isEntriesLoading } = useQuery<SenseiEntry[]>({
-    queryKey: ["sensei-entries"],
+    queryKey: ["sensei-entries", "all"],
     queryFn: async () => {
-      const res = await fetch("/api/notion/sensei")
+      // 전 기간을 받아야 훈련 캘린더에서 과거 날짜도 열람할 수 있다
+      const res = await fetch("/api/notion/sensei?all=1")
       if (!res.ok) throw new Error("훈련 기록 조회 실패")
       return res.json()
     },

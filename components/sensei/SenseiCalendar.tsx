@@ -26,6 +26,7 @@ type DaySummary = {
   readonly studyKeywords: readonly string[]
   readonly entries: readonly SenseiEntry[]
   readonly hasPromotion: boolean
+  readonly hasVideo: boolean
   readonly ruleSets: readonly TrainingRuleSet[]
 }
 
@@ -48,6 +49,8 @@ function summarizeDay(entries: readonly SenseiEntry[]): DaySummary {
     studyKeywords: unique(entries.flatMap((entry) => entry.studyTags)),
     entries,
     hasPromotion: entries.some((entry) => entry.sessionType === "promotion"),
+    // 수업 정리 릴이 붙은 날 — 캘린더에서 바로 알아볼 수 있게
+    hasVideo: entries.some((entry) => Boolean(entry.videoUrl)),
     ruleSets: [...new Set(entries.map(getTrainingRuleSet).filter(isRuleSet))],
   }
 }
@@ -293,6 +296,14 @@ export function SenseiCalendar({
                   </div>
                   {summary.hasPromotion && (
                     <span className="absolute bottom-1 right-1 size-1.5 rounded-full bg-yellow-400" aria-label="승급" />
+                  )}
+                  {summary.hasVideo && (
+                    <span
+                      className={`absolute bottom-1 ${summary.hasPromotion ? "right-3.5" : "right-1"} text-[9px] leading-none text-orange-300`}
+                      aria-label="수업 정리 릴 있음"
+                    >
+                      ▶
+                    </span>
                   )}
                 </>
               )}
