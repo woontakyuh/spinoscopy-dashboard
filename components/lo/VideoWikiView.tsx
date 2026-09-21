@@ -21,6 +21,8 @@ const ROLE_STYLE: Record<"bottom" | "top", string> = {
 
 function SceneRow({ scene }: { readonly scene: ReelScene }) {
   const [open, setOpen] = useState(false)
+  const reelRef = `${scene.reelTitle} 릴 #${String(scene.no).padStart(2, "0")}`
+  const sourceRef = `${scene.src} ${formatClock(scene.ss)}`
 
   return (
     <li className="border-b border-border/60 last:border-b-0">
@@ -39,15 +41,26 @@ function SceneRow({ scene }: { readonly scene: ReelScene }) {
             {ROLE_LABEL[scene.role]}
           </span>
         )}
-        <span className="min-w-0 flex-1 truncate text-sm text-foreground">{scene.title}</span>
         {scene.phase && (
-          <span className="hidden shrink-0 rounded-full border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground sm:inline">
+          <span className="shrink-0 rounded-full border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
             {PHASE_LABEL[scene.phase]}
           </span>
         )}
-        <span className="hidden shrink-0 text-[10px] tabular-nums text-muted-foreground sm:inline">
+
+        <span className="min-w-0 flex-1 truncate text-sm text-foreground">{scene.title}</span>
+
+        {/* 출처 — 어느 수업 어느 장면인지 접힌 채로 알 수 있게 */}
+        <span className="hidden shrink-0 items-center gap-1.5 text-[10px] text-muted-foreground lg:flex">
+          <span className="tabular-nums">{scene.date}</span>
+          <span aria-hidden="true">·</span>
+          <span className="max-w-[13rem] truncate">{reelRef}</span>
+          <span aria-hidden="true">·</span>
+          <span className="tabular-nums">{sourceRef}</span>
+        </span>
+        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground lg:hidden">
           {scene.date.slice(2)}
         </span>
+
         {scene.reelUrl && (
           <a
             href={scene.reelUrl}
@@ -69,8 +82,11 @@ function SceneRow({ scene }: { readonly scene: ReelScene }) {
               {scene.quote}
             </p>
           )}
-          <p className="mt-2 text-[10px] text-muted-foreground">
-            {scene.date} · {scene.reelTitle} 릴 #{String(scene.no).padStart(2, "0")} · 원본 {scene.src} {formatClock(scene.ss)} ({scene.dur}초)
+          <p className="mt-2 text-[10px] text-muted-foreground lg:hidden">
+            {scene.date} · {reelRef} · 원본 {sourceRef} ({scene.dur}초)
+          </p>
+          <p className="mt-2 hidden text-[10px] text-muted-foreground lg:block">
+            이 장면 {scene.dur}초 · 기술 {scene.pos.join(" · ")}
           </p>
         </div>
       )}
