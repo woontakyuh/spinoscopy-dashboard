@@ -47,19 +47,23 @@ function SceneRow({ scene }: { readonly scene: ReelScene }) {
           </span>
         )}
 
-        <span className="min-w-0 flex-1 truncate text-sm text-foreground">{scene.title}</span>
+        <span className="min-w-0 shrink truncate text-sm text-foreground">{scene.title}</span>
 
-        {/* 출처 — 어느 수업 어느 장면인지 접힌 채로 알 수 있게 */}
-        <span className="hidden shrink-0 items-center gap-1.5 text-[10px] text-muted-foreground lg:flex">
+        {/* 출처 — 제목 바로 옆에 붙여야 한 문장처럼 읽힌다 */}
+        <span className="hidden shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground lg:flex">
+          <span aria-hidden="true">·</span>
           <span className="tabular-nums">{scene.date}</span>
           <span aria-hidden="true">·</span>
-          <span className="max-w-[13rem] truncate">{reelRef}</span>
+          <span className="max-w-[15rem] truncate">{reelRef}</span>
           <span aria-hidden="true">·</span>
           <span className="tabular-nums">{sourceRef}</span>
         </span>
         <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground lg:hidden">
-          {scene.date.slice(2)}
+          · {scene.date.slice(2)}
         </span>
+
+        {/* 남는 자리를 밀어내 ▶만 오른쪽 끝에 둔다 */}
+        <span className="min-w-0 flex-1" aria-hidden="true" />
 
         {scene.reelUrl && (
           <a
