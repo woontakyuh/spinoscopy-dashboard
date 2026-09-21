@@ -118,9 +118,14 @@ function summarizeForProperty(note: string): string {
 function toEntry(page: NotionPage): SenseiEntry {
   const p = page.properties
   const sessionTypeRaw = p.SessionType?.select?.name
-  const sessionType = sessionTypeRaw === "openmat" ? "openmat" as const
-    : sessionTypeRaw === "promotion" ? "promotion" as const
-    : sessionTypeRaw === "study" ? "study" as const
+  // Notion의 select 값은 한국어("승급식")로도 들어온다. 영어만 보면 승급 기록이
+  // class로 떨어져 벨트·승급일이 영영 반영되지 않는다.
+  const sessionType = sessionTypeRaw === "openmat" || sessionTypeRaw === "오픈매트"
+    ? "openmat" as const
+    : sessionTypeRaw === "promotion" || sessionTypeRaw === "승급식"
+    ? "promotion" as const
+    : sessionTypeRaw === "study" || sessionTypeRaw === "공부"
+    ? "study" as const
     : "class" as const
   return {
     id: page.id,

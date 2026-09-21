@@ -320,7 +320,6 @@
           "title": "시저 대신 훅",
           "quote": "엉덩이를 빼고 훅으로 가주면\n상대가 다리를 세우더라도 날려줄 수가 있어요",
           "pos": [
-            "open",
             "butterfly"
           ],
           "role": "bottom",
@@ -334,7 +333,7 @@
           "title": "어깨와 엉덩이를 같이 뺀다",
           "quote": "엉덩이만 빼지도 않고 어깨만 빼지도 않습니다\n어깨랑 엉덩이 둘 다 빼죠",
           "pos": [
-            "open"
+            "butterfly"
           ],
           "role": "bottom",
           "phase": "sweep",
@@ -347,7 +346,7 @@
           "title": "상대 손이 내 어깨선 위로 가면 끝",
           "quote": "이 사람 손이 내 어깨라인보다 위로 가면 안 돼\n위로 가면 끝 — 머리가 땅에 안 닿아",
           "pos": [
-            "open"
+            "butterfly"
           ],
           "role": "bottom",
           "phase": "sweep",
@@ -360,7 +359,7 @@
           "title": "팔꿈치는 절대 벌어지면 안 돼",
           "quote": "팔꿈치가 벌어져 — 절대 벌어지면 안 돼\n상대가 손을 땅에 짚어도 괜찮아",
           "pos": [
-            "open"
+            "butterfly"
           ],
           "role": "bottom",
           "phase": "grip",
@@ -373,7 +372,7 @@
           "title": "어깨만 무너뜨리면 체급은 상관없다",
           "quote": "다리는 마지막이야\n어깨가 무너지기만 하면 체급 차이 상관없이 날려줄 수 있습니다",
           "pos": [
-            "open"
+            "butterfly"
           ],
           "role": "bottom",
           "phase": "sweep",
@@ -386,7 +385,8 @@
           "title": "제일 좋은 건 띠를 잡는 것",
           "quote": "겨드랑이를 파는 건 띠를 빨리 잡기 위해서야\n띠를 잡고 끌어당기면 머리가 땅에 찍힐 거야",
           "pos": [
-            "open"
+            "butterfly",
+            "hg"
           ],
           "role": "bottom",
           "phase": "grip",
@@ -399,7 +399,7 @@
           "title": "내 엉덩이가 울타리다",
           "quote": "상대가 이쪽으로 오면 답이 없어\n내 엉덩이가 울타리예요 — 담을 높여서 막아",
           "pos": [
-            "open"
+            "butterfly"
           ],
           "role": "bottom",
           "phase": "maintain",
@@ -895,7 +895,6 @@
     "kshield": "니쉴드 (Knee Shield)",
     "lapel": "라펠 가드 (Lapel Guard)",
     "lasso": "라쏘 (Lasso Guard)",
-    "open": "오픈 가드 (Open Guard)",
     "qguard": "쿼터 가드 (Quarter Guard)",
     "side_top": "사이드 컨트롤 (Side Control)",
     "situp": "싯업 가드 (Sit-up Guard)",

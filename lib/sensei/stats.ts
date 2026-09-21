@@ -34,7 +34,20 @@ export const PROMOTION_HISTORY = [
   { date: "2026-03-20", belt: "blue", stripes: 3, label: "블루 3그랄" },
 ]
 
+/**
+ * 승급식 날짜. Notion에 승급 기록(SessionType=승급식)이 있으면 그걸 쓰고,
+ * 없을 때만 이 목록으로 되돌아간다. 예전에는 이 배열만 썼기 때문에
+ * 새 승급이 Notion에 들어와도 화면에 영영 반영되지 않았다.
+ */
 export const PROMOTION_CEREMONIES = ["2026-03-20", "2025-09-26"]
+
+function ceremonyDates(entries: readonly SenseiEntry[]): string[] {
+  const fromNotion = entries
+    .filter((e) => e.sessionType === "promotion" && e.date)
+    .map((e) => e.date as string)
+  const merged = [...new Set([...fromNotion, ...PROMOTION_CEREMONIES])]
+  return merged.sort((a, b) => b.localeCompare(a))
+}
 
 function xpForLevel(level: number): number {
   if (level <= 1) return 0
@@ -47,10 +60,19 @@ function trainingMonthsSince(startDate: string): number {
   return (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth())
 }
 
+const BELT_KO: Record<string, string> = {
+  "화이트": "white", "블루": "blue", "퍼플": "purple", "브라운": "brown", "블랙": "black",
+}
+
 function parseBeltFromNote(note: string): { belt: string; stripes: number } | null {
-  const match = note.match(/\[BELT:(\w+):(\d)\]/)
-  if (!match) return null
-  return { belt: match[1], stripes: parseInt(match[2]) }
+  const tagged = note.match(/\[BELT:(\w+):(\d)\]/)
+  if (tagged) return { belt: tagged[1], stripes: parseInt(tagged[2]) }
+
+  // 마커 없이 한국어로만 적힌 기록도 읽는다 — 예: "블루벨트 4그랄"
+  const korean = note.match(/(화이트|블루|퍼플|브라운|블랙)\s*벨트\s*(\d)\s*그랄/)
+  if (korean) return { belt: BELT_KO[korean[1]], stripes: parseInt(korean[2]) }
+
+  return null
 }
 
 function getLatestBeltInfo(entries: SenseiEntry[]): { belt: string; stripes: number } {
@@ -253,7 +275,7 @@ export function calculateBjjStats(entries: SenseiEntry[], archetypes: readonly A
   const sessions2026 = gymSessions.filter((e) => e.date?.startsWith("2026")).length
   const sessions2026Gi = gymSessions.filter((e) => e.date?.startsWith("2026") && ![...e.classTags, ...e.sparringTags].includes("NoGi")).length
   const sessions2026Nogi = sessions2026 - sessions2026Gi
-  const lastCeremony = PROMOTION_CEREMONIES[0] || "2026-01-01"
+  const lastCeremony = ceremonyDates(entries)[0] || "2026-01-01"
   const daysSinceCeremony = Math.max(1, Math.ceil((Date.now() - new Date(lastCeremony).getTime()) / (1000 * 60 * 60 * 24)))
   const weekdaysSinceCeremony = Math.ceil(daysSinceCeremony * 5 / 7)
   const sessionsSinceCeremony = gymSessions.filter((e) => e.date && e.date >= lastCeremony).length

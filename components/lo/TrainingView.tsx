@@ -283,7 +283,7 @@ export function TrainingView({ entries, isLoading = false, initialTarget = null 
                 aria-pressed={range === key}
                 className={`rounded-full px-3 py-1 transition ${
                   range === key
-                    ? "bg-orange-500/20 text-orange-200"
+                    ? "bg-orange-500/20 text-orange-700 dark:text-orange-200"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >

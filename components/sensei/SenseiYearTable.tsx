@@ -19,10 +19,10 @@ const SESSION_LABEL: Record<SenseiSessionType, string> = {
 }
 
 const SESSION_STYLE: Record<SenseiSessionType, string> = {
-  class: "border-purple-400/40 bg-purple-500/15 text-purple-200",
-  openmat: "border-green-400/40 bg-green-500/15 text-green-200",
-  promotion: "border-yellow-400/40 bg-yellow-500/15 text-yellow-200",
-  study: "border-blue-400/40 bg-blue-500/15 text-blue-200",
+  class: "border-purple-400/40 bg-purple-500/15 text-purple-700 dark:text-purple-200",
+  openmat: "border-green-400/40 bg-green-500/15 text-green-700 dark:text-green-200",
+  promotion: "border-yellow-400/40 bg-yellow-500/15 text-yellow-700 dark:text-yellow-200",
+  study: "border-blue-400/40 bg-blue-500/15 text-blue-700 dark:text-blue-200",
 }
 
 const WEEKDAY = ["일", "월", "화", "수", "목", "금", "토"]
@@ -216,7 +216,7 @@ export function SenseiYearTable({ entries, selectedDate, onDateSelect }: SenseiY
                         target="_blank"
                         rel="noreferrer"
                         onClick={(event) => event.stopPropagation()}
-                        className="inline-flex items-center text-orange-300 transition hover:text-orange-200"
+                        className="inline-flex items-center text-orange-600 transition hover:text-orange-500 dark:text-orange-300 dark:hover:text-orange-200"
                         aria-label="수업 정리 영상 열기"
                       >
                         <Play className="size-3.5" aria-hidden="true" />
