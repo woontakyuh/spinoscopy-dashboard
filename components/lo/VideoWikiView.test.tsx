@@ -71,6 +71,20 @@ describe("VideoWikiView", () => {
     expect(document.body.textContent).toContain(firstQuoteLine)
   })
 
+  it("접힌 줄에도 날짜·릴·원본 위치가 보인다", () => {
+    render(<VideoWikiView />)
+
+    const [first] = scenesByPosition()
+    const scene = first.scenes[0]
+
+    // 펼치지 않은 상태에서 출처를 읽을 수 있어야 한다
+    expect(screen.getAllByText(scene.date).length).toBeGreaterThan(0)
+    expect(
+      screen.getAllByText(`${scene.reelTitle} 릴 #${String(scene.no).padStart(2, "0")}`).length,
+    ).toBeGreaterThan(0)
+    expect(document.body.textContent).toContain(scene.src)
+  })
+
   it("장면 수는 기술이 겹쳐도 중복해서 세지 않는다", () => {
     render(<VideoWikiView />)
 
