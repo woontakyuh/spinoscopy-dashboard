@@ -10,19 +10,21 @@ import { ConceptsFeed } from "@/components/lo/ConceptsFeed"
 import { NavMapWrapper } from "@/components/lo/NavMapWrapper"
 import { CompetitionsView } from "@/components/lo/CompetitionsView"
 import { MemoryView } from "@/components/lo/MemoryView"
+import { VideoWikiView } from "@/components/lo/VideoWikiView"
 import { TrainingView } from "@/components/lo/TrainingView"
 import { getTimeContext } from "@/lib/greeterContext"
 import { formatLoAnswerForDisplay } from "@/lib/lo/chat/persona"
 import type { BjjStats, BjjAttributes, SenseiEntry } from "@/lib/types/sensei"
 import type { TrainingTarget } from "@/lib/sensei/trainingEntry"
 
-type LoTab = "home" | "character" | "navmap" | "training" | "competitions" | "concepts" | "memory"
+type LoTab = "home" | "character" | "navmap" | "training" | "wiki" | "competitions" | "concepts" | "memory"
 
 const TABS: { id: LoTab; label: string; icon: string }[] = [
   { id: "home", label: "Home", icon: "🏠" },
   { id: "character", label: "Character", icon: "🥋" },
   { id: "navmap", label: "Skills", icon: "🗺️" },
   { id: "training", label: "Training", icon: "📓" },
+  { id: "wiki", label: "Video Wiki", icon: "📹" },
   { id: "competitions", label: "Competitions", icon: "🏆" },
   { id: "concepts", label: "Concepts", icon: "💡" },
   { id: "memory", label: "Memory", icon: "🧠" },
@@ -100,6 +102,10 @@ export default function LoPage() {
         return `Tak, 국내외 대회 일정 조사해뒀어. ${stats.belt} belt 기준으로 가까운 것부터 보자.`
       }
       return "Tak, 국내외 대회 일정 조사해뒀어. 가까운 것부터 보자."
+    }
+
+    if (tab === "wiki") {
+      return "Tak, 수업 영상을 기술별로 모아놨어. 기술 누르면 그 장면이랑 관장님 말이 같이 나와."
     }
 
     if (tab === "concepts") {
@@ -189,6 +195,8 @@ export default function LoPage() {
             initialTarget={trainingTarget}
           />
         )}
+
+        {activeTab === "wiki" && <VideoWikiView />}
 
         {activeTab === "competitions" && <CompetitionsView />}
 

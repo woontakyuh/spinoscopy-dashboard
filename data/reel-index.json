@@ -1,0 +1,908 @@
+{
+  "generatedAt": "2026-09-21",
+  "reels": [
+    {
+      "date": "2026-09-17",
+      "title": "하프 탑 블록과 바디락 대응",
+      "subtitle": "조준용 관장님 · 와이어 주짓수 동탄",
+      "url": "https://www.dropbox.com/scl/fi/mm62wqnk5qr4bogz7kd3e/2026-09-17_.mp4?rlkey=0kqnmwt0ak0omuuyy932r0xpf&dl=0",
+      "cuts": [
+        {
+          "no": 1,
+          "title": "니슬라이드 하는 척",
+          "quote": "실제로 니슬라이드를 안 하고 무릎을 바닥에 꿇어\n상대방이 니실드 하지 못하게",
+          "pos": [
+            "hq",
+            "halfpass"
+          ],
+          "role": "top",
+          "phase": "entry",
+          "src": "IMG_1171",
+          "ss": 4,
+          "dur": 6
+        },
+        {
+          "no": 2,
+          "title": "머리를 꼭 붙인다",
+          "quote": "자세를 낮게 가지는데 머리를 꼭 붙여야 돼\n안 그러면 상대가 머리 밀면서 빠져",
+          "pos": [
+            "halfpass"
+          ],
+          "role": "top",
+          "phase": "entry",
+          "src": "IMG_1171",
+          "ss": 14,
+          "dur": 6
+        },
+        {
+          "no": 3,
+          "title": "목이 밀리면 뺨을 붙인다",
+          "quote": "이러면 목이 밀려 — 운탁이 형이 말한 것처럼\n어쩔 수 없어, 뽀뽀를 해주면서 붙여",
+          "pos": [
+            "qguard",
+            "halfpass"
+          ],
+          "role": "top",
+          "phase": "maintain",
+          "src": "IMG_1172",
+          "ss": 144,
+          "dur": 7
+        },
+        {
+          "no": 4,
+          "title": "공격은 정말 느립니다",
+          "quote": "나는 계속 기대고만 있어\n한 동작 하고 조금 기다리고, 한 동작 하고 기다리고",
+          "pos": [
+            "halfpass"
+          ],
+          "role": "top",
+          "phase": "maintain",
+          "src": "IMG_1172",
+          "ss": 56,
+          "dur": 6
+        },
+        {
+          "no": 5,
+          "title": "빼려고 뜨면 날아간다",
+          "quote": "여기서 내가 빼려고 하면 뒤집어\n무조건 날아가 — 꼭 하나 바꾸고 무릎으로 빼내",
+          "pos": [
+            "halfpass",
+            "smash"
+          ],
+          "role": "top",
+          "phase": "maintain",
+          "src": "IMG_1174",
+          "ss": 18,
+          "dur": 6
+        },
+        {
+          "no": 6,
+          "title": "바디락이 오면 즉시 앉는다",
+          "quote": "상대가 바디락 하려고 해 — 빨리 앉아줘\n내가 누워야지 올라올 텐데",
+          "pos": [
+            "situp",
+            "hg"
+          ],
+          "role": "bottom",
+          "phase": "escape",
+          "src": "IMG_1176",
+          "ss": 29,
+          "dur": 7
+        },
+        {
+          "no": 7,
+          "title": "뒤로 원을 그린다",
+          "quote": "겨드랑이 한 번 파고 앉으면 계속 원 그리면서\n이 사람 손이 내 엉덩이에 말려 들어가야 돼",
+          "pos": [
+            "hg",
+            "turtle_top"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_1176",
+          "ss": 53,
+          "dur": 8
+        }
+      ]
+    },
+    {
+      "date": "2026-09-16",
+      "title": "하프 탑과 크로스페이스",
+      "subtitle": "조준용 관장님 · 와이어 주짓수 동탄",
+      "url": "https://www.dropbox.com/scl/fi/nx144ked26wd63vmegkkw/2026-09-16_.mp4?rlkey=uz0v5hvd73t0r97t2m40uxut4&dl=0",
+      "cuts": [
+        {
+          "no": 1,
+          "title": "사이드로 가면 머리가 들린다",
+          "quote": "사이드 잡고 나서 제대로 누르려고 할 때\n내가 무조건 머리를 들 수밖에 없어",
+          "pos": [
+            "side_top",
+            "halfpass"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_1104",
+          "ss": 152,
+          "dur": 6
+        },
+        {
+          "no": 2,
+          "title": "그래서 하프 탑이 더 좋다",
+          "quote": "사이드를 잡으면 얘가 슈림프를 해요\n하프가드면 자기도 아쉬워, 내 다리도 아쉬워",
+          "pos": [
+            "halfpass"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_1105",
+          "ss": 12,
+          "dur": 6
+        },
+        {
+          "no": 3,
+          "title": "턱이 나를 보면 안 된다",
+          "quote": "크로스페이스 핵심은\n상대방 턱이 절대로 나를 보면 안 됩니다",
+          "pos": [
+            "side_top"
+          ],
+          "role": "top",
+          "phase": "maintain",
+          "src": "IMG_1105",
+          "ss": 54,
+          "dur": 6
+        },
+        {
+          "no": 4,
+          "title": "안 되면 머리를 치운다",
+          "quote": "그냥 머리를 치워버립니다\n치우고 내 쪽으로 땡겨서 이렇게 쳐다봐요",
+          "pos": [
+            "side_top"
+          ],
+          "role": "top",
+          "phase": "maintain",
+          "src": "IMG_1105",
+          "ss": 118,
+          "dur": 6
+        },
+        {
+          "no": 5,
+          "title": "뜯고 바로 바닥에 찍는다",
+          "quote": "뜯고서 얼른 바닥에 찍어야 돼\n세게 뜯고 세게 찍고 올라타서",
+          "pos": [
+            "kimura"
+          ],
+          "role": "top",
+          "phase": "sub",
+          "src": "IMG_1105",
+          "ss": 228,
+          "dur": 6
+        },
+        {
+          "no": 6,
+          "title": "마운트 말고 쿼터마운트",
+          "quote": "여기서 마운트로 안 갈 거야\n마운트로 가려면 공간이 너무 많이 — 내가 날아가요",
+          "pos": [
+            "hq",
+            "qguard"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_1106",
+          "ss": 35,
+          "dur": 6
+        },
+        {
+          "no": 7,
+          "title": "발등을 지긋이 밟는다",
+          "quote": "빵 밟는 게 아니라 그냥 지긋이\n뒤로 빠지려고 할 때가 가장 좋은 기회",
+          "pos": [
+            "standing",
+            "halfpass"
+          ],
+          "role": "top",
+          "phase": "entry",
+          "src": "IMG_1108",
+          "ss": 47,
+          "dur": 7
+        }
+      ]
+    },
+    {
+      "date": "2026-09-14",
+      "title": "하프 탑 압박",
+      "subtitle": "조준용 관장님 · 와이어 주짓수 동탄",
+      "url": "https://www.dropbox.com/scl/fi/55qkfwipvi3o93eltecgg/2026-09-14_.mp4?rlkey=pufuft8lk3lo7txfgys3eut50&dl=0",
+      "cuts": [
+        {
+          "no": 1,
+          "title": "관자놀이를 밟고 뒤통수를 민다",
+          "quote": "이마를 밟고 옆으로 밀면 약해서\n내 관자놀이를 밟고 내 뒤통수를 밀어야 돼요",
+          "pos": [
+            "halfpass"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_1020",
+          "ss": 100,
+          "dur": 7
+        },
+        {
+          "no": 2,
+          "title": "엉덩이를 들어 무릎을 뺀다",
+          "quote": "이렇게 되면 엉덩이를 드는 것도 훨씬 더 편해지고\n상대 손을 뺏기도 훨씬 더 편해져요",
+          "pos": [
+            "halfpass"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_1020",
+          "ss": 115,
+          "dur": 6
+        },
+        {
+          "no": 3,
+          "title": "니실드는 시간 벌기다",
+          "quote": "이 사람이 어깨를 막고 시간을 버는 거야\n라쏘나 니실드가 들어올 수 있게끔 — 시간 못 벌게 해",
+          "pos": [
+            "kshield",
+            "lasso",
+            "halfpass"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_1022",
+          "ss": 30,
+          "dur": 7
+        },
+        {
+          "no": 4,
+          "title": "쉬림프를 팔로 막는다",
+          "quote": "상대가 쉬림프하려고 해 — 이게 되면 안 돼\n붙었으면 팔로 막아줘, 이 다리를 그냥 막아줘",
+          "pos": [
+            "halfpass"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_1022",
+          "ss": 78,
+          "dur": 7
+        },
+        {
+          "no": 5,
+          "title": "야금야금 올라간다",
+          "quote": "머리, 가슴, 팔. 계속.\n조금조금 야금야금 올라가야 돼요",
+          "pos": [
+            "halfpass"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_1022",
+          "ss": 212,
+          "dur": 7
+        },
+        {
+          "no": 6,
+          "title": "큰 상대는 머리부터",
+          "quote": "양쪽 다리 파는 건 나보다 큰 사람한텐 잘 안 돼요\n그래서 머리를 파는 데 집중해 — 한쪽에만",
+          "pos": [
+            "halfpass"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_1023",
+          "ss": 37,
+          "dur": 7
+        },
+        {
+          "no": 7,
+          "title": "턱과 배꼽 사이",
+          "quote": "턱을 넘어가면 오히려 압박이 풀려\n내 배꼽보다 아래면 상대가 뒤로 도망간다",
+          "pos": [
+            "halfpass",
+            "smash"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_1024",
+          "ss": 14,
+          "dur": 7
+        }
+      ]
+    },
+    {
+      "date": "2026-09-10",
+      "title": "훅스윕",
+      "subtitle": "조준용 관장님 · 와이어 주짓수 동탄",
+      "url": "https://www.dropbox.com/scl/fi/4tsvhnii51goipbm7zyzt/2026-09-10_.mp4?rlkey=stvitinw78we1qg4j1qa6vn7y&dl=0",
+      "cuts": [
+        {
+          "no": 1,
+          "title": "시저 대신 훅",
+          "quote": "엉덩이를 빼고 훅으로 가주면\n상대가 다리를 세우더라도 날려줄 수가 있어요",
+          "pos": [
+            "open",
+            "butterfly"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_0891",
+          "ss": 68,
+          "dur": 7
+        },
+        {
+          "no": 2,
+          "title": "어깨와 엉덩이를 같이 뺀다",
+          "quote": "엉덩이만 빼지도 않고 어깨만 빼지도 않습니다\n어깨랑 엉덩이 둘 다 빼죠",
+          "pos": [
+            "open"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_0891",
+          "ss": 82,
+          "dur": 6
+        },
+        {
+          "no": 3,
+          "title": "상대 손이 내 어깨선 위로 가면 끝",
+          "quote": "이 사람 손이 내 어깨라인보다 위로 가면 안 돼\n위로 가면 끝 — 머리가 땅에 안 닿아",
+          "pos": [
+            "open"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_0892",
+          "ss": 18,
+          "dur": 7
+        },
+        {
+          "no": 4,
+          "title": "팔꿈치는 절대 벌어지면 안 돼",
+          "quote": "팔꿈치가 벌어져 — 절대 벌어지면 안 돼\n상대가 손을 땅에 짚어도 괜찮아",
+          "pos": [
+            "open"
+          ],
+          "role": "bottom",
+          "phase": "grip",
+          "src": "IMG_0892",
+          "ss": 0,
+          "dur": 5
+        },
+        {
+          "no": 5,
+          "title": "어깨만 무너뜨리면 체급은 상관없다",
+          "quote": "다리는 마지막이야\n어깨가 무너지기만 하면 체급 차이 상관없이 날려줄 수 있습니다",
+          "pos": [
+            "open"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_0894",
+          "ss": 43,
+          "dur": 7
+        },
+        {
+          "no": 6,
+          "title": "제일 좋은 건 띠를 잡는 것",
+          "quote": "겨드랑이를 파는 건 띠를 빨리 잡기 위해서야\n띠를 잡고 끌어당기면 머리가 땅에 찍힐 거야",
+          "pos": [
+            "open"
+          ],
+          "role": "bottom",
+          "phase": "grip",
+          "src": "IMG_0892",
+          "ss": 122,
+          "dur": 7
+        },
+        {
+          "no": 7,
+          "title": "내 엉덩이가 울타리다",
+          "quote": "상대가 이쪽으로 오면 답이 없어\n내 엉덩이가 울타리예요 — 담을 높여서 막아",
+          "pos": [
+            "open"
+          ],
+          "role": "bottom",
+          "phase": "maintain",
+          "src": "IMG_0893",
+          "ss": 45,
+          "dur": 7
+        }
+      ]
+    },
+    {
+      "date": "2026-09-09",
+      "title": "노기 도그파이트",
+      "subtitle": "조준용 관장님 · 와이어 주짓수 동탄 (노기)",
+      "url": "https://www.dropbox.com/scl/fi/6r46p37fikucs4tgnyu20/2026-09-09_.mp4?rlkey=h88samgg1hlf688ns4pq4a4ca&dl=0",
+      "cuts": [
+        {
+          "no": 1,
+          "title": "눕는 건 내가 고를 때만",
+          "quote": "내가 눕고 싶을 때 눕고 누워야지\n상대가 눕혀 있을 때 눕는 게 아니라",
+          "pos": [
+            "hg",
+            "halfbutt"
+          ],
+          "role": "bottom",
+          "phase": "maintain",
+          "src": "IMG_0849",
+          "ss": 0,
+          "dur": 6
+        },
+        {
+          "no": 2,
+          "title": "머리는 상대 턱 안쪽에",
+          "quote": "내 머리가 상대방 머리, 그리고 턱 안쪽에 있는 게 제일 베스트\n머리는 들지 마 — 들면 밀려서 눕혀져",
+          "pos": [
+            "hg"
+          ],
+          "role": "bottom",
+          "phase": "maintain",
+          "src": "IMG_0849",
+          "ss": 20,
+          "dur": 6
+        },
+        {
+          "no": 3,
+          "title": "멀어지려 할 때가 기회",
+          "quote": "상대가 멀어지려고 할 때, 이럴 때가 기회\n손을 무조건 땅에 짚어야 돼 — 그때 가져와",
+          "pos": [
+            "hg"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_0849",
+          "ss": 46,
+          "dur": 7
+        },
+        {
+          "no": 4,
+          "title": "봐야 될 건 어깨다",
+          "quote": "내가 손목·팔꿈치를 잡지만 봐야 될 건 어깨야\n기울어졌으면 그때 날려줄 수가 있습니다",
+          "pos": [
+            "hg"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_0849",
+          "ss": 66,
+          "dur": 7
+        },
+        {
+          "no": 5,
+          "title": "탑은 이마를 먼저 박는다",
+          "quote": "날리려고 할 때 빨리 위로 가서\n빨리 내 머리를 박는 게 첫 번째 목표",
+          "pos": [
+            "halfpass"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_0851",
+          "ss": 4,
+          "dur": 6
+        },
+        {
+          "no": 6,
+          "title": "머리를 박게 만들고 앞구르기",
+          "quote": "이 사람 머리가 땅에 박히게끔 만들어\n그 다음에 뒤통수를 잡아 — 앞구르기를 시켰어",
+          "pos": [
+            "halfpass",
+            "side_top"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_0852",
+          "ss": 56,
+          "dur": 7
+        },
+        {
+          "no": 7,
+          "title": "언더훅이 애매하면 암드래그",
+          "quote": "이거는 기술이라기보다 그냥 요령이어가지고\n세 번째까지는 가능합니다 — 네 번째부터는 애초에 안 돼",
+          "pos": [
+            "hg"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_0853",
+          "ss": 62,
+          "dur": 7
+        }
+      ]
+    },
+    {
+      "date": "2026-09-03",
+      "title": "라펠로 겨드랑이 괴롭히기",
+      "subtitle": "조준용 관장님 · 와이어 주짓수 동탄",
+      "url": "https://www.dropbox.com/scl/fi/u5ltkhiawddusfd80a7me/2026-09-03_.mp4?rlkey=84irinvn93tr6fp8qptgusczw&dl=0",
+      "cuts": [
+        {
+          "no": 1,
+          "title": "라펠이냐 허리냐",
+          "quote": "어차피 정답이란 게 없어요\n중요한 건 둘 다 할 줄 아는 것",
+          "pos": [
+            "hg",
+            "lapel"
+          ],
+          "role": "bottom",
+          "phase": "grip",
+          "src": "IMG_0571",
+          "ss": 4,
+          "dur": 7
+        },
+        {
+          "no": 2,
+          "title": "자세를 보고 그립을 고른다",
+          "quote": "상대가 상체를 세우고 있는데 허리만 잡으면 못 이겨\n엉덩이를 들고 있는데 겨드랑이를 잡고 있어? 못 이길 거야",
+          "pos": [
+            "hg",
+            "lapel"
+          ],
+          "role": "bottom",
+          "phase": "grip",
+          "src": "IMG_0571",
+          "ss": 32,
+          "dur": 7
+        },
+        {
+          "no": 3,
+          "title": "위가 아니라 아래·옆으로 당긴다",
+          "quote": "상대방 위로 하면 안 되고 아래, 옆으로 당겨야죠\n겨드랑이 아파서 그냥 넘어가고 싶을 정도로",
+          "pos": [
+            "hg",
+            "lapel"
+          ],
+          "role": "bottom",
+          "phase": "grip",
+          "src": "IMG_0567",
+          "ss": 18,
+          "dur": 7
+        },
+        {
+          "no": 4,
+          "title": "엄지를 넣어 바짝 잡는다",
+          "quote": "엄지를 집어넣어서, 설렁하게 잡지 말고\n상대 겨드랑이 당길 정도로 타이트하게",
+          "pos": [
+            "hg",
+            "lapel"
+          ],
+          "role": "bottom",
+          "phase": "grip",
+          "src": "IMG_0565",
+          "ss": 12,
+          "dur": 6
+        },
+        {
+          "no": 5,
+          "title": "기대오면 던진다",
+          "quote": "내 손이 이렇게 들려야 돼 — 그 정도로 바짝 잡아야지\n아래 있는 사람이 손을 땅에 짚고 일어나지 못해",
+          "pos": [
+            "hg"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_0570",
+          "ss": 41,
+          "dur": 7
+        },
+        {
+          "no": 6,
+          "title": "정면에서 파고 백으로",
+          "quote": "너무 옆으로 가면 안 돼요\n살짝 정면에서 일어나 깊숙이 파고, 엉덩이는 나중에 뺀다",
+          "pos": [
+            "hg",
+            "back_top"
+          ],
+          "role": "bottom",
+          "phase": "back",
+          "src": "IMG_0569",
+          "ss": 45,
+          "dur": 8
+        }
+      ]
+    },
+    {
+      "date": "2026-09-02",
+      "title": "노기 딥하프에서 웨이터와 엑스가드",
+      "subtitle": "조준용 관장님 · 와이어 주짓수 동탄 (노기)",
+      "url": "https://www.dropbox.com/scl/fi/8nj502584c74g6gogghna/2026-09-02_.mp4?rlkey=qq1r5ak8y65jdntwlouijii5x&dl=0",
+      "cuts": [
+        {
+          "no": 1,
+          "title": "하프는 서서 만들어 들어간다",
+          "quote": "이렇게 하프 가드\n우리 저번 주부터 계속 하고 있습니다",
+          "pos": [
+            "hg",
+            "standing"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_0516",
+          "ss": 64,
+          "dur": 7
+        },
+        {
+          "no": 2,
+          "title": "안 되는 걸 메꾸러 딥하프로",
+          "quote": "이걸 메꾸기 위해\n어제 그리고 그제 했었던 딥하프가드를 쓸 수 있을 거야",
+          "pos": [
+            "dhg"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_0519",
+          "ss": 2,
+          "dur": 6
+        },
+        {
+          "no": 3,
+          "title": "무릎이 접히면 갇힌다",
+          "quote": "내가 일어나려고 하는데 무릎을 접어\n이 다리 사이에 갇혀버리는 상황들이 있을 거예요",
+          "pos": [
+            "dhg"
+          ],
+          "role": "bottom",
+          "phase": "maintain",
+          "src": "IMG_0520",
+          "ss": 22,
+          "dur": 7
+        },
+        {
+          "no": 4,
+          "title": "그럴 땐 웨이터로 전환",
+          "quote": "무릎이 접혀져 있어 — 그러면 애초에 끌고 와\n어쩔 수 없이 웨이터가드를 해야 돼",
+          "pos": [
+            "waiter",
+            "dhg"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_0520",
+          "ss": 38,
+          "dur": 7
+        },
+        {
+          "no": 5,
+          "title": "노기에선 발목을 숨겨라",
+          "quote": "노기에서는 앵클락이 진짜 잘 만들어져요, 발목이 너무 잘 보여요\n그래서 이 발목을 빨리 숨겨야 돼",
+          "pos": [
+            "waiter",
+            "ashi"
+          ],
+          "role": "bottom",
+          "phase": "maintain",
+          "src": "IMG_0520",
+          "ss": 74,
+          "dur": 7
+        },
+        {
+          "no": 6,
+          "title": "웨이터 말고 엑스가드",
+          "quote": "여기서는 웨이터를 안 하고\n발목을 놓고 밀어내면서 엑스가드 들어갑니다",
+          "pos": [
+            "xg",
+            "waiter"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_0520",
+          "ss": 160,
+          "dur": 7
+        }
+      ]
+    },
+    {
+      "date": "2026-09-01",
+      "title": "딥하프 유지와 스윕",
+      "subtitle": "조준용 관장님 · 와이어 주짓수 동탄",
+      "url": "https://www.dropbox.com/scl/fi/jwg90f37aht7j16fttrol/2026-09-01_.mp4?rlkey=58am6nivk2wra1bhxusjzdhbx&dl=0",
+      "cuts": [
+        {
+          "no": 1,
+          "title": "깔린 척하되 편하게 두지 않는다",
+          "quote": "내가 진짜 상대한테 아예 깔려 있는 느낌이 들어야 되는데\n그렇다고 이 사람이 편하면 안 돼",
+          "pos": [
+            "dhg"
+          ],
+          "role": "bottom",
+          "phase": "maintain",
+          "src": "IMG_0497",
+          "ss": 46,
+          "dur": 7
+        },
+        {
+          "no": 2,
+          "title": "머리가 상대 허벅지를 막는다",
+          "quote": "내 머리로도 상대방의 골반을, 허벅지를 막아줄 수 있단 말이에요\n내 머리의 역할이에요",
+          "pos": [
+            "dhg"
+          ],
+          "role": "bottom",
+          "phase": "maintain",
+          "src": "IMG_0497",
+          "ss": 4,
+          "dur": 6
+        },
+        {
+          "no": 3,
+          "title": "접었다 폈다를 반복한다",
+          "quote": "위에 있는 사람이 겨드랑이를 팔지 넘어갈지에 따라서\n접었다 폈다를 내가 계속 반복해 줘야 돼",
+          "pos": [
+            "dhg"
+          ],
+          "role": "bottom",
+          "phase": "maintain",
+          "src": "IMG_0497",
+          "ss": 63,
+          "dur": 7
+        },
+        {
+          "no": 4,
+          "title": "중심을 흔든 다음 넘긴다",
+          "quote": "여기서부터 중심을 내가 이제 흔들어 줄 거야\n엉덩이가 땅에 붙은 걸 확인해 — 그럼 이제 일어나서 압박",
+          "pos": [
+            "dhg"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_0497",
+          "ss": 136,
+          "dur": 7
+        },
+        {
+          "no": 5,
+          "title": "다리를 놓지 말고 던진다",
+          "quote": "압박하고 여기서 다리를 놓지 말고\n그냥 옆으로 편하게 던져주세요 — 사이드로 갈 수 있게",
+          "pos": [
+            "dhg",
+            "side_top"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_0498",
+          "ss": 89,
+          "dur": 7
+        },
+        {
+          "no": 6,
+          "title": "탑은 머리 위로 넘어간다",
+          "quote": "어깨를 잠그고 무릎으로 조인다\n그 다음 상대 머리 위로 넘어가 갈비로 덮는다",
+          "pos": [
+            "dhg",
+            "halfpass"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_0496",
+          "ss": 38,
+          "dur": 7
+        }
+      ]
+    },
+    {
+      "date": "2026-02-06",
+      "title": "딥하프 본편",
+      "subtitle": "조준용 관장님 · 와이어 주짓수 동탄",
+      "url": "https://www.dropbox.com/scl/fi/eu5fgqje8nbnxrnp28abp/2026-02-06_.mp4?rlkey=5p0itbvyq9opofjnu7b5ytiqe&dl=0",
+      "cuts": [
+        {
+          "no": 1,
+          "title": "뒤통수로 골반을 막는다",
+          "quote": "내가 빼는 게 아니라, 이 사람이 일어나서\n빠지지 않게 뒤통수로 허벅지·골반을 막아야 돼",
+          "pos": [
+            "dhg"
+          ],
+          "role": "bottom",
+          "phase": "maintain",
+          "src": "IMG_0844",
+          "ss": 38,
+          "dur": 5
+        },
+        {
+          "no": 2,
+          "title": "발목은 뜬 채로",
+          "quote": "발바닥이 땅에 닿아서\n오히려 안 좋을 때가 많습니다",
+          "pos": [
+            "dhg"
+          ],
+          "role": "bottom",
+          "phase": "maintain",
+          "src": "IMG_0844",
+          "ss": 118,
+          "dur": 5
+        },
+        {
+          "no": 3,
+          "title": "넘기는 건 내 타이밍에",
+          "quote": "내가 원할 때, 내가 원하는 타이밍에 넘긴다\n위 다리로 상대 오금을 막고 뺀다",
+          "pos": [
+            "dhg"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_0844",
+          "ss": 198,
+          "dur": 6
+        },
+        {
+          "no": 4,
+          "title": "허벅지를 잠근다",
+          "quote": "정강이나 무릎이 아니라\n허벅지를 잠가주세요",
+          "pos": [
+            "waiter",
+            "dhg"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_0845",
+          "ss": 60,
+          "dur": 5
+        },
+        {
+          "no": 5,
+          "title": "무릎이 닿는 방향으로",
+          "quote": "엉덩이 쪽으로 밀면 상대 발가락에 막힌다\n무릎이 땅에 닿는 방향으로 스윕",
+          "pos": [
+            "waiter"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_0845",
+          "ss": 100,
+          "dur": 6
+        },
+        {
+          "no": 6,
+          "title": "라펠을 잡으면 70%",
+          "quote": "이 라펠을 잡으면\n진짜 한 70% 성공했다고 보면 돼요",
+          "pos": [
+            "dhg",
+            "lapel"
+          ],
+          "role": "bottom",
+          "phase": "grip",
+          "src": "IMG_0846",
+          "ss": 14,
+          "dur": 5
+        },
+        {
+          "no": 7,
+          "title": "겨드랑이 그립 → 백",
+          "quote": "뒤구르기 하듯 일어나서\n팔꿈치로 상대 등을 찍어준다",
+          "pos": [
+            "dhg",
+            "back_top"
+          ],
+          "role": "bottom",
+          "phase": "back",
+          "src": "IMG_0849",
+          "ss": 126,
+          "dur": 6
+        }
+      ]
+    }
+  ],
+  "positions": {
+    "ashi": "아시가라미 (Ashi Garami)",
+    "back_top": "백 컨트롤 (Back Control)",
+    "butterfly": "더블훅 가드 (Butterfly Guard)",
+    "dhg": "딥 하프 (Deep Half)",
+    "halfbutt": "하프 버터플라이 (Half Butterfly)",
+    "halfpass": "하프가드 패스 (Half Guard Pass)",
+    "hg": "하프 가드 (Half Guard)",
+    "hq": "본부 자세 (Headquarters)",
+    "kimura": "키무라 (Kimura)",
+    "kshield": "니쉴드 (Knee Shield)",
+    "lapel": "라펠 가드 (Lapel Guard)",
+    "lasso": "라쏘 (Lasso Guard)",
+    "open": "오픈 가드 (Open Guard)",
+    "qguard": "쿼터 가드 (Quarter Guard)",
+    "side_top": "사이드 컨트롤 (Side Control)",
+    "situp": "싯업 가드 (Sit-up Guard)",
+    "smash": "스매시 (Smash Pass)",
+    "standing": "스탠딩 (Standing)",
+    "turtle_top": "터틀 공격 (Turtle (attacking))",
+    "waiter": "웨이터 가드 (Waiter Guard)",
+    "xg": "X가드 (X Guard)"
+  }
+}
