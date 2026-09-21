@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import { BookOpen, ExternalLink, GraduationCap, Play, Swords, Target, X } from "lucide-react"
 import { SenseiCalendar } from "@/components/sensei/SenseiCalendar"
+import { SenseiYearTable } from "@/components/sensei/SenseiYearTable"
 import {
   getTrainingRuleSet,
   isRuleSetTag,
@@ -242,6 +243,8 @@ export function TrainingView({ entries, isLoading = false, initialTarget = null 
   const [activeFilter, setActiveFilter] = useState<TrainingFilter | null>(null)
   // 해시태그 필터 — 캘린더에 그 태그가 있는 날만 남긴다
   const [activeTag, setActiveTag] = useState<string | null>(initialTarget?.tag ?? null)
+  // 월간(캘린더) / 연간(표) 전환
+  const [range, setRange] = useState<"month" | "year">("month")
   const filteredEntries = useMemo(
     () => entries.filter((entry) =>
       matchesTrainingFilter(entry, activeFilter) && (activeTag === null || entryHasTag(entry, activeTag))),
@@ -270,7 +273,24 @@ export function TrainingView({ entries, isLoading = false, initialTarget = null 
             날짜 안에서 배운 것과 적용한 것을 읽고, 눌러서 전체 기록을 확인해.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex rounded-full border border-border bg-card p-0.5" role="group" aria-label="보기 범위">
+            {(["month", "year"] as const).map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setRange(key)}
+                aria-pressed={range === key}
+                className={`rounded-full px-3 py-1 transition ${
+                  range === key
+                    ? "bg-orange-500/20 text-orange-200"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {key === "month" ? "월간" : "연간"}
+              </button>
+            ))}
+          </div>
           {activeTag && (
             <button
               type="button"
@@ -296,16 +316,24 @@ export function TrainingView({ entries, isLoading = false, initialTarget = null 
       </header>
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(22rem,1fr)] xl:gap-5">
-        <SenseiCalendar
-          entries={filteredEntries}
-          selectedDate={activeDate}
-          onDateSelect={setSelectedDate}
-          activeFilter={activeFilter}
-          onFilterChange={(filter) => {
-            setSelectedDate(null)
-            setActiveFilter(filter)
-          }}
-        />
+        {range === "month" ? (
+          <SenseiCalendar
+            entries={filteredEntries}
+            selectedDate={activeDate}
+            onDateSelect={setSelectedDate}
+            activeFilter={activeFilter}
+            onFilterChange={(filter) => {
+              setSelectedDate(null)
+              setActiveFilter(filter)
+            }}
+          />
+        ) : (
+          <SenseiYearTable
+            entries={filteredEntries}
+            selectedDate={activeDate}
+            onDateSelect={setSelectedDate}
+          />
+        )}
         <DateDetail date={activeDate} entries={activeEntries} activeFilter={activeFilter} />
       </div>
     </section>
