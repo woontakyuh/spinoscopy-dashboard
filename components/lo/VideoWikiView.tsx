@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Play, Search, X } from "lucide-react"
+import { ChevronDown, Play, Search, X } from "lucide-react"
 import {
   PHASE_LABEL,
   PHASE_ORDER,
@@ -19,49 +19,62 @@ const ROLE_STYLE: Record<"bottom" | "top", string> = {
   top: "border-purple-400/40 bg-purple-500/15 text-purple-200",
 }
 
-function SceneCard({ scene }: { readonly scene: ReelScene }) {
+function SceneRow({ scene }: { readonly scene: ReelScene }) {
+  const [open, setOpen] = useState(false)
+
   return (
-    <article className="rounded-lg border border-border bg-card p-3">
-      <div className="flex items-start justify-between gap-3">
-        <h4 className="break-keep text-sm font-semibold leading-6 text-foreground">
-          {scene.title}
-        </h4>
+    <li className="border-b border-border/60 last:border-b-0">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left transition hover:bg-muted/50"
+      >
+        <ChevronDown
+          className={`size-3.5 shrink-0 text-muted-foreground transition-transform ${open ? "" : "-rotate-90"}`}
+          aria-hidden="true"
+        />
+        {scene.role && (
+          <span className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] ${ROLE_STYLE[scene.role]}`}>
+            {ROLE_LABEL[scene.role]}
+          </span>
+        )}
+        <span className="min-w-0 flex-1 truncate text-sm text-foreground">{scene.title}</span>
+        {scene.phase && (
+          <span className="hidden shrink-0 rounded-full border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground sm:inline">
+            {PHASE_LABEL[scene.phase]}
+          </span>
+        )}
+        <span className="hidden shrink-0 text-[10px] tabular-nums text-muted-foreground sm:inline">
+          {scene.date.slice(2)}
+        </span>
         {scene.reelUrl && (
           <a
             href={scene.reelUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-orange-400/40 bg-orange-500/10 px-2 py-1 text-[11px] text-orange-200 transition hover:bg-orange-500/20"
+            onClick={(event) => event.stopPropagation()}
+            className="shrink-0 text-orange-300 transition hover:text-orange-200"
             aria-label={`${scene.title} 영상 열기`}
           >
-            <Play className="size-3" aria-hidden="true" />
-            영상
+            <Play className="size-3.5" aria-hidden="true" />
           </a>
         )}
-      </div>
+      </button>
 
-      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-        {scene.role && (
-          <span className={`rounded-full border px-1.5 py-0.5 text-[10px] ${ROLE_STYLE[scene.role]}`}>
-            {ROLE_LABEL[scene.role]}
-          </span>
-        )}
-        {scene.phase && (
-          <span className="rounded-full border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
-            {PHASE_LABEL[scene.phase]}
-          </span>
-        )}
-        <span className="text-[10px] text-muted-foreground">
-          {scene.date} · 릴 #{String(scene.no).padStart(2, "0")} · 원본 {scene.src} {formatClock(scene.ss)}
-        </span>
-      </div>
-
-      {scene.quote && (
-        <p className="mt-2 whitespace-pre-line border-l-2 border-border pl-2.5 text-xs leading-6 text-foreground/80">
-          {scene.quote}
-        </p>
+      {open && (
+        <div className="px-3 pb-3 pl-9">
+          {scene.quote && (
+            <p className="whitespace-pre-line border-l-2 border-border pl-2.5 text-xs leading-6 text-foreground/80">
+              {scene.quote}
+            </p>
+          )}
+          <p className="mt-2 text-[10px] text-muted-foreground">
+            {scene.date} · {scene.reelTitle} 릴 #{String(scene.no).padStart(2, "0")} · 원본 {scene.src} {formatClock(scene.ss)} ({scene.dur}초)
+          </p>
+        </div>
       )}
-    </article>
+    </li>
   )
 }
 
@@ -91,7 +104,10 @@ export function VideoWikiView() {
   const active =
     visiblePositions.find((position) => position.slug === selected) ?? visiblePositions[0] ?? null
 
-  const totalScenes = visiblePositions.reduce((sum, p) => sum + p.scenes.length, 0)
+  // 한 장면이 기술 여러 개에 걸릴 수 있어 중복을 제거하고 센다
+  const totalScenes = new Set(
+    visiblePositions.flatMap((p) => p.scenes.map((scene) => `${scene.date}-${scene.no}`)),
+  ).size
   const phasesInUse = PHASE_ORDER.filter((p) =>
     positions.some((position) => position.scenes.some((scene) => scene.phase === p)),
   )
@@ -221,9 +237,11 @@ export function VideoWikiView() {
                 <h3 className="text-base font-semibold text-foreground">{active.name}</h3>
                 <span className="text-xs text-muted-foreground">{active.scenes.length}장면</span>
               </div>
-              {active.scenes.map((scene) => (
-                <SceneCard key={`${scene.date}-${scene.no}`} scene={scene} />
-              ))}
+              <ul className="overflow-hidden rounded-xl border border-border bg-card">
+                {active.scenes.map((scene) => (
+                  <SceneRow key={`${scene.date}-${scene.no}`} scene={scene} />
+                ))}
+              </ul>
             </>
           ) : (
             <div className="rounded-xl border border-border bg-card p-8 text-center text-xs text-muted-foreground">

@@ -55,6 +55,29 @@ describe("VideoWikiView", () => {
     expect(screen.getAllByText("조건에 맞는 장면이 없어.").length).toBeGreaterThan(0)
   })
 
+  it("장면은 한 줄로 접혀 있다가 누르면 펼쳐진다", () => {
+    render(<VideoWikiView />)
+
+    const [first] = scenesByPosition()
+    const scene = first.scenes[0]
+    const row = screen.getByRole("button", { name: new RegExp(scene.title), expanded: false })
+
+    // 접힌 상태에선 육성 인용이 보이지 않는다
+    const firstQuoteLine = scene.quote.split("\n")[0]
+    expect(document.body.textContent).not.toContain(firstQuoteLine)
+
+    fireEvent.click(row)
+    expect(screen.getByRole("button", { name: new RegExp(scene.title), expanded: true })).toBeInTheDocument()
+    expect(document.body.textContent).toContain(firstQuoteLine)
+  })
+
+  it("장면 수는 기술이 겹쳐도 중복해서 세지 않는다", () => {
+    render(<VideoWikiView />)
+
+    const uniqueScenes = allScenes().length
+    expect(screen.getByText(`장면 ${uniqueScenes}개`)).toBeInTheDocument()
+  })
+
   it("역할 필터를 누르면 그 역할 장면만 센다", () => {
     render(<VideoWikiView />)
 
