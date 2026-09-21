@@ -15,8 +15,8 @@ import {
 } from "@/lib/reel"
 
 const ROLE_STYLE: Record<"bottom" | "top", string> = {
-  bottom: "border-blue-400/40 bg-blue-500/15 text-blue-200",
-  top: "border-purple-400/40 bg-purple-500/15 text-purple-200",
+  bottom: "border-blue-400/40 bg-blue-500/15 text-blue-700 dark:text-blue-200",
+  top: "border-purple-400/40 bg-purple-500/15 text-purple-700 dark:text-purple-200",
 }
 
 function SceneRow({ scene }: { readonly scene: ReelScene }) {
@@ -71,7 +71,7 @@ function SceneRow({ scene }: { readonly scene: ReelScene }) {
             target="_blank"
             rel="noreferrer"
             onClick={(event) => event.stopPropagation()}
-            className="shrink-0 text-orange-300 transition hover:text-orange-200"
+            className="shrink-0 text-orange-600 transition hover:text-orange-500 dark:text-orange-300 dark:hover:text-orange-200"
             aria-label={`${scene.title} 영상 열기`}
           >
             <Play className="size-3.5" aria-hidden="true" />
@@ -205,7 +205,7 @@ export function VideoWikiView() {
               aria-pressed={phase === key}
               className={`rounded-full border px-2.5 py-1 text-[11px] transition ${
                 phase === key
-                  ? "border-orange-400/50 bg-orange-500/15 text-orange-200"
+                  ? "border-orange-400/50 bg-orange-500/15 text-orange-700 dark:text-orange-200"
                   : "border-border text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -234,7 +234,7 @@ export function VideoWikiView() {
                     aria-current={isActive}
                     className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition ${
                       isActive
-                        ? "bg-orange-500/15 text-orange-100"
+                        ? "bg-orange-500/15 text-orange-700 dark:text-orange-100"
                         : "text-foreground/80 hover:bg-muted/60"
                     }`}
                   >
