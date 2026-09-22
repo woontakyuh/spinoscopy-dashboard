@@ -2,6 +2,108 @@
   "generatedAt": "2026-09-21",
   "reels": [
     {
+      "date": "2026-09-22",
+      "title": "발등으로 따라가기와 피쉬넷",
+      "subtitle": "조준용 관장님 · 와이어 주짓수 동탄",
+      "url": "https://www.dropbox.com/scl/fi/bidjfp6a8qvkwtt77lmbp/2026-09-22_.mp4?rlkey=e7oqspci3u05beoszc33e0vrz&dl=0",
+      "cuts": [
+        {
+          "no": 1,
+          "title": "뒷다리로 떠서 머리를 뺀다",
+          "quote": "뒷다리로 이렇게 상대를 떠줄까요\n떠서 머리가 빠져나올 거예요",
+          "pos": [
+            "crabride"
+          ],
+          "role": "bottom",
+          "phase": "escape",
+          "src": "IMG_1407",
+          "ss": 0,
+          "dur": 5
+        },
+        {
+          "no": 2,
+          "title": "발등으로 따라간다",
+          "quote": "이 발등으로 따라가주는 연습한다고\n이렇게 차주면 — 크랩 훅이 붙어서 따라간다",
+          "pos": [
+            "crabride"
+          ],
+          "role": "bottom",
+          "phase": "maintain",
+          "src": "IMG_1407",
+          "ss": 11,
+          "dur": 7
+        },
+        {
+          "no": 3,
+          "title": "손을 뒤로 넣어 띠를 잡는다",
+          "quote": "자 여기서 이렇게\n손 뒤로 가서 띠 잡아주세요",
+          "pos": [
+            "crabride"
+          ],
+          "role": "bottom",
+          "phase": "maintain",
+          "src": "IMG_1407",
+          "ss": 24,
+          "dur": 6
+        },
+        {
+          "no": 4,
+          "title": "손과 발은 같은 쪽",
+          "quote": "띠 잡은 오른손이 뒤에 있죠? 오른발도 뒤에 있는 거예요\n오른발로 떠주면서 머리 빼주고 일어나",
+          "pos": [
+            "crabride",
+            "back_top"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_1407",
+          "ss": 30,
+          "dur": 6
+        },
+        {
+          "no": 5,
+          "title": "앞꿈치로 찍고 일어난다",
+          "quote": "새끼발가락, 발가락 앞꿈치로\n확실하게 찍고 일어나",
+          "pos": [
+            "crabride",
+            "back_top"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_1407",
+          "ss": 36,
+          "dur": 6
+        },
+        {
+          "no": 6,
+          "title": "상대가 백스텝하면",
+          "quote": "하프가드인데 상대가 백스텝을 했어\n그럴 때 하는 거예요 — 엔딩이 훨씬 쉽죠?",
+          "pos": [
+            "hg",
+            "fishnet"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_1413",
+          "ss": 15,
+          "dur": 8
+        },
+        {
+          "no": 7,
+          "title": "크랩라이드를 안 거치는 길",
+          "quote": "엔트리가 여러 가지가 있는데\n그냥 크랩라이드로 안 가서 조금 더 어려워 보이긴 합니다",
+          "pos": [
+            "fishnet"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_1413",
+          "ss": 29,
+          "dur": 8
+        }
+      ]
+    },
+    {
       "date": "2026-09-17",
       "title": "하프 탑 블록과 바디락 대응",
       "subtitle": "조준용 관장님 · 와이어 주짓수 동탄",
@@ -886,7 +988,9 @@
     "ashi": "아시가라미 (Ashi Garami)",
     "back_top": "백 컨트롤 (Back Control)",
     "butterfly": "더블훅 가드 (Butterfly Guard)",
+    "crabride": "크랩라이드 (Crab Ride)",
     "dhg": "딥 하프 (Deep Half)",
+    "fishnet": "피쉬넷 (Fishnet)",
     "halfbutt": "하프 버터플라이 (Half Butterfly)",
     "halfpass": "하프가드 패스 (Half Guard Pass)",
     "hg": "하프 가드 (Half Guard)",
