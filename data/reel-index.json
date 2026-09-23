@@ -3,56 +3,29 @@
   "reels": [
     {
       "date": "2026-09-22",
-      "title": "발등으로 따라가기와 피쉬넷",
+      "title": "탑볼로와 피쉬넷",
       "subtitle": "조준용 관장님 · 와이어 주짓수 동탄",
-      "url": "https://www.dropbox.com/scl/fi/bidjfp6a8qvkwtt77lmbp/2026-09-22_.mp4?rlkey=e7oqspci3u05beoszc33e0vrz&dl=0",
+      "url": "https://www.dropbox.com/scl/fi/88lb6estkl8s8bhotp8zu/2026-09-22_.mp4?rlkey=p3tkasqew7eta4r3b8lqgy39q&dl=0",
       "cuts": [
         {
           "no": 1,
-          "title": "뒷다리로 떠서 머리를 뺀다",
-          "quote": "뒷다리로 이렇게 상대를 떠줄까요\n떠서 머리가 빠져나올 거예요",
-          "pos": [
-            "crabride"
-          ],
-          "role": "bottom",
-          "phase": "escape",
-          "src": "IMG_1407",
-          "ss": 0,
-          "dur": 5
-        },
-        {
-          "no": 2,
-          "title": "발등으로 따라간다",
-          "quote": "이 발등으로 따라가주는 연습한다고\n이렇게 차주면 — 크랩 훅이 붙어서 따라간다",
-          "pos": [
-            "crabride"
-          ],
-          "role": "bottom",
-          "phase": "maintain",
-          "src": "IMG_1407",
-          "ss": 11,
-          "dur": 7
-        },
-        {
-          "no": 3,
           "title": "손을 뒤로 넣어 띠를 잡는다",
           "quote": "자 여기서 이렇게\n손 뒤로 가서 띠 잡아주세요",
           "pos": [
-            "crabride"
+            "dhg"
           ],
           "role": "bottom",
-          "phase": "maintain",
+          "phase": "grip",
           "src": "IMG_1407",
           "ss": 24,
           "dur": 6
         },
         {
-          "no": 4,
+          "no": 2,
           "title": "손과 발은 같은 쪽",
           "quote": "띠 잡은 오른손이 뒤에 있죠? 오른발도 뒤에 있는 거예요\n오른발로 떠주면서 머리 빼주고 일어나",
           "pos": [
-            "crabride",
-            "back_top"
+            "dhg"
           ],
           "role": "bottom",
           "phase": "sweep",
@@ -61,45 +34,99 @@
           "dur": 6
         },
         {
-          "no": 5,
-          "title": "앞꿈치로 찍고 일어난다",
-          "quote": "새끼발가락, 발가락 앞꿈치로\n확실하게 찍고 일어나",
+          "no": 3,
+          "title": "★ 스윕은 내가 하는 게 아니다",
+          "quote": "내가 스윕을 한다기보다\n이 사람이 등을 뺏기지 않으려고 날 빨리 마주 보는 거야",
           "pos": [
-            "crabride",
-            "back_top"
+            "hg",
+            "dhg"
           ],
           "role": "bottom",
           "phase": "sweep",
-          "src": "IMG_1407",
-          "ss": 36,
-          "dur": 6
+          "src": "IMG_1408",
+          "ss": 26,
+          "dur": 9
+        },
+        {
+          "no": 4,
+          "title": "상대가 다리를 접으면 오금에 발등",
+          "quote": "다리를 접을 거예요 — 접으니까\n그때 오금에다가 발등을 걸 수 있어요",
+          "pos": [
+            "hg"
+          ],
+          "role": "bottom",
+          "phase": "grip",
+          "src": "IMG_1408",
+          "ss": 64,
+          "dur": 7
+        },
+        {
+          "no": 5,
+          "title": "★★ 탑볼로 — 등부터 보여준다",
+          "quote": "여기서 내가 탑볼로를 해줄 거야\n백을 잡으려면 내 등부터 보여줘야 돼",
+          "pos": [
+            "topbolo"
+          ],
+          "role": "top",
+          "phase": "entry",
+          "src": "IMG_1409",
+          "ss": 68,
+          "dur": 9
         },
         {
           "no": 6,
-          "title": "상대가 백스텝하면",
-          "quote": "하프가드인데 상대가 백스텝을 했어\n그럴 때 하는 거예요 — 엔딩이 훨씬 쉽죠?",
+          "title": "굴러서 뒤로 나온다",
+          "quote": "머리를 땅에 박아야 되는 것도 아니고\n웅크려야 되는 것도 아니에요 — 그냥 등을 보여주면서 돌 거야",
           "pos": [
-            "hg",
-            "fishnet"
+            "topbolo",
+            "back_top"
           ],
-          "role": "bottom",
-          "phase": "entry",
-          "src": "IMG_1413",
-          "ss": 15,
-          "dur": 8
+          "role": "top",
+          "phase": "back",
+          "src": "IMG_1409",
+          "ss": 162,
+          "dur": 9
         },
         {
           "no": 7,
-          "title": "크랩라이드를 안 거치는 길",
-          "quote": "엔트리가 여러 가지가 있는데\n그냥 크랩라이드로 안 가서 조금 더 어려워 보이긴 합니다",
+          "title": "걸고 같은 쪽으로 쭉 누른다",
+          "quote": "걸고 있는 상태에서 그대로 같은 쪽으로 눌러주는 거예요\n이 사람이 어깨로 뒤로 그냥 강제로 돼",
+          "pos": [
+            "topbolo",
+            "back_top"
+          ],
+          "role": "top",
+          "phase": "back",
+          "src": "IMG_1410",
+          "ss": 29,
+          "dur": 7
+        },
+        {
+          "no": 8,
+          "title": "⚠️ 피쉬넷 — 띄우면 실격, 밀면 실격",
+          "quote": "발등으로 걸었는데 얘를 천장으로 밀면 안 돼\n무릎 꺾이는 거 보이죠? 무조건 실격이야 — 걸어놔",
           "pos": [
             "fishnet"
           ],
           "role": "bottom",
-          "phase": "entry",
-          "src": "IMG_1413",
-          "ss": 29,
-          "dur": 8
+          "phase": "maintain",
+          "src": "IMG_1411",
+          "ss": 23,
+          "dur": 10
+        },
+        {
+          "no": 9,
+          "title": "마무리는 다리가 아니라 상체",
+          "quote": "상대방 상체를 끌어당겨 — 끌어당겨서 돌려서 다리를 풀어줘\n레그드래그로 가실 거야",
+          "pos": [
+            "fishnet",
+            "legdrag"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_1411",
+          "ss": 119,
+          "dur": 9
         }
       ]
     },
@@ -988,7 +1015,6 @@
     "ashi": "아시가라미 (Ashi Garami)",
     "back_top": "백 컨트롤 (Back Control)",
     "butterfly": "더블훅 가드 (Butterfly Guard)",
-    "crabride": "크랩라이드 (Crab Ride)",
     "dhg": "딥 하프 (Deep Half)",
     "fishnet": "피쉬넷 (Fishnet)",
     "halfbutt": "하프 버터플라이 (Half Butterfly)",
@@ -999,11 +1025,13 @@
     "kshield": "니쉴드 (Knee Shield)",
     "lapel": "라펠 가드 (Lapel Guard)",
     "lasso": "라쏘 (Lasso Guard)",
+    "legdrag": "레그드래그 (Leg Drag)",
     "qguard": "쿼터 가드 (Quarter Guard)",
     "side_top": "사이드 컨트롤 (Side Control)",
     "situp": "싯업 가드 (Sit-up Guard)",
     "smash": "스매시 (Smash Pass)",
     "standing": "스탠딩 (Standing)",
+    "topbolo": "탑볼로 (Top Bolo)",
     "turtle_top": "터틀 공격 (Turtle (attacking))",
     "waiter": "웨이터 가드 (Waiter Guard)",
     "xg": "X가드 (X Guard)"
