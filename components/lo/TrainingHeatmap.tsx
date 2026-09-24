@@ -243,6 +243,29 @@ export function TrainingHeatmap({
                           </button>
                         )}
                       </span>
+                      {(() => {
+                        const photoUrl = day.sessions.find((entry) => entry.photoUrl)?.photoUrl
+                        if (!photoUrl) return null
+                        // 고정됐을 때만 눌러서 원본을 연다. 호버 중엔 툴팁이 마우스를 안 받는다
+                        return (
+                          <a
+                            href={photoUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            tabIndex={pinned ? 0 : -1}
+                            onClick={(e) => e.stopPropagation()}
+                            className="mt-1.5 block overflow-hidden rounded border border-border"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={photoUrl}
+                              alt={`${day.key} 단체사진`}
+                              loading="lazy"
+                              className="block aspect-[4/3] w-full bg-muted object-cover"
+                            />
+                          </a>
+                        )
+                      })()}
                       {day.sessions.length === 0 ? (
                         <span className="mt-1 block text-muted-foreground">기록 없음</span>
                       ) : (

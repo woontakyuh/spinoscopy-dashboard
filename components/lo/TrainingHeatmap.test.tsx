@@ -102,6 +102,22 @@ describe("TrainingHeatmap 툴팁 내용", () => {
     expect(text).toContain("공부")
   })
 
+  it("그날 단체사진이 있으면 툴팁에 같이 보인다", () => {
+    const photo = "https://www.dropbox.com/scl/fi/x/2026-08-10.jpeg?raw=1"
+    render(<TrainingHeatmap entries={[{ ...trainingEntry("p", "2026-08-10"), photoUrl: photo }]} />)
+    fireEvent.mouseEnter(screen.getByTitle("2026-08-10 · 1회"))
+    const img = screen.getByRole("img", { name: "2026-08-10 단체사진" })
+    expect(screen.getByRole("tooltip")).toContainElement(img)
+    expect(img).toHaveAttribute("src", photo)
+    expect(img.closest("a")).toHaveAttribute("href", photo)
+  })
+
+  it("사진이 없는 날은 사진 칸을 만들지 않는다", () => {
+    render(<TrainingHeatmap entries={[trainingEntry("a", "2026-08-10")]} />)
+    fireEvent.mouseEnter(screen.getByTitle("2026-08-10 · 1회"))
+    expect(screen.queryByRole("img")).not.toBeInTheDocument()
+  })
+
   it("기록 없는 날은 그렇게 말한다", () => {
     render(<TrainingHeatmap entries={[trainingEntry("x")]} />)
     fireEvent.mouseEnter(screen.getByTitle("2026-08-10 · 0회"))
