@@ -23,6 +23,7 @@ const entries: SenseiEntry[] = [
     url: "",
     classVideoUrl: "https://www.dropbox.com/scl/fo/abc/def?rlkey=x&dl=0",
     classVideoCount: 5,
+    photoUrl: "https://www.dropbox.com/scl/fi/pic/2026-08-12.jpeg?rlkey=y&raw=1",
   },
   {
     id: "training-study",
@@ -93,6 +94,29 @@ describe("TrainingView", () => {
     expect(link).toHaveAttribute("target", "_blank")
     // dl=1 이면 클릭 즉시 다운로드가 시작된다 — 링크아웃은 미리보기여야 한다
     expect(link.getAttribute("href")).not.toContain("dl=1")
+  })
+
+  it("단체사진이 있으면 이미지로 보여주고 원본을 새 탭으로 연다", () => {
+    render(<TrainingView entries={entries} />)
+
+    fireEvent.click(screen.getByRole("button", { name: /8월 12일/ }))
+
+    const photo = screen.getByRole("img", { name: "2026-08-12 단체사진" })
+    expect(photo).toHaveAttribute(
+      "src",
+      "https://www.dropbox.com/scl/fi/pic/2026-08-12.jpeg?rlkey=y&raw=1",
+    )
+    // dl=0 이면 이미지가 아니라 드랍박스 미리보기 페이지가 온다 — raw=1 이어야 렌더된다
+    expect(photo.getAttribute("src")).toContain("raw=1")
+
+    const link = photo.closest("a")
+    expect(link).toHaveAttribute("target", "_blank")
+  })
+
+  it("단체사진이 없는 기록에는 사진 영역이 없다", () => {
+    const noPhoto = entries.map((e) => ({ ...e, photoUrl: undefined }))
+    render(<TrainingView entries={noPhoto} />)
+    expect(screen.queryByText("단체사진")).toBeNull()
   })
 
   it("수업 영상이 없는 기록에는 영상 링크가 없다", () => {

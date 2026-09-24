@@ -145,6 +145,26 @@ function EntryDetail({
         </div>
       )}
 
+      {entry.photoUrl && (
+        <div>
+          <p className="text-[11px] font-semibold text-foreground/70">단체사진</p>
+          <a
+            href={entry.photoUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-1.5 block overflow-hidden rounded-lg border border-border transition-colors hover:border-foreground/30"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={entry.photoUrl}
+              alt={`${entry.date ?? ""} 단체사진`}
+              loading="lazy"
+              className="h-auto w-full max-w-md object-cover"
+            />
+          </a>
+        </div>
+      )}
+
       {entry.classVideoUrl && (
         <div>
           <p className="text-[11px] font-semibold text-foreground/70">수업 영상</p>

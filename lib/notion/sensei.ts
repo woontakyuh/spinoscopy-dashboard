@@ -11,6 +11,12 @@ interface NotionProperty {
   checkbox?: boolean
   url?: string | null
   number?: number | null
+  files?: Array<{
+    name?: string
+    type?: string
+    external?: { url?: string }
+    file?: { url?: string }
+  }>
 }
 
 interface NotionPage {
@@ -47,6 +53,12 @@ function getText(prop: NotionProperty | undefined): string {
   if (prop.type === "title") return (prop.title ?? []).map((v) => v.plain_text ?? "").join("").trim()
   if (prop.type === "rich_text") return (prop.rich_text ?? []).map((v) => v.plain_text ?? "").join("").trim()
   return ""
+}
+
+/** files 속성의 첫 파일 URL. 외부 링크(external)와 Notion 업로드(file) 둘 다 받는다. */
+function getFileUrl(prop: NotionProperty | undefined): string | undefined {
+  const first = (prop?.files ?? [])[0]
+  return first?.external?.url || first?.file?.url || undefined
 }
 
 function getMulti(prop: NotionProperty | undefined): string[] {
@@ -141,6 +153,7 @@ function toEntry(page: NotionPage): SenseiEntry {
     videoTitle: getText(p["Video Title"]) || undefined,
     classVideoUrl: p["Class Video"]?.url || undefined,
     classVideoCount: p["Class Video Count"]?.number ?? undefined,
+    photoUrl: getFileUrl(p["단체사진"]),
     todayFocus: getText(p["Today Focus"]) || undefined,
     focusApplied: p["Focus Applied"]?.checkbox ?? false,
     note: getText(p.Note),

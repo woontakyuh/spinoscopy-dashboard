@@ -16,6 +16,8 @@ export interface SenseiEntry {
   classVideoUrl?: string
   /** 그 폴더 안 클립 개수 */
   classVideoCount?: number
+  /** 그날 단체사진 (노션 `단체사진` 속성의 첫 파일) */
+  photoUrl?: string
   todayFocus?: string
   focusApplied?: boolean
   note: string
