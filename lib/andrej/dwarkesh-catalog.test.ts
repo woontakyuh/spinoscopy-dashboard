@@ -6,6 +6,7 @@ import {
   parseDwarkeshArchive,
   DwarkeshTranscriptNotReadyError,
   parseDwarkeshEpisode,
+  textFromVtt,
 } from "./dwarkesh-catalog"
 
 const ARCHIVE = [
@@ -167,6 +168,16 @@ describe("Dwarkesh 공식 전사", () => {
     )).toThrow(DwarkeshTranscriptNotReadyError)
   })
 
+  it("Transcript heading이 없는 낭독 에세이는 본문 전체를 원고로 쓴다", () => {
+    const paragraph = "Continual learning changes how models improve after deployment. ".repeat(60)
+    const episode = parseDwarkeshEpisode(
+      { ...EPISODE, body_html: `<h2>Does sample efficiency matter?</h2><p>${paragraph}</p>` },
+      "https://www.dwarkesh.com/p/dario-amodei-2"
+    )
+    expect(episode.transcript).toContain("Does sample efficiency matter?")
+    expect(episode.transcript.length).toBeGreaterThan(3_000)
+  })
+
   it("공식 slug와 상세 응답 slug가 다르면 거부한다", () => {
     expect(() =>
       parseDwarkeshEpisode(EPISODE, "https://www.dwarkesh.com/p/other")
@@ -186,5 +197,38 @@ describe("Dwarkesh 공식 전사", () => {
       "https://dwarkesh.substack.com/api/v1/posts/dario-amodei-2",
       expect.objectContaining({ cache: "no-store" })
     )
+  })
+})
+
+describe("Dwarkesh 영상 전용 Episode 자막 대체", () => {
+  const VIDEO_ONLY = {
+    ...EPISODE,
+    body_html: `<p>Short intro.</p><p><a href="https://youtu.be/oZBGAuANX6I">Watch</a></p>`,
+  }
+
+  it("WebVTT를 중복 없는 평문으로 바꾼다", () => {
+    const vtt = "WEBVTT\nKind: captions\nLanguage: en\n\n00:00:00.080 --> 00:00:02.640\nToday I want&nbsp;\nto talk\n\n00:00:02.640 --> 00:00:05.600\nto talk\nabout compute."
+    expect(textFromVtt(vtt)).toBe("Today I want to talk about compute.")
+  })
+
+  it("원고가 없으면 공식 YouTube 자막으로 전사를 채운다", async () => {
+    const fetchImpl = vi.fn(async () => Response.json(VIDEO_ONLY))
+    const subtitles = "Compute will get more expensive. ".repeat(120)
+    const loadSubtitles = vi.fn(async () => subtitles)
+
+    const episode = await fetchDwarkeshEpisode(
+      "https://www.dwarkesh.com/p/dario-amodei-2", fetchImpl, loadSubtitles
+    )
+
+    expect(loadSubtitles).toHaveBeenCalledWith("https://www.youtube.com/watch?v=oZBGAuANX6I")
+    expect(episode.transcript).toBe(subtitles)
+    expect(episode.youtube).toBe("https://www.youtube.com/watch?v=oZBGAuANX6I")
+  })
+
+  it("자막도 없으면 not-ready로 남긴다", async () => {
+    const fetchImpl = vi.fn(async () => Response.json(VIDEO_ONLY))
+    await expect(fetchDwarkeshEpisode(
+      "https://www.dwarkesh.com/p/dario-amodei-2", fetchImpl, async () => null
+    )).rejects.toBeInstanceOf(DwarkeshTranscriptNotReadyError)
   })
 })
