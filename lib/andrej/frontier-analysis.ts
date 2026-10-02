@@ -1,3 +1,8 @@
+import { spawn } from "node:child_process"
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+
 import { z } from "zod"
 
 import type {
@@ -5,16 +10,27 @@ import type {
   AiFrontierOfficialEpisode,
 } from "@/lib/types/ai-frontier-import"
 
-const ANALYSIS_MODEL = "gpt-5.6-luna"
+/**
+ * 분석은 OpenAI API key가 아니라 로컬 Codex CLI(ChatGPT 구독 OAuth)로만 수행한다.
+ * Vercel 같은 서버리스 환경에는 codex가 없으므로 서버 cron은 카탈로그 동기화만 하고,
+ * 실제 수집은 맥의 `npm run frontier:backfill`(Hermes 매일 08:30)이 맡는다.
+ */
+export const ANALYSIS_MODEL = "gpt-6.1-sol"
+const ANALYSIS_EFFORT = "medium"
+const CODEX_TIMEOUT_MS = 15 * 60_000
 
-type FetchLike = (
-  input: string | URL | Request,
-  init?: RequestInit
-) => Promise<Response>
+export interface CodexRunInput {
+  prompt: string
+  schemaPath: string
+  outputPath: string
+  cwd: string
+  model: string
+}
+
+export type CodexRunner = (input: CodexRunInput) => Promise<void>
 
 interface AnalysisDependencies {
-  apiKey: string
-  fetchImpl?: FetchLike
+  runCodex?: CodexRunner
   model?: string
 }
 
@@ -43,15 +59,6 @@ const analysisSchema = z.object({
   questions: z.array(z.string().trim().min(1).max(500)).min(2).max(8),
 })
 
-const textOutputSchema = z.object({
-  output: z.array(z.looseObject({
-    content: z.array(z.looseObject({
-      type: z.string(),
-      text: z.string().optional(),
-    })).optional(),
-  })),
-})
-
 function boundedString(maxLength: number) {
   return { type: "string", minLength: 1, maxLength, pattern: "\\S" } as const
 }
@@ -65,7 +72,7 @@ function boundedStringArray(minItems: number, maxItems: number, itemMaxLength: n
   } as const
 }
 
-const ANALYSIS_JSON_SCHEMA = {
+export const ANALYSIS_JSON_SCHEMA = {
   type: "object",
   additionalProperties: false,
   required: [
@@ -144,101 +151,128 @@ export class AiFrontierAnalysisError extends Error {
   }
 }
 
-function extractOutputText(payload: unknown): string {
-  const parsed = textOutputSchema.safeParse(payload)
-  if (!parsed.success) {
-    throw new AiFrontierAnalysisError("response-shape", 200, false)
-  }
-  for (const output of parsed.data.output) {
-    for (const content of output.content ?? []) {
-      if (content.type === "output_text" && content.text?.trim()) return content.text
-    }
-  }
-  throw new AiFrontierAnalysisError("response-shape", 200, false)
+/** 구독 OAuth만 쓰도록 API key 계열 환경변수를 자식 프로세스에서 제거한다. */
+export function codexChildEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const child = { ...env }
+  for (const key of ["OPENAI_API_KEY", "CODEX_API_KEY", "OPENAI_BASE_URL"]) delete child[key]
+  return child
 }
 
-function retryableHttpStatus(status: number): boolean {
-  return status === 408 || status === 409 || status === 425 || status === 429 || status >= 500
+export const runCodexCli: CodexRunner = ({ prompt, schemaPath, outputPath, cwd, model }) =>
+  new Promise((resolve, reject) => {
+    const child = spawn(process.env.CODEX_BIN ?? "codex", [
+      "exec",
+      "--ephemeral",
+      "--skip-git-repo-check",
+      "--sandbox", "read-only",
+      "--color", "never",
+      "-m", model,
+      "-c", `model_reasoning_effort="${ANALYSIS_EFFORT}"`,
+      "-c", 'forced_login_method="chatgpt"',
+      "--output-schema", schemaPath,
+      "-o", outputPath,
+      "-",
+    ], { cwd, env: codexChildEnv(), stdio: ["pipe", "ignore", "pipe"] })
+
+    let stderr = ""
+    const timer = setTimeout(() => child.kill("SIGTERM"), CODEX_TIMEOUT_MS)
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderr = (stderr + chunk.toString()).slice(-2000)
+    })
+    child.on("error", () => {
+      clearTimeout(timer)
+      reject(new AiFrontierAnalysisError("config", null, false))
+    })
+    child.on("close", (code) => {
+      clearTimeout(timer)
+      if (code === 0) return resolve()
+      const error = new AiFrontierAnalysisError("transport", null, true)
+      Object.defineProperty(error, "detail", { value: stderr.trim().slice(-500), enumerable: false })
+      reject(error)
+    })
+    child.stdin.end(prompt)
+  })
+
+const ARRAY_LIMITS = {
+  topics: 10, models: 10, people: 12, concepts: 12, keyPoints: 12,
+  insights: 10, mentalModels: 8, factInterpretation: 8, questions: 8,
+} as const
+
+/** 모델이 개수 상한을 넘겨도 버리지 않고 앞에서부터 잘라 계약에 맞춘다. */
+export function clampAnalysisArrays(output: unknown): unknown {
+  if (!output || typeof output !== "object" || Array.isArray(output)) return output
+  const clamped: Record<string, unknown> = { ...(output as Record<string, unknown>) }
+  for (const [key, limit] of Object.entries(ARRAY_LIMITS)) {
+    const value = clamped[key]
+    if (Array.isArray(value)) clamped[key] = value.slice(0, limit)
+  }
+  const keyPoints = clamped.keyPoints
+  if (Array.isArray(keyPoints)) {
+    clamped.keyPoints = keyPoints.map((point) =>
+      point && typeof point === "object" && Array.isArray((point as { bullets?: unknown }).bullets)
+        ? { ...point, bullets: (point as { bullets: unknown[] }).bullets.slice(0, 6) }
+        : point
+    )
+  }
+  return clamped
+}
+
+export function buildAnalysisPrompt(episode: AiFrontierOfficialEpisode): string {
+  return [
+    INSTRUCTIONS,
+    "",
+    "도구나 셸 명령을 쓰지 말고, 아래 JSON 입력만 읽은 뒤 지정된 JSON 스키마에 맞는 최종 답만 출력하세요.",
+    "개수 상한: topics·models·insights 10개, people 12개, concepts·keyPoints 3~12개(각 bullets 1~6개), mentalModels·factInterpretation·questions 8개, summary 700자 이내.",
+    "",
+    JSON.stringify({
+      episode: {
+        source: episode.source,
+        reference: episode.reference,
+        episodeNumber: episode.episodeNumber,
+        title: episode.name,
+        officialUrl: episode.officialUrl,
+        published: episode.published,
+      },
+      transcript: episode.transcript,
+    }),
+  ].join("\n")
 }
 
 export async function analyzeAiFrontierEpisode(
   episode: AiFrontierOfficialEpisode,
-  dependencies: AnalysisDependencies
+  dependencies: AnalysisDependencies = {}
 ): Promise<AiFrontierEpisodeAnalysis> {
-  const apiKey = dependencies.apiKey.trim()
-  if (!apiKey) throw new AiFrontierAnalysisError("config", null, false)
-  const fetchImpl = dependencies.fetchImpl ?? fetch
-
-  let response: Response
+  const runCodex = dependencies.runCodex ?? runCodexCli
+  const dir = await mkdtemp(join(tmpdir(), "ai-frontier-"))
+  const schemaPath = join(dir, "schema.json")
+  const outputPath = join(dir, "analysis.json")
   try {
-    response = await fetchImpl("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    await writeFile(schemaPath, JSON.stringify(ANALYSIS_JSON_SCHEMA))
+    try {
+      await runCodex({
+        prompt: buildAnalysisPrompt(episode),
+        schemaPath,
+        outputPath,
+        cwd: dir,
         model: dependencies.model ?? ANALYSIS_MODEL,
-        instructions: INSTRUCTIONS,
-        input: [{
-          role: "user",
-          content: [{
-            type: "input_text",
-            text: JSON.stringify({
-              episode: {
-                source: episode.source,
-                reference: episode.reference,
-                episodeNumber: episode.episodeNumber,
-                title: episode.name,
-                officialUrl: episode.officialUrl,
-                published: episode.published,
-              },
-              transcript: episode.transcript,
-            }),
-          }],
-        }],
-        text: {
-          format: {
-            type: "json_schema",
-            name: "ai_frontier_episode_analysis",
-            strict: true,
-            schema: ANALYSIS_JSON_SCHEMA,
-          },
-        },
-        reasoning: { effort: "medium" },
-        max_output_tokens: 12_000,
-        store: false,
-      }),
-      signal: AbortSignal.timeout(180_000),
-    })
-  } catch {
-    throw new AiFrontierAnalysisError("transport", null, true)
-  }
-  if (!response.ok) {
-    throw new AiFrontierAnalysisError(
-      "http",
-      response.status,
-      retryableHttpStatus(response.status)
-    )
-  }
+      })
+    } catch (error) {
+      if (error instanceof AiFrontierAnalysisError) throw error
+      throw new AiFrontierAnalysisError("transport", null, true)
+    }
 
-  let payload: unknown
-  try {
-    payload = await response.json()
-  } catch {
-    throw new AiFrontierAnalysisError("response-shape", 200, false)
+    let output: unknown
+    try {
+      output = JSON.parse(await readFile(outputPath, "utf8"))
+    } catch {
+      throw new AiFrontierAnalysisError("output-json", null, false)
+    }
+    const parsed = analysisSchema.safeParse(clampAnalysisArrays(output))
+    if (!parsed.success) {
+      throw new AiFrontierAnalysisError("analysis-schema", null, false)
+    }
+    return parsed.data
+  } finally {
+    await rm(dir, { recursive: true, force: true })
   }
-
-  const outputText = extractOutputText(payload)
-  let output: unknown
-  try {
-    output = JSON.parse(outputText)
-  } catch {
-    throw new AiFrontierAnalysisError("output-json", 200, false)
-  }
-  const parsed = analysisSchema.safeParse(output)
-  if (!parsed.success) {
-    throw new AiFrontierAnalysisError("analysis-schema", 200, false)
-  }
-  return parsed.data
 }

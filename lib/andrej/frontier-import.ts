@@ -29,9 +29,7 @@ interface ImportDependencies {
 const defaultDependencies: ImportDependencies = {
   loadIndex: () => getAiFrontierIndex(),
   loadEpisode: (url) => fetchFrontierEpisode(url),
-  analyze: (episode) => analyzeAiFrontierEpisode(episode, {
-    apiKey: process.env.OPENAI_API_KEY ?? "",
-  }),
+  analyze: (episode) => analyzeAiFrontierEpisode(episode),
   persist: (input) => persistAiFrontierImport(input),
   setStatus: (pageId, status) => setAiFrontierImportStatus(pageId, status),
 }

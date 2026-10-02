@@ -1,10 +1,16 @@
+import { readFile, writeFile } from "node:fs/promises"
+
 import { describe, expect, it, vi } from "vitest"
 
 import type { AiFrontierOfficialEpisode } from "@/lib/types/ai-frontier-import"
 
 import {
+  ANALYSIS_JSON_SCHEMA,
+  ANALYSIS_MODEL,
   AiFrontierAnalysisError,
   analyzeAiFrontierEpisode,
+  codexChildEnv,
+  type CodexRunner,
 } from "./frontier-analysis"
 
 const episode: AiFrontierOfficialEpisode = {
@@ -62,13 +68,10 @@ const analysis = {
   questions: ["어떤 Harness가 가장 단순한가?", "평가를 어떻게 자동화할까?"],
 }
 
-function response(output: unknown, status = 200) {
-  return new Response(
-    JSON.stringify({
-      output: [{ type: "message", content: [{ type: "output_text", text: JSON.stringify(output) }] }],
-    }),
-    { status, headers: { "Content-Type": "application/json" } }
-  )
+function codexWriting(output: unknown) {
+  return vi.fn<CodexRunner>(async ({ outputPath }) => {
+    await writeFile(outputPath, typeof output === "string" ? output : JSON.stringify(output))
+  })
 }
 
 async function capturedError(promise: Promise<unknown>): Promise<AiFrontierAnalysisError> {
@@ -81,96 +84,57 @@ async function capturedError(promise: Promise<unknown>): Promise<AiFrontierAnaly
   }
 }
 
-describe("AI Frontier Episode 분석", () => {
-  it("전사를 구조화된 요약과 개념으로 분석한다", async () => {
-    const fetchImpl = vi.fn<
-      (input: string | URL | Request, init?: RequestInit) => Promise<Response>
-    >(async () => response(analysis))
-
-    const result = await analyzeAiFrontierEpisode(episode, {
-      apiKey: "test-key",
-      fetchImpl,
+describe("AI Frontier Episode 분석 (Codex CLI · 구독 OAuth)", () => {
+  it("전사를 Codex CLI로 구조화된 요약과 개념으로 분석한다", async () => {
+    let schema: unknown
+    const runCodex = vi.fn<CodexRunner>(async ({ schemaPath, outputPath }) => {
+      schema = JSON.parse(await readFile(schemaPath, "utf8"))
+      await writeFile(outputPath, JSON.stringify(analysis))
     })
 
+    const result = await analyzeAiFrontierEpisode(episode, { runCodex })
+
     expect(result).toEqual(analysis)
-    const body = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))
-    expect(body.model).toBe("gpt-5.6-luna")
-    expect(body.text.format.type).toBe("json_schema")
-    expect(body.text.format.strict).toBe(true)
-    expect(body.text.format.schema.properties.summary).toMatchObject({ minLength: 1, maxLength: 700, pattern: "\\S" })
-    expect(body.text.format.schema.properties.topics).toMatchObject({ minItems: 1, maxItems: 10 })
-    expect(body.text.format.schema.properties.topics.items).toMatchObject({ minLength: 1, maxLength: 60, pattern: "\\S" })
-    expect(body.text.format.schema.properties.concepts).toMatchObject({ minItems: 3, maxItems: 12 })
-    expect(body.text.format.schema.properties.keyPoints).toMatchObject({ minItems: 3, maxItems: 12 })
-    expect(body.text.format.schema.properties.keyPoints.items.properties.bullets).toMatchObject({ minItems: 1, maxItems: 6 })
-    expect(body.text.format.schema.properties.insights).toMatchObject({ minItems: 2, maxItems: 10 })
-    expect(body.text.format.schema.properties.questions).toMatchObject({ minItems: 2, maxItems: 8 })
-    expect(JSON.parse(body.input[0].content[0].text).transcript).toBe(episode.transcript)
+    const call = runCodex.mock.calls[0]![0]
+    expect(call.model).toBe(ANALYSIS_MODEL)
+    expect(call.prompt).toContain(JSON.stringify(episode.transcript))
+    expect(schema).toEqual(JSON.parse(JSON.stringify(ANALYSIS_JSON_SCHEMA)))
   })
 
-  it("API key가 없으면 provider 오류로 중단한다", async () => {
-    await expect(
-      analyzeAiFrontierEpisode(episode, { apiKey: "  ", fetchImpl: vi.fn() })
-    ).rejects.toBeInstanceOf(AiFrontierAnalysisError)
+  it("Codex 실행 실패는 retryable transport 진단이다", async () => {
+    const runCodex = vi.fn<CodexRunner>(async () => {
+      throw new Error("not logged in")
+    })
+    const error = await capturedError(analyzeAiFrontierEpisode(episode, { runCodex }))
+    expect(error.phase).toBe("transport")
+    expect(error.retryable).toBe(true)
   })
 
-  it("429 응답은 body를 보존하지 않는 retryable HTTP 진단이다", async () => {
-    const secret = "provider-body-secret-sentinel"
-    const error = await capturedError(analyzeAiFrontierEpisode(episode, {
-      apiKey: "test-key",
-      fetchImpl: async () => new Response(secret, { status: 429 }),
-    }))
-
-    expect(error).toMatchObject({ phase: "http", status: 429, retryable: true })
-    expect(JSON.stringify(error)).not.toContain(secret)
-  })
-
-  it("400 응답은 재시도하지 않는 HTTP 진단이다", async () => {
-    const error = await capturedError(analyzeAiFrontierEpisode(episode, {
-      apiKey: "test-key",
-      fetchImpl: async () => new Response("invalid request secret", { status: 400 }),
-    }))
-
-    expect(error).toMatchObject({ phase: "http", status: 400, retryable: false })
-  })
-
-  it("transport/timeout 실패를 status 없는 retryable 진단으로 분류한다", async () => {
-    const error = await capturedError(analyzeAiFrontierEpisode(episode, {
-      apiKey: "test-key",
-      fetchImpl: async () => { throw new DOMException("timed out secret", "TimeoutError") },
-    }))
-
-    expect(error).toMatchObject({ phase: "transport", status: null, retryable: true })
-  })
-
-  it("malformed response envelope를 response-shape로 분류한다", async () => {
-    const error = await capturedError(analyzeAiFrontierEpisode(episode, {
-      apiKey: "test-key",
-      fetchImpl: async () => new Response(JSON.stringify({ output: "wrong" }), { status: 200 }),
-    }))
-
-    expect(error).toMatchObject({ phase: "response-shape", status: 200, retryable: false })
-  })
-
-  it("output_text의 invalid JSON을 output-json으로 분류한다", async () => {
-    const error = await capturedError(analyzeAiFrontierEpisode(episode, {
-      apiKey: "test-key",
-      fetchImpl: async () => new Response(JSON.stringify({
-        output: [{ content: [{ type: "output_text", text: "{" }] }],
-      }), { status: 200 }),
-    }))
-
-    expect(error).toMatchObject({ phase: "output-json", status: 200, retryable: false })
+  it("JSON이 아닌 출력은 output-json으로 분류한다", async () => {
+    const error = await capturedError(
+      analyzeAiFrontierEpisode(episode, { runCodex: codexWriting("not json") })
+    )
+    expect(error.phase).toBe("output-json")
   })
 
   it("모델이 계약과 다른 JSON을 반환하면 schema 진단으로 저장하지 않는다", async () => {
-    const fetchImpl = vi.fn<
-      (input: string | URL | Request, init?: RequestInit) => Promise<Response>
-    >(async () => response({ summary: "불완전" }))
-
     const error = await capturedError(
-      analyzeAiFrontierEpisode(episode, { apiKey: "test-key", fetchImpl })
+      analyzeAiFrontierEpisode(episode, { runCodex: codexWriting({ summary: "불완전" }) })
     )
-    expect(error).toMatchObject({ phase: "analysis-schema", status: 200, retryable: false })
+    expect(error.phase).toBe("analysis-schema")
+  })
+
+  it("배열 개수 상한을 넘기면 앞에서부터 잘라 저장 가능하게 만든다", async () => {
+    const tooMany = { ...analysis, models: Array.from({ length: 14 }, (_, i) => `M${i}`) }
+    const result = await analyzeAiFrontierEpisode(episode, { runCodex: codexWriting(tooMany) })
+    expect(result.models).toHaveLength(10)
+    expect(result.models[0]).toBe("M0")
+  })
+
+  it("자식 프로세스에서 API key 환경변수를 제거해 구독 OAuth만 쓰게 한다", () => {
+    const env = codexChildEnv({ OPENAI_API_KEY: "x", CODEX_API_KEY: "y", HOME: "/h" } as unknown as NodeJS.ProcessEnv)
+    expect(env.OPENAI_API_KEY).toBeUndefined()
+    expect(env.CODEX_API_KEY).toBeUndefined()
+    expect(env.HOME).toBe("/h")
   })
 })
