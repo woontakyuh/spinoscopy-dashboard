@@ -167,6 +167,16 @@ describe("Dwarkesh 공식 전사", () => {
     )).toThrow(DwarkeshTranscriptNotReadyError)
   })
 
+  it("Transcript heading이 없는 낭독 에세이는 본문 전체를 원고로 쓴다", () => {
+    const paragraph = "Continual learning changes how models improve after deployment. ".repeat(60)
+    const episode = parseDwarkeshEpisode(
+      { ...EPISODE, body_html: `<h2>Does sample efficiency matter?</h2><p>${paragraph}</p>` },
+      "https://www.dwarkesh.com/p/dario-amodei-2"
+    )
+    expect(episode.transcript).toContain("Does sample efficiency matter?")
+    expect(episode.transcript.length).toBeGreaterThan(3_000)
+  })
+
   it("공식 slug와 상세 응답 slug가 다르면 거부한다", () => {
     expect(() =>
       parseDwarkeshEpisode(EPISODE, "https://www.dwarkesh.com/p/other")

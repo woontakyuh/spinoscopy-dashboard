@@ -138,6 +138,9 @@ function youtubeWatchUrl(html: string): string | null {
   return null
 }
 
+/** Transcript 섹션이 없을 때 본문을 원고로 인정하는 최소 길이 (영상 전용 짧은 소개문 제외) */
+const ESSAY_MIN_CHARS = 3_000
+
 function transcriptFromHtml(html: string): string {
   let transcript = ""
   for (const heading of html.matchAll(/<h([1-6])[^>]*>[\s\S]*?<\/h\1>/gi)) {
@@ -146,10 +149,11 @@ function transcriptFromHtml(html: string): string {
     transcript = textFromHtml(html.slice(start))
     break
   }
-  if (transcript === "") {
-    throw new DwarkeshTranscriptNotReadyError()
-  }
-  return transcript
+  if (transcript !== "") return transcript
+  // 낭독 에세이(narration)형 Episode는 별도 Transcript 섹션 없이 본문 자체가 원고다.
+  const essay = textFromHtml(html)
+  if (essay.length >= ESSAY_MIN_CHARS) return essay
+  throw new DwarkeshTranscriptNotReadyError()
 }
 
 async function fetchJson(url: string, fetchImpl: FetchLike): Promise<unknown> {
