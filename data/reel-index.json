@@ -2,6 +2,165 @@
   "generatedAt": "2026-09-21",
   "reels": [
     {
+      "date": "2026-10-02",
+      "title": "HQ가 먹혀도 X가드는 남아 있다",
+      "subtitle": "조준용 관장님 · 와이어 주짓수 동탄 · 도복",
+      "url": "https://www.dropbox.com/scl/fi/eeinp9tdec5fyat7hpoiv/2026-10-02_HQ-X.mp4?rlkey=hwoxbahhygwldwmvl3gbe0509&dl=0",
+      "cuts": [
+        {
+          "no": 1,
+          "title": "탑 · 니컷 막히면 대각선 뒤로",
+          "quote": "사이드 스텝보다는 살짝 대각선 뒤로 빠져줘야지\n오히려 살짝 뒤로 빠져줘야 쉽게 눌러줄 수 있어요",
+          "pos": [
+            "hq"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_1611",
+          "ss": 9,
+          "dur": 9
+        },
+        {
+          "no": 2,
+          "title": "탑 · 뒷목 잡고 발목 눌러 사이드",
+          "quote": "뒷목, 상대 머리 밀어주고\n발목 눌러서 사이드 마무리",
+          "pos": [
+            "hq",
+            "side_top"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_1611",
+          "ss": 18,
+          "dur": 9
+        },
+        {
+          "no": 3,
+          "title": "바텀 · HQ 먹혀도 다리 끌어와 X",
+          "quote": "엉덩이에다가 걸어주고, 오른손을 놓고 상대방 다리를 끌어오러 갈 거야\n끌고 와서 자연스럽게 X가드로 전환",
+          "pos": [
+            "hq",
+            "xg"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_1612",
+          "ss": 15,
+          "dur": 13
+        },
+        {
+          "no": 4,
+          "title": "★ 깔려도 팔 숨겨",
+          "quote": "괜찮아, 그래도 내 다리가 들어가 있잖아\n아직 겨드랑이가 안 파였어 — 팔 숨겨",
+          "pos": [
+            "hq",
+            "xg"
+          ],
+          "role": "bottom",
+          "phase": "escape",
+          "src": "IMG_1612",
+          "ss": 54,
+          "dur": 10
+        },
+        {
+          "no": 5,
+          "title": "★ 엉덩이 옆 손 = 백스텝 차단",
+          "quote": "내 엉덩이 옆으로 손이 들어가서 상대방 다리\n백스텝 못 하게 만들어줘요 — 다리 열어주면서 X가드",
+          "pos": [
+            "xg"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_1612",
+          "ss": 67,
+          "dur": 12
+        },
+        {
+          "no": 6,
+          "title": "바텀 · Y가드로 밀고 X",
+          "quote": "발바닥과 발등으로 — Y가드라고 하는데\n먼저 세팅 잘 밀어내고, 그다음에 X가드",
+          "pos": [
+            "xg"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_1613",
+          "ss": 2,
+          "dur": 12
+        },
+        {
+          "no": 7,
+          "title": "탑 · X가드에서 쉽게 일어서지 마",
+          "quote": "그러다가 다리 빠지면 좋은 거고\n무릎 꿇고 다시 패스하면 좋은 거니까",
+          "pos": [
+            "xg"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_1615",
+          "ss": 2,
+          "dur": 10
+        },
+        {
+          "no": 8,
+          "title": "바텀 · 손 짚으면 삼각",
+          "quote": "무릎 접으면서 집어넣죠. 쑥 한 번에 안 넣어져\n뺏기더라도 오모플라타·기무라로 이어갈 수 있으니까",
+          "pos": [
+            "xg",
+            "triangle"
+          ],
+          "role": "bottom",
+          "phase": "sub",
+          "src": "IMG_1616",
+          "ss": 21,
+          "dur": 12
+        },
+        {
+          "no": 9,
+          "title": "바텀 · 일어서면 같이 일어나",
+          "quote": "X가드 잡은 사람은 진짜로 일어나는데\n제가 일어났는데 같이 — 잡아야지",
+          "pos": [
+            "xg",
+            "standing"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_1616",
+          "ss": 47,
+          "dur": 10
+        },
+        {
+          "no": 10,
+          "title": "★ 하프 · 상체 세우면 겨드랑이 막고 밑으로",
+          "quote": "왼손으로 겨드랑이를 막아줘야 돼\n안 그러면 머리 잡혀서 못 들어가 — 상대방 다리 사이로",
+          "pos": [
+            "hg",
+            "kshield",
+            "xg"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_1617",
+          "ss": 60,
+          "dur": 14
+        },
+        {
+          "no": 11,
+          "title": "★ 숙이게 보내고, 엉덩이 떼고, X",
+          "quote": "들어가고 나서 상대방을 숙이게 만들어야 돼\n엉덩이 떼고, 무릎 하나 집어넣고, 쭉 벌리면서 X가드",
+          "pos": [
+            "hg",
+            "xg"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_1617",
+          "ss": 118,
+          "dur": 14
+        }
+      ]
+    },
+    {
       "date": "2026-09-28",
       "title": "위저는 버티는 게 아니라 탄다",
       "subtitle": "조준용 관장님 · 와이어 주짓수 동탄 · 도복",
@@ -1318,6 +1477,7 @@
     "smash": "스매시 (Smash Pass)",
     "standing": "스탠딩 (Standing)",
     "topbolo": "탑볼로 (Top Bolo)",
+    "triangle": "삼각 (Triangle)",
     "turtle_top": "터틀 공격 (Turtle (attacking))",
     "waiter": "웨이터 가드 (Waiter Guard)",
     "xg": "X가드 (X Guard)"
