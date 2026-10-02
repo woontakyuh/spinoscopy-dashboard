@@ -191,4 +191,15 @@ export function createAiFrontierCronHandler(
   }
 }
 
-export const GET = createAiFrontierCronHandler()
+/**
+ * Vercel에는 Codex CLI(구독 OAuth)가 없으므로 서버 cron은 카탈로그 동기화만 한다.
+ * 신규 후보는 `skipped`로 보고되고, 실제 수집은 맥의 Hermes 매일 08:30 작업
+ * (`npm run frontier:backfill`)이 `목록`/`수집 실패` 상태를 모두 처리한다.
+ */
+export const catalogOnlyImport: ImportRunner = async (candidates) => ({
+  completed: [],
+  failed: [],
+  skipped: candidates.map(({ sourceKey }) => sourceKey),
+})
+
+export const GET = createAiFrontierCronHandler(runAiFrontierCatalogSync, catalogOnlyImport)
