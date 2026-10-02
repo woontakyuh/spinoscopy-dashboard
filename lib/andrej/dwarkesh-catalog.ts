@@ -233,11 +233,67 @@ export async function fetchDwarkeshCatalog(
   return [...catalog.values()]
 }
 
+/** WebVTT 자막을 중복 없는 평문으로 바꾼다. */
+export function textFromVtt(vtt: string): string {
+  const lines: string[] = []
+  for (const raw of vtt.split(/\r?\n/)) {
+    const line = decodeHtmlEntities(raw.replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim()
+    if (!line || line === "WEBVTT" || /^(Kind|Language):/.test(line) || line.includes("-->")) continue
+    if (/^\d+$/.test(line)) continue
+    if (lines[lines.length - 1] === line) continue
+    lines.push(line)
+  }
+  return lines.join(" ").replace(/\s+/g, " ").trim()
+}
+
+export type SubtitleLoader = (youtubeUrl: string) => Promise<string | null>
+
+/** 로컬 yt-dlp로 공식 YouTube 영어 자막(수동 자막 우선)을 받는다. 서버리스에서는 null. */
+export const loadYoutubeSubtitles: SubtitleLoader = async (youtubeUrl) => {
+  const { execFile } = await import("node:child_process")
+  const { mkdtemp, readdir, readFile, rm } = await import("node:fs/promises")
+  const { tmpdir } = await import("node:os")
+  const { join } = await import("node:path")
+  const dir = await mkdtemp(join(tmpdir(), "dwarkesh-subs-"))
+  try {
+    await new Promise<void>((resolve, reject) => {
+      execFile(
+        process.env.YTDLP_BIN ?? "yt-dlp",
+        ["--skip-download", "--write-subs", "--write-auto-subs", "--sub-langs", "en,en-orig",
+          "--sub-format", "vtt", "-o", join(dir, "sub.%(ext)s"), youtubeUrl],
+        { timeout: 120_000 },
+        (error) => (error ? reject(error) : resolve())
+      )
+    })
+    const files = (await readdir(dir)).filter((name) => name.endsWith(".vtt"))
+    const preferred = files.find((name) => name === "sub.en.vtt") ?? files[0]
+    if (!preferred) return null
+    return textFromVtt(await readFile(join(dir, preferred), "utf8"))
+  } catch {
+    return null
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+}
+
 export async function fetchDwarkeshEpisode(
   officialUrl: string,
-  fetchImpl: FetchLike = fetch
+  fetchImpl: FetchLike = fetch,
+  loadSubtitles: SubtitleLoader = loadYoutubeSubtitles
 ): Promise<AiFrontierOfficialEpisode> {
   const slug = officialSlug(officialUrl)
   const endpoint = `${DWARKESH_API_ORIGIN}/api/v1/posts/${encodeURIComponent(slug)}`
-  return parseDwarkeshEpisode(await fetchJson(endpoint, fetchImpl), officialUrl)
+  const payload = await fetchJson(endpoint, fetchImpl)
+  try {
+    return parseDwarkeshEpisode(payload, officialUrl)
+  } catch (error) {
+    if (!(error instanceof DwarkeshTranscriptNotReadyError)) throw error
+    // 영상 전용 Episode: 원고가 없으면 공식 YouTube 자막으로 대체한다.
+    const parsed = episodeSchema.safeParse(payload)
+    const youtube = parsed.success ? youtubeWatchUrl(parsed.data.body_html) : null
+    if (!parsed.success || !youtube) throw error
+    const transcript = await loadSubtitles(youtube)
+    if (!transcript || transcript.length < ESSAY_MIN_CHARS) throw error
+    return { ...catalogEpisode(parsed.data), youtube, transcript }
+  }
 }
