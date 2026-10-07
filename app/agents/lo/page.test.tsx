@@ -35,9 +35,6 @@ vi.mock("@/components/sensei/SenseiDashboard", () => ({
 vi.mock("@/components/sensei/SenseiCalendar", () => ({
   SenseiCalendar: () => <section>Training calendar</section>,
 }))
-vi.mock("@/components/sensei/SenseiCapture", () => ({
-  SenseiCapture: () => <section>Training capture</section>,
-}))
 vi.mock("@/components/lo/HomeOverview", () => ({
   HomeOverview: () => <section>Home overview</section>,
 }))

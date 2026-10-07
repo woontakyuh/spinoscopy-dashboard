@@ -18,6 +18,13 @@ const COUNTRY_BY_FLAG: Readonly<Record<string, CountryCode>> = {
   "\ud83c\uddf0\ud83c\uddf7": "KR",
   Korea: "KR",
   "South Korea": "KR",
+  대한민국: "KR",
+  한국: "KR",
+  브라질: "BR",
+  폴란드: "PL",
+  미국: "US",
+  호주: "AU",
+  일본: "JP",
   "\ud83c\uddef\ud83c\uddf5": "JP",
   Japan: "JP",
 }
@@ -95,8 +102,10 @@ function FlagArtwork({ code }: { readonly code: CountryCode }) {
 }
 
 export function CountryFlag({ flag, className }: CountryFlagProps) {
-  const code = COUNTRY_BY_FLAG[flag]
-  if (!code) return <span className={className}>{flag}</span>
+  const code = COUNTRY_BY_FLAG[flag?.trim()]
+  // 모르는 나라면 글자를 24×16 상자에 우겨넣지 않는다 — 한글이 세로로 터진다.
+  // 빈 국기 자리를 남겨 카드 높이는 유지한다.
+  if (!code) return <span className={className} aria-hidden="true" />
 
   return (
     <svg

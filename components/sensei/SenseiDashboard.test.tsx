@@ -55,6 +55,10 @@ const STATS: BjjStats = {
   sessions2026: 92,
   sessions2026Gi: 55,
   sessions2026Nogi: 37,
+  byMode: {
+    gi: { totalSessions: 60, sessionsThisYear: 55, streak: 4 },
+    nogi: { totalSessions: 12, sessionsThisYear: 9, streak: 1 },
+  },
   attendanceRate: 0.8,
   lastCeremonyDate: "2026-03-20",
   completedCycles: [],
@@ -184,14 +188,33 @@ describe("SenseiDashboard", () => {
     }
   })
 
+  it("NoGi 토글이면 노기 선수가 뜨고 요약 숫자도 노기 기준으로 바뀐다", async () => {
+    renderDashboard()
+    const roster = await screen.findByTestId("athlete-roster")
+    expect(within(roster).queryByRole("button", { name: /Gordon Ryan/ })).toBeNull()
+    expect(screen.getByText("Gi 세션")).toBeInTheDocument()
+
+    // "NoGi" 버튼이 둘이다 — 상단 모드 토글과 선수 카테고리 칩. 먼저 나오는 게 토글
+    fireEvent.click(screen.getAllByRole("button", { name: "NoGi" })[0])
+
+    expect(within(roster).getByRole("button", { name: /Gordon Ryan/ })).toBeInTheDocument()
+    expect(within(roster).queryByRole("button", { name: /Roger Gracie/ })).toBeNull()
+    expect(screen.getByText("NoGi 세션")).toBeInTheDocument()
+    expect(screen.getByText("12")).toBeInTheDocument()   // byMode.nogi.totalSessions
+  })
+
   it("renders readable full athlete identity and detail sections", async () => {
     const { onNavigate } = renderDashboard()
 
     const roster = await screen.findByTestId("athlete-roster")
-    for (const athlete of ARCHETYPES) {
+    // 기 탭: 기 선수 + 둘 다 하는 선수만. 노기 전용은 안 보인다
+    for (const athlete of ARCHETYPES.filter((a) => a.ruleSet !== "nogi")) {
       const card = within(roster).getByRole("button", { name: new RegExp(athlete.name) })
       expect(within(card).getByText(athlete.name)).toBeVisible()
       expect(within(card).getByTestId("athlete-flag")).toHaveRole("img")
+    }
+    for (const athlete of ARCHETYPES.filter((a) => a.ruleSet === "nogi")) {
+      expect(within(roster).queryByRole("button", { name: new RegExp(athlete.name) })).toBeNull()
     }
 
     fireEvent.click(within(roster).getByRole("button", { name: /Roger Gracie/ }))

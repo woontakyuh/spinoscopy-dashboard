@@ -161,6 +161,9 @@ NOTION_JOURNAL_DB_ID        — Scholar
 NOTION_SCHEDULE_DB_ID       — Dakota + Podium (공유)
 NOTION_TODO_DB_ID           — Dakota
 NOTION_SENSEI_DB_ID         — Sensei
+NOTION_BJJ_ARCHETYPES_DB_ID — Lo 선수(BJJ Archetypes)
+NOTION_BJJ_POSITIONS_DB_ID  — Lo 포지션
+NOTION_BJJ_TRANSITIONS_DB_ID — Lo 전이
 ANTHROPIC_API_KEY           — Claude AI
 GROQ_API_KEY                — Groq (파싱/요약)
 GOOGLE_CLIENT_ID/SECRET     — Google Calendar

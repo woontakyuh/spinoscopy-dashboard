@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Badge } from "@/components/ui/badge"
 import { TrainingHeatmap } from "@/components/lo/TrainingHeatmap"
 import type { BjjStats, SenseiEntry } from "@/lib/types/sensei"
+import type { TrainingTarget } from "@/lib/sensei/trainingEntry"
 
 // Home = Lo 종합 dashboard.
 // 오늘 briefing + this week + current focus + next target +
@@ -90,7 +91,7 @@ function isoWeekKey(date: string): string {
   return `${d.getFullYear()}-W${weekNum}`
 }
 
-export function HomeOverview({ goTo }: { goTo?: (tab: string) => void }) {
+export function HomeOverview({ goTo }: { goTo?: (tab: string, target?: TrainingTarget) => void }) {
   const { data: profile } = useQuery<PlayerProfileSections>({
     queryKey: ["player-profile-sections"],
     queryFn: async () => {
@@ -112,9 +113,10 @@ export function HomeOverview({ goTo }: { goTo?: (tab: string) => void }) {
   })
 
   const { data: entries } = useQuery<SenseiEntry[]>({
-    queryKey: ["sensei-entries"],
+    queryKey: ["sensei-entries", "all"],
     queryFn: async () => {
-      const r = await fetch("/api/notion/sensei")
+      // 전 기간을 받아야 TrainingHeatmap "최근 1년"이 과거까지 그려진다.
+      const r = await fetch("/api/notion/sensei?all=1")
       if (!r.ok) throw new Error("entries err")
       return r.json()
     },
@@ -235,7 +237,7 @@ export function HomeOverview({ goTo }: { goTo?: (tab: string) => void }) {
         </div>
       </div>
 
-      <TrainingHeatmap entries={entries ?? []} onOpenTraining={() => goTo?.("training")} />
+      <TrainingHeatmap entries={entries ?? []} onOpenTraining={(target) => goTo?.("training", target)} />
 
       {/* ─── 3 카드 row: Week / Focus / Target ─── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

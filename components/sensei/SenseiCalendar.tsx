@@ -26,6 +26,7 @@ type DaySummary = {
   readonly studyKeywords: readonly string[]
   readonly entries: readonly SenseiEntry[]
   readonly hasPromotion: boolean
+  readonly hasVideo: boolean
   readonly ruleSets: readonly TrainingRuleSet[]
 }
 
@@ -48,6 +49,8 @@ function summarizeDay(entries: readonly SenseiEntry[]): DaySummary {
     studyKeywords: unique(entries.flatMap((entry) => entry.studyTags)),
     entries,
     hasPromotion: entries.some((entry) => entry.sessionType === "promotion"),
+    // 수업 정리 릴이 붙은 날 — 캘린더에서 바로 알아볼 수 있게
+    hasVideo: entries.some((entry) => Boolean(entry.videoUrl)),
     ruleSets: [...new Set(entries.map(getTrainingRuleSet).filter(isRuleSet))],
   }
 }
@@ -107,7 +110,14 @@ export function SenseiCalendar({
   activeFilter,
   onFilterChange,
 }: SenseiCalendarProps) {
-  const [viewDate, setViewDate] = useState(() => new Date())
+  // 선택된 날짜가 있으면 그 달로 연다 — 히트맵에서 8/25 를 들고 왔는데 9월 빈 달력이 뜨면 안 된다
+  const [viewDate, setViewDate] = useState(() => {
+    if (selectedDate) {
+      const d = new Date(`${selectedDate}T00:00:00`)
+      if (!Number.isNaN(d.getTime())) return new Date(d.getFullYear(), d.getMonth(), 1)
+    }
+    return new Date()
+  })
   const viewYear = viewDate.getFullYear()
   const viewMonth = viewDate.getMonth()
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
@@ -286,6 +296,14 @@ export function SenseiCalendar({
                   </div>
                   {summary.hasPromotion && (
                     <span className="absolute bottom-1 right-1 size-1.5 rounded-full bg-yellow-400" aria-label="승급" />
+                  )}
+                  {summary.hasVideo && (
+                    <span
+                      className={`absolute bottom-1 ${summary.hasPromotion ? "right-3.5" : "right-1"} text-[9px] leading-none text-orange-300`}
+                      aria-label="수업 정리 릴 있음"
+                    >
+                      ▶
+                    </span>
                   )}
                 </>
               )}

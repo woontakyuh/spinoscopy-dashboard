@@ -25,6 +25,7 @@ export interface AthleteComparisonController {
 export function useAthleteComparison(
   athletes: readonly Archetype[],
   fallbackAthlete: Archetype | null,
+  mode: "gi" | "nogi" = "gi",
 ): AthleteComparisonController {
   const [selectedAthlete, setSelectedAthlete] = useState<Archetype | null>(null)
   const [hoveredAthlete, setHoveredAthlete] = useState<Archetype | null>(null)
@@ -32,11 +33,13 @@ export function useAthleteComparison(
   const scrollRef = useRef<HTMLDivElement>(null)
   const dragState = useRef({ isDown: false, startX: 0, scrollLeft: 0 })
 
+  // 기 탭이면 기 선수, 노기 탭이면 노기 선수. 둘 다 하는 선수(both)는 양쪽에 뜬다.
+  // 22명이 항상 다 보이면 스크롤만 길어지고 눈에 안 들어온다.
   const filteredAthletes = useMemo(
-    () => category === "all"
-      ? athletes
-      : athletes.filter((athlete) => athlete.category === category),
-    [athletes, category],
+    () => athletes.filter((athlete) =>
+      (athlete.ruleSet === mode || athlete.ruleSet === "both")
+      && (category === "all" || athlete.category === category)),
+    [athletes, category, mode],
   )
 
   const selectAthlete = useCallback((athlete: Archetype) => {

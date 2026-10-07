@@ -78,3 +78,29 @@ describe("SenseiCalendar", () => {
     vi.useRealTimers()
   })
 })
+
+describe("SenseiCalendar 초기 월", () => {
+  it("선택된 날짜가 있으면 그 달로 열린다", () => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-09-05T09:00:00+09:00"))
+    try {
+      render(
+        <SenseiCalendar
+          entries={[]}
+          selectedDate="2026-08-25"
+          onDateSelect={() => {}}
+          activeFilter={null}
+          onFilterChange={() => {}}
+        />,
+      )
+      expect(screen.getByText(/2026년 8월/)).toBeInTheDocument()
+    } finally { vi.useRealTimers() }
+  })
+
+  it("선택된 날짜가 없으면 이번 달", () => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-09-05T09:00:00+09:00"))
+    try {
+      render(<SenseiCalendar entries={[]} selectedDate={null} onDateSelect={() => {}} activeFilter={null} onFilterChange={() => {}} />)
+      expect(screen.getByText(/2026년 9월/)).toBeInTheDocument()
+    } finally { vi.useRealTimers() }
+  })
+})

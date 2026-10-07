@@ -1,27 +1,27 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { BookOpen, ExternalLink, GraduationCap, Play, Swords, Target } from "lucide-react"
+import { BookOpen, ExternalLink, GraduationCap, Play, Swords, Target, X } from "lucide-react"
 import { SenseiCalendar } from "@/components/sensei/SenseiCalendar"
+import { SenseiYearTable } from "@/components/sensei/SenseiYearTable"
 import {
   getTrainingRuleSet,
   isRuleSetTag,
   matchesTrainingFilter,
   type TrainingFilter,
+  entryHasTag,
+  type TrainingTarget,
 } from "@/lib/sensei/trainingEntry"
 import type { SenseiEntry, SenseiSessionType } from "@/lib/types/sensei"
+import { SESSION_LABELS } from "@/lib/sensei/sessionLabels"
 
 type TrainingViewProps = {
   readonly entries: readonly SenseiEntry[]
   readonly isLoading?: boolean
+  /** 홈 히트맵에서 넘어올 때: 이 날짜를 열고, 태그가 있으면 그 태그로 거른다 */
+  readonly initialTarget?: TrainingTarget | null
 }
 
-const SESSION_LABELS: Record<SenseiSessionType, string> = {
-  class: "수업",
-  openmat: "오픈매트",
-  promotion: "승급",
-  study: "공부",
-}
 
 function currentMonthKey(): string {
   const today = new Date()
@@ -145,6 +145,26 @@ function EntryDetail({
         </div>
       )}
 
+      {entry.photoUrl && (
+        <div>
+          <p className="text-[11px] font-semibold text-foreground/70">단체사진</p>
+          <a
+            href={entry.photoUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-1.5 block overflow-hidden rounded-lg border border-border transition-colors hover:border-foreground/30"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={entry.photoUrl}
+              alt={`${entry.date ?? ""} 단체사진`}
+              loading="lazy"
+              className="h-auto w-full max-w-md object-cover"
+            />
+          </a>
+        </div>
+      )}
+
       {entry.classVideoUrl && (
         <div>
           <p className="text-[11px] font-semibold text-foreground/70">수업 영상</p>
@@ -163,7 +183,9 @@ function EntryDetail({
 
       {(entry.videoTitle || entry.videoUrl) && (
         <div>
-          <p className="text-[11px] font-semibold text-foreground/70">공부 자료</p>
+          <p className="text-[11px] font-semibold text-foreground/70">
+            {entry.videoTitle?.startsWith("수업 정리 릴") ? "수업 정리 영상" : "공부 자료"}
+          </p>
           {entry.videoUrl ? (
             <a
               href={entry.videoUrl}
@@ -236,12 +258,17 @@ function DateDetail({
   )
 }
 
-export function TrainingView({ entries, isLoading = false }: TrainingViewProps) {
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+export function TrainingView({ entries, isLoading = false, initialTarget = null }: TrainingViewProps) {
+  const [selectedDate, setSelectedDate] = useState<string | null>(initialTarget?.date ?? null)
   const [activeFilter, setActiveFilter] = useState<TrainingFilter | null>(null)
+  // 해시태그 필터 — 캘린더에 그 태그가 있는 날만 남긴다
+  const [activeTag, setActiveTag] = useState<string | null>(initialTarget?.tag ?? null)
+  // 월간(캘린더) / 연간(표) 전환
+  const [range, setRange] = useState<"month" | "year">("month")
   const filteredEntries = useMemo(
-    () => entries.filter((entry) => matchesTrainingFilter(entry, activeFilter)),
-    [activeFilter, entries],
+    () => entries.filter((entry) =>
+      matchesTrainingFilter(entry, activeFilter) && (activeTag === null || entryHasTag(entry, activeTag))),
+    [activeFilter, activeTag, entries],
   )
   const latestDate = useMemo(
     () => filteredEntries.map((entry) => entry.date).filter(Boolean).sort().at(-1) ?? null,
@@ -266,7 +293,36 @@ export function TrainingView({ entries, isLoading = false }: TrainingViewProps) 
             날짜 안에서 배운 것과 적용한 것을 읽고, 눌러서 전체 기록을 확인해.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex rounded-full border border-border bg-card p-0.5" role="group" aria-label="보기 범위">
+            {(["month", "year"] as const).map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setRange(key)}
+                aria-pressed={range === key}
+                className={`rounded-full px-3 py-1 transition ${
+                  range === key
+                    ? "bg-orange-500/20 text-orange-700 dark:text-orange-200"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {key === "month" ? "월간" : "연간"}
+              </button>
+            ))}
+          </div>
+          {activeTag && (
+            <button
+              type="button"
+              onClick={() => { setActiveTag(null); setSelectedDate(null) }}
+              aria-label={`#${activeTag} 필터 해제`}
+              className="inline-flex items-center gap-1 rounded-full border border-orange-500/40 bg-orange-500/10 px-3 py-1.5 font-medium text-orange-500 hover:bg-orange-500/20"
+            >
+              #{activeTag}
+              <span className="text-orange-500/80 num">{filteredEntries.length}</span>
+              <X className="size-3" aria-hidden="true" />
+            </button>
+          )}
           <span className="rounded-full border border-border bg-card px-3 py-1.5">
             이번 달 {isLoading ? "—" : `${monthCount}회`}
           </span>
@@ -280,16 +336,24 @@ export function TrainingView({ entries, isLoading = false }: TrainingViewProps) 
       </header>
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(22rem,1fr)] xl:gap-5">
-        <SenseiCalendar
-          entries={filteredEntries}
-          selectedDate={activeDate}
-          onDateSelect={setSelectedDate}
-          activeFilter={activeFilter}
-          onFilterChange={(filter) => {
-            setSelectedDate(null)
-            setActiveFilter(filter)
-          }}
-        />
+        {range === "month" ? (
+          <SenseiCalendar
+            entries={filteredEntries}
+            selectedDate={activeDate}
+            onDateSelect={setSelectedDate}
+            activeFilter={activeFilter}
+            onFilterChange={(filter) => {
+              setSelectedDate(null)
+              setActiveFilter(filter)
+            }}
+          />
+        ) : (
+          <SenseiYearTable
+            entries={filteredEntries}
+            selectedDate={activeDate}
+            onDateSelect={setSelectedDate}
+          />
+        )}
         <DateDetail date={activeDate} entries={activeEntries} activeFilter={activeFilter} />
       </div>
     </section>

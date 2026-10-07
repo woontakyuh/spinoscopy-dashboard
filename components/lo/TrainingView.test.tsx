@@ -23,6 +23,7 @@ const entries: SenseiEntry[] = [
     url: "",
     classVideoUrl: "https://www.dropbox.com/scl/fo/abc/def?rlkey=x&dl=0",
     classVideoCount: 5,
+    photoUrl: "https://www.dropbox.com/scl/fi/pic/2026-08-12.jpeg?rlkey=y&raw=1",
   },
   {
     id: "training-study",
@@ -95,10 +96,42 @@ describe("TrainingView", () => {
     expect(link.getAttribute("href")).not.toContain("dl=1")
   })
 
+  it("단체사진이 있으면 이미지로 보여주고 원본을 새 탭으로 연다", () => {
+    render(<TrainingView entries={entries} />)
+
+    fireEvent.click(screen.getByRole("button", { name: /8월 12일/ }))
+
+    const photo = screen.getByRole("img", { name: "2026-08-12 단체사진" })
+    expect(photo).toHaveAttribute(
+      "src",
+      "https://www.dropbox.com/scl/fi/pic/2026-08-12.jpeg?rlkey=y&raw=1",
+    )
+    // dl=0 이면 이미지가 아니라 드랍박스 미리보기 페이지가 온다 — raw=1 이어야 렌더된다
+    expect(photo.getAttribute("src")).toContain("raw=1")
+
+    const link = photo.closest("a")
+    expect(link).toHaveAttribute("target", "_blank")
+  })
+
+  it("단체사진이 없는 기록에는 사진 영역이 없다", () => {
+    const noPhoto = entries.map((e) => ({ ...e, photoUrl: undefined }))
+    render(<TrainingView entries={noPhoto} />)
+    expect(screen.queryByText("단체사진")).toBeNull()
+  })
+
   it("수업 영상이 없는 기록에는 영상 링크가 없다", () => {
     const noVideo = entries.map((e) => ({ ...e, classVideoUrl: undefined, classVideoCount: undefined }))
     render(<TrainingView entries={noVideo} />)
     expect(screen.queryByText("수업 영상")).toBeNull()
+  })
+
+  it("히트맵에서 날짜·태그를 들고 오면 그 날이 열리고 태그로 걸러진다", () => {
+    render(<TrainingView entries={entries} initialTarget={{ date: "2026-08-12", tag: "하프가드" }} />)
+    expect(screen.getByRole("heading", { name: "8월 12일 상세" })).toBeVisible()
+    const chip = screen.getByRole("button", { name: "#하프가드 필터 해제" })
+    expect(chip).toBeVisible()
+    fireEvent.click(chip)
+    expect(screen.queryByRole("button", { name: "#하프가드 필터 해제" })).toBeNull()
   })
 
   it("shows Gi and No-Gi for physical training records", () => {

@@ -10,18 +10,21 @@ import { ConceptsFeed } from "@/components/lo/ConceptsFeed"
 import { NavMapWrapper } from "@/components/lo/NavMapWrapper"
 import { CompetitionsView } from "@/components/lo/CompetitionsView"
 import { MemoryView } from "@/components/lo/MemoryView"
+import { VideoWikiView } from "@/components/lo/VideoWikiView"
 import { TrainingView } from "@/components/lo/TrainingView"
 import { getTimeContext } from "@/lib/greeterContext"
 import { formatLoAnswerForDisplay } from "@/lib/lo/chat/persona"
 import type { BjjStats, BjjAttributes, SenseiEntry } from "@/lib/types/sensei"
+import type { TrainingTarget } from "@/lib/sensei/trainingEntry"
 
-type LoTab = "home" | "character" | "navmap" | "training" | "competitions" | "concepts" | "memory"
+type LoTab = "home" | "character" | "navmap" | "training" | "wiki" | "competitions" | "concepts" | "memory"
 
 const TABS: { id: LoTab; label: string; icon: string }[] = [
   { id: "home", label: "Home", icon: "🏠" },
   { id: "character", label: "Character", icon: "🥋" },
   { id: "navmap", label: "Skills", icon: "🗺️" },
   { id: "training", label: "Training", icon: "📓" },
+  { id: "wiki", label: "Video Wiki", icon: "📹" },
   { id: "competitions", label: "Competitions", icon: "🏆" },
   { id: "concepts", label: "Concepts", icon: "💡" },
   { id: "memory", label: "Memory", icon: "🧠" },
@@ -35,6 +38,8 @@ function getHighLow(attrs: BjjAttributes): { highest: string; lowest: string } {
 
 export default function LoPage() {
   const [activeTab, setActiveTab] = useState<LoTab>("home")
+  // 홈 히트맵에서 해시태그/날짜를 눌러 넘어올 때 들고 오는 것. 탭을 직접 누르면 비운다
+  const [trainingTarget, setTrainingTarget] = useState<TrainingTarget | null>(null)
 
   const { data, isLoading: isStatsLoading } = useQuery<{ stats: BjjStats }>({
     queryKey: ["sensei-stats"],
@@ -46,9 +51,10 @@ export default function LoPage() {
   })
 
   const { data: entriesData, isLoading: isEntriesLoading } = useQuery<SenseiEntry[]>({
-    queryKey: ["sensei-entries"],
+    queryKey: ["sensei-entries", "all"],
     queryFn: async () => {
-      const res = await fetch("/api/notion/sensei")
+      // 전 기간을 받아야 훈련 캘린더에서 과거 날짜도 열람할 수 있다
+      const res = await fetch("/api/notion/sensei?all=1")
       if (!res.ok) throw new Error("훈련 기록 조회 실패")
       return res.json()
     },
@@ -98,6 +104,10 @@ export default function LoPage() {
       return "Tak, 국내외 대회 일정 조사해뒀어. 가까운 것부터 보자."
     }
 
+    if (tab === "wiki") {
+      return "Tak, 수업 영상을 기술별로 모아놨어. 기술 누르면 그 장면이랑 관장님 말이 같이 나와."
+    }
+
     if (tab === "concepts") {
       return "Tak, 개념 노트 쌓이는 공간이야. Desktop에서 적어둔 거 여기서 다시 보자."
     }
@@ -139,7 +149,7 @@ export default function LoPage() {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => { setTrainingTarget(null); setActiveTab(tab.id) }}
               className={`
                 px-3 py-2.5 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap touch-manipulation select-none
                 ${activeTab === tab.id ? "text-foreground" : "text-muted-foreground hover:text-foreground/90"}
@@ -169,7 +179,7 @@ export default function LoPage() {
           formatMessage={formatLoAnswerForDisplay}
         />
 
-        {activeTab === "home" && <HomeOverview goTo={(t) => setActiveTab(t as LoTab)} />}
+        {activeTab === "home" && <HomeOverview goTo={(t, target) => { setTrainingTarget(target ?? null); setActiveTab(t as LoTab) }} />}
 
         {activeTab === "character" && (
           <SenseiDashboard onNavigate={navigateFromCharacter} />
@@ -178,8 +188,15 @@ export default function LoPage() {
         {activeTab === "navmap" && <NavMapWrapper />}
 
         {activeTab === "training" && (
-          <TrainingView entries={entries} isLoading={isEntriesLoading} />
+          <TrainingView
+            key={trainingTarget ? `${trainingTarget.date ?? ""}#${trainingTarget.tag ?? ""}` : "default"}
+            entries={entries}
+            isLoading={isEntriesLoading}
+            initialTarget={trainingTarget}
+          />
         )}
+
+        {activeTab === "wiki" && <VideoWikiView />}
 
         {activeTab === "competitions" && <CompetitionsView />}
 

@@ -11,6 +11,12 @@ interface NotionProperty {
   checkbox?: boolean
   url?: string | null
   number?: number | null
+  files?: Array<{
+    name?: string
+    type?: string
+    external?: { url?: string }
+    file?: { url?: string }
+  }>
 }
 
 interface NotionPage {
@@ -47,6 +53,12 @@ function getText(prop: NotionProperty | undefined): string {
   if (prop.type === "title") return (prop.title ?? []).map((v) => v.plain_text ?? "").join("").trim()
   if (prop.type === "rich_text") return (prop.rich_text ?? []).map((v) => v.plain_text ?? "").join("").trim()
   return ""
+}
+
+/** files 속성의 첫 파일 URL. 외부 링크(external)와 Notion 업로드(file) 둘 다 받는다. */
+function getFileUrl(prop: NotionProperty | undefined): string | undefined {
+  const first = (prop?.files ?? [])[0]
+  return first?.external?.url || first?.file?.url || undefined
 }
 
 function getMulti(prop: NotionProperty | undefined): string[] {
@@ -118,9 +130,14 @@ function summarizeForProperty(note: string): string {
 function toEntry(page: NotionPage): SenseiEntry {
   const p = page.properties
   const sessionTypeRaw = p.SessionType?.select?.name
-  const sessionType = sessionTypeRaw === "openmat" ? "openmat" as const
-    : sessionTypeRaw === "promotion" ? "promotion" as const
-    : sessionTypeRaw === "study" ? "study" as const
+  // Notion의 select 값은 한국어("승급식")로도 들어온다. 영어만 보면 승급 기록이
+  // class로 떨어져 벨트·승급일이 영영 반영되지 않는다.
+  const sessionType = sessionTypeRaw === "openmat" || sessionTypeRaw === "오픈매트"
+    ? "openmat" as const
+    : sessionTypeRaw === "promotion" || sessionTypeRaw === "승급식"
+    ? "promotion" as const
+    : sessionTypeRaw === "study" || sessionTypeRaw === "공부"
+    ? "study" as const
     : "class" as const
   return {
     id: page.id,
@@ -136,6 +153,7 @@ function toEntry(page: NotionPage): SenseiEntry {
     videoTitle: getText(p["Video Title"]) || undefined,
     classVideoUrl: p["Class Video"]?.url || undefined,
     classVideoCount: p["Class Video Count"]?.number ?? undefined,
+    photoUrl: getFileUrl(p["단체사진"]),
     todayFocus: getText(p["Today Focus"]) || undefined,
     focusApplied: p["Focus Applied"]?.checkbox ?? false,
     note: getText(p.Note),
