@@ -3,6 +3,7 @@ import { isAsideProfileDisconnected } from "./aside"
 import {
   extractDoi, safeName, isPdfBuffer, buildFetchScript, parseAsideResult, describeAsideFailure,
   firstAuthorSurname, titleKeyword, doiTail, buildFilename, findDoiInText,
+  loadPickPdfUrl, countPdfPages, assessFulltext,
 } from "./pdf"
 
 describe("findDoiInText", () => {
@@ -177,5 +178,126 @@ describe("isAsideProfileDisconnected", () => {
 
   it("does not retry an ordinary publisher PDF lookup failure", () => {
     expect(isAsideProfileDisconnected("no-pdf-url")).toBe(false)
+  })
+})
+
+describe("pickPdfUrl — 어떤 PDF 를 받을지", () => {
+  const pick = loadPickPdfUrl()
+
+  // 실측: JNS 6건이 전부 2쪽 미리보기로 저장됐다.
+  it("JNS(PubFactory) 미리보기 주소를 본문 다운로드 주소로 바꾼다", () => {
+    const base = "https://thejns.org/spine/view/journals/j-neurosurg-spine/aop/article-10.3171-X/article-10.3171-X.xml"
+    expect(
+      pick({
+        base,
+        citationPdfUrl: "https://thejns.org/previewpdf/view/journals/j-neurosurg-spine/aop/article-10.3171-X/article-10.3171-X.xml",
+      })
+    ).toBe("https://thejns.org/downloadpdf/view/journals/j-neurosurg-spine/aop/article-10.3171-X/article-10.3171-X.xml")
+  })
+
+  it("일반 출판사는 citation_pdf_url 을 그대로 쓴다", () => {
+    expect(
+      pick({ base: "https://link.springer.com/article/10.1007/x", citationPdfUrl: "/content/pdf/10.1007/x.pdf" })
+    ).toBe("https://link.springer.com/content/pdf/10.1007/x.pdf")
+  })
+
+  // 실측: Neurospine 2건이 Supplementary Table(1쪽)로 저장됐다.
+  it("Neurospine: journal_download 본문 파일을 보충자료·참고문헌 링크보다 먼저 고른다", () => {
+    expect(
+      pick({
+        base: "https://www.e-neurospine.org/journal/view.php?doi=10.14245/ns.2551862.931",
+        citationPdfUrl: null,
+        downloadFiles: ["ns-2551862-931.pdf"],
+        anchors: [
+          { href: "/upload/media/ns-2551862-931-Supplementary-Table-1.pdf" },
+          { href: "https://link.springer.com/content/pdf/10.1007/s12178-025-09992-5.pdf", inRefs: true },
+        ],
+      })
+    ).toBe("https://www.e-neurospine.org/upload/pdf/ns-2551862-931.pdf")
+  })
+
+  it("앵커만 있을 땐 보충자료·참고문헌·다른 사이트 PDF 를 건너뛴다", () => {
+    const base = "https://www.e-neurospine.org/journal/view.php?doi=x"
+    expect(
+      pick({
+        base,
+        citationPdfUrl: null,
+        anchors: [
+          { href: "/upload/media/x-Supplementary-Table-1.pdf" },
+          { href: "https://link.springer.com/content/pdf/10.1007/other.pdf" },
+          { href: "https://www.nature.com/articles/s41467.pdf", inRefs: true },
+        ],
+      })
+    ).toBeNull()
+  })
+
+  it("같은 사이트의 하위 도메인 PDF 는 허용한다", () => {
+    expect(
+      pick({
+        base: "https://journals.lww.com/spinejournal/fulltext/2026/x.aspx",
+        citationPdfUrl: null,
+        anchors: [{ href: "https://pdfs.journals.lww.com/spinejournal/2026/x.pdf" }],
+      })
+    ).toBe("https://pdfs.journals.lww.com/spinejournal/2026/x.pdf")
+  })
+
+  it("co.kr 같은 2단 국가 도메인은 남의 사이트로 보지 않는다", () => {
+    expect(
+      pick({
+        base: "https://www.foo.co.kr/view?id=1",
+        citationPdfUrl: null,
+        anchors: [{ href: "https://www.bar.co.kr/x.pdf" }, { href: "https://pdf.foo.co.kr/x.pdf" }],
+      })
+    ).toBe("https://pdf.foo.co.kr/x.pdf")
+  })
+
+  it("fetch 스크립트에 같은 선택 코드가 그대로 들어간다", () => {
+    const s = buildFetchScript("https://doi.org/10.1/x")
+    expect(s).toContain("function pickPdfUrl(input)")
+    expect(s).toContain("/downloadpdf/")
+    expect(s).toContain("journal_download")
+  })
+})
+
+function fakePdf(pages: number): Buffer {
+  const objs = Array.from({ length: pages }, (_, i) => `${i + 3} 0 obj << /Type /Page /Parent 2 0 R >> endobj`)
+  return Buffer.from(`%PDF-1.4\n2 0 obj << /Type /Pages /Count ${pages} >> endobj\n${objs.join("\n")}\n%%EOF`, "latin1")
+}
+
+describe("countPdfPages", () => {
+  it("페이지 객체 수를 센다(/Pages 는 제외)", () => {
+    expect(countPdfPages(fakePdf(2))).toBe(2)
+    expect(countPdfPages(fakePdf(12))).toBe(12)
+  })
+  it("셀 수 없으면(압축 객체 스트림) null", () => {
+    expect(countPdfPages(Buffer.from("%PDF-1.7\n...compressed...", "latin1"))).toBeNull()
+  })
+})
+
+describe("assessFulltext — 받은 PDF 가 본문인가", () => {
+  it("2쪽 이하 원저는 거부(미리보기 추정)", () => {
+    const r = assessFulltext(fakePdf(2), { pdfUrl: "https://thejns.org/downloadpdf/x.xml", pubType: "Clinical Study" })
+    expect(r.ok).toBe(false)
+  })
+  it("미리보기 주소면 쪽수와 무관하게 거부", () => {
+    expect(assessFulltext(fakePdf(9), { pdfUrl: "https://thejns.org/previewpdf/x.xml" }).ok).toBe(false)
+  })
+  it("보충자료 주소면 거부", () => {
+    expect(
+      assessFulltext(fakePdf(4), { pdfUrl: "https://www.e-neurospine.org/upload/media/x-Supplementary-Table-1.pdf" }).ok
+    ).toBe(false)
+  })
+  it("Editorial·Letter 는 짧아도 통과", () => {
+    expect(assessFulltext(fakePdf(2), { pubType: "Editorial" }).ok).toBe(true)
+    expect(assessFulltext(fakePdf(1), { pubType: "Letter to the Editor" }).ok).toBe(true)
+  })
+  it("정상 본문은 통과", () => {
+    expect(assessFulltext(fakePdf(10), { pdfUrl: "https://link.springer.com/content/pdf/x.pdf" })).toEqual({
+      ok: true,
+      pages: 10,
+    })
+  })
+  it("쪽수를 못 세면 통과(막을 근거 없음)", () => {
+    expect(assessFulltext(Buffer.from("%PDF-1.7\nxx", "latin1"), { pubType: "Clinical Study" }).ok).toBe(true)
   })
 })

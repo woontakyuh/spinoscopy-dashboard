@@ -7,7 +7,8 @@ import { getArticle } from "../../lib/notion/journal"
 import { resolveOA } from "../../lib/fulltext/oa"
 import { fetchPdfViaAside } from "../../lib/fulltext/aside"
 import { saveToDropbox } from "../../lib/fulltext/dropbox"
-import { extractDoi, buildFilename, isPdfBuffer } from "../../lib/fulltext/pdf"
+import { extractDoi, buildFilename, isPdfBuffer, assessFulltext } from "../../lib/fulltext/pdf"
+import { WORKER_VERSION } from "./version"
 
 // per-run 버스트 가드(진짜 일일 누적 아님 — Phase 1 단순화). 한 번 소진에 이만큼까지만.
 const MAX_PER_RUN = Number(process.env.FULLTEXT_DAILY_MAX ?? "20")
@@ -30,6 +31,11 @@ async function downloadOA(url: string): Promise<Buffer | null> {
     return null
   }
 }
+
+// 실패 콜아웃에 워커 버전을 남긴다. 맥스튜디오는 원격이라 직접 못 들여다보는데,
+// 이걸로 "교수님 맥이 새 코드로 돌고 있나"를 Notion 만 보고 판단할 수 있다.
+const fail = (pageId: string, reason: string) =>
+  markFailed(pageId, `${reason} [워커 ${WORKER_VERSION}]`)
 
 export async function drainQueue(): Promise<number> {
   const queue = await queryFulltextQueue()
@@ -67,7 +73,9 @@ export async function drainQueue(): Promise<number> {
       const oa = await resolveOA(doi, item.pmid)
       if (oa) {
         const pdf = await downloadOA(oa.url)
-        if (pdf) {
+        const check = pdf ? assessFulltext(pdf, { pdfUrl: oa.url, pubType: art.pub_type }) : null
+        if (check && !check.ok) console.warn(`  → OA 사본 거부: ${check.reason}`)
+        if (pdf && check?.ok) {
           const { shareUrl } = await saveToDropbox(pdf, name)
           await markAcquired(item.pageId, "OA", shareUrl)
           console.log(`  → OA 확보 (${oa.source})`)
@@ -79,12 +87,17 @@ export async function drainQueue(): Promise<number> {
 
       // 2) 원내망 Aside
       if (!item.doiUrl) {
-        await markFailed(item.pageId, "DOI 없음 — 원내망 확보 불가")
+        await fail(item.pageId, "DOI 없음 — 원내망 확보 불가")
         processed++
         continue
       }
-      const { pdf, reason, retryable } = fetchPdfViaAside(item.doiUrl)
-      if (pdf) {
+      const { pdf, pdfUrl, reason, retryable } = fetchPdfViaAside(item.doiUrl)
+      const check = pdf ? assessFulltext(pdf, { pdfUrl, pubType: art.pub_type }) : null
+      if (check && !check.ok) {
+        // 미리보기·보충자료를 "확보"로 찍으면 사람이 열어보기 전까진 아무도 모른다.
+        await fail(item.pageId, check.reason)
+        console.log(`  → 거부: ${check.reason}`)
+      } else if (pdf) {
         const { shareUrl } = await saveToDropbox(pdf, name)
         await markAcquired(item.pageId, "Aside", shareUrl)
         console.log(`  → 원내망 확보`)
@@ -92,7 +105,7 @@ export async function drainQueue(): Promise<number> {
         console.warn(`  → 보류(자동 재시도): ${reason}`)
         continue
       } else {
-        await markFailed(item.pageId, reason ?? "원문 확보 실패")
+        await fail(item.pageId, reason ?? "원문 확보 실패")
         console.log(`  → 실패: ${reason}`)
       }
       processed++
@@ -100,7 +113,7 @@ export async function drainQueue(): Promise<number> {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       console.error(`  ! 오류: ${msg}`)
-      await markFailed(item.pageId, msg).catch(() => {})
+      await fail(item.pageId, msg).catch(() => {})
       processed++
       await sleep(jitter())
     }

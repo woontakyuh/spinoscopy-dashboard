@@ -84,12 +84,17 @@ bash scripts/fulltext-worker/setup.sh
 - 테스트: 센터장님이 Notion에서 논문 하나 "원문 요청" 켜기 → 몇 분 뒤 공유 Dropbox 폴더에 PDF가 생기는지 확인
 - 잘 안 되면: 위 로그 화면을 캡처해서 센터장님께 보내주세요.
 
-## 코드가 업데이트되면 (가끔)
+## 코드가 업데이트되면
 
-터미널에서 repo 폴더로 가서:
+**보통은 할 일이 없습니다.** 워커가 30분마다 새 코드가 있는지 확인하고, 있으면 스스로
+재시작하면서 받아옵니다(맥만 켜져 있으면 됨).
+
+센터장님이 따로 부탁드릴 때만(예: zip 으로 설치한 옛 버전이라 자동 업데이트가 안 될 때)
+터미널에 아래 **한 줄**을 붙여넣고 엔터:
+
 ```
-cd ~/Documents/spinoscopy-dashboard
-git pull
-launchctl unload ~/Library/LaunchAgents/com.spino.fulltext-worker.plist
-launchctl load ~/Library/LaunchAgents/com.spino.fulltext-worker.plist
+curl -fsSL https://raw.githubusercontent.com/woontakyuh/spinoscopy-dashboard/main/scripts/fulltext-worker/update.sh | bash
 ```
+
+마지막에 **"✅ 완료!"** 가 뜨면 끝입니다. ❌ 가 뜨면 그 화면을 캡처해 센터장님께 보내주세요.
+(설정파일 `.env.local` 은 그대로 보존됩니다.)
