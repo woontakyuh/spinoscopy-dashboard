@@ -96,6 +96,68 @@ export function buildFilename(p: FileNameParts): string {
   return `${ym}_${jr}_${au}_${kw}`
 }
 
+// ─── 어떤 PDF 를 받을지 고르기 ───
+//
+// 브라우저 안에서 실행되는 코드라 문자열로 들고 다니며 fetch 스크립트에 그대로 박는다.
+// 테스트는 같은 문자열을 new Function 으로 되살려 돌린다(loadPickPdfUrl) — 배포되는 코드와
+// 검증하는 코드가 같다.
+//
+// 실측으로 확인한 함정 두 가지 (2026-10-07):
+//  · thejns.org(PubFactory)는 citation_pdf_url 이 /previewpdf/ = 앞 2쪽 미리보기다.
+//    본문은 같은 경로의 /downloadpdf/. JNS Spine 6건이 전부 2쪽짜리로 저장됐었다.
+//  · e-neurospine.org 는 citation_pdf_url 이 없고 본문 PDF 는 onclick 의
+//    journal_download('pdf', id, '파일.pdf') → /upload/pdf/파일.pdf 로만 나온다.
+//    그래서 첫 .pdf 앵커 = Supplementary Table(1쪽)을 받았다. 참고문헌 칸의
+//    다른 논문 PDF(link.springer.com …) 링크도 같은 페이지에 깔려 있다.
+export const PICK_PDF_URL_JS = String.raw`function pickPdfUrl(input) {
+  var abs = function (u) { try { return u ? new URL(u, input.base).href : null } catch (e) { return null } };
+  var site = function (u) {
+    try {
+      var parts = new URL(u).hostname.split('.');
+      var n = parts.length;
+      var sld = parts[n - 2] || '';
+      // co.kr · or.kr · ac.uk 같은 2단 국가 도메인은 한 칸 더 본다
+      var keep = (parts[n - 1].length === 2 && /^(co|or|ac|go|re|ne|com|org|net|edu)$/.test(sld)) ? 3 : 2;
+      return parts.slice(-keep).join('.');
+    } catch (e) { return '' }
+  };
+  var SUPP = /supplement|suppl[-_.\/]|_esm\d*\.|mmc\d+\.|\/media\/|appendix/i;
+  var PDFLIKE = /\.pdf($|[?#])|\/e?pdf\/|pdfft|type=printable|\/pdfdirect\/|\/downloadpdf\//i;
+  var fix = function (u) { return u ? u.replace('/previewpdf/', '/downloadpdf/') : u };
+  var home = site(input.base);
+
+  var meta = fix(abs(input.citationPdfUrl));
+  if (meta && !SUPP.test(meta)) return meta;
+
+  var files = input.downloadFiles || [];
+  for (var i = 0; i < files.length; i++) {
+    if (!SUPP.test(files[i])) return abs('/upload/pdf/' + files[i]);
+  }
+
+  var anchors = input.anchors || [];
+  for (var j = 0; j < anchors.length; j++) {
+    var a = anchors[j];
+    if (a.inRefs) continue;
+    var u = abs(a.href);
+    if (!u || !PDFLIKE.test(u) || SUPP.test(u)) continue;
+    if (site(u) !== home) continue;
+    return fix(u);
+  }
+  return null;
+}`
+
+export interface PickPdfInput {
+  base: string
+  citationPdfUrl: string | null
+  downloadFiles?: string[]
+  anchors?: Array<{ href: string; inRefs?: boolean }>
+}
+
+/** PICK_PDF_URL_JS 를 Node 에서 쓸 수 있게 되살린다(테스트용). */
+export function loadPickPdfUrl(): (input: PickPdfInput) => string | null {
+  return new Function(`return (${PICK_PDF_URL_JS})`)()
+}
+
 export function buildFetchScript(articleUrl: string): string {
   return `
 const p = await openTab(${JSON.stringify(articleUrl)});
@@ -112,37 +174,79 @@ for (let i = 0; i < 20; i++) {
 
 const res = await p.evaluate(async () => {
   const diag = { url: location.href, title: (document.title || '').slice(0, 120) };
-  const abs = (u) => { try { return new URL(u, location.href).href } catch (e) { return null } };
+  // 소스를 그대로 박아 넣는다 — 페이지 안에서 new Function 을 쓰면 출판사 CSP 에 막힐 수 있다.
+  const pickPdfUrl = ${PICK_PDF_URL_JS};
 
   const meta = document.querySelector('meta[name="citation_pdf_url"]');
-  let pdfUrl = meta ? abs(meta.getAttribute('content')) : null;
-
-  // 링크 후보를 넓게 훑는다: .pdf 로 끝나거나, 경로에 /pdf|/epdf 가 있거나,
-  // 다운로드 속성이 붙은 앵커. 첫 번째만 보던 기존 방식은 놓치는 게 많았다.
-  if (!pdfUrl) {
-    const cands = Array.from(document.querySelectorAll('a[href]'))
-      .map((a) => a.getAttribute('href'))
-      .filter((h) => h && /\\.pdf($|[?#])|\\/e?pdf\\/|pdfft|type=printable|\\/pdfdirect\\//i.test(h));
-    pdfUrl = cands.length ? abs(cands[0]) : null;
-  }
+  const downloadFiles = Array.from(document.querySelectorAll('[onclick*="journal_download"]'))
+    .map((el) => {
+      const m = (el.getAttribute('onclick') || '').match(/journal_download\\(\\s*'pdf'\\s*,[^,]*,\\s*'([^']+)'/);
+      return m ? m[1] : null;
+    })
+    .filter(Boolean);
+  const anchors = Array.from(document.querySelectorAll('a[href]')).map((a) => ({
+    href: a.getAttribute('href'),
+    inRefs: !!a.closest('[name="jats-ref-pub"], .references, #references, .ref-list, .reference, ol.refs'),
+  }));
+  const pdfUrl = pickPdfUrl({
+    base: location.href,
+    citationPdfUrl: meta ? meta.getAttribute('content') : null,
+    downloadFiles,
+    anchors,
+  });
 
   if (!pdfUrl) return { ok:false, reason:'no-pdf-url', ...diag };
   try {
     const r = await fetch(pdfUrl, { credentials:'include' });
-    if (!r.ok) return { ok:false, reason:'fetch-'+r.status, ...diag };
+    if (!r.ok) return { ok:false, reason:'fetch-'+r.status, pdfUrl, ...diag };
     const buf = new Uint8Array(await r.arrayBuffer());
     let bin=''; for (let i=0;i<buf.length;i++) bin+=String.fromCharCode(buf[i]);
-    return { ok:true, b64: btoa(bin) };
-  } catch(e) { return { ok:false, reason:String(e && e.message || e), ...diag }; }
+    return { ok:true, b64: btoa(bin), pdfUrl: r.url || pdfUrl };
+  } catch(e) { return { ok:false, reason:String(e && e.message || e), pdfUrl, ...diag }; }
 });
 try { await p.close(); } catch(e) {}
 console.log('ASIDE_RESULT '+JSON.stringify(res));
 `
 }
 
+// ─── 받은 PDF 가 정말 본문인가 ───
+//
+// 예전엔 %PDF 매직바이트만 봤다. 미리보기·보충자료도 PDF 라서 전부 "확보"로 찍혔다.
+
+/** PDF 쪽수. 페이지 객체가 압축 스트림 안에 숨어 있어 셀 수 없으면 null. */
+export function countPdfPages(buf: Buffer): number | null {
+  const text = buf.toString("latin1")
+  const n = (text.match(/\/Type\s*\/Page(?![a-zA-Z])/g) ?? []).length
+  return n > 0 ? n : null
+}
+
+// 원래 1~2쪽인 게 정상인 글 종류. 이것들만 짧아도 통과시킨다.
+const SHORT_FORM = /editorial|letter|comment|errat|correspond|reply|corrigend|retract/i
+
+export function assessFulltext(
+  buf: Buffer,
+  ctx: { pdfUrl?: string | null; pubType?: string | null }
+): { ok: true; pages: number | null } | { ok: false; reason: string } {
+  const url = ctx.pdfUrl ?? ""
+  if (/\/previewpdf\//i.test(url)) return { ok: false, reason: `미리보기 PDF(본문 아님): ${url}` }
+  if (/supplement|suppl[-_.\/]|_esm\d*\.|mmc\d+\./i.test(url)) {
+    return { ok: false, reason: `보충자료 PDF(본문 아님): ${url}` }
+  }
+  const pages = countPdfPages(buf)
+  if (pages !== null && pages <= 2 && !SHORT_FORM.test(ctx.pubType ?? "")) {
+    return {
+      ok: false,
+      reason: `${pages}쪽뿐 — 미리보기/보충자료로 보여 저장하지 않음${url ? `: ${url}` : ""}`,
+    }
+  }
+  return { ok: true, pages }
+}
+
 export interface AsideResult {
   ok: boolean
   b64?: string
+  /** 실제로 받아온 PDF 주소(리다이렉트 후). 미리보기/보충자료 판정에 쓴다. */
+  pdfUrl?: string
   reason?: string
   /** 실패 진단용 — 브라우저가 실제로 도착한 URL과 페이지 제목. */
   url?: string

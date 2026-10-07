@@ -7,6 +7,8 @@ import { buildFetchScript, parseAsideResult, isPdfBuffer, describeAsideFailure }
  */
 export type AsideFetchResult = {
   readonly pdf: Buffer | null
+  /** 실제로 받아온 PDF 주소 — 미리보기/보충자료 판정용 */
+  readonly pdfUrl?: string
   readonly reason?: string
   readonly retryable?: boolean
 }
@@ -41,8 +43,12 @@ export function fetchPdfViaAside(articleUrl: string): AsideFetchResult {
   if (!isPdfBuffer(pdf)) {
     return {
       pdf: null,
-      reason: describeAsideFailure({ ...result, reason: "PDF 아님(구독 벽/challenge 추정)" }),
+      reason: describeAsideFailure({
+        ...result,
+        url: result.url ?? result.pdfUrl,
+        reason: "PDF 아님(구독 벽/challenge 추정)",
+      }),
     }
   }
-  return { pdf }
+  return { pdf, pdfUrl: result.pdfUrl }
 }

@@ -12,4 +12,10 @@ cd "$REPO"
 . "$REPO/scripts/job-bootstrap.sh"
 job_bootstrap "$REPO"
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$HOME/.local/bin"
+# pull 로 의존성이 바뀌었으면 다시 깐다. npm ci 는 lock 파일을 건드리지 않아
+# 트리가 더러워지지 않는다(더러워지면 다음부터 pull 이 영영 멈춘다).
+if [ ! -f node_modules/.package-lock.json ] || [ package-lock.json -nt node_modules/.package-lock.json ]; then
+  echo "[run] 의존성 갱신(npm ci)"
+  npm ci --no-audit --no-fund >/tmp/fulltext-npm-install.log 2>&1 || echo "[run] npm ci 실패 — 기존 모듈로 진행"
+fi
 exec npx tsx "$REPO/scripts/fulltext-worker/daemon.ts"

@@ -4,9 +4,11 @@
 import * as Ably from "ably"
 import { drainQueue } from "./drain"
 import { ABLY_CHANNEL, ABLY_EVENT } from "../../lib/fulltext/ably"
+import { WORKER_VERSION, checkForUpdate } from "./version"
 
 const POLL_MS = Number(process.env.FULLTEXT_POLL_MS ?? "300000")
 const ABLY_KEY = process.env.ABLY_API_KEY ?? ""
+const UPDATE_CHECK_MS = Number(process.env.FULLTEXT_UPDATE_CHECK_MS ?? "1800000")
 
 let running = false
 
@@ -26,11 +28,25 @@ async function runDrain(trigger: string): Promise<void> {
   }
 }
 
+// 새 코드가 main 에 올라오면 스스로 내려간다. launchd KeepAlive 가 다시 띄우면서
+// run.sh 가 pull 하므로, 교수님께 업데이트를 부탁할 필요가 없어진다.
+// 처리 중엔 건드리지 않는다 — 반쯤 받은 PDF 를 버리지 않도록.
+function selfUpdateCheck(): void {
+  if (running) return
+  const r = checkForUpdate()
+  if (!r?.restart) return
+  console.log(`[fulltext-daemon] 새 코드 발견 ${r.head} → ${r.remote} — 재시작해 업데이트`)
+  process.exit(0)
+}
+
 async function main() {
-  console.log(`[fulltext-daemon] 시작 (poll=${POLL_MS}ms, ably=${ABLY_KEY ? "on" : "off"})`)
+  console.log(
+    `[fulltext-daemon] 시작 v${WORKER_VERSION} (poll=${POLL_MS}ms, ably=${ABLY_KEY ? "on" : "off"})`
+  )
 
   await runDrain("startup") // 부팅 시 밀린 큐 한 번 소진
   setInterval(() => void runDrain("poll"), POLL_MS) // 백업 폴링(안전망)
+  setInterval(selfUpdateCheck, UPDATE_CHECK_MS)
 
   if (ABLY_KEY) {
     try {
