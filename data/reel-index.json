@@ -2,6 +2,448 @@
   "generatedAt": "2026-09-21",
   "reels": [
     {
+      "date": "2026-10-07",
+      "title": "라쏘 2일차, 차기와 메레갈리",
+      "subtitle": "변승현(퍼플) 대강 · 와이어 주짓수 동탄 · 도복",
+      "url": "https://www.dropbox.com/scl/fi/ge43bjzasjyzliq5hdo53/2026-10-07_-2.mp4?rlkey=yqev4m3fkk7fdgmm5be14su8m&dl=0",
+      "cuts": [
+        {
+          "no": 1,
+          "title": "클로즈에서 라쏘 — 상대가 일어선다",
+          "quote": "클로즈에서 슈림프, 라쏘 세팅해 주면\n상대방이 일어났죠",
+          "pos": [
+            "lasso",
+            "closed"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_1759",
+          "ss": 8,
+          "dur": 12
+        },
+        {
+          "no": 2,
+          "title": "발목 뒤 잡고, 앞으로 짚게, 킥",
+          "quote": "발목 뒤 잡아 주고 — 땅 짚고 앞으로 차서\n상대방 베이스가 앞에 짚을 수 있게 → 앞으로 킥, 사이드",
+          "pos": [
+            "lasso"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_1759",
+          "ss": 19,
+          "dur": 17
+        },
+        {
+          "no": 3,
+          "title": "★ 그냥 밀면 무겁다 — 당겨서 반동",
+          "quote": "그냥 밀면 상대방이 무거워요\n라쏘를 제 쪽으로 당겨 주면 반동 — 이 반동 만들고 차시면 가볍게",
+          "pos": [
+            "lasso"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_5204",
+          "ss": 2,
+          "dur": 20
+        },
+        {
+          "no": 4,
+          "title": "안 밀리면 — 오른발 빼서 발목 당기기",
+          "quote": "뒷발로 밀려고 했는데 안 밀리면\n오른발 빼서 상대방 오른쪽 발목 푹 당겨서 스윕",
+          "pos": [
+            "lasso"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_1760",
+          "ss": 14,
+          "dur": 20
+        },
+        {
+          "no": 5,
+          "title": "★ 메레갈리 — RDLR 훅부터",
+          "quote": "오른다리로 데라히바 훅, 발목깃 잡아준 상태에서 메레갈리 스윕\n훅만 넣으면 스매시 당해서 데라히바 훅을 무조건",
+          "pos": [
+            "lasso",
+            "rdlr"
+          ],
+          "role": "bottom",
+          "phase": "grip",
+          "src": "IMG_5207",
+          "ss": 0,
+          "dur": 17
+        },
+        {
+          "no": 6,
+          "title": "라쏘 훅 밑에 RDLR 훅, 접었다 펴서",
+          "quote": "데라히바 훅이 라쏘 훅 밑에 꽂힐 수 있게\n다리를 펴서 당기는 게 아니라 무릎을 접었다가 피면 날아가요",
+          "pos": [
+            "lasso",
+            "rdlr"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_5207",
+          "ss": 23,
+          "dur": 22
+        },
+        {
+          "no": 7,
+          "title": "당겨와서 킥, 일어나서 사이드",
+          "quote": "무릎이 아까 반동 만드는 거랑 똑같거든요\n당겨와서 킥 — 일어나서 사이드까지",
+          "pos": [
+            "lasso",
+            "side_top"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_5207",
+          "ss": 64,
+          "dur": 20
+        }
+      ]
+    },
+    {
+      "date": "2026-10-06",
+      "title": "라쏘는 앞 다리로, 인버티드는 깊숙이",
+      "subtitle": "변승현(퍼플) 특별 수업 · 와이어 주짓수 동탄 · 도복",
+      "url": "https://www.dropbox.com/scl/fi/tstb0va2flv82j13q4nv5/2026-10-06_.mp4?rlkey=i0unb7ybhtnbwlehofxjwkj7x&dl=0",
+      "cuts": [
+        {
+          "no": 1,
+          "title": "소매는 중간 마디까지 말아서 갈고리로",
+          "quote": "애매하게 말아 잡으면 손가락이 아프고\n중간마디까지 말아서 손가락을 갈고리처럼",
+          "pos": [
+            "lasso"
+          ],
+          "role": "bottom",
+          "phase": "grip",
+          "src": "IMG_1750",
+          "ss": 14,
+          "dur": 14
+        },
+        {
+          "no": 2,
+          "title": "라쏘는 무릎이 아니라 골반으로 건다",
+          "quote": "정면에서 무릎만 돌리면 빠지고 흔들 수가 없어\n무릎이 골반이랑 묶여서 같이 들어가서 세팅",
+          "pos": [
+            "lasso"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_1750",
+          "ss": 44,
+          "dur": 14
+        },
+        {
+          "no": 3,
+          "title": "반대 다리는 안 준다",
+          "quote": "라쏘 기본 스윕이 이쪽 다리 잡아서 넘기는 거잖아요\n보통 다 이걸 아셔서 오른다리 안 줘요",
+          "pos": [
+            "lasso"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_1751",
+          "ss": 20,
+          "dur": 14
+        },
+        {
+          "no": 4,
+          "title": "★ 앞 다리 발목깃 — RDLR 훅 먼저",
+          "quote": "멀리 있는 다리가 아니라 앞쪽 발목깃\n발목깃 잡기 전에 리버스 데라히바 훅 걸고",
+          "pos": [
+            "lasso",
+            "rdlr"
+          ],
+          "role": "bottom",
+          "phase": "grip",
+          "src": "IMG_1751",
+          "ss": 49,
+          "dur": 14
+        },
+        {
+          "no": 5,
+          "title": "★ 어깨 브릿지 치고 인버티드",
+          "quote": "그냥 들어가면 상대방이 스택 만들어서\n들어갈 때 편하게 어깨 브릿지를 한번 쳐서",
+          "pos": [
+            "lasso"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_1751",
+          "ss": 80,
+          "dur": 15
+        },
+        {
+          "no": 6,
+          "title": "★★ 머리·상체가 상대 다리 사이까지",
+          "quote": "말아주는 힘으로 깊숙하게\n중요한 게 제 머리랑 상체가 상대방 다리 사이에 있어요",
+          "pos": [
+            "lasso"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_1751",
+          "ss": 108,
+          "dur": 14
+        },
+        {
+          "no": 7,
+          "title": "삼각 그립으로 내리고 돌려 스윕",
+          "quote": "트라이앵글 잡고 내려 주고\n내려 주는 힘으로 어깨로 돌려서 스윕 마무리",
+          "pos": [
+            "lasso"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_1751",
+          "ss": 121,
+          "dur": 14
+        },
+        {
+          "no": 8,
+          "title": "왼쪽으로 깔면 — 오모플라타 반동",
+          "quote": "오모플라타 잡은 그립을 반동 — 내리면 상대방이 올리거든요\n이 반동 치고 뒤로 브릿지, 카운터로 라쏘 스윕",
+          "pos": [
+            "lasso",
+            "omoplata"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_1752",
+          "ss": 0,
+          "dur": 18
+        },
+        {
+          "no": 9,
+          "title": "뒤로 버티면 — 무릎 안쪽 레버",
+          "quote": "이 무릎이 상대방 바깥쪽 무릎에 들어와서 펴 주고\n동시에 오른손은 당기고 라쏘 발목을 바깥쪽으로",
+          "pos": [
+            "lasso"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_1753",
+          "ss": 4,
+          "dur": 26
+        },
+        {
+          "no": 10,
+          "title": "인버티드를 안 주면 — 벌리거나 밟거나",
+          "quote": "리버스 데라히바 발바닥이랑 라쏘 발바닥을 붙여\n벌리는 힘과 엉덩이 드는 힘을 동시에",
+          "pos": [
+            "lasso",
+            "rdlr"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_1754",
+          "ss": 14,
+          "dur": 26
+        }
+      ]
+    },
+    {
+      "date": "2026-10-02",
+      "title": "HQ가 먹혀도 X가드는 남아 있다",
+      "subtitle": "조준용 관장님 · 와이어 주짓수 동탄 · 도복",
+      "url": "https://www.dropbox.com/scl/fi/eeinp9tdec5fyat7hpoiv/2026-10-02_HQ-X.mp4?rlkey=hwoxbahhygwldwmvl3gbe0509&dl=0",
+      "cuts": [
+        {
+          "no": 1,
+          "title": "탑 · 니컷 막히면 대각선 뒤로",
+          "quote": "사이드 스텝보다는 살짝 대각선 뒤로 빠져줘야지\n오히려 살짝 뒤로 빠져줘야 쉽게 눌러줄 수 있어요",
+          "pos": [
+            "hq"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_1611",
+          "ss": 9,
+          "dur": 9
+        },
+        {
+          "no": 2,
+          "title": "탑 · 뒷목 잡고 발목 눌러 사이드",
+          "quote": "뒷목, 상대 머리 밀어주고\n발목 눌러서 사이드 마무리",
+          "pos": [
+            "hq",
+            "side_top"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_1611",
+          "ss": 18,
+          "dur": 9
+        },
+        {
+          "no": 3,
+          "title": "바텀 · HQ 먹혀도 다리 끌어와 X",
+          "quote": "엉덩이에다가 걸어주고, 오른손을 놓고 상대방 다리를 끌어오러 갈 거야\n끌고 와서 자연스럽게 X가드로 전환",
+          "pos": [
+            "hq",
+            "xg"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_1612",
+          "ss": 15,
+          "dur": 13
+        },
+        {
+          "no": 4,
+          "title": "★ 깔려도 팔 숨겨",
+          "quote": "괜찮아, 그래도 내 다리가 들어가 있잖아\n아직 겨드랑이가 안 파였어 — 팔 숨겨",
+          "pos": [
+            "hq",
+            "xg"
+          ],
+          "role": "bottom",
+          "phase": "escape",
+          "src": "IMG_1612",
+          "ss": 54,
+          "dur": 10
+        },
+        {
+          "no": 5,
+          "title": "★ 엉덩이 옆 손 = 백스텝 차단",
+          "quote": "내 엉덩이 옆으로 손이 들어가서 상대방 다리\n백스텝 못 하게 만들어줘요 — 다리 열어주면서 X가드",
+          "pos": [
+            "xg"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_1612",
+          "ss": 67,
+          "dur": 12
+        },
+        {
+          "no": 6,
+          "title": "바텀 · Y가드로 밀고 X",
+          "quote": "발바닥과 발등으로 — Y가드라고 하는데\n먼저 세팅 잘 밀어내고, 그다음에 X가드",
+          "pos": [
+            "xg"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_1613",
+          "ss": 2,
+          "dur": 12
+        },
+        {
+          "no": 7,
+          "title": "탑 · X에 걸리면 등 보이며 도망가지 마",
+          "quote": "밀 때 내가 등을 보여주는 동작은 너무 안 좋은 동작이에요\n누가 더 도망을 잘 가냐가 아니라 이 사람과 나와의 대결",
+          "pos": [
+            "xg"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_1614",
+          "ss": 24,
+          "dur": 12
+        },
+        {
+          "no": 8,
+          "title": "★ 탑 · 뒤꿈치 박고 무겁게 앞으로",
+          "quote": "뒤꿈치 세워줘. 찍어 눌러 — 바닥에 뒤꿈치를 박아줬어요\n무겁게 앞으로. 전진 — 다리 빼내면서, X가드에서 가장 좋은 패스",
+          "pos": [
+            "xg"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_1614",
+          "ss": 66,
+          "dur": 14
+        },
+        {
+          "no": 9,
+          "title": "탑 · 엉덩이는 절대 바닥에 닿지 않게",
+          "quote": "엉덩이가 땅에 닿으면 일어나기가 정말 어려워요\n넘어지더라도 손 멀리 짚고, 무릎 앞쪽으로 원을 그리게",
+          "pos": [
+            "xg"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_1614",
+          "ss": 134,
+          "dur": 16
+        },
+        {
+          "no": 10,
+          "title": "탑 · X가드에서 쉽게 일어서지 마",
+          "quote": "그러다가 다리 빠지면 좋은 거고\n무릎 꿇고 다시 패스하면 좋은 거니까",
+          "pos": [
+            "xg"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_1615",
+          "ss": 2,
+          "dur": 10
+        },
+        {
+          "no": 11,
+          "title": "바텀 · 손 짚으면 삼각",
+          "quote": "무릎 접으면서 집어넣죠. 쑥 한 번에 안 넣어져\n뺏기더라도 오모플라타·기무라로 이어갈 수 있으니까",
+          "pos": [
+            "xg",
+            "triangle"
+          ],
+          "role": "bottom",
+          "phase": "sub",
+          "src": "IMG_1616",
+          "ss": 21,
+          "dur": 12
+        },
+        {
+          "no": 12,
+          "title": "바텀 · 일어서면 같이 일어나",
+          "quote": "X가드 잡은 사람은 진짜로 일어나는데\n제가 일어났는데 같이 — 잡아야지",
+          "pos": [
+            "xg",
+            "standing"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_1616",
+          "ss": 47,
+          "dur": 10
+        },
+        {
+          "no": 13,
+          "title": "★ 하프 · 상체 세우면 겨드랑이 막고 밑으로",
+          "quote": "왼손으로 겨드랑이를 막아줘야 돼\n안 그러면 머리 잡혀서 못 들어가 — 상대방 다리 사이로",
+          "pos": [
+            "hg",
+            "kshield",
+            "xg"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_1617",
+          "ss": 60,
+          "dur": 14
+        },
+        {
+          "no": 14,
+          "title": "★ 숙이게 보내고, 엉덩이 떼고, X",
+          "quote": "들어가고 나서 상대방을 숙이게 만들어야 돼\n엉덩이 떼고, 무릎 하나 집어넣고, 쭉 벌리면서 X가드",
+          "pos": [
+            "hg",
+            "xg"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_1617",
+          "ss": 118,
+          "dur": 14
+        }
+      ]
+    },
+    {
       "date": "2026-09-28",
       "title": "위저는 버티는 게 아니라 탄다",
       "subtitle": "조준용 관장님 · 와이어 주짓수 동탄 · 도복",
@@ -1298,6 +1740,7 @@
     "ashi": "아시가라미 (Ashi Garami)",
     "back_top": "백 컨트롤 (Back Control)",
     "butterfly": "더블훅 가드 (Butterfly Guard)",
+    "closed": "클로즈 가드 (Closed Guard)",
     "dhg": "딥 하프 (Deep Half)",
     "fishnet": "피쉬넷 (Fishnet)",
     "frontheadlock": "프론트 헤드락 (Front Headlock)",
@@ -1311,13 +1754,16 @@
     "lapel": "라펠 가드 (Lapel Guard)",
     "lasso": "라쏘 (Lasso Guard)",
     "legdrag": "레그드래그 (Leg Drag)",
+    "omoplata": "오모플라타 (Omoplata)",
     "qguard": "쿼터 가드 (Quarter Guard)",
+    "rdlr": "리버스 DLR (Reverse DLR)",
     "side_top": "사이드 컨트롤 (Side Control)",
     "situp": "싯업 가드 (Sit-up Guard)",
     "slx": "싱글렉 X (Single Leg X)",
     "smash": "스매시 (Smash Pass)",
     "standing": "스탠딩 (Standing)",
     "topbolo": "탑볼로 (Top Bolo)",
+    "triangle": "삼각 (Triangle)",
     "turtle_top": "터틀 공격 (Turtle (attacking))",
     "waiter": "웨이터 가드 (Waiter Guard)",
     "xg": "X가드 (X Guard)"
