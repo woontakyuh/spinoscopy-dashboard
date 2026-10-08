@@ -2,6 +2,109 @@
   "generatedAt": "2026-09-21",
   "reels": [
     {
+      "date": "2026-10-07",
+      "title": "라쏘 2일차, 차기와 메레갈리",
+      "subtitle": "변승현(퍼플) 대강 · 와이어 주짓수 동탄 · 도복",
+      "url": "https://www.dropbox.com/scl/fi/ge43bjzasjyzliq5hdo53/2026-10-07_-2.mp4?rlkey=yqev4m3fkk7fdgmm5be14su8m&dl=0",
+      "cuts": [
+        {
+          "no": 1,
+          "title": "클로즈에서 라쏘 — 상대가 일어선다",
+          "quote": "클로즈에서 슈림프, 라쏘 세팅해 주면\n상대방이 일어났죠",
+          "pos": [
+            "lasso",
+            "closed"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_1759",
+          "ss": 8,
+          "dur": 12
+        },
+        {
+          "no": 2,
+          "title": "발목 뒤 잡고, 앞으로 짚게, 킥",
+          "quote": "발목 뒤 잡아 주고 — 땅 짚고 앞으로 차서\n상대방 베이스가 앞에 짚을 수 있게 → 앞으로 킥, 사이드",
+          "pos": [
+            "lasso"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_1759",
+          "ss": 19,
+          "dur": 17
+        },
+        {
+          "no": 3,
+          "title": "★ 그냥 밀면 무겁다 — 당겨서 반동",
+          "quote": "그냥 밀면 상대방이 무거워요\n라쏘를 제 쪽으로 당겨 주면 반동 — 이 반동 만들고 차시면 가볍게",
+          "pos": [
+            "lasso"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_5204",
+          "ss": 2,
+          "dur": 20
+        },
+        {
+          "no": 4,
+          "title": "안 밀리면 — 오른발 빼서 발목 당기기",
+          "quote": "뒷발로 밀려고 했는데 안 밀리면\n오른발 빼서 상대방 오른쪽 발목 푹 당겨서 스윕",
+          "pos": [
+            "lasso"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_1760",
+          "ss": 14,
+          "dur": 20
+        },
+        {
+          "no": 5,
+          "title": "★ 메레갈리 — RDLR 훅부터",
+          "quote": "오른다리로 데라히바 훅, 발목깃 잡아준 상태에서 메레갈리 스윕\n훅만 넣으면 스매시 당해서 데라히바 훅을 무조건",
+          "pos": [
+            "lasso",
+            "rdlr"
+          ],
+          "role": "bottom",
+          "phase": "grip",
+          "src": "IMG_5207",
+          "ss": 0,
+          "dur": 17
+        },
+        {
+          "no": 6,
+          "title": "라쏘 훅 밑에 RDLR 훅, 접었다 펴서",
+          "quote": "데라히바 훅이 라쏘 훅 밑에 꽂힐 수 있게\n다리를 펴서 당기는 게 아니라 무릎을 접었다가 피면 날아가요",
+          "pos": [
+            "lasso",
+            "rdlr"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_5207",
+          "ss": 23,
+          "dur": 22
+        },
+        {
+          "no": 7,
+          "title": "당겨와서 킥, 일어나서 사이드",
+          "quote": "무릎이 아까 반동 만드는 거랑 똑같거든요\n당겨와서 킥 — 일어나서 사이드까지",
+          "pos": [
+            "lasso",
+            "side_top"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_5207",
+          "ss": 64,
+          "dur": 20
+        }
+      ]
+    },
+    {
       "date": "2026-10-06",
       "title": "라쏘는 앞 다리로, 인버티드는 깊숙이",
       "subtitle": "변승현(퍼플) 특별 수업 · 와이어 주짓수 동탄 · 도복",
@@ -1637,6 +1740,7 @@
     "ashi": "아시가라미 (Ashi Garami)",
     "back_top": "백 컨트롤 (Back Control)",
     "butterfly": "더블훅 가드 (Butterfly Guard)",
+    "closed": "클로즈 가드 (Closed Guard)",
     "dhg": "딥 하프 (Deep Half)",
     "fishnet": "피쉬넷 (Fishnet)",
     "frontheadlock": "프론트 헤드락 (Front Headlock)",
