@@ -146,3 +146,16 @@ describe("requestFulltext — 접근불가 저널 차단", () => {
     await expect(requestFulltext("page-3")).rejects.toThrow()
   })
 })
+
+describe("canonicalJournalName — CrossRef 정식명을 DB 약칭으로", () => {
+  it("알려진 저널은 약칭으로", async () => {
+    const { canonicalJournalName } = await import("./fulltext")
+    expect(canonicalJournalName("European Spine Journal")).toBe("ESJ")
+    expect(canonicalJournalName("Journal of Neurosurgery: Spine")).toBe("JNS Spine")
+    expect(canonicalJournalName("The Spine Journal")).toBe("TSJ")
+  })
+  it("모르는 저널은 그대로", async () => {
+    const { canonicalJournalName } = await import("./fulltext")
+    expect(canonicalJournalName("Neurosurgical Review")).toBe("Neurosurgical Review")
+  })
+})

@@ -194,6 +194,22 @@ export interface AddByDoiResult {
   doi: string
 }
 
+// CrossRef 는 저널 정식 이름을 준다. DB 는 수집기가 쓰는 약칭으로 들어 있어서, 그대로 넣으면
+// 같은 저널이 Journal Name 선택지에 하나 더 생긴다(그리고 화면 정규화·접근불가 판정에서 빠진다).
+const CROSSREF_JOURNAL_ALIAS: Record<string, string> = {
+  "european spine journal": "ESJ",
+  "global spine journal": "GSJ",
+  "the spine journal": "TSJ",
+  "journal of neurosurgery: spine": "JNS Spine",
+  "journal of neurosurgery spine": "JNS Spine",
+  "spine": "Spine",
+  "neurospine": "Neurospine",
+}
+
+export function canonicalJournalName(raw: string): string {
+  return CROSSREF_JOURNAL_ALIAS[raw.trim().toLowerCase()] ?? raw.trim()
+}
+
 /**
  * 밖에서 본 논문을 DOI(또는 DOI 포함 링크)로 원문요청 큐에 넣는다.
  * 이미 있으면 그 행 재사용, 없으면 CrossRef 메타로 새 행 생성. 둘 다 원문요청 ON.
@@ -225,7 +241,7 @@ export async function addFulltextRequestByDoi(input: string): Promise<AddByDoiRe
 
   const title = meta?.title || pubmed?.title || doiLower
   const authors = meta?.authors || pubmed?.authors || ""
-  const journal = meta?.journal || pubmed?.journal || ""
+  const journal = canonicalJournalName(meta?.journal || pubmed?.journal || "")
   const pubDate = meta?.pubDate || pubmed?.pubDate || null
 
   const props: Record<string, unknown> = {

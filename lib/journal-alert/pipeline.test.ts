@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { toMultiSelectOptions, minimalArticleFromScraped, titleKey, doiKey, articleAlreadyExists, JOURNAL_DIGEST_START, buildPendingDigestQuery, parsePendingDigestPage, loadPendingDigestItems, sendPendingJournalDigest } from "./pipeline"
+import { toMultiSelectOptions, keywordsRichText, minimalArticleFromScraped, titleKey, doiKey, articleAlreadyExists, JOURNAL_DIGEST_START, buildPendingDigestQuery, parsePendingDigestPage, loadPendingDigestItems, sendPendingJournalDigest } from "./pipeline"
 
 describe("toMultiSelectOptions", () => {
   it("splits a comma-joined keyword into separate options (Notion 400 regression)", () => {
@@ -219,5 +219,24 @@ describe("sendPendingJournalDigest", () => {
     expect(result.sent).toBe(false)
     expect(result.reason).toBe("dry_run")
     expect(result.shownCount).toBe(3)
+  })
+})
+
+// Keywords 는 multi_select → 텍스트 칸으로 바뀌었다(선택지 5,251개로 스키마 한도 초과).
+describe("keywordsRichText", () => {
+  it("정리·중복제거 후 \", \" 로 이어 붙인다", () => {
+    expect(keywordsRichText(["Spine", "MIS, endoscopy", "spine", " "])).toEqual([
+      { text: { content: "Spine, MIS, endoscopy" } },
+    ])
+  })
+  it("키워드가 없으면 빈 배열", () => {
+    expect(keywordsRichText([])).toEqual([])
+  })
+  it("1900자 단위로 나눈다(Notion text 한도 2000)", () => {
+    const many = Array.from({ length: 300 }, (_, i) => `keyword-number-${i}`)
+    const out = keywordsRichText(many)
+    expect(out.length).toBeGreaterThan(1)
+    expect(out.every((c) => c.text.content.length <= 1900)).toBe(true)
+    expect(out.map((c) => c.text.content).join("")).toContain("keyword-number-299")
   })
 })

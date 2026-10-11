@@ -10,6 +10,7 @@ import {
 import type { InterestLevel, JournalFilter } from "@/lib/types/journal"
 import { requestFulltext, cancelFulltextRequest, addFulltextRequestByDoi } from "@/lib/notion/fulltext"
 import { publishTrigger } from "@/lib/fulltext/ably"
+import { describeError } from "@/lib/notion/client"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest) {
     await publishTrigger(result.pageId)
     return NextResponse.json(result)
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error"
-    return NextResponse.json({ error: message }, { status: 400 })
+    // Notion 이 거절한 이유를 그대로 보여준다 — "Notion API request failed." 만으론 원인을 못 찾는다.
+    return NextResponse.json({ error: describeError(error) }, { status: 400 })
   }
 }

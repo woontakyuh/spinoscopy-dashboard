@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { NotionRequestError, notionEnv, notionRequest } from "./client"
+import { NotionRequestError, describeError, notionEnv, notionRequest, summarizeNotionError } from "./client"
 
 const KEY = "NOTION_TEST_DB_ID"
 
@@ -72,5 +72,51 @@ describe("notionRequest", () => {
     await notionRequest("/pages/abc")
     const headers = fetchMock.mock.calls[0][1].headers as Record<string, string>
     expect(headers.Authorization).toBe("Bearer ntn_secret")
+  })
+})
+
+// 2026-10-11: 스키마 크기 초과로 4일간 쓰기가 전부 죽었는데 로그엔 "request failed" 뿐이었다.
+describe("Notion 거절 사유", () => {
+  const schemaFull = JSON.stringify({
+    object: "error",
+    status: 400,
+    code: "validation_error",
+    message: "Your database schema has exceeded the maximum size. The largest property is 'Keywords'.",
+    request_id: "x",
+  })
+
+  it("code·message 만 뽑는다", () => {
+    expect(summarizeNotionError(schemaFull)).toEqual({
+      code: "validation_error",
+      message: "Your database schema has exceeded the maximum size. The largest property is 'Keywords'.",
+    })
+  })
+
+  it("message 속 토큰 모양 문자열은 가린다", () => {
+    const body = JSON.stringify({ object: "error", code: "unauthorized", message: "bad token ntn_abcdef123456 here" })
+    expect(summarizeNotionError(body).message).toBe("bad token [redacted] here")
+  })
+
+  it("Notion 에러 형식이 아니면 아무것도 안 뽑는다", () => {
+    expect(summarizeNotionError("<html>gateway</html>")).toEqual({})
+    expect(summarizeNotionError(JSON.stringify({ message: "x" }))).toEqual({})
+  })
+
+  it("describeError 는 상태·사유를 한 줄로 보여준다", () => {
+    expect(describeError(new NotionRequestError(400, "validation_error", "schema too big"))).toBe(
+      "Notion 요청 실패(400) — validation_error: schema too big"
+    )
+    expect(describeError(new NotionRequestError(502))).toBe("Notion 요청 실패(502)")
+    expect(describeError(new Error("DOI 없음"))).toBe("DOI 없음")
+  })
+
+  it("notionRequest 가 사유를 에러에 싣는다(메시지 자체는 그대로)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 400, text: async () => schemaFull }))
+    const err = (await notionRequest("/pages").catch((e: unknown) => e)) as NotionRequestError
+    vi.unstubAllGlobals()
+    expect(err).toBeInstanceOf(NotionRequestError)
+    expect(err.message).toBe("Notion API request failed.")
+    expect(err.notionCode).toBe("validation_error")
+    expect(err.notionMessage).toMatch(/exceeded the maximum size/)
   })
 })
