@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer"
-import { notionRequest, notionEnv } from "@/lib/notion/client"
+import { notionRequest, notionEnv, describeError } from "@/lib/notion/client"
 import { alertSubject, alertWrap, notionPageUrl, notionIconLink, fulltextButton } from "./mailTemplate"
 import { buildFulltextLink } from "./fulltextLink"
 import {
@@ -70,6 +70,19 @@ export function toMultiSelectOptions(values: string[]): Array<{ name: string }> 
     }
   }
   return out
+}
+
+// Keywords 는 텍스트 칸이다(", " 구분). 2026-10-11 까지 multi_select 였는데, 논문마다
+// 다른 키워드가 선택지로 쌓여 5,251개 → DB 스키마 크기 한도 초과 → 새 선택지가 생기는
+// 모든 쓰기(알림 sweep·topic radar·DOI 원문신청)가 4일간 400 으로 죽었다.
+// 다시 multi_select 로 바꾸지 말 것.
+export function keywordsRichText(values: string[]): Array<{ text: { content: string } }> {
+  const text = toMultiSelectOptions(values).map((o) => o.name).join(", ")
+  const chunks: Array<{ text: { content: string } }> = []
+  for (let i = 0; i < text.length && chunks.length < 50; i += 1900) {
+    chunks.push({ text: { content: text.slice(i, i + 1900) } })
+  }
+  return chunks
 }
 
 // title + abstract + keywords 에서 Category multi_select 옵션을 추정.
@@ -557,7 +570,7 @@ export async function ingestScrapedArticles(
       existing.add(titleKey(s.title))
     } catch (err) {
       failed++
-      console.error(`[ingest] 실패: "${s.title}" —`, err instanceof Error ? err.message : err)
+      console.error(`[ingest] 실패: "${s.title}" —`, describeError(err))
       continue
     }
     await new Promise((r) => setTimeout(r, 350))
@@ -585,7 +598,7 @@ export async function ingestExternalArticles(
       if (a.doiUrl) existing.add(doiKey(a.doiUrl))
     } catch (err) {
       failed++
-      console.error(`[ingest-external] 실패: "${a.title}" —`, err instanceof Error ? err.message : err)
+      console.error(`[ingest-external] 실패: "${a.title}" —`, describeError(err))
       continue
     }
     await new Promise((r) => setTimeout(r, 350))
@@ -721,8 +734,8 @@ function buildArticleProperties(article: PubmedArticle, opts: { forCreate: boole
     const country = extractCountry(article.affiliations)
     if (country) properties["국가"] = { select: { name: country } }
   }
-  const keywordOpts = toMultiSelectOptions(article.keywords)
-  if (keywordOpts.length > 0) properties.Keywords = { multi_select: keywordOpts }
+  const keywordText = keywordsRichText(article.keywords)
+  if (keywordText.length > 0) properties.Keywords = { rich_text: keywordText }
   const categoryOpts = toMultiSelectOptions(derivedCategories)
   if (categoryOpts.length > 0) properties.Category = { multi_select: categoryOpts }
 
@@ -809,7 +822,7 @@ async function loadRowsWithFieldStatus(databaseId: string): Promise<ExistingRow[
       }>
       const pmid = props.PMID?.rich_text?.[0]?.plain_text ?? ""
       const hasAbstract = (props.Abstract?.rich_text?.length ?? 0) > 0
-      const hasKeywords = (props.Keywords?.multi_select?.length ?? 0) > 0
+      const hasKeywords = (props.Keywords?.rich_text?.length ?? 0) > 0
       const hasAffiliations = (props.Affiliations?.rich_text?.length ?? 0) > 0
       const hasVol = (props.Vol?.rich_text?.length ?? 0) > 0
       const hasIssue = (props.Issue?.rich_text?.length ?? 0) > 0
@@ -1114,7 +1127,7 @@ async function loadRowsForDoiBackfill(databaseId: string): Promise<DoiRow[]> {
       const doi = (props.DOI?.url ?? "").trim()
       if (pmid || !doi) continue
       const hasAbstract = (props.Abstract?.rich_text?.length ?? 0) > 0
-      const hasKeywords = (props.Keywords?.multi_select?.length ?? 0) > 0
+      const hasKeywords = (props.Keywords?.rich_text?.length ?? 0) > 0
       const hasAffiliations = (props.Affiliations?.rich_text?.length ?? 0) > 0
       const hasVol = (props.Vol?.rich_text?.length ?? 0) > 0
       const hasIssue = (props.Issue?.rich_text?.length ?? 0) > 0
@@ -1295,8 +1308,8 @@ function buildBackfillPatch(article: PubmedArticle, row: ExistingRow): Record<st
     patch.Abstract = { rich_text: [{ text: { content: article.abstract.slice(0, 1900) } }] }
   }
   if (!row.hasKeywords) {
-    const keywordOpts = toMultiSelectOptions(article.keywords)
-    if (keywordOpts.length > 0) patch.Keywords = { multi_select: keywordOpts }
+    const keywordText = keywordsRichText(article.keywords)
+    if (keywordText.length > 0) patch.Keywords = { rich_text: keywordText }
   }
   if (!row.hasAffiliations && article.affiliations) {
     patch.Affiliations = { rich_text: [{ text: { content: article.affiliations } }] }

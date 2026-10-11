@@ -10,7 +10,7 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import { searchPubmedByTerm, fetchPubmedArticles, titleKey, ingestExternalArticles } from "../../lib/journal-alert/pipeline"
 import { alertSubject, alertWrap, articleItem, articleList, escHtml } from "../../lib/journal-alert/mailTemplate"
-import { notionEnv } from "../../lib/notion/client"
+import { notionEnv, describeError } from "../../lib/notion/client"
 import { passesTopicRadarGate, resolveGroqModel } from "./topicRadarPolicy"
 
 const DRY = process.env.DRY_RUN === "1"
@@ -203,7 +203,7 @@ async function main() {
     console.log(`[radar] Notion 적재: 생성 ${ing.created} · 중복스킵 ${ing.skipped} · 실패 ${ing.failed}`)
   } catch (e) {
     // 적재가 실패해도 메일은 나가야 한다 — 알림이 더 중요하다.
-    console.error("[radar] Notion 적재 실패(메일은 계속):", e instanceof Error ? e.message : e)
+    console.error("[radar] Notion 적재 실패(메일은 계속):", describeError(e))
   }
 
   const clean = (s?: string) => (s || "").replace(/\\n/g, "").replace(/["\r\n]/g, "").trim()

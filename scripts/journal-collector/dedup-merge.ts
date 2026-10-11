@@ -41,10 +41,9 @@ async function notion(path: string, init: RequestInit): Promise<any> {
 
 function loadProps(p: any) {
   const rt = (x: any) => (x?.rich_text ?? []).map((t: any) => t.plain_text).join("")
-  const ms = (x: any) => (x?.multi_select ?? []).length
   const title = (p.Title?.title ?? p.Name?.title ?? []).map((t: any) => t.plain_text).join("")
   const abstract = rt(p.Abstract).length > 0
-  const keywords = ms(p.Keywords) > 0
+  const keywords = rt(p.Keywords).length > 0
   const affiliations = rt(p.Affiliations).length > 0
   const pmid = rt(p.PMID)
   const alerted = p.Alerted?.checkbox === true

@@ -80,7 +80,8 @@ function toArticle(page: NotionPage): JournalArticle {
     read: p["읽음"]?.checkbox ?? false,
     alerted: p["Alerted"]?.checkbox ?? false,
     pmid: getText(p.PMID) || null,
-    keywords: getMultiSelect(p.Keywords),
+    // Keywords 는 ", " 구분 텍스트 칸(2026-10-11 multi_select 에서 전환 — pipeline.ts 참고)
+    keywords: getText(p.Keywords).split(",").map((k) => k.trim()).filter(Boolean),
     categories: getMultiSelect(p.Category),
     pub_type: p.Type?.select?.name ?? "",
     volume: getText(p.Vol),
