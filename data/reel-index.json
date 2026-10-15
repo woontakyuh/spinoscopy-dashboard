@@ -2,6 +2,188 @@
   "generatedAt": "2026-09-21",
   "reels": [
     {
+      "date": "2026-10-15",
+      "title": "라펠 라쏘는 앞꿈치로 밟는다",
+      "subtitle": "조준용 관장님 · 와이어 주짓수 동탄 · 도복",
+      "url": "https://www.dropbox.com/scl/fi/elgprvvtr1wa0qbfqfxza/2026-10-15_.mp4?rlkey=on0glxbut8m3zw0jqgojfk8nu&dl=0",
+      "cuts": [
+        {
+          "no": 1,
+          "title": "탑 · 대각선 뒤로, 무릎을 눕혀라",
+          "quote": "대각선 뒤로 와서 상대방 무릎이 —\n무릎과 허벅지 옆면이 땅에 닿게",
+          "pos": [
+            "lapel"
+          ],
+          "role": "top",
+          "phase": "escape",
+          "src": "IMG_1968",
+          "ss": 0,
+          "dur": 22
+        },
+        {
+          "no": 2,
+          "title": "탑 · 다리 빼기가 먼저가 아니다",
+          "quote": "이 다리를 빼내는 게 첫 번째가 아니라 허벅지 옆면이 땅에 닿게\n상체를 세우면 지금처럼 쉽게 뜯깁니다",
+          "pos": [
+            "lapel"
+          ],
+          "role": "top",
+          "phase": "escape",
+          "src": "IMG_1969",
+          "ss": 3,
+          "dur": 27
+        },
+        {
+          "no": 3,
+          "title": "탑 · 발목 누르고 상체 세우기",
+          "quote": "정강이 혹은 무릎으로 상대방 발목·정강이\n그대로 상체 세우면 그립을 뜯어낼 수가 있습니다",
+          "pos": [
+            "lapel"
+          ],
+          "role": "top",
+          "phase": "escape",
+          "src": "IMG_1968",
+          "ss": 58,
+          "dur": 16
+        },
+        {
+          "no": 4,
+          "title": "탑 · 따라오면 넘겨서 허벅지로 밀어",
+          "quote": "돌아올 때 상체부터 세워\n허벅지로 쭉 밀어내면서 뜯어 줄 수 있어요",
+          "pos": [
+            "lapel"
+          ],
+          "role": "top",
+          "phase": "escape",
+          "src": "IMG_1970",
+          "ss": 12,
+          "dur": 28
+        },
+        {
+          "no": 5,
+          "title": "바텀 · 깊이 넣으면 다리가 먹힌다",
+          "quote": "발바닥이 다 들어가는 게 아니라 안쪽 라펠을 잡아 준다\n이렇게 하면 빠졌을 때 내 다리가 자꾸 먹히잖아",
+          "pos": [
+            "lapel",
+            "worm"
+          ],
+          "role": "bottom",
+          "phase": "grip",
+          "src": "IMG_1976",
+          "ss": 0,
+          "dur": 23
+        },
+        {
+          "no": 6,
+          "title": "★ 뒤꿈치 말고 앞꿈치만",
+          "quote": "앞꿈치만요\n뒤꿈치가 들어가는 라쏘가 아니라 앞꿈치가 들어가는 거예요",
+          "pos": [
+            "lapel"
+          ],
+          "role": "bottom",
+          "phase": "grip",
+          "src": "IMG_1976",
+          "ss": 60,
+          "dur": 15
+        },
+        {
+          "no": 7,
+          "title": "넣으면 반칙, 밟으면 된다",
+          "quote": "발을 상대 도복 안에 넣으면 안 된다는 규칙이 있는데\n이건 밟았잖아 — 밟고 그냥 당긴 거야",
+          "pos": [
+            "lapel"
+          ],
+          "role": "bottom",
+          "phase": "grip",
+          "src": "IMG_1974",
+          "ss": 13,
+          "dur": 17
+        },
+        {
+          "no": 8,
+          "title": "발끝으로 계속 따라 밟는다",
+          "quote": "이쪽으로 패스해도 발끝으로 계속 닿아 봐야 되지\n패스가 마무리가 안 됩니다",
+          "pos": [
+            "lapel"
+          ],
+          "role": "bottom",
+          "phase": "maintain",
+          "src": "IMG_1974",
+          "ss": 44,
+          "dur": 20
+        },
+        {
+          "no": 9,
+          "title": "★ 들어오면 데라히바로 뒤를 막는다",
+          "quote": "들어오니까 그때 데라히바 — 다리 뒤로 못 빠지게\n내 다리 빼서 골반, 양쪽 다 아래로",
+          "pos": [
+            "lapel",
+            "dlr"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_1976",
+          "ss": 86,
+          "dur": 18
+        },
+        {
+          "no": 10,
+          "title": "다리를 엮으면 웜가드",
+          "quote": "데라히바까지 왔어\n내 다리랑 상대방 다리랑 다 엮어 주면 자연스럽게 웜가드",
+          "pos": [
+            "worm",
+            "dlr"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_1975",
+          "ss": 61,
+          "dur": 12
+        },
+        {
+          "no": 11,
+          "title": "허벅지로 밀고 팔꿈치 짚어 신투신",
+          "quote": "오른손 내 다리 사이로, 데라히바 빼 주고\n허벅지로 밀어내고 팔꿈치 짚으면서 신투신",
+          "pos": [
+            "worm"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_1975",
+          "ss": 118,
+          "dur": 13
+        },
+        {
+          "no": 12,
+          "title": "내 무릎이 상대 무릎보다 위",
+          "quote": "뒤를 차단했으니까 — 팔꿈치, 정강이, 무릎 꿇고\n내 무릎이 상대방 무릎보다 위에 있어야 백 잡기가 편합니다",
+          "pos": [
+            "worm",
+            "back_top"
+          ],
+          "role": "bottom",
+          "phase": "back",
+          "src": "IMG_1976",
+          "ss": 124,
+          "dur": 20
+        },
+        {
+          "no": 13,
+          "title": "오른쪽 어깨 → 백",
+          "quote": "다리 빼 주고 허벅지 아래로, 바꿔 잡아\n팔꿈치 → 무릎 꿇고 → 오른쪽 어깨 → 백",
+          "pos": [
+            "worm",
+            "back_top"
+          ],
+          "role": "bottom",
+          "phase": "back",
+          "src": "IMG_1976",
+          "ss": 180,
+          "dur": 22
+        }
+      ]
+    },
+    {
       "date": "2026-10-07",
       "title": "라쏘 2일차, 차기와 메레갈리",
       "subtitle": "변승현(퍼플) 대강 · 와이어 주짓수 동탄 · 도복",
@@ -1742,6 +1924,7 @@
     "butterfly": "더블훅 가드 (Butterfly Guard)",
     "closed": "클로즈 가드 (Closed Guard)",
     "dhg": "딥 하프 (Deep Half)",
+    "dlr": "DLR (De La Riva)",
     "fishnet": "피쉬넷 (Fishnet)",
     "frontheadlock": "프론트 헤드락 (Front Headlock)",
     "halfbutt": "하프 버터플라이 (Half Butterfly)",
@@ -1766,6 +1949,7 @@
     "triangle": "삼각 (Triangle)",
     "turtle_top": "터틀 공격 (Turtle (attacking))",
     "waiter": "웨이터 가드 (Waiter Guard)",
+    "worm": "웜 가드 (Worm Guard)",
     "xg": "X가드 (X Guard)"
   }
 }
