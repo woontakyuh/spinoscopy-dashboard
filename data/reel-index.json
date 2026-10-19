@@ -2,6 +2,119 @@
   "generatedAt": "2026-09-21",
   "reels": [
     {
+      "date": "2026-10-19",
+      "title": "스파이더 가드, 발등으로 백스텝을 막는다",
+      "subtitle": "와이어 주짓수 동탄 · 도복 · 안경 촬영",
+      "url": "https://www.dropbox.com/scl/fi/1p79b0w8r9oj5pfq95ya6/2026-10-19_-_.mp4?rlkey=6qjybuuzws24962hqenutufbe&dl=0",
+      "cuts": [
+        {
+          "no": 1,
+          "title": "소매는 뒤집어, 손바닥은 하늘로",
+          "quote": "소매 안으로 엄지 잠깐 넣고 뒤집어 잡아 줄 거예요\n손등 쪽 깃을 잡고 내 손바닥이 하늘로",
+          "pos": [
+            "spider"
+          ],
+          "role": "bottom",
+          "phase": "grip",
+          "src": "video-2943_singular_display",
+          "ss": 0,
+          "dur": 22
+        },
+        {
+          "no": 2,
+          "title": "발 아치로 이두, 팔꿈치는 내 몸에",
+          "quote": "앞꿈치로만, 뒤꿈치로 밟지 말고 발 아치로\n몸 쪽으로 당기는 게 아니라 팔꿈치를 내 몸에 붙여",
+          "pos": [
+            "spider"
+          ],
+          "role": "bottom",
+          "phase": "grip",
+          "src": "video-2943_singular_display",
+          "ss": 30,
+          "dur": 28
+        },
+        {
+          "no": 3,
+          "title": "빠지면 힙 슬라이드로 다리 살리기",
+          "quote": "상대가 뒤로 빠질 때 다리가 떨어져 — 사이드 스텝하면 넘어가\n왼손으로 밀어내고 힙 슬라이드, 다리 살려 주기",
+          "pos": [
+            "spider"
+          ],
+          "role": "bottom",
+          "phase": "maintain",
+          "src": "video-2949_singular_display",
+          "ss": 26,
+          "dur": 26
+        },
+        {
+          "no": 4,
+          "title": "차는 방향은 배꼽·골반",
+          "quote": "얼굴·천장 쪽으로 차면 날아갈 거예요\n배꼽 쪽, 상대 골반 쪽을 향해서",
+          "pos": [
+            "spider"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "video-2854_singular_display",
+          "ss": 6,
+          "dur": 20
+        },
+        {
+          "no": 5,
+          "title": "★ 발은 엉덩이 가까이 짚고 차기",
+          "quote": "스파이더 잘 쓰는 사람들 얘기 들어 보니 엉덩이 가까이 짚는다고\n멀면 세게 찰 힘이 안 나와 — 엉덩이 가까이 짚고 빵",
+          "pos": [
+            "spider"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "video-2961_singular_display",
+          "ss": 15,
+          "dur": 30
+        },
+        {
+          "no": 6,
+          "title": "★★ DLR·바지 밑단·발등을 힙에",
+          "quote": "데라히바 → 바지 밑단 → 엉덩이 들어서 내 발등을 상대 힙에\n그럼 백스텝 못 해요, 하더라도 무조건 스윕으로",
+          "pos": [
+            "spider",
+            "dlr"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "video-2886_singular_display",
+          "ss": 0,
+          "dur": 30
+        },
+        {
+          "no": 7,
+          "title": "★ 밀지 말고 당겨서 들어라",
+          "quote": "흔들고 밟고 → 상대방이 무릎을 꿇어 줄 거야\n밀면서 일어나지 말고 당겨서 들어 줘야 돼요 — 마음이 급해지면 안 돼",
+          "pos": [
+            "dlr"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "video-2878_singular_display",
+          "ss": 2,
+          "dur": 30
+        },
+        {
+          "no": 8,
+          "title": "탑 · 기대고, 빠지며 발 떨어뜨리고 사이드 스텝",
+          "quote": "자세를 낮춰서 상대방 가슴 쪽을\n밀 때 뒤로 빠지면서 발바닥을 땅에 → 사이드 스텝해서 패스",
+          "pos": [
+            "spider"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "video-2901_singular_display",
+          "ss": 24,
+          "dur": 16
+        }
+      ]
+    },
+    {
       "date": "2026-10-18",
       "title": "관장님 전국체전 은메달",
       "subtitle": "제107회 전국체육대회 주짓수 · 남자일반부 -69kg · 조준용(경기)",
@@ -2098,6 +2211,7 @@
     "situp": "싯업 가드 (Sit-up Guard)",
     "slx": "싱글렉 X (Single Leg X)",
     "smash": "스매시 (Smash Pass)",
+    "spider": "스파이더 (Spider Guard)",
     "standing": "스탠딩 (Standing)",
     "topbolo": "탑볼로 (Top Bolo)",
     "triangle": "삼각 (Triangle)",
