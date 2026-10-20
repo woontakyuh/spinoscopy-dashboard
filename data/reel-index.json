@@ -2,6 +2,136 @@
   "generatedAt": "2026-09-21",
   "reels": [
     {
+      "date": "2026-10-20",
+      "title": "스파이더는 거리, 그립은 대각선",
+      "subtitle": "조준용 관장님 · 와이어 주짓수 동탄 · 도복",
+      "url": "https://www.dropbox.com/scl/fi/1jgx9ivs5if86wlgf5bsv/2026-10-20_.mp4?rlkey=dx225my3atm2m2fbo6jm4z00w&dl=0",
+      "cuts": [
+        {
+          "no": 1,
+          "title": "밟으면서 겨드랑이, 어깨, 삼각",
+          "quote": "너무 집중하지 않고 밟아 주면서\n상대방 겨드랑이, 어깨, 그다음 트라이앵글",
+          "pos": [
+            "spider",
+            "triangle"
+          ],
+          "role": "bottom",
+          "phase": "sub",
+          "src": "IMG_2170",
+          "ss": 46,
+          "dur": 20
+        },
+        {
+          "no": 2,
+          "title": "★ 문제는 너무 가까웠던 것",
+          "quote": "그냥 이렇게 가까웠던 거야 — 가까울 때 저희는 스파이더 안 합니다\n거리가 긴 상태에서 진짜로 스윕을 할 만한 상황이어야",
+          "pos": [
+            "spider"
+          ],
+          "role": "bottom",
+          "phase": "maintain",
+          "src": "IMG_2171",
+          "ss": 0,
+          "dur": 24
+        },
+        {
+          "no": 3,
+          "title": "멀면 삼각 위협, 그래서 가까이 온다",
+          "quote": "다리가 멀면 밟고 언제든지 트라이앵글에 오를 수 있어\n상대가 가까이 올 수밖에 없어",
+          "pos": [
+            "spider",
+            "triangle"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_2171",
+          "ss": 36,
+          "dur": 20
+        },
+        {
+          "no": 4,
+          "title": "뒤꿈치를 엉덩이 가까이, 끌어와 싱글X",
+          "quote": "끌고 오기 위해 다리를 딱 짚어 — 뒤꿈치가 내 엉덩이에 가까이\n그래야 오른발로 강하게 끌어올 수 있고 싱글X",
+          "pos": [
+            "spider",
+            "slx"
+          ],
+          "role": "bottom",
+          "phase": "entry",
+          "src": "IMG_2171",
+          "ss": 64,
+          "dur": 22
+        },
+        {
+          "no": 5,
+          "title": "무릎 꿇으면 발등, 무릎, 기울이기",
+          "quote": "무릎 꿇으면 다시 스파이더로 복귀\n발등으로 먼저 띄우고, 무릎 펴서 띄우고, 마지막에 기울여서 스윕",
+          "pos": [
+            "spider"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_2171",
+          "ss": 106,
+          "dur": 20
+        },
+        {
+          "no": 6,
+          "title": "다리는 허벅지 말고 발목 가깝게 든다",
+          "quote": "결국 원하는 건 이 다리를 드는 건데\n허벅지가 아니라 최대한 발목에 가깝게 들어야 쉬워요",
+          "pos": [
+            "slx"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_2171",
+          "ss": 180,
+          "dur": 22
+        },
+        {
+          "no": 7,
+          "title": "★★ 바지 밑단 + 소매, 대각선",
+          "quote": "바지 밑단과 소매를 대각선으로 잡았으면\n거의 무조건 넘길 수 있다고 생각하시면 돼요",
+          "pos": [
+            "spider",
+            "slx"
+          ],
+          "role": "bottom",
+          "phase": "grip",
+          "src": "IMG_2172",
+          "ss": 18,
+          "dur": 24
+        },
+        {
+          "no": 8,
+          "title": "무릎 꿇으면 양 끝을 컨트롤",
+          "quote": "엉덩이가 무거워졌으니까 상대방 양쪽 끝을 컨트롤\n이두·팔오금, 내 발목으로 상대 발목, 정강이로 정강이",
+          "pos": [
+            "spider"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_2172",
+          "ss": 78,
+          "dur": 26
+        },
+        {
+          "no": 9,
+          "title": "뒤로만 가면 일어나 다리를 든다",
+          "quote": "상대 뒤로 가서 빨리 일어나\n손이 중요한 게 아니라 다리가 중요 — 잘 들고 잠가 주면 넘어지니까",
+          "pos": [
+            "slx",
+            "standing"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_2173",
+          "ss": 34,
+          "dur": 26
+        }
+      ]
+    },
+    {
       "date": "2026-10-19",
       "title": "스파이더 가드, 발등으로 백스텝을 막는다",
       "subtitle": "와이어 주짓수 동탄 · 도복 · 안경 촬영",
