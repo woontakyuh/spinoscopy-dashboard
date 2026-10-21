@@ -2,6 +2,124 @@
   "generatedAt": "2026-09-21",
   "reels": [
     {
+      "date": "2026-10-21",
+      "title": "노기, 넘기고 마주 보고 암바 또는 백",
+      "subtitle": "조준용 관장님 · 와이어 주짓수 동탄 · 노기",
+      "url": "https://www.dropbox.com/scl/fi/6q2bxmtyepy9vkvknl4eo/2026-10-21_.mp4?rlkey=pmj4r5bgsa4jnsoos2p9ky4dm&dl=0",
+      "cuts": [
+        {
+          "no": 1,
+          "title": "먼 손목 잡고 누우며 오금을 찬다",
+          "quote": "여기 잡지 말고 상대방 반대쪽 손목\n누우면서 오른발로 엉덩이 혹은 오금을 찬다 → 암바",
+          "pos": [
+            "standing",
+            "armb"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_2194",
+          "ss": 0,
+          "dur": 28
+        },
+        {
+          "no": 2,
+          "title": "넘기면 머리 돌며 올라타 겨드랑이",
+          "quote": "넘어뜨리고 빠르게 일어나서 상대 머리 돌면서 올라가\n겨드랑이 파 주는 것까지",
+          "pos": [
+            "standing",
+            "turtle_top"
+          ],
+          "role": "top",
+          "phase": "back",
+          "src": "IMG_2194",
+          "ss": 64,
+          "dur": 24
+        },
+        {
+          "no": 3,
+          "title": "머리 밀면 기무라가 보인다",
+          "quote": "상대방 머리를 밀어내면\n내 눈앞에 기무라가 너무 잘 보이죠",
+          "pos": [
+            "standing",
+            "kimura"
+          ],
+          "role": "top",
+          "phase": "grip",
+          "src": "IMG_2195",
+          "ss": 0,
+          "dur": 22
+        },
+        {
+          "no": 4,
+          "title": "주의 · 내가 먼저 바닥에 눕는다",
+          "quote": "실격이냐 아니냐는 내가 먼저 닿느냐, 상대 머리가 먼저 닿느냐\n그래서 살짝 왼쪽으로 먼저 누워",
+          "pos": [
+            "kimura"
+          ],
+          "role": "top",
+          "phase": "sub",
+          "src": "IMG_2195",
+          "ss": 22,
+          "dur": 26
+        },
+        {
+          "no": 5,
+          "title": "오금으로 손목 뜯고 가슴 누르기",
+          "quote": "내 오금·종아리로 상대 손목을 밀어 빵 뜯어\n옆구리나 배꼽이 아니라 가슴을 눌러",
+          "pos": [
+            "kimura"
+          ],
+          "role": "top",
+          "phase": "grip",
+          "src": "IMG_2195",
+          "ss": 96,
+          "dur": 28
+        },
+        {
+          "no": 6,
+          "title": "★ 무릎 옆구리, 왼발로 결정",
+          "quote": "오른 무릎을 옆구리에 가까이\n왼발이 머리 앞이면 암바, 옆구리를 감으면 백",
+          "pos": [
+            "armb",
+            "back_top"
+          ],
+          "role": "top",
+          "phase": "sub",
+          "src": "IMG_2196",
+          "ss": 23,
+          "dur": 26
+        },
+        {
+          "no": 7,
+          "title": "★ 두 다리 잡히면 머리 밀고 한 다리",
+          "quote": "머리를 밀어내면서 한 다리라도 먼저 빼\n이점을 내주는 거야 — 대신 내가 할 거 하는 거",
+          "pos": [
+            "hg",
+            "standing"
+          ],
+          "role": "bottom",
+          "phase": "escape",
+          "src": "IMG_2197",
+          "ss": 26,
+          "dur": 32
+        },
+        {
+          "no": 8,
+          "title": "머리는 바닥으로, 일어나서 기무라",
+          "quote": "머리를 바닥으로 밀어 — 힙 슬라이드, 무릎 꿇고 일어나\n일어나면 기무라, 스윕, 혹은 암바",
+          "pos": [
+            "hg",
+            "kimura"
+          ],
+          "role": "bottom",
+          "phase": "escape",
+          "src": "IMG_2197",
+          "ss": 88,
+          "dur": 30
+        }
+      ]
+    },
+    {
       "date": "2026-10-20",
       "title": "스파이더는 거리, 그립은 대각선",
       "subtitle": "조준용 관장님 · 와이어 주짓수 동탄 · 도복",
@@ -2316,6 +2434,7 @@
     }
   ],
   "positions": {
+    "armb": "암바 (Armbar)",
     "ashi": "아시가라미 (Ashi Garami)",
     "back_top": "백 컨트롤 (Back Control)",
     "butterfly": "더블훅 가드 (Butterfly Guard)",
