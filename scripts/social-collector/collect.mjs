@@ -36,7 +36,21 @@ const ACCOUNTS = {
     "darkest_alex",
     "aimaster3658",
   ],
-  x: ["karpathy"],
+  x: [
+    "karpathy",
+    // 공식 발표
+    "AnthropicAI",
+    "OpenAI",
+    "GoogleDeepMind",
+    "claudeai",
+    // 개발 도구
+    "bcherny",
+    "swyx",
+    "simonw",
+    // 업계 해설
+    "emollick",
+    "DrJimFan",
+  ],
 }
 
 function log(...a) {

@@ -21,7 +21,7 @@ AI Radar 소셜 컬럼용 수집기. **Aside CLI(`aside repl`)** 로 X·Threads 
 
 ## 수집 대상
 
-`collect.mjs`의 `ACCOUNTS` — threads: `choi.openai`, `unclejobs.ai` / x: `karpathy`.
+`collect.mjs`의 `ACCOUNTS` — threads 7개(한국어 실무자) / x 10개(karpathy + 공식 발표 AnthropicAI·OpenAI·GoogleDeepMind·claudeai, 개발 도구 bcherny·swyx·simonw, 업계 해설 emollick·DrJimFan).
 추가 시 여기 + `lib/radar/socialSources.ts`에 한 줄.
 
 ## 실행 / 테스트

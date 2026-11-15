@@ -18,6 +18,15 @@ export const SOCIAL_ACCOUNTS: SocialAccount[] = [
   { platform: "threads", account: "darkest_alex", lang: "ko", label: "Threads @darkest_alex" },
   { platform: "threads", account: "aimaster3658", lang: "ko", label: "Threads @aimaster3658" },
   { platform: "x", account: "karpathy", lang: "en", label: "X @karpathy" },
+  { platform: "x", account: "AnthropicAI", lang: "en", label: "X @AnthropicAI" },
+  { platform: "x", account: "OpenAI", lang: "en", label: "X @OpenAI" },
+  { platform: "x", account: "GoogleDeepMind", lang: "en", label: "X @GoogleDeepMind" },
+  { platform: "x", account: "claudeai", lang: "en", label: "X @claudeai" },
+  { platform: "x", account: "bcherny", lang: "en", label: "X @bcherny" },
+  { platform: "x", account: "swyx", lang: "en", label: "X @swyx" },
+  { platform: "x", account: "simonw", lang: "en", label: "X @simonw" },
+  { platform: "x", account: "emollick", lang: "en", label: "X @emollick" },
+  { platform: "x", account: "DrJimFan", lang: "en", label: "X @DrJimFan" },
 ]
 
 // 계정 언어. 모르는 계정은 영문 가정(한글 요약 버튼 노출).
