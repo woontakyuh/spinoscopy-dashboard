@@ -2,6 +2,123 @@
   "generatedAt": "2026-09-21",
   "reels": [
     {
+      "date": "2026-11-16",
+      "title": "시합 주간, 바지 잡고 뒤로 빠지며 패스",
+      "subtitle": "조준용 관장님 · 와이어 주짓수 동탄 · 도복",
+      "url": "https://www.dropbox.com/scl/fi/mlnhsc5k71gjje2jsf4k9/2026-11-16_.mp4?rlkey=3j0o9wcwfu55t4zxq94ymxg2x&dl=0",
+      "cuts": [
+        {
+          "no": 1,
+          "title": "바지 잡고 뒤로 빠지며 일어난다",
+          "quote": "앞으로 일어나는 게 아니라 뒤로 빠지듯이 일어나서\n그래야 상대가 다리를 올리기가 불편해",
+          "pos": [
+            "halfpass",
+            "open"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_0218",
+          "ss": 10,
+          "dur": 26
+        },
+        {
+          "no": 2,
+          "title": "체중은 살짝, 사이드 스텝",
+          "quote": "너무 체중을 실으면 암드래그로 카운터\n살짝만 얹고 사이드 스텝, 사이드 스텝 → 남북까지",
+          "pos": [
+            "open",
+            "side_top"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_0218",
+          "ss": 38,
+          "dur": 20
+        },
+        {
+          "no": 3,
+          "title": "가까운 다리 먼저, 뜯으면 반대",
+          "quote": "가까운 다리 먼저 잡아 줘 → 상대가 뜯으려고 하면 반대쪽\n안 뜯고 가만히 있으면 그대로 가 주면 돼요",
+          "pos": [
+            "open"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_0219",
+          "ss": 6,
+          "dur": 24
+        },
+        {
+          "no": 4,
+          "title": "★ 무릎으로 상대 골반을 막는다",
+          "quote": "암드래그, 암바, 스트랭글, 오모플라타 — 골반을 쓰지 못하게\n내 무릎을 얹어 놔야 아무것도 안 걸려요",
+          "pos": [
+            "kshield",
+            "halfpass"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_0220",
+          "ss": 0,
+          "dur": 30
+        },
+        {
+          "no": 5,
+          "title": "깃 당기면 무릎은 배꼽, 쪼그려 뜯기",
+          "quote": "두 손으로 할 땐 내 무릎을 배꼽 위에 얹어서 뜯어야 돼\n생각보다 더 뒤에 — 거의 쪼그려 앉는다는 생각",
+          "pos": [
+            "halfpass"
+          ],
+          "role": "top",
+          "phase": "grip",
+          "src": "IMG_0221",
+          "ss": 42,
+          "dur": 28
+        },
+        {
+          "no": 6,
+          "title": "니슬라이드로 혼란, 바깥으로 패스",
+          "quote": "팔꿈치 절대 벌어지지 않게\n니슬라이드로 한 번 혼란 → 바깥쪽으로 돌아가면 쉽게 패스",
+          "pos": [
+            "halfpass"
+          ],
+          "role": "top",
+          "phase": "pass",
+          "src": "IMG_0221",
+          "ss": 86,
+          "dur": 30
+        },
+        {
+          "no": 7,
+          "title": "바텀 시합용 하나: DLR → 띄워 싱글X",
+          "quote": "바지 밑단 잡는 가드 중에 DLR만큼 편한 게 없습니다\n무조건 한번 띄워 → 다리 집어넣고 싱글X → 결국 원하는 건 일어나는 거",
+          "pos": [
+            "dlr",
+            "slx"
+          ],
+          "role": "bottom",
+          "phase": "sweep",
+          "src": "IMG_0222",
+          "ss": 9,
+          "dur": 40
+        },
+        {
+          "no": 8,
+          "title": "★ 더블 팬츠 잡을 때까지 급하지 마",
+          "quote": "깃보다 더 좋은 거 더블 팬츠 — 양쪽 다 잡으면 무조건 스윕\n위에서 유지할 수 있을 때, 패스할 수 있을 때 일어나세요",
+          "pos": [
+            "open",
+            "dlr"
+          ],
+          "role": "bottom",
+          "phase": "grip",
+          "src": "IMG_0223",
+          "ss": 18,
+          "dur": 36
+        }
+      ]
+    },
+    {
       "date": "2026-10-21",
       "title": "노기, 넘기고 마주 보고 암바 또는 백",
       "subtitle": "조준용 관장님 · 와이어 주짓수 동탄 · 노기",
@@ -2454,6 +2571,7 @@
     "lasso": "라쏘 (Lasso Guard)",
     "legdrag": "레그드래그 (Leg Drag)",
     "omoplata": "오모플라타 (Omoplata)",
+    "open": "오픈 가드 (Open Guard)",
     "qguard": "쿼터 가드 (Quarter Guard)",
     "rdlr": "리버스 DLR (Reverse DLR)",
     "side_top": "사이드 컨트롤 (Side Control)",
